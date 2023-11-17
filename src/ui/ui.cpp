@@ -11,7 +11,6 @@
 
 // TO REMOVE AFTER TEST
 #include "input/win_mouse.h"
-#include "checkBox.h"
 
 UI::UI(const Device &device, const CommandPool& cmdPool, const VkRenderPass& renderPass)
     : device(device)
