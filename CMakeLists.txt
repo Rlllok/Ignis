@@ -22,7 +22,7 @@ target_sources(ignis PRIVATE ${IMGUI_SOURCE})
 
 find_package(Vulkan REQUIRED OPTIONAL_COMPONENTS shaderc_combined)
 
-target_link_libraries(ignis Vulkan::Vulkan Vulkan::shaderc_combined)
+target_link_libraries(ignis PRIVATE Vulkan::Vulkan Vulkan::shaderc_combined)
 
 target_compile_definitions(ignis PRIVATE VK_USE_PLATFORM_WIN32_KHR)
 target_compile_definitions(ignis PRIVATE TINYOBJLOADER_IMPLEMENTATION)
