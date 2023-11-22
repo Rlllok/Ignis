@@ -29,4 +29,4 @@ target_compile_definitions(ignis PRIVATE STB_IMAGE_IMPLEMENTATION)
 target_compile_definitions(ignis PRIVATE GLM_FORCE_RADIANS)
 target_compile_definitions(ignis PRIVATE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
-add_subdirectory(src)
+add_subdirectory(src/ignis)
