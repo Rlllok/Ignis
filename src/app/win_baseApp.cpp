@@ -133,3 +133,9 @@ LRESULT IBaseApp::windowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
+
+void IBaseApp::showWindow()
+{
+    ShowWindow(windowHandle, SW_SHOW);
+    UpdateWindow(windowHandle);
+}

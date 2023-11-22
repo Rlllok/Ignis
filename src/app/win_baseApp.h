@@ -50,4 +50,5 @@ protected:
 
     virtual void draw(double deltaTime) = 0;
     virtual void onClose() = 0;
+    virtual void showWindow();
 };
