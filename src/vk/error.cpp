@@ -1,8 +1,10 @@
 #include "error.h"
 
-VkError::VkError(VkResult result, const std::string &message)
-    : result(result)
-    , std::runtime_error(message)
+#include <iostream>
+
+VkError::VkError(VkResult result, const std::string& message)
+    : std::runtime_error(message)
+    , result(result)
 {
     errorMessage = std::string() + "VkError: " + std::runtime_error::what() + ".";
 }
