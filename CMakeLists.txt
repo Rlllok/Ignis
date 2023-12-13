@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 add_library(ignis)
+target_include_directories(ignis PUBLIC src)
 
 target_include_directories(ignis PRIVATE external/tinyglTF)
 target_include_directories(ignis PRIVATE external/tinyObj)

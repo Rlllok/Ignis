@@ -5,12 +5,12 @@
 
 #include <imgui.h>
 
-#include "vk/error.h"
-#include "vk/vulkanUtils.hpp"
-#include "vk/realTimeShader.h"
+#include "ignis/vk/error.h"
+#include "ignis/vk/vulkanUtils.hpp"
+#include "ignis/vk/realTimeShader.h"
 
 // TO REMOVE AFTER TEST
-#include "input/win_mouse.h"
+#include "ignis/input/win_mouse.h"
 
 UI::UI(const Device &device, const CommandPool& cmdPool, const VkRenderPass& renderPass)
     : device(device)

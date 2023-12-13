@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include "input/win_keyboard.h"
-#include "input/win_mouse.h"
+#include "ignis/input/win_keyboard.h"
+#include "ignis/input/win_mouse.h"
 
 bool IBaseApp::initWindow(const char* name, int width, int height)
 {

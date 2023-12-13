@@ -2,9 +2,9 @@
 
 #include <memory>
 
-#include "vk/device.h"
-#include "vk/commandPool.h"
-#include "vk/buffer.h"
+#include "ignis/vk/device.h"
+#include "ignis/vk/commandPool.h"
+#include "ignis/vk/buffer.h"
 
 #include "glm/glm.hpp"
 
