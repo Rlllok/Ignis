@@ -3,6 +3,7 @@
 #include <array>
 #include <iostream>
 
+#include "pipelineState.h"
 #include "realTimeShader.h"
 #include "error.h"
 
@@ -64,78 +65,25 @@ bool GraphicsPipeline::createPipeline()
     };
 
     // Vertex Input State
-    VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {};
-    vertexInputStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputStateInfo.vertexBindingDescriptionCount = 0;
-    vertexInputStateInfo.pVertexBindingDescriptions = nullptr;
-    vertexInputStateInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputStateInfo.pVertexAttributeDescriptions = nullptr;
+    VertexInputState vertexInputState;
 
     // Input Assembly State
-    VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo = {};
-    inputAssemblyStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssemblyStateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssemblyStateInfo.primitiveRestartEnable = VK_FALSE;
+    InputAssemblyState InputAssemblyState;
 
     // Viewport State
-    VkViewport viewport = {};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.height = swapchain.getExtent().height;
-    viewport.width = swapchain.getExtent().width;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor = {};
-    scissor.offset = {0, 0};
-    scissor.extent = swapchain.getExtent();
-
-    VkPipelineViewportStateCreateInfo viewportStateInfo = {};
-    viewportStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportStateInfo.viewportCount = 1;
-    viewportStateInfo.pViewports = &viewport;
-    viewportStateInfo.scissorCount = 1;
-    viewportStateInfo.pScissors = &scissor;
+    ViewportState viewportState(swapchain.getExtent().height, swapchain.getExtent().width);
 
     // Rasterization State
-    VkPipelineRasterizationStateCreateInfo rasterizationStateInfo = {};
-    rasterizationStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizationStateInfo.depthClampEnable = VK_FALSE;
-    rasterizationStateInfo.rasterizerDiscardEnable = VK_FALSE;
-    rasterizationStateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizationStateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rasterizationStateInfo.depthBiasEnable = VK_FALSE;
-    rasterizationStateInfo.lineWidth = 1.0f;
+    RasterizationState rasterizationState;
 
     // Multisample State
-    VkPipelineMultisampleStateCreateInfo multisampleStateInfo = {};
-    multisampleStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampleStateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampleStateInfo.sampleShadingEnable = VK_FALSE;
-    multisampleStateInfo.minSampleShading = 0.0f;
-    multisampleStateInfo.pSampleMask = nullptr;
-    multisampleStateInfo.alphaToCoverageEnable = VK_FALSE;
-    multisampleStateInfo.alphaToOneEnable = VK_FALSE;
+    MultisampleState multisampleState;
 
     // Depth-Stencil State
-    VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {};
-    depthStencilStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencilStateInfo.depthTestEnable = VK_FALSE;
-    depthStencilStateInfo.depthWriteEnable = VK_FALSE;
-    depthStencilStateInfo.depthBoundsTestEnable = VK_FALSE;
-    depthStencilStateInfo.stencilTestEnable = VK_FALSE;
+    DepthStencilState depthStencilState;
 
     // Color Blend State
-    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT| VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
-        | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {};
-    colorBlendStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlendStateInfo.logicOpEnable = VK_FALSE;
-    colorBlendStateInfo.attachmentCount = 1;
-    colorBlendStateInfo.pAttachments = &colorBlendAttachment;
+    ColorBlendState colorBlendState;
 
     // Pipeline Layout
     struct PushConstant
@@ -195,31 +143,22 @@ bool GraphicsPipeline::createPipeline()
     VK_CHECK_ERROR(vkCreateRenderPass(device.getHandle(), &renderPassInfo, nullptr, &renderPass), "Cannot create Redner Pass");
 
     // Dynamic State
-    std::vector<VkDynamicState> dynamicStates = 
-    {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicStateInfo = {};
-    dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicStateInfo.pDynamicStates = dynamicStates.data();
+    DynamicState dynamicState;
 
     // Pipeline creation
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = static_cast<uint32_t>(stages.size());
     pipelineInfo.pStages = stages.data();
-    pipelineInfo.pVertexInputState = &vertexInputStateInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssemblyStateInfo;
+    pipelineInfo.pVertexInputState = &vertexInputState.stateInfo;
+    pipelineInfo.pInputAssemblyState = &InputAssemblyState.stateInfo;
     pipelineInfo.pTessellationState = nullptr;
-    pipelineInfo.pViewportState = &viewportStateInfo;
-    pipelineInfo.pRasterizationState = &rasterizationStateInfo;
-    pipelineInfo.pMultisampleState = &multisampleStateInfo;
-    pipelineInfo.pDepthStencilState = &depthStencilStateInfo;
-    pipelineInfo.pColorBlendState = &colorBlendStateInfo;
-    pipelineInfo.pDynamicState = &dynamicStateInfo;
+    pipelineInfo.pViewportState = &viewportState.stateInfo;
+    pipelineInfo.pRasterizationState = &rasterizationState.stateInfo;
+    pipelineInfo.pMultisampleState = &multisampleState.stateInfo;
+    pipelineInfo.pDepthStencilState = &depthStencilState.stateInfo;
+    pipelineInfo.pColorBlendState = &colorBlendState.stateInfo;
+    pipelineInfo.pDynamicState = &dynamicState.stateInfo;
     pipelineInfo.layout = layout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;
