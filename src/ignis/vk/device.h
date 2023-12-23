@@ -22,6 +22,7 @@ public:
 public:
     const VkDevice&         getHandle() const { return device; }
     const VkPhysicalDevice& getGPU() const { return gpu; }
+    void                    getGraphicsQueue(VkQueue* outQueue) const { return vkGetDeviceQueue(device, graphicsQueueIndex, 0, outQueue); }
     uint32_t                getGraphicsQueueIndex() const { return graphicsQueueIndex; }
 
 private:

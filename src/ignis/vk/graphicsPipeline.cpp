@@ -22,6 +22,11 @@ GraphicsPipeline::~GraphicsPipeline()
     vkDestroyPipelineCache(device.getHandle(), pipelineCache, nullptr);
 }
 
+void GraphicsPipeline::bindPipeline(const VkCommandBuffer& cmdBuffer) const
+{
+    vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+}
+
 bool GraphicsPipeline::recreatePipeline()
 {
     vkDeviceWaitIdle(device.getHandle());
@@ -142,9 +147,6 @@ bool GraphicsPipeline::createPipeline()
 
     VK_CHECK_ERROR(vkCreateRenderPass(device.getHandle(), &renderPassInfo, nullptr, &renderPass), "Cannot create Redner Pass");
 
-    // Dynamic State
-    DynamicState dynamicState;
-
     // Pipeline creation
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -158,7 +160,7 @@ bool GraphicsPipeline::createPipeline()
     pipelineInfo.pMultisampleState = &multisampleState.stateInfo;
     pipelineInfo.pDepthStencilState = &depthStencilState.stateInfo;
     pipelineInfo.pColorBlendState = &colorBlendState.stateInfo;
-    pipelineInfo.pDynamicState = &dynamicState.stateInfo;
+    pipelineInfo.pDynamicState = nullptr;
     pipelineInfo.layout = layout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;

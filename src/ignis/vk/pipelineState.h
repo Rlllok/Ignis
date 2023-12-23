@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <vulkan/vulkan.h>
 
 class VertexInputState
@@ -36,6 +38,9 @@ protected:
 
 private:
     VkPipelineViewportStateCreateInfo stateInfo;
+
+    VkViewport  viewport;
+    VkRect2D    scissor;
 };
 
 class RasterizationState
@@ -84,6 +89,8 @@ protected:
 
 private:
     VkPipelineColorBlendStateCreateInfo stateInfo;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment;
 };
 
 class DynamicState
@@ -96,4 +103,6 @@ protected:
 
 private:
     VkPipelineDynamicStateCreateInfo stateInfo;
+
+    std::vector<VkDynamicState> dynamicStates;
 };

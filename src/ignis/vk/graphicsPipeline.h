@@ -26,6 +26,8 @@ public:
     VkRenderPass                getRenderPass()     const { return renderPass; }
     VkPipelineLayout            getPipelineLayout() const { return layout; }
 
+    void bindPipeline(const VkCommandBuffer& cmdBuffer) const;
+
 public:
     bool recreatePipeline();
 

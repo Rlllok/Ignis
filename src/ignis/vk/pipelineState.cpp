@@ -1,5 +1,6 @@
 #include "pipelineState.h"
 
+#include <iostream>
 #include <vector>
 
 VertexInputState::VertexInputState()
@@ -22,8 +23,9 @@ InputAssemblyState::InputAssemblyState()
 
 ViewportState::ViewportState(uint32_t height, uint32_t width)
     : stateInfo({})
+    , viewport({})
+    , scissor({})
 {
-    VkViewport viewport = {};
     viewport.x = 0;
     viewport.y = 0;
     viewport.height = height;
@@ -31,7 +33,6 @@ ViewportState::ViewportState(uint32_t height, uint32_t width)
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    VkRect2D scissor = {};
     scissor.offset = {0, 0};
     scissor.extent.height = height;
     scissor.extent.width = width;
@@ -79,8 +80,8 @@ DepthStencilState::DepthStencilState()
 
 ColorBlendState::ColorBlendState()
     : stateInfo({})
+    , colorBlendAttachment({})
 {
-    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT| VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
         | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_FALSE;
@@ -93,8 +94,9 @@ ColorBlendState::ColorBlendState()
 
 DynamicState::DynamicState()
     : stateInfo({})
+    , dynamicStates(0)
 {
-    std::vector<VkDynamicState> dynamicStates = 
+    dynamicStates = 
     {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR

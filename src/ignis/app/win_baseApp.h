@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <vector>
 
 #include <vulkan/vulkan.h>
@@ -9,17 +8,19 @@
 #include "ignis/vk/instance.h"
 #include "ignis/vk/device.h"
 #include "ignis/vk/swapchain.h"
-#include "ignis/vk/graphicsPipeline.h"
 #include "ignis/vk/commandPool.h"
-
+#include "ignis/window/win_window.h"
 #include "ignis/utils/win_timer.h"
 
 class IBaseApp
 {
 public:
     IBaseApp() = default;
+
+    ~IBaseApp();
+
 public:
-    virtual bool initWindow(const char* name, int width, int height);
+    virtual void initWindow(const char* name, int width, int height);
     virtual void initVulkan() = 0;
 
     virtual void start() = 0;
@@ -27,23 +28,17 @@ public:
     virtual void resizeHandle(const int newWidth, const int newHeight) = 0;
     
 protected:
-    LPCSTR      name = "DefaultName";
-    WNDCLASS    windowClass = { 0 };
-    HINSTANCE   hInstance;
-    HWND        windowHandle;
-
-    int width;
-    int height;
+    class Window* window = nullptr;
 
     WinTimer timer;
 
     bool bFinished = false;
     bool bMinimized = false;
 
-    std::unique_ptr<Instance>           instance = nullptr;
-    std::unique_ptr<Device>             device = nullptr;
-    std::unique_ptr<Swapchain>          swapchain = nullptr;
-    std::unique_ptr<CommandPool>        commandPool = nullptr;
+    Instance*           instance = nullptr;
+    Device*             device = nullptr;
+    Swapchain*          swapchain = nullptr;
+    CommandPool*        commandPool = nullptr;
 
     std::vector<VkFramebuffer> swapchainFramebuffers;
 
@@ -52,5 +47,6 @@ protected:
 
     virtual void draw(double deltaTime) = 0;
     virtual void onClose() = 0;
-    virtual void showWindow();
+    
+    void showWindow();
 };
