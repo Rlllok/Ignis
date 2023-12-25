@@ -63,6 +63,8 @@ void Window::show()
 
 LRESULT Window::windowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    LRESULT result = 0;
+
     switch (uMsg)
     {
         // Keyboard input handle
@@ -72,9 +74,7 @@ LRESULT Window::windowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             bool wasKeyDown = (lParam & (1 << 30)) != 0;
 
             Keyboard::processInput(wParam, false, wasKeyDown, false);
-
-            return 0;
-        }
+        } break;
 
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
@@ -83,51 +83,48 @@ LRESULT Window::windowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             bool isKeyDown = (lParam & (1 << 31)) == 0;
 
             Keyboard::processInput(wParam, isKeyDown, false, !wasKeyDown && isKeyDown);
-
-            return 0;
-        }
+        } break;
         // End Keyboard input handle
 
         // Mouse input
         case WM_MOUSEMOVE:
         {
             Mouse::mouseMove(LOWORD(lParam), HIWORD(lParam));
-            break;
-        }
+        } break;
+        
         case WM_LBUTTONDOWN:
         {
             Mouse::leftInput(true, LOWORD(lParam), HIWORD(lParam));
-            break;
-        }
+        } break;
         
         case WM_LBUTTONUP:
         {
             Mouse::leftInput(false, LOWORD(lParam), HIWORD(lParam));
-            break;
-        }
+        } break;
         // End Mouse input handle
 
         case WM_SIZE:
         {
             int width = LOWORD(lParam);
             int height = HIWORD(lParam);
-
-            return 0;
-        }
+        } break;
 
         case WM_CLOSE:
         {
             DestroyWindow(hwnd);
-            return 0;
-        }
+        } break;
 
         case WM_DESTROY:
         {
             // pApp->onClose();
             PostQuitMessage(0);
-            return 0;
-        }
+        } break;
+
+        default:
+        {
+            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+        } break;
     }
 
-    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    return result;
 }
