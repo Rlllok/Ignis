@@ -35,8 +35,6 @@ protected:
     Viewport* viewport = nullptr;
 
 protected:
-    static LRESULT CALLBACK windowProcedure(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
     virtual void draw(double deltaTime) = 0;
     virtual void onClose() = 0;
 };
