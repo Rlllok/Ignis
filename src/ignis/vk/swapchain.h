@@ -28,6 +28,8 @@ public:
 
     void recreate();
 
+    uint32_t acquireNextImage(const VkSemaphore& semaphore);
+
 // Getters
 public:
     VkExtent2D                  getExtent()         const { return extent; }
@@ -48,4 +50,7 @@ private:
 
 private:
     void cleanup();
+
+private:
+    friend class Viewport;
 };

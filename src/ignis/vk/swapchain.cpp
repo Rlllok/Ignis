@@ -179,6 +179,14 @@ void Swapchain::recreate()
     }
 }
 
+uint32_t Swapchain::acquireNextImage(const VkSemaphore& semaphore)
+{
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(device.getHandle(), swapchain, UINT64_MAX, semaphore, nullptr, &imageIndex);
+
+    return imageIndex;
+}
+
 void Swapchain::cleanup()
 {
     for (auto& imageView : imageViews)
