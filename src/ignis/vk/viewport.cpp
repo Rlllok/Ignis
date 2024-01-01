@@ -28,9 +28,9 @@ Viewport::~Viewport()
     delete swapchain;
 }
 
-void Viewport::init(const char* windowName, uint32_t height, uint32_t width)
+void Viewport::init(const char* windowName, uint32_t width, uint32_t height)
 {
-    window = new Window(windowName, height, width);
+    window = new Window(windowName, width, height);
     swapchain = new Swapchain(instance,  device, window->instance, window->windowHandle);
 
     createSyncTools();
