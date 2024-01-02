@@ -9,23 +9,25 @@ class VertexInputState
 public:
     VertexInputState();
 
+    VkPipelineVertexInputStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineVertexInputStateCreateInfo stateInfo;
 };
 
 class InputAssemblyState
 {
 public:
     InputAssemblyState();
+    
+    VkPipelineInputAssemblyStateCreateInfo stateInfo;
 
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineInputAssemblyStateCreateInfo stateInfo;
 };
 
 class ViewportState
@@ -33,12 +35,12 @@ class ViewportState
 public:
     ViewportState(uint32_t height, uint32_t width);
 
+    VkPipelineViewportStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineViewportStateCreateInfo stateInfo;
-
     VkViewport  viewport;
     VkRect2D    scissor;
 };
@@ -48,11 +50,12 @@ class RasterizationState
 public:
     RasterizationState();
 
+    VkPipelineRasterizationStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineRasterizationStateCreateInfo stateInfo;
 };
 
 class MultisampleState
@@ -60,11 +63,12 @@ class MultisampleState
 public:
     MultisampleState();
 
+    VkPipelineMultisampleStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineMultisampleStateCreateInfo stateInfo;
 };
 
 class DepthStencilState
@@ -72,11 +76,12 @@ class DepthStencilState
 public:
     DepthStencilState();
 
+    VkPipelineDepthStencilStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineDepthStencilStateCreateInfo stateInfo;
 };
 
 class ColorBlendState
@@ -84,11 +89,12 @@ class ColorBlendState
 public:
     ColorBlendState();
 
+    VkPipelineColorBlendStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineColorBlendStateCreateInfo stateInfo;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment;
 };
@@ -98,11 +104,12 @@ class DynamicState
 public:
     DynamicState();
 
+    VkPipelineDynamicStateCreateInfo stateInfo;
+
 protected:
     friend class GraphicsPipeline;
 
 private:
-    VkPipelineDynamicStateCreateInfo stateInfo;
 
     std::vector<VkDynamicState> dynamicStates;
 };
