@@ -34,6 +34,15 @@ void Buffer::unmap()
     mapped = nullptr;
 }
 
+void Buffer::copyToBuffer(const void* data, VkDeviceSize size, VkDeviceSize offset)
+{
+    map(size, offset);
+    {
+        memcpy(mapped, data, size);
+    }
+    unmap();
+}
+
 void Buffer::flush(VkDeviceSize size, VkDeviceSize offset)
 {
     VkMappedMemoryRange memoryRange = {};

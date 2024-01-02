@@ -14,6 +14,7 @@ public:
 public:
     void map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
     void unmap();
+    void copyToBuffer(const void* data, VkDeviceSize size, VkDeviceSize offset);
     void flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
 
 public:
