@@ -51,7 +51,7 @@ RasterizationState::RasterizationState()
     stateInfo.depthClampEnable = VK_FALSE;
     stateInfo.rasterizerDiscardEnable = VK_FALSE;
     stateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
-    stateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    stateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     stateInfo.depthBiasEnable = VK_FALSE;
     stateInfo.lineWidth = 1.0f;
 }
