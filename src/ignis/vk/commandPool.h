@@ -8,7 +8,7 @@
 class CommandPool
 {
 public:
-    CommandPool() = default;
+    CommandPool() = delete;
     CommandPool(const Device& device);
 
     CommandPool(const CommandPool&) = delete;

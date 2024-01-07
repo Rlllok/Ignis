@@ -23,7 +23,7 @@ Device::Device(const Instance& instance)
 
     for (uint32_t i = 0; i < queueFamilyCount; i++)
     {
-        if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT == VK_QUEUE_GRAPHICS_BIT)
+        if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             graphicsQueueIndex = i;
             break;
