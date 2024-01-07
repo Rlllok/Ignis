@@ -105,7 +105,7 @@ static void changeImageLayout(
         imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         break;
 
-    case VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT:
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
         imageMemoryBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         break;
     
