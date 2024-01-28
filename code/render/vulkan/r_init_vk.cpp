@@ -60,6 +60,37 @@ VkResult createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* deb
 	return createDebugUtilsMessengerEXT(instance, &messengerInfo, nullptr, debugMessenger);
 }
 
+R_SquareList R_GetSquareList(Arena* arena)
+{
+    // --AlNov: @NOTE Is it even needed
+}
+
+void R_PushSquare(R_SquareList* list, R_Square* square)
+{
+    if (list->count == 0)
+    {
+        list->firstSquare = square;
+        list->lastSquare = square;
+        list->count = 1;
+
+        square->next = 0;
+        square->previous = 0;
+    }
+    else
+    {
+        square->previous = list->lastSquare;
+        square->next = 0;
+        list->lastSquare->next = square;
+        list->lastSquare = square;
+        ++list->count;
+    }
+}
+
+void R_AddSquareToDrawList(R_Square* square)
+{
+    R_PushSquare(&squareList, square);
+}
+
 // --AlNov: Vulkan Renderer
 void R_VK_CreateInstance()
 {
@@ -631,54 +662,7 @@ void R_Draw(f32 deltaTime)
 void R_DrawSquare(Vec3f centerPosition, Vec3f color)
 {
     // AlNov: TEMP CODE START (SHOULD NOT BE THERE)
-    struct R_Square
-    {
-        struct Vertex
-        {
-            Vec3f position;
-        };
 
-        Vertex vertecies[4];
-        u32 indecies[6];
-
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
-        VkBuffer indexBuffer;
-        VkDeviceMemory indexBufferMemory;
-    };
-    R_Square square = {};
-    square.vertecies[0].position = MakeVec3f(-0.5f, -0.5f, 0.0f);
-    square.vertecies[1].position = MakeVec3f(0.5f, -0.5f, 0.0f);
-    square.vertecies[2].position = MakeVec3f(0.5f, 0.5f, 0.0f);
-    square.vertecies[3].position = MakeVec3f(-0.5f, 0.5f, 0.0f);
-    square.indecies[0] = 0;
-    square.indecies[1] = 1;
-    square.indecies[2] = 2;
-    square.indecies[3] = 2;
-    square.indecies[4] = 3;
-    square.indecies[5] = 0;
-
-    R_VK_CreateBuffer(
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        sizeof(square.vertecies), &square.vertexBuffer, &square.vertexBufferMemory
-    );
-    R_VK_CopyToMemory(square.vertexBufferMemory, &square.vertecies, sizeof(square.vertecies));
-
-    R_VK_CreateBuffer(
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-        sizeof(square.indecies), &square.indexBuffer, &square.indexBufferMemory
-    );
-    R_VK_CopyToMemory(square.indexBufferMemory, &square.indecies, sizeof(square.indecies));
-
-    R_MVP.centerPosition = centerPosition;
-    R_MVP.color = color;
-
-    void* mappedMemory;
-    vkMapMemory(R_Device.handle, R_MVPMemory, 0, sizeof(R_MVP), 0, &mappedMemory);
-    {
-        memcpy(mappedMemory, &R_MVP, sizeof(R_MVP));
-    }
-    vkUnmapMemory(R_Device.handle, R_MVPMemory);
     // AlNov: TEMP CODE END
 
     localPersist u32 currentFrame = 0;
@@ -728,10 +712,34 @@ void R_DrawSquare(Vec3f centerPosition, Vec3f color)
             );
 
             VkDeviceSize offsets[] = { 0 };
-            vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &square.vertexBuffer, offsets);
-            vkCmdBindIndexBuffer(cmdBuffer, square.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            R_Square* squareToDraw = squareList.firstSquare;
+            i32 i = 0;
+            while (squareToDraw)
+            {
+                printf("i: %i\n", i++);
+                R_VK_CreateBuffer(
+                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                    sizeof(squareToDraw->vertecies), &squareToDraw->vertexBuffer, &squareToDraw->vertexBufferMemory
+                );
+                R_VK_CopyToMemory(squareToDraw->vertexBufferMemory, &squareToDraw->vertecies, sizeof(squareToDraw->vertecies));
 
-            vkCmdDrawIndexed(cmdBuffer, 6, 1, 0, 0, 0);
+                R_VK_CreateBuffer(
+                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                    sizeof(squareToDraw->indecies), &squareToDraw->indexBuffer, &squareToDraw->indexBufferMemory
+                );
+                R_VK_CopyToMemory(squareToDraw->indexBufferMemory, &squareToDraw->indecies, sizeof(squareToDraw->indecies));
+
+                R_MVP.centerPosition = squareToDraw->centerPosition;
+                R_MVP.color = squareToDraw->color;
+                R_VK_CopyToMemory(R_MVPMemory, &R_MVP, sizeof(R_MVP));
+
+                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &squareToDraw->vertexBuffer, offsets);
+                vkCmdBindIndexBuffer(cmdBuffer, squareToDraw->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+                vkCmdDrawIndexed(cmdBuffer, 6, 1, 0, 0, 0);
+
+                squareToDraw = squareToDraw->next;
+            }
         }
         vkCmdEndRenderPass(cmdBuffer);
     }
@@ -769,11 +777,21 @@ void R_DrawSquare(Vec3f centerPosition, Vec3f color)
 
     currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
 
-    vkDeviceWaitIdle(R_Device.handle);
-    vkDestroyBuffer(R_Device.handle, square.vertexBuffer, nullptr);
-    vkDestroyBuffer(R_Device.handle, square.indexBuffer, nullptr);
-    vkFreeMemory(R_Device.handle, square.vertexBufferMemory, nullptr);
-    vkFreeMemory(R_Device.handle, square.indexBufferMemory, nullptr);
+    R_Square* squareToDraw = squareList.firstSquare;
+    while (squareToDraw)
+    {
+        // --AlNov: @NOTE It is bad to recreate and delete.
+        // But it is how it is now
+        vkDeviceWaitIdle(R_Device.handle);
+        vkDestroyBuffer(R_Device.handle, squareToDraw->vertexBuffer, nullptr);
+        vkDestroyBuffer(R_Device.handle, squareToDraw->indexBuffer, nullptr);
+        vkFreeMemory(R_Device.handle, squareToDraw->vertexBufferMemory, nullptr);
+        vkFreeMemory(R_Device.handle, squareToDraw->indexBufferMemory, nullptr);
+
+        squareToDraw = squareToDraw->next;
+    }
+
+    squareList = {};
 }
 
 void R_Init(const OS_Window& window)

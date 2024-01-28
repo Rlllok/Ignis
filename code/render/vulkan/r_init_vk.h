@@ -7,6 +7,42 @@
 
 #define NUM_FRAMES_IN_FLIGHT 3
 
+// --AlNov: @NOTE Temporary there
+struct R_Square
+{
+    Vec3f color;
+    Vec3f centerPosition;
+
+    R_Square* next;
+    R_Square* previous;
+
+    struct Vertex
+    {
+        Vec3f position;
+    };
+
+    Vertex vertecies[4];
+    u32 indecies[6];
+
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
+};
+
+struct R_SquareList
+{
+    R_Square* firstSquare;
+    R_Square* lastSquare;
+    u32 count;
+};
+global R_SquareList squareList = {};
+
+R_SquareList R_GetSquareList(Arena* arena);
+void R_PushSquare(R_SquareList* list, R_Square* square);
+void R_AddSquareToDrawList(R_Square* square);
+// --AlNov: End Temp Data
+
 global VkInstance R_VK_Instance = VK_NULL_HANDLE;
 global VkDebugUtilsMessengerEXT R_VK_DebugMessenger = VK_NULL_HANDLE;
 

@@ -1,3 +1,4 @@
+#include "../os_gfx.h"
 #include "os_gfx_win32.h"
 
 #include <stdio.h>
@@ -115,6 +116,7 @@ void OS_PushEvent(OS_EventList* eventList, OS_Event* event)
     {
         event->previous = eventList->lastEvent;
         event->next = 0;
+        eventList->lastEvent->next = event;
         eventList->lastEvent = event;
         ++eventList->eventCount;
     }
