@@ -92,6 +92,7 @@ void R_VK_CreateSyncTools();
 // --AlNov: @TODO Handle VK Object destruction
 
 void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyFlags, u32 size, VkBuffer* outBuffer, VkDeviceMemory* outMemory);
+void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size);
 void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex);
 void R_Draw(f32 deltaTime);
 void R_DrawSquare(Vec3f centerPosition, Vec3f color);

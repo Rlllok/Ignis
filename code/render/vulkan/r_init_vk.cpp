@@ -528,6 +528,16 @@ void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyF
     vkBindBufferMemory(R_Device.handle, *outBuffer, *outMemory, 0);
 }
 
+void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size)
+{
+    void* mappedMemory;
+    vkMapMemory(R_Device.handle, memory, 0, size, 0, &mappedMemory);
+    {
+        memcpy(mappedMemory, data, size);
+    }
+    vkUnmapMemory(R_Device.handle, memory);
+}
+
 void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex)
 {
     vkResetCommandBuffer(cmdBuffer, 0);
@@ -652,27 +662,13 @@ void R_DrawSquare(Vec3f centerPosition, Vec3f color)
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         sizeof(square.vertecies), &square.vertexBuffer, &square.vertexBufferMemory
     );
-    {
-        void* data;
-        vkMapMemory(R_Device.handle, square.vertexBufferMemory, 0, sizeof(square.vertecies), 0, &data);
-        {
-            memcpy(data, &square.vertecies, sizeof(square.vertecies));
-        }
-        vkUnmapMemory(R_Device.handle, square.vertexBufferMemory);
-    }
+    R_VK_CopyToMemory(square.vertexBufferMemory, &square.vertecies, sizeof(square.vertecies));
 
     R_VK_CreateBuffer(
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
         sizeof(square.indecies), &square.indexBuffer, &square.indexBufferMemory
     );
-    {
-        void* data;
-        vkMapMemory(R_Device.handle, square.indexBufferMemory, 0, sizeof(square.indecies), 0, &data);
-        {
-            memcpy(data, &square.indecies, sizeof(square.indecies));
-        }
-        vkUnmapMemory(R_Device.handle, square.indexBufferMemory);
-    }
+    R_VK_CopyToMemory(square.indexBufferMemory, &square.indecies, sizeof(square.indecies));
 
     R_MVP.centerPosition = centerPosition;
     R_MVP.color = color;

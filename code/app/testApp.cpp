@@ -28,6 +28,8 @@ int main()
 
     u64 frequency = win32Freq.QuadPart;
     u64 startCycles = win32Cycles.QuadPart;
+    // --AlNov: @TODO @NOTE
+    // If there is more information than 10 KB Arena drops error
     Arena* frameArena = AllocateArena(Kilobytes(10));
     while (!bIsFinished)
     {
