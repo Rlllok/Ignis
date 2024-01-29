@@ -60,11 +60,6 @@ VkResult createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* deb
 	return createDebugUtilsMessengerEXT(instance, &messengerInfo, nullptr, debugMessenger);
 }
 
-R_MeshList R_GetMeshList(Arena* arena)
-{
-    // --AlNov: @NOTE Is it even needed
-}
-
 void R_PushMesh(R_MeshList* list, R_Mesh* mesh)
 {
     if (list->count == 0)
@@ -457,43 +452,6 @@ void R_VK_CreateCommandPool()
     vkCreateCommandPool(R_Device.handle, &cmdPoolInfo, nullptr, &R_CmdPool.handle);
 }
 
-void R_VK_CreateMVPBuffer()
-{
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = sizeof(R_MVP);
-    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    vkCreateBuffer(R_Device.handle, &bufferInfo, nullptr, &R_MVPBuffer);
-
-    VkMemoryRequirements memoryRequirements = {};
-    vkGetBufferMemoryRequirements(R_Device.handle, R_MVPBuffer, &memoryRequirements);
-
-    VkMemoryPropertyFlags memoryProperties = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    VkPhysicalDeviceMemoryProperties tempProperties = {};
-    vkGetPhysicalDeviceMemoryProperties(R_Device.GPU, &tempProperties);
-
-    i32 memoryTypeIndex = -1;
-    for (u32 typeIndex = 0; typeIndex < tempProperties.memoryTypeCount; ++typeIndex)
-    {
-        if (memoryRequirements.memoryTypeBits & (1 << typeIndex)
-            && ((tempProperties.memoryTypes[typeIndex].propertyFlags & memoryProperties) == memoryProperties)
-        )
-        {
-            memoryTypeIndex = typeIndex;
-            break;
-        }
-    }
-
-    VkMemoryAllocateInfo allocateInfo = {};
-    allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocateInfo.allocationSize = memoryRequirements.size;
-    allocateInfo.memoryTypeIndex = memoryTypeIndex;
-    vkAllocateMemory(R_Device.handle, &allocateInfo, nullptr, &R_MVPMemory);
-
-    vkBindBufferMemory(R_Device.handle, R_MVPBuffer, R_MVPMemory, 0);
-}
-
 void R_VK_AllocateCommandBuffers()
 {
     VkCommandBufferAllocateInfo cmdBufferInfo = {};
@@ -832,10 +790,9 @@ void R_Init(const OS_Window& window)
     R_VK_CreateInstance();
     R_VK_CreateDevice();
     R_VK_CreateSwapchain(window);
-    // --AlNov: @NOTE Maybe extent should be used for CreatePipeline
-    R_VK_CreateMVPBuffer();
     R_VK_CreateDescriptorPool();
     R_VK_AllocateDesciptorSet();
+    // --AlNov: @NOTE Maybe extent should be used for CreatePipeline
     R_VK_CreatePipeline(window.width, window.height);
     R_VK_CreateFramebuffers();
     R_VK_CreateCommandPool();

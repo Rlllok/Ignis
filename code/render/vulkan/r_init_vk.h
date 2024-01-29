@@ -31,10 +31,9 @@ struct R_Mesh
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
 
+    VkDescriptorSet mvpSet;
     VkBuffer mvpBuffer;
     VkDeviceMemory mvpBufferMemory;
-
-    VkDescriptorSet mvpSet;
 };
 
 struct R_MeshList
@@ -45,7 +44,6 @@ struct R_MeshList
 };
 global R_MeshList meshList = {};
 
-R_MeshList R_GetMeshList(Arena* arena);
 void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
 void R_AddMeshToDrawList(R_Mesh* mesh);
 // --AlNov: End Temp Data
@@ -119,7 +117,7 @@ struct R_VK_SyncTools
 };
 global R_VK_SyncTools R_SyncTools;
 
-// AlNov: Functions --------------------------------------------------
+// --AlNov: Functions --------------------------------------------------
 void R_VK_CreateInstance();
 void R_VK_CreateDevice();
 void R_VK_CreateSwapchain(const OS_Window& window);
@@ -128,7 +126,6 @@ void R_VK_AllocateDesciptorSet();
 void R_VK_CreatePipeline(const i32 width, const i32 height);
 void R_VK_CreateFramebuffers();
 void R_VK_CreateCommandPool();
-void R_VK_CreateMVPBuffer();
 void R_VK_AllocateCommandBuffers();
 void R_VK_CreateSyncTools();
 

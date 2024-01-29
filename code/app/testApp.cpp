@@ -60,17 +60,37 @@ int main()
 
         static f32 t = 0.0f;
         t += 0.001f * ms;
-        f32 colorValue = sinf(t);
-        colorValue = (colorValue + 1.0f) / 2.0f;
+        f32 sinValue = sinf(t);
+        sinValue = (sinValue + 1.0f) / 2.0f;
 
-        R_Mesh* mesh0 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 0.0f), MakeVec3f(1.0f, 0.0f, 0.0f));
+        R_Mesh* mesh0 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 0.0f), MakeVec3f(sinValue, 0.0f, 0.0f));
         R_AddMeshToDrawList(mesh0);
-        R_Mesh* mesh1 = CreateMesh(frameArena, MakeVec3f(0.0f, 1.0f, 0.0f), MakeVec3f(0.0f, 1.0f, 0.0f));
+        R_Mesh* mesh1 = CreateMesh(frameArena, MakeVec3f(0.0f, 1.0f, 0.0f), MakeVec3f(0.0f, sinValue, 0.0f));
         R_AddMeshToDrawList(mesh1);
-        R_Mesh* mesh2 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.0f, 1.0f), MakeVec3f(0.0f, -1.0f, 0.0f));
+        R_Mesh* mesh2 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.0f, 1.0f), MakeVec3f(0.0f, -sinValue, 0.0f));
         R_AddMeshToDrawList(mesh2);
-        R_Mesh* mesh3 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 1.0f), MakeVec3f(-1.0f, 0.0f, 0.0f));
+        R_Mesh* mesh3 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 1.0f), MakeVec3f(-sinValue, 0.0f, 0.0f));
         R_AddMeshToDrawList(mesh3);
+        R_Mesh* mesh4 = CreateMesh(frameArena, MakeVec3f(1.0f, 1.0f, 0.0f), MakeVec3f(sinValue, sinValue, 0.0f));
+        R_AddMeshToDrawList(mesh4);
+        R_Mesh* mesh5 = CreateMesh(frameArena, MakeVec3f(0.5f, 1.0f, 0.0f), MakeVec3f(-sinValue, sinValue, 0.0f));
+        R_AddMeshToDrawList(mesh5);
+        R_Mesh* mesh6 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.5f, 1.0f), MakeVec3f(sinValue, -sinValue, 0.0f));
+        R_AddMeshToDrawList(mesh6);
+        R_Mesh* mesh7 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.6f, 1.0f), MakeVec3f(-sinValue, -sinValue, 0.0f));
+        R_AddMeshToDrawList(mesh7);
+
+
+        R_Mesh* mesh8 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.5f, 1.0f), MakeVec3f(sinValue, -sinValue, 0.0f));
+        R_AddMeshToDrawList(mesh8);
+        R_Mesh* mesh9 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.6f, 1.0f), MakeVec3f(-sinValue, -sinValue, 0.0f));
+        R_AddMeshToDrawList(mesh9);
+
+        // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
+        // R_Mesh* mesh10 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.5f, 1.0f), MakeVec3f(sinValue, -sinValue, 0.0f));
+        // R_AddMeshToDrawList(mesh10);
+        // R_Mesh* mesh11 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.6f, 1.0f), MakeVec3f(-sinValue, -sinValue, 0.0f));
+        // R_AddMeshToDrawList(mesh11);
 
         R_DrawMesh();
 
