@@ -4,8 +4,8 @@ layout(location = 0) in vec3 position;
 
 layout(binding = 0) uniform MVP
 {
-    vec3 centerPosition;
     vec3 color;
+    vec3 centerPosition;
 } mvp;
 
 vec3 positions[] = {

@@ -462,7 +462,7 @@ void R_VK_CreateMVPBuffer()
     VkBufferCreateInfo bufferInfo = {};
     bufferInfo.sType= VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = sizeof(R_MVP);
-    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     vkCreateBuffer(R_Device.handle, &bufferInfo, nullptr, &R_MVPBuffer);
 
@@ -659,7 +659,7 @@ void R_Draw(f32 deltaTime)
     currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
 }
 
-void R_DrawSquare(Vec3f centerPosition, Vec3f color)
+void R_DrawSquare()
 {
     // AlNov: TEMP CODE START (SHOULD NOT BE THERE)
 
@@ -706,32 +706,59 @@ void R_DrawSquare(Vec3f centerPosition, Vec3f color)
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.handle);
 
-            vkCmdBindDescriptorSets(
-                cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.layout,
-                0, 1, &R_MVPDescriptor.handle, 0, 0
-            );
-
             VkDeviceSize offsets[] = { 0 };
             R_Square* squareToDraw = squareList.firstSquare;
-            i32 i = 0;
             while (squareToDraw)
             {
-                printf("i: %i\n", i++);
+                // VertexBuffer
                 R_VK_CreateBuffer(
                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                     sizeof(squareToDraw->vertecies), &squareToDraw->vertexBuffer, &squareToDraw->vertexBufferMemory
                 );
                 R_VK_CopyToMemory(squareToDraw->vertexBufferMemory, &squareToDraw->vertecies, sizeof(squareToDraw->vertecies));
 
+                // IndexBuffer
                 R_VK_CreateBuffer(
                     VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                     sizeof(squareToDraw->indecies), &squareToDraw->indexBuffer, &squareToDraw->indexBufferMemory
                 );
                 R_VK_CopyToMemory(squareToDraw->indexBufferMemory, &squareToDraw->indecies, sizeof(squareToDraw->indecies));
 
-                R_MVP.centerPosition = squareToDraw->centerPosition;
-                R_MVP.color = squareToDraw->color;
-                R_VK_CopyToMemory(R_MVPMemory, &R_MVP, sizeof(R_MVP));
+                // MVP BUffer
+                R_VK_CreateBuffer(
+                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                    sizeof(squareToDraw->mvp), &squareToDraw->mvpBuffer, &squareToDraw->mvpBufferMemory
+                );
+                R_VK_CopyToMemory(squareToDraw->mvpBufferMemory, &squareToDraw->mvp, sizeof(squareToDraw->mvp));
+
+                VkDescriptorSetAllocateInfo setInfo = {};
+                setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+                setInfo.descriptorPool = R_DescriptorPool.handle;
+                setInfo.descriptorSetCount = 1;
+                setInfo.pSetLayouts = &R_MVPDescriptor.layout;
+
+                vkAllocateDescriptorSets(R_Device.handle, &setInfo, &squareToDraw->mvpSet);
+
+                VkDescriptorBufferInfo bufferInfo = {};
+                bufferInfo.buffer = squareToDraw->mvpBuffer;
+                bufferInfo.offset = 0;
+                bufferInfo.range = sizeof(squareToDraw->mvp);
+
+                VkWriteDescriptorSet writeSet = {};
+                writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeSet.dstSet = squareToDraw->mvpSet;
+                writeSet.dstBinding = 0;
+                writeSet.dstArrayElement = 0;
+                writeSet.descriptorCount = 1;
+                writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                writeSet.pBufferInfo = &bufferInfo;
+
+                vkUpdateDescriptorSets(R_Device.handle, 1, &writeSet, 0, nullptr);
+
+                vkCmdBindDescriptorSets(
+                    cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.layout,
+                    0, 1, &squareToDraw->mvpSet, 0, 0
+                );
 
                 vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &squareToDraw->vertexBuffer, offsets);
                 vkCmdBindIndexBuffer(cmdBuffer, squareToDraw->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
@@ -783,10 +810,16 @@ void R_DrawSquare(Vec3f centerPosition, Vec3f color)
         // --AlNov: @NOTE It is bad to recreate and delete.
         // But it is how it is now
         vkDeviceWaitIdle(R_Device.handle);
+
         vkDestroyBuffer(R_Device.handle, squareToDraw->vertexBuffer, nullptr);
         vkDestroyBuffer(R_Device.handle, squareToDraw->indexBuffer, nullptr);
+        vkDestroyBuffer(R_Device.handle, squareToDraw->mvpBuffer, nullptr);
+
         vkFreeMemory(R_Device.handle, squareToDraw->vertexBufferMemory, nullptr);
         vkFreeMemory(R_Device.handle, squareToDraw->indexBufferMemory, nullptr);
+        vkFreeMemory(R_Device.handle, squareToDraw->mvpBufferMemory, nullptr);
+
+        vkResetDescriptorPool(R_Device.handle, R_DescriptorPool.handle, 0);
 
         squareToDraw = squareToDraw->next;
     }
@@ -812,13 +845,15 @@ void R_Init(const OS_Window& window)
 
 void R_VK_CreateDescriptorPool()
 {
+    u32 descriptorCount = 10;
+
     VkDescriptorPoolSize poolSize = {};
     poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = 1;
+    poolSize.descriptorCount = descriptorCount;
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.maxSets = 1;
+    poolInfo.maxSets = descriptorCount;
     poolInfo.poolSizeCount = 1;
     poolInfo.pPoolSizes = &poolSize;
 
@@ -840,29 +875,29 @@ void R_VK_AllocateDesciptorSet()
 
     vkCreateDescriptorSetLayout(R_Device.handle, &layoutInfo, nullptr, &R_MVPDescriptor.layout);
 
-    VkDescriptorSetAllocateInfo setInfo = {};
-    setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    setInfo.descriptorPool = R_DescriptorPool.handle;
-    setInfo.descriptorSetCount = 1;
-    setInfo.pSetLayouts = &R_MVPDescriptor.layout;
+    // VkDescriptorSetAllocateInfo setInfo = {};
+    // setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    // setInfo.descriptorPool = R_DescriptorPool.handle;
+    // setInfo.descriptorSetCount = 1;
+    // setInfo.pSetLayouts = &R_MVPDescriptor.layout;
 
-    vkAllocateDescriptorSets(R_Device.handle, &setInfo, &R_MVPDescriptor.handle);
+    // vkAllocateDescriptorSets(R_Device.handle, &setInfo, &R_MVPDescriptor.handle);
 
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = R_MVPBuffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(R_MVP);
+    // VkDescriptorBufferInfo bufferInfo = {};
+    // bufferInfo.buffer = R_MVPBuffer;
+    // bufferInfo.offset = 0;
+    // bufferInfo.range = sizeof(R_MVP);
 
-    VkWriteDescriptorSet writeSet = {};
-    writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeSet.dstSet = R_MVPDescriptor.handle;
-    writeSet.dstBinding = 0;
-    writeSet.dstArrayElement = 0;
-    writeSet.descriptorCount = 1;
-    writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    writeSet.pBufferInfo = &bufferInfo;
+    // VkWriteDescriptorSet writeSet = {};
+    // writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    // writeSet.dstSet = R_MVPDescriptor.handle;
+    // writeSet.dstBinding = 0;
+    // writeSet.dstArrayElement = 0;
+    // writeSet.descriptorCount = 1;
+    // writeSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    // writeSet.pBufferInfo = &bufferInfo;
 
-    vkUpdateDescriptorSets(R_Device.handle, 1, &writeSet, 0, nullptr);
+    // vkUpdateDescriptorSets(R_Device.handle, 1, &writeSet, 0, nullptr);
 }
 
 void R_VK_CreateSwapchain(const OS_Window& window)

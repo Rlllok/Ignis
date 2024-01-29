@@ -10,8 +10,10 @@
 // --AlNov: @NOTE Temporary there
 struct R_Square
 {
-    Vec3f color;
-    Vec3f centerPosition;
+    struct MVP {
+        alignas(16) Vec3f color;
+        alignas(16) Vec3f centerPosition;
+    } mvp;
 
     R_Square* next;
     R_Square* previous;
@@ -28,6 +30,11 @@ struct R_Square
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
+
+    VkBuffer mvpBuffer;
+    VkDeviceMemory mvpBufferMemory;
+
+    VkDescriptorSet mvpSet;
 };
 
 struct R_SquareList

@@ -8,6 +8,8 @@
 
 #include <cmath>
 
+R_Square* CreateSquare(Arena* arena, Vec3f color, Vec3f centerPosition);
+
 int main()
 {
     Vec2u windowExtent = MakeVec2u(1280, 720);
@@ -62,40 +64,38 @@ int main()
         f32 colorValue = sinf(t);
         colorValue = (colorValue + 1.0f) / 2.0f;
 
-        R_Square* square0 = (R_Square*)AllocateArena(sizeof(R_Square));
-        square0->color = MakeVec3f(1.0f, 0.0, 0.0f);
-        square0->centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
-        square0->vertecies[0].position = MakeVec3f(-0.5f, -0.5f, 0.0f);
-        square0->vertecies[1].position = MakeVec3f(0.5f, -0.5f, 0.0f);
-        square0->vertecies[2].position = MakeVec3f(0.5f, 0.5f, 0.0f);
-        square0->vertecies[3].position = MakeVec3f(-0.5f, 0.5f, 0.0f);
-        square0->indecies[0] = 0;
-        square0->indecies[1] = 1;
-        square0->indecies[2] = 2;
-        square0->indecies[3] = 2;
-        square0->indecies[4] = 3;
-        square0->indecies[5] = 0;
-        R_Square* square1 = (R_Square*)AllocateArena(sizeof(R_Square));
-        square1->color = MakeVec3f(0.0f, 1.0, 0.0f);
-        square1->centerPosition = MakeVec3f(0.0f, 1.0f, 0.0f);
-        square1->vertecies[0].position = MakeVec3f(-0.5f, -0.5f, 0.0f);
-        square1->vertecies[1].position = MakeVec3f(0.5f, -0.5f, 0.0f);
-        square1->vertecies[2].position = MakeVec3f(0.5f, 0.5f, 0.0f);
-        square1->vertecies[3].position = MakeVec3f(-0.5f, 0.5f, 0.0f);
-        square1->indecies[0] = 0;
-        square1->indecies[1] = 1;
-        square1->indecies[2] = 2;
-        square1->indecies[3] = 2;
-        square1->indecies[4] = 3;
-        square1->indecies[5] = 0;
-
+        R_Square* square0 = CreateSquare(frameArena, MakeVec3f(1.0f, 0.0f, 0.0f), MakeVec3f(1.0f, 0.0f, 0.0f));
         R_AddSquareToDrawList(square0);
+        R_Square* square1 = CreateSquare(frameArena, MakeVec3f(0.0f, 1.0f, 0.0f), MakeVec3f(0.0f, 1.0f, 0.0f));
         R_AddSquareToDrawList(square1);
+        R_Square* square2 = CreateSquare(frameArena, MakeVec3f(0.0f, 0.0f, 1.0f), MakeVec3f(0.0f, -1.0f, 0.0f));
+        R_AddSquareToDrawList(square2);
+        R_Square* square3 = CreateSquare(frameArena, MakeVec3f(1.0f, 0.0f, 1.0f), MakeVec3f(-1.0f, 0.0f, 0.0f));
+        R_AddSquareToDrawList(square3);
 
-        R_DrawSquare(MakeVec3f(0.3f, 0.1f, 0.0f), MakeVec3f(colorValue, 0.3f, 0.7f));
+        R_DrawSquare();
 
         ResetArena(frameArena);
     }
 
     return 0;
+}
+
+R_Square* CreateSquare(Arena* arena, Vec3f color, Vec3f centerPosition)
+{
+    R_Square* square = (R_Square*)AllocateArena(sizeof(R_Square));
+    square->mvp.color = color;
+    square->mvp.centerPosition = centerPosition;
+    square->vertecies[0].position = MakeVec3f(-0.5f, -0.5f, 0.0f);
+    square->vertecies[1].position = MakeVec3f(0.5f, -0.5f, 0.0f);
+    square->vertecies[2].position = MakeVec3f(0.5f, 0.5f, 0.0f);
+    square->vertecies[3].position = MakeVec3f(-0.5f, 0.5f, 0.0f);
+    square->indecies[0] = 0;
+    square->indecies[1] = 1;
+    square->indecies[2] = 2;
+    square->indecies[3] = 2;
+    square->indecies[4] = 3;
+    square->indecies[5] = 0;
+
+    return square;
 }
