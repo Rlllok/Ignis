@@ -60,35 +60,35 @@ VkResult createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* deb
 	return createDebugUtilsMessengerEXT(instance, &messengerInfo, nullptr, debugMessenger);
 }
 
-R_SquareList R_GetSquareList(Arena* arena)
+R_MeshList R_GetMeshList(Arena* arena)
 {
     // --AlNov: @NOTE Is it even needed
 }
 
-void R_PushSquare(R_SquareList* list, R_Square* square)
+void R_PushMesh(R_MeshList* list, R_Mesh* mesh)
 {
     if (list->count == 0)
     {
-        list->firstSquare = square;
-        list->lastSquare = square;
+        list->firstMesh = mesh;
+        list->lastMesh = mesh;
         list->count = 1;
 
-        square->next = 0;
-        square->previous = 0;
+        mesh->next = 0;
+        mesh->previous = 0;
     }
     else
     {
-        square->previous = list->lastSquare;
-        square->next = 0;
-        list->lastSquare->next = square;
-        list->lastSquare = square;
+        mesh->previous = list->lastMesh;
+        mesh->next = 0;
+        list->lastMesh->next = mesh;
+        list->lastMesh = mesh;
         ++list->count;
     }
 }
 
-void R_AddSquareToDrawList(R_Square* square)
+void R_AddMeshToDrawList(R_Mesh* mesh)
 {
-    R_PushSquare(&squareList, square);
+    R_PushMesh(&meshList, mesh);
 }
 
 // --AlNov: Vulkan Renderer
@@ -659,7 +659,7 @@ void R_Draw(f32 deltaTime)
     currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
 }
 
-void R_DrawSquare()
+void R_DrawMesh()
 {
     // AlNov: TEMP CODE START (SHOULD NOT BE THERE)
 
@@ -707,29 +707,29 @@ void R_DrawSquare()
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.handle);
 
             VkDeviceSize offsets[] = { 0 };
-            R_Square* squareToDraw = squareList.firstSquare;
-            while (squareToDraw)
+            R_Mesh* meshToDraw = meshList.firstMesh;
+            while (meshToDraw)
             {
                 // VertexBuffer
                 R_VK_CreateBuffer(
                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    sizeof(squareToDraw->vertecies), &squareToDraw->vertexBuffer, &squareToDraw->vertexBufferMemory
+                    sizeof(meshToDraw->vertecies), &meshToDraw->vertexBuffer, &meshToDraw->vertexBufferMemory
                 );
-                R_VK_CopyToMemory(squareToDraw->vertexBufferMemory, &squareToDraw->vertecies, sizeof(squareToDraw->vertecies));
+                R_VK_CopyToMemory(meshToDraw->vertexBufferMemory, &meshToDraw->vertecies, sizeof(meshToDraw->vertecies));
 
                 // IndexBuffer
                 R_VK_CreateBuffer(
                     VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    sizeof(squareToDraw->indecies), &squareToDraw->indexBuffer, &squareToDraw->indexBufferMemory
+                    sizeof(meshToDraw->indecies), &meshToDraw->indexBuffer, &meshToDraw->indexBufferMemory
                 );
-                R_VK_CopyToMemory(squareToDraw->indexBufferMemory, &squareToDraw->indecies, sizeof(squareToDraw->indecies));
+                R_VK_CopyToMemory(meshToDraw->indexBufferMemory, &meshToDraw->indecies, sizeof(meshToDraw->indecies));
 
                 // MVP BUffer
                 R_VK_CreateBuffer(
                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    sizeof(squareToDraw->mvp), &squareToDraw->mvpBuffer, &squareToDraw->mvpBufferMemory
+                    sizeof(meshToDraw->mvp), &meshToDraw->mvpBuffer, &meshToDraw->mvpBufferMemory
                 );
-                R_VK_CopyToMemory(squareToDraw->mvpBufferMemory, &squareToDraw->mvp, sizeof(squareToDraw->mvp));
+                R_VK_CopyToMemory(meshToDraw->mvpBufferMemory, &meshToDraw->mvp, sizeof(meshToDraw->mvp));
 
                 VkDescriptorSetAllocateInfo setInfo = {};
                 setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -737,16 +737,16 @@ void R_DrawSquare()
                 setInfo.descriptorSetCount = 1;
                 setInfo.pSetLayouts = &R_MVPDescriptor.layout;
 
-                vkAllocateDescriptorSets(R_Device.handle, &setInfo, &squareToDraw->mvpSet);
+                vkAllocateDescriptorSets(R_Device.handle, &setInfo, &meshToDraw->mvpSet);
 
                 VkDescriptorBufferInfo bufferInfo = {};
-                bufferInfo.buffer = squareToDraw->mvpBuffer;
+                bufferInfo.buffer = meshToDraw->mvpBuffer;
                 bufferInfo.offset = 0;
-                bufferInfo.range = sizeof(squareToDraw->mvp);
+                bufferInfo.range = sizeof(meshToDraw->mvp);
 
                 VkWriteDescriptorSet writeSet = {};
                 writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writeSet.dstSet = squareToDraw->mvpSet;
+                writeSet.dstSet = meshToDraw->mvpSet;
                 writeSet.dstBinding = 0;
                 writeSet.dstArrayElement = 0;
                 writeSet.descriptorCount = 1;
@@ -757,15 +757,15 @@ void R_DrawSquare()
 
                 vkCmdBindDescriptorSets(
                     cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.layout,
-                    0, 1, &squareToDraw->mvpSet, 0, 0
+                    0, 1, &meshToDraw->mvpSet, 0, 0
                 );
 
-                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &squareToDraw->vertexBuffer, offsets);
-                vkCmdBindIndexBuffer(cmdBuffer, squareToDraw->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &meshToDraw->vertexBuffer, offsets);
+                vkCmdBindIndexBuffer(cmdBuffer, meshToDraw->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
                 vkCmdDrawIndexed(cmdBuffer, 6, 1, 0, 0, 0);
 
-                squareToDraw = squareToDraw->next;
+                meshToDraw = meshToDraw->next;
             }
         }
         vkCmdEndRenderPass(cmdBuffer);
@@ -804,27 +804,27 @@ void R_DrawSquare()
 
     currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
 
-    R_Square* squareToDraw = squareList.firstSquare;
-    while (squareToDraw)
+    R_Mesh* meshToDraw = meshList.firstMesh;
+    while (meshToDraw)
     {
         // --AlNov: @NOTE It is bad to recreate and delete.
         // But it is how it is now
         vkDeviceWaitIdle(R_Device.handle);
 
-        vkDestroyBuffer(R_Device.handle, squareToDraw->vertexBuffer, nullptr);
-        vkDestroyBuffer(R_Device.handle, squareToDraw->indexBuffer, nullptr);
-        vkDestroyBuffer(R_Device.handle, squareToDraw->mvpBuffer, nullptr);
+        vkDestroyBuffer(R_Device.handle, meshToDraw->vertexBuffer, nullptr);
+        vkDestroyBuffer(R_Device.handle, meshToDraw->indexBuffer, nullptr);
+        vkDestroyBuffer(R_Device.handle, meshToDraw->mvpBuffer, nullptr);
 
-        vkFreeMemory(R_Device.handle, squareToDraw->vertexBufferMemory, nullptr);
-        vkFreeMemory(R_Device.handle, squareToDraw->indexBufferMemory, nullptr);
-        vkFreeMemory(R_Device.handle, squareToDraw->mvpBufferMemory, nullptr);
+        vkFreeMemory(R_Device.handle, meshToDraw->vertexBufferMemory, nullptr);
+        vkFreeMemory(R_Device.handle, meshToDraw->indexBufferMemory, nullptr);
+        vkFreeMemory(R_Device.handle, meshToDraw->mvpBufferMemory, nullptr);
 
         vkResetDescriptorPool(R_Device.handle, R_DescriptorPool.handle, 0);
 
-        squareToDraw = squareToDraw->next;
+        meshToDraw = meshToDraw->next;
     }
 
-    squareList = {};
+    meshList = {};
 }
 
 void R_Init(const OS_Window& window)

@@ -8,15 +8,15 @@
 #define NUM_FRAMES_IN_FLIGHT 3
 
 // --AlNov: @NOTE Temporary there
-struct R_Square
+struct R_Mesh
 {
     struct MVP {
         alignas(16) Vec3f color;
         alignas(16) Vec3f centerPosition;
     } mvp;
 
-    R_Square* next;
-    R_Square* previous;
+    R_Mesh* next;
+    R_Mesh* previous;
 
     struct Vertex
     {
@@ -37,17 +37,17 @@ struct R_Square
     VkDescriptorSet mvpSet;
 };
 
-struct R_SquareList
+struct R_MeshList
 {
-    R_Square* firstSquare;
-    R_Square* lastSquare;
+    R_Mesh* firstMesh;
+    R_Mesh* lastMesh;
     u32 count;
 };
-global R_SquareList squareList = {};
+global R_MeshList meshList = {};
 
-R_SquareList R_GetSquareList(Arena* arena);
-void R_PushSquare(R_SquareList* list, R_Square* square);
-void R_AddSquareToDrawList(R_Square* square);
+R_MeshList R_GetMeshList(Arena* arena);
+void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
+void R_AddMeshToDrawList(R_Mesh* mesh);
 // --AlNov: End Temp Data
 
 global VkInstance R_VK_Instance = VK_NULL_HANDLE;
@@ -137,6 +137,5 @@ void R_VK_CreateSyncTools();
 void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyFlags, u32 size, VkBuffer* outBuffer, VkDeviceMemory* outMemory);
 void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size);
 void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex);
-void R_Draw(f32 deltaTime);
-void R_DrawSquare(Vec3f centerPosition, Vec3f color);
+void R_DrawMesh();
 void R_Init(const OS_Window& window, const i32 width, const i32 height);
