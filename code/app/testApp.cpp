@@ -40,7 +40,7 @@ int main()
         startCycles = endCycles;
         f32 ms = (1000.0f) * (f32)cyclesDelta / (f32)frequency;
         u32 fps = frequency / cyclesDelta;
-        printf("MS: %fms    FPS: %i\n", ms, fps);
+        // printf("MS: %fms    FPS: %i\n", ms, fps);
 
         // AlNov: @TODO Cannot understand why OS_EventList working.
         // Not OS_EventList*. I think this is because we are using arena that created there,
@@ -50,9 +50,21 @@ int main()
         OS_Event* event = eventList.firstEvent;
         while (event)
         {
-            if (event->type == OS_EVENT_TYPE_EXIT)
+            switch (event->type)
             {
-                bIsFinished = true;
+                case OS_EVENT_TYPE_EXIT:
+                {
+                    bIsFinished = true;
+                } break;
+
+                case OS_EVENT_TYPE_MOUSE_INPUT:
+                {
+                    printf("MouseX: %i     MouseY: %i\n", event->mouseX, event->mouseY);
+                } break;
+
+                default:
+                {
+                } break;
             }
 
             event = event->next;
@@ -63,34 +75,11 @@ int main()
         f32 sinValue = sinf(t);
         sinValue = (sinValue + 1.0f) / 2.0f;
 
+        // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
         R_Mesh* mesh0 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 0.0f), MakeVec3f(sinValue, 0.0f, 0.0f));
         R_AddMeshToDrawList(mesh0);
         R_Mesh* mesh1 = CreateMesh(frameArena, MakeVec3f(0.0f, 1.0f, 0.0f), MakeVec3f(0.0f, sinValue, 0.0f));
         R_AddMeshToDrawList(mesh1);
-        R_Mesh* mesh2 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.0f, 1.0f), MakeVec3f(0.0f, -sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh2);
-        R_Mesh* mesh3 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 1.0f), MakeVec3f(-sinValue, 0.0f, 0.0f));
-        R_AddMeshToDrawList(mesh3);
-        R_Mesh* mesh4 = CreateMesh(frameArena, MakeVec3f(1.0f, 1.0f, 0.0f), MakeVec3f(sinValue, sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh4);
-        R_Mesh* mesh5 = CreateMesh(frameArena, MakeVec3f(0.5f, 1.0f, 0.0f), MakeVec3f(-sinValue, sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh5);
-        R_Mesh* mesh6 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.5f, 1.0f), MakeVec3f(sinValue, -sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh6);
-        R_Mesh* mesh7 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.6f, 1.0f), MakeVec3f(-sinValue, -sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh7);
-
-
-        R_Mesh* mesh8 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.5f, 1.0f), MakeVec3f(sinValue, -sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh8);
-        R_Mesh* mesh9 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.6f, 1.0f), MakeVec3f(-sinValue, -sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh9);
-
-        // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
-        // R_Mesh* mesh10 = CreateMesh(frameArena, MakeVec3f(0.0f, 0.5f, 1.0f), MakeVec3f(sinValue, -sinValue, 0.0f));
-        // R_AddMeshToDrawList(mesh10);
-        // R_Mesh* mesh11 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.6f, 1.0f), MakeVec3f(-sinValue, -sinValue, 0.0f));
-        // R_AddMeshToDrawList(mesh11);
 
         R_DrawMesh();
 
@@ -102,7 +91,7 @@ int main()
 
 R_Mesh* CreateMesh(Arena* arena, Vec3f color, Vec3f centerPosition)
 {
-    R_Mesh* mesh = (R_Mesh*)AllocateArena(sizeof(R_Mesh));
+    R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
     mesh->mvp.color = color;
     mesh->mvp.centerPosition = centerPosition;
     mesh->vertecies[0].position = MakeVec3f(-0.5f, -0.5f, 0.0f);

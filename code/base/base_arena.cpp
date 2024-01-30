@@ -1,6 +1,7 @@
 #include "base_arena.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 Arena* AllocateArena(u64 size)
 {
@@ -16,13 +17,14 @@ void* PushArena(Arena* arena, u64 size)
 {
     void* result = nullptr;
 
-    if (arena->position + size < arena->size)
+    if ((arena->position + size) < arena->size)
     {
         result = arena + arena->position;
         arena->position += size;
     }
     else
     {
+        printf("Not enough space for size %llu. Current position: %llu\n", size, arena->position);
         // --AlNov: Error for now
     }
 
@@ -31,7 +33,7 @@ void* PushArena(Arena* arena, u64 size)
 
 void ResetArena(Arena* arena)
 {
-    arena->position = 0;
+    arena->position = sizeof(Arena);
 }
 
 void FreeArena(Arena* arena)

@@ -75,7 +75,7 @@ OS_EventList OS_GetEventList(Arena* arena)
         DispatchMessage(&message);
     }
 
-    OS_WIN32_EventArena = 0;
+    // OS_WIN32_EventArena = 0;
     OS_WIN32_EventList = 0;
 
     return eventList;
@@ -160,6 +160,22 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
             if (wParam == VK_ESCAPE)
             {
                 DestroyWindow(hwnd);
+            }
+        } break;
+
+        // --AlNov: Mouse Input ------------------------------
+        case WM_MOUSEMOVE:
+        {
+            event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event)); 
+            if (event)
+            {
+            event->type = OS_EVENT_TYPE_MOUSE_INPUT;
+            event->mouseX = GET_X_LPARAM(lParam);
+            event->mouseY = GET_Y_LPARAM(lParam);
+            }
+            else
+            {
+                printf("Wrong mouse event\n");
             }
         } break;
 

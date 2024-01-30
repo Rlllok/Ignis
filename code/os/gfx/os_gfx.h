@@ -6,7 +6,10 @@ struct OS_Window;
 
 enum OS_EventType
 {
+    OS_EVENT_TYPE_NONE,
+
     OS_EVENT_TYPE_EXIT,
+    OS_EVENT_TYPE_MOUSE_INPUT,
 
     OS_EVENT_TYPE_COUNT
 };
@@ -16,6 +19,9 @@ struct OS_Event
     OS_Event* next;
     OS_Event* previous;
     OS_EventType type;
+
+    u32 mouseX;
+    u32 mouseY;
 };
 
 struct OS_EventList
