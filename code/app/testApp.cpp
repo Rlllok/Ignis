@@ -10,6 +10,18 @@
 
 R_Mesh* CreateMesh(Arena* arena, Vec3f color, Vec3f centerPosition);
 
+struct UI_State
+{
+    u32 mouseX;
+    u32 mouseY;
+
+    u32 isHot;
+}
+ui_state = {};
+
+void UI_Prepare();
+void UI_Reset();
+
 int main()
 {
     Vec2u windowExtent = MakeVec2u(1280, 720);
@@ -40,7 +52,7 @@ int main()
         startCycles = endCycles;
         f32 ms = (1000.0f) * (f32)cyclesDelta / (f32)frequency;
         u32 fps = frequency / cyclesDelta;
-        // printf("MS: %fms    FPS: %i\n", ms, fps);
+        printf("MS: %fms    FPS: %i\n", ms, fps);
 
         // AlNov: @TODO Cannot understand why OS_EventList working.
         // Not OS_EventList*. I think this is because we are using arena that created there,
@@ -59,7 +71,8 @@ int main()
 
                 case OS_EVENT_TYPE_MOUSE_INPUT:
                 {
-                    printf("MouseX: %i     MouseY: %i\n", event->mouseX, event->mouseY);
+                    ui_state.mouseX = event->mouseX;
+                    ui_state.mouseY = event->mouseY;
                 } break;
 
                 default:
@@ -76,13 +89,19 @@ int main()
         sinValue = (sinValue + 1.0f) / 2.0f;
 
         // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
-        R_Mesh* mesh0 = CreateMesh(frameArena, MakeVec3f(1.0f, 0.0f, 0.0f), MakeVec3f(sinValue, 0.0f, 0.0f));
+        f32 X = ((f32)ui_state.mouseX / (f32)window.width) * 2 - 1;
+        f32 Y = ((f32)ui_state.mouseY / (f32)window.height) * 2 - 1;
+        RGB color = MakeRGB(1.0f, 0.0f, 0.0f);
+        Vec3f centerPosition = MakeVec3f(X, Y, 0.0f);
+        R_Mesh* mesh0 = CreateMesh(frameArena, color, centerPosition);
         R_AddMeshToDrawList(mesh0);
-        R_Mesh* mesh1 = CreateMesh(frameArena, MakeVec3f(0.0f, 1.0f, 0.0f), MakeVec3f(0.0f, sinValue, 0.0f));
-        R_AddMeshToDrawList(mesh1);
 
         R_DrawMesh();
 
+        // --AlNov: Using sleep to take less CPU Time
+        Sleep(3);
+
+        UI_Reset();
         ResetArena(frameArena);
     }
 
@@ -106,4 +125,12 @@ R_Mesh* CreateMesh(Arena* arena, Vec3f color, Vec3f centerPosition)
     mesh->indecies[5] = 0;
 
     return mesh;
+}
+
+void UI_Prepare()
+{
+}
+
+void UI_Reset()
+{
 }

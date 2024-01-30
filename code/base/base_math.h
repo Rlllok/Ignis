@@ -36,6 +36,9 @@ union Vec3f
     f32 values[3];
 };
 
+typedef Vec3f RGB;
+#define MakeRGB(r, g, b) MakeVec3f(r, g, b)
+
 union Vec4f
 {
     struct
