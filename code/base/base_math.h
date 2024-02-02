@@ -17,6 +17,17 @@ union Vec2u
     u32 values[2];
 };
 
+union Vec2f
+{
+    struct
+    {
+        f32 x;
+        f32 y;
+    };
+
+    f32 values[2];
+};
+
 union Vec3f
 {
     struct
@@ -61,5 +72,6 @@ union Vec4f
 };
 
 Vec2u MakeVec2u(u32 x, u32 y);
+Vec2f MakeVec2f(f32 x, f32 y);
 Vec3f MakeVec3f(f32 x, f32 y, f32 z);
 Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w);

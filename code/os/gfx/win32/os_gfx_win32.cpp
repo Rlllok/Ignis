@@ -126,6 +126,7 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 {
     LRESULT result = 0;
     OS_Event* event = 0;
+    bool release = false;
 
     switch (message)
     {
@@ -167,16 +168,40 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
         case WM_MOUSEMOVE:
         {
             event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event)); 
-            if (event)
+            event->type = OS_EVENT_TYPE_MOUSE_MOVE;
+            event->mouseX = LOWORD(lParam);
+            event->mouseY = HIWORD(lParam);
+        } break;
+        case WM_LBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_RBUTTONUP:
+        {
+            release = 1;
+        } break;
+        case WM_LBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        {
+            event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
+            if (release)
             {
-            event->type = OS_EVENT_TYPE_MOUSE_INPUT;
-            event->mouseX = GET_X_LPARAM(lParam);
-            event->mouseY = GET_Y_LPARAM(lParam);
-            }
+                event->type = OS_EVENT_TYPE_MOUSE_RELEASE;
+            } 
             else
             {
-                printf("Wrong mouse event\n");
+                event->type = OS_EVENT_TYPE_MOUSE_PRESS;
             }
+            event->mouseX = LOWORD(lParam);
+            event->mouseY = HIWORD(lParam);
+
+            // if (release)
+            // {
+            //     ReleaseCapture();
+            // }
+            // else
+            // {
+            //     SetCapture(hwnd);
+            // }
         } break;
 
         default:
