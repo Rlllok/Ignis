@@ -7,18 +7,14 @@
 #include "../render/vulkan/r_init_vk.cpp"
 
 #include <cmath>
-
-R_Mesh* CreateMesh(Arena* arena, Vec3f color, Vec3f centerPosition);
+#include <stdlib.h>
 
 void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color);
 
 struct UI_State
 {
-    u32 mouseX;
-    u32 mouseY;
-    bool wasDown;
-    bool isDown;
-    bool isUp;
+    Vec2f mousePosition;
+    bool bRelesed;
 
     u32 hotId;
     u32 activeId;
@@ -78,25 +74,10 @@ int main()
                 {
                     bIsFinished = true;
                 } break;
-
-                case OS_EVENT_TYPE_MOUSE_MOVE:
-                {
-                    ui_state.mouseX = event->mouseX;
-                    ui_state.mouseY = event->mouseY;
-                    ui_state.isDown = 0;
-                }
                 case OS_EVENT_TYPE_MOUSE_RELEASE:
                 {
-                    ui_state.mouseX = event->mouseX;
-                    ui_state.mouseY = event->mouseY;
-                    ui_state.isDown = 0;
+                    ui_state.bRelesed = true;
                 } break;
-                case OS_EVENT_TYPE_MOUSE_PRESS:
-                {
-                    ui_state.mouseX = event->mouseX;
-                    ui_state.mouseY = event->mouseY;
-                    ui_state.isDown = 1;
-                }
 
                 default:
                 {
@@ -111,17 +92,26 @@ int main()
         f32 sinValue = sinf(t);
         sinValue = (sinValue + 1.0f) / 2.0f;
 
+        ui_state.mousePosition = OS_MousePosition(window);
         UI_Prepare();
-        // printf("isDown: %i      X: %i       Y: %i\n", ui_state.isDown, ui_state.mouseX, ui_state.mouseY);
-        // printf("isDown: %i      wasDown: %i\n", ui_state.isDown, ui_state.wasDown);
 
         // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
-        Vec2f topLeft = MakeVec2f(500, 250);
-        Vec2f botRight = MakeVec2f(600, 350);
+        localPersist Vec2f topLeft = MakeVec2f(200, 250);
+        localPersist Vec2f botRight = MakeVec2f(300, 350);
         Vec3f buttonColor = MakeRGB(1.0f, 1.0f, 1.0f);
         if (UI_Button(frameArena, 0, topLeft, botRight, buttonColor))
         {
-            printf("Button is active!!!\n");
+            u32 maxX = window.width - 200;
+            u32 minX = 200;
+            f32 randomX = (f32)(rand() % (maxX - minX + 1) + minX);
+            u32 maxY = window.height - 100;
+            u32 minY = 100;
+            f32 randomY = (f32)(rand() % (maxY - minY + 1) + minY);
+
+            topLeft.x = randomX;
+            botRight.x = topLeft.x + 100;
+            topLeft.y = randomY;
+            botRight.y = topLeft.y + 100;
         }
 
         R_DrawMesh();
@@ -134,25 +124,6 @@ int main()
     }
 
     return 0;
-}
-
-R_Mesh* CreateMesh(Arena* arena, Vec3f color, Vec3f centerPosition)
-{
-    R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-    mesh->mvp.color = color;
-    mesh->mvp.centerPosition = centerPosition;
-    mesh->vertecies[0].position = MakeVec3f(-0.5f, -0.5f, 0.0f);
-    mesh->vertecies[1].position = MakeVec3f(0.5f, -0.5f, 0.0f);
-    mesh->vertecies[2].position = MakeVec3f(0.5f, 0.5f, 0.0f);
-    mesh->vertecies[3].position = MakeVec3f(-0.5f, 0.5f, 0.0f);
-    mesh->indecies[0] = 0;
-    mesh->indecies[1] = 1;
-    mesh->indecies[2] = 2;
-    mesh->indecies[3] = 2;
-    mesh->indecies[4] = 3;
-    mesh->indecies[5] = 0;
-
-    return mesh;
 }
 
 void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color)
@@ -185,7 +156,7 @@ bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color)
     if (UI_CheckBoxHit(topLeft, botRight))
     {
         ui_state.hotId = id;
-        if (ui_state.isDown)
+        if (ui_state.bRelesed)
         {
             ui_state.activeId = id;
         }
@@ -232,14 +203,15 @@ void UI_Prepare()
 
 void UI_Reset()
 {
+    ui_state = {};
 }
 
 bool UI_CheckBoxHit(Vec2f topLeft, Vec2f botRight)
 {
-    if (ui_state.mouseX < topLeft.x
-        || ui_state.mouseY < topLeft.y
-        || ui_state.mouseX >= (botRight.x)
-        || ui_state.mouseY >= (botRight.y)
+    if (ui_state.mousePosition.x < topLeft.x
+        || ui_state.mousePosition.y < topLeft.y
+        || ui_state.mousePosition.x >= (botRight.x)
+        || ui_state.mousePosition.y >= (botRight.y)
     )
     {
         return 0;

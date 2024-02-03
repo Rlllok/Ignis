@@ -96,6 +96,15 @@ f32 OS_CurrentTimeSeconds()
     return (1000.f * (f32)counter.QuadPart) / (f32)frequency.QuadPart;
 }
 
+Vec2f OS_MousePosition(OS_Window window)
+{
+    POINT mousePoint;
+    GetCursorPos(&mousePoint);
+    ScreenToClient(window.handle, &mousePoint);
+
+    return MakeVec2f((f32)mousePoint.x, (f32)mousePoint.y);
+}
+
 bool OS_IsWindowClosed()
 {
     return false;
@@ -165,19 +174,12 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
         } break;
 
         // --AlNov: Mouse Input ------------------------------
-        case WM_MOUSEMOVE:
-        {
-            event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event)); 
-            event->type = OS_EVENT_TYPE_MOUSE_MOVE;
-            event->mouseX = LOWORD(lParam);
-            event->mouseY = HIWORD(lParam);
-        } break;
         case WM_LBUTTONUP:
         case WM_MBUTTONUP:
         case WM_RBUTTONUP:
         {
             release = 1;
-        } break;
+        } // go through;
         case WM_LBUTTONDOWN:
         case WM_MBUTTONDOWN:
         case WM_RBUTTONDOWN:

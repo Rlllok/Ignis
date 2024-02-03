@@ -45,6 +45,7 @@ void OS_PushEvent(OS_EventList* eventList, OS_Event* event);
 // --AlNov: @NOTE Convertion time getted from this function can be not as presice.
 // The reason that we delete small number to large inside (tick and frequency).
 f32 OS_CurrentTimeSeconds();
+Vec2f OS_MousePosition(OS_Window window);
 
 // --AlNov: It is there because Vulkan neadds windows.h information
 // But it could be removed if above problem is fixed.

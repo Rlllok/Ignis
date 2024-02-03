@@ -37,5 +37,6 @@ OS_EventList OS_GetEventList(Arena* arena);
 void OS_PushEvent(OS_EventList* eventList, OS_Event* event);
 
 f32 OS_CurrentTimeSeconds();
+Vec2f OS_MousePosition(OS_Window window);
 
 LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
