@@ -9,6 +9,8 @@
 #include <cmath>
 #include <stdlib.h>
 
+#define UI_ID (__LINE__)
+
 void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color);
 
 struct UI_State
@@ -96,22 +98,47 @@ int main()
         UI_Prepare();
 
         // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
-        localPersist Vec2f topLeft = MakeVec2f(200, 250);
-        localPersist Vec2f botRight = MakeVec2f(300, 350);
-        Vec3f buttonColor = MakeRGB(1.0f, 1.0f, 1.0f);
-        if (UI_Button(frameArena, 0, topLeft, botRight, buttonColor))
-        {
-            u32 maxX = window.width - 200;
-            u32 minX = 200;
-            f32 randomX = (f32)(rand() % (maxX - minX + 1) + minX);
-            u32 maxY = window.height - 100;
-            u32 minY = 100;
-            f32 randomY = (f32)(rand() % (maxY - minY + 1) + minY);
 
-            topLeft.x = randomX;
-            botRight.x = topLeft.x + 100;
-            topLeft.y = randomY;
-            botRight.y = topLeft.y + 100;
+        // Button 1
+        {
+            localPersist Vec2f topLeft = MakeVec2f(200, 250);
+            localPersist Vec2f botRight = MakeVec2f(300, 350);
+            Vec3f buttonColor = MakeRGB(0.0f, 1.0f, 0.0f);
+            if (UI_Button(frameArena, UI_ID, topLeft, botRight, buttonColor))
+            {
+                u32 maxX = window.width - 200;
+                u32 minX = 200;
+                f32 randomX = (f32)(rand() % (maxX - minX + 1) + minX);
+                u32 maxY = window.height - 100;
+                u32 minY = 100;
+                f32 randomY = (f32)(rand() % (maxY - minY + 1) + minY);
+
+                topLeft.x = randomX;
+                botRight.x = topLeft.x + 100;
+                topLeft.y = randomY;
+                botRight.y = topLeft.y + 100;
+            }
+        }
+        // Button2
+        {
+            localPersist Vec2f topLeft = MakeVec2f(400, 150);
+            localPersist Vec2f botRight = MakeVec2f(500, 250);
+            Vec3f buttonColor = MakeRGB(1.0f, 0.0f, 0.0f);
+            if (UI_Button(frameArena, UI_ID, topLeft, botRight, buttonColor))
+            {
+                u32 maxX = window.width - 200;
+                u32 minX = 200;
+                f32 randomX = (f32)(rand() % (maxX - minX + 1) + minX);
+                u32 maxY = window.height - 100;
+                u32 minY = 100;
+                f32 randomY = (f32)(rand() % (maxY - minY + 1) + minY);
+
+                topLeft.x = randomX;
+                botRight.x = topLeft.x + 100;
+                topLeft.y = randomY;
+                botRight.y = topLeft.y + 100;
+            }
+
         }
 
         R_DrawMesh();
@@ -168,7 +195,8 @@ bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color)
     mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
     if (ui_state.hotId == id)
     {
-        mesh->mvp.color = MakeVec3f(0.8f, 0.2f, 0.6f);
+        // --AlNov: Inver color when hover the button
+        mesh->mvp.color = MakeVec3f(1.0f - color.r, 1.0f - color.g, 1.0f - color.b);
     }
     else
     {
