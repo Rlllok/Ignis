@@ -29,6 +29,7 @@ void UI_Reset();
 bool UI_CheckBoxHit(Vec2f topLeft, Vec2f botRight);
 
 bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color);
+void UI_Slider(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, f32& value);
 
 int main()
 {
@@ -140,6 +141,12 @@ int main()
             }
 
         }
+        {
+            Vec2f topLeft = MakeVec2f(100, 50);
+            Vec2f botRight = MakeVec2f(300, 70);
+            localPersist f32 sliderValue = 0;
+            UI_Slider(frameArena, UI_ID, topLeft, botRight, sliderValue);
+        }
 
         R_DrawMesh();
 
@@ -221,6 +228,48 @@ bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color)
     }
 
     return false;
+}
+
+void UI_Slider(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, f32& value)
+{
+    RGB backgroundColor = MakeRGB(0.4f, 0.4f, 0.4f);
+    if (UI_CheckBoxHit(topLeft, botRight))
+    {
+        ui_state.hotId = id;
+        // --AlNov: @TODO Maybe change to Hold
+        if (ui_state.bRelesed)
+        {
+            ui_state.activeId = id;
+        }
+    }
+    if (ui_state.hotId == id)
+    {
+        backgroundColor = MakeRGB(0.6f, 0.6f, 0.6f);
+    }
+    if (ui_state.activeId == id)
+    {
+        if (ui_state.mousePosition.x < topLeft.x)
+        {
+            value = 0.0f;
+        }
+        else if (ui_state.mousePosition.x > botRight.x)
+        {
+            value = 1.0f;
+        }
+        else
+        {
+            value = (ui_state.mousePosition.x - topLeft.x) / (botRight.x - topLeft.x);
+            printf("value: %f\n", value);
+        }
+    }
+
+    R_DrawSquare(arena, topLeft, botRight, backgroundColor);
+    Vec2f sliderTopLeft = topLeft;
+    sliderTopLeft.x += (botRight.x - topLeft.x) * value;
+    Vec2f sliderBotRight = sliderTopLeft;
+    sliderBotRight.x += 10;
+    sliderBotRight.y =  botRight.y;
+    R_DrawSquare(arena, sliderTopLeft, sliderBotRight, MakeRGB(0.2f, 0.4f, 0.7f));
 }
 
 void UI_Prepare()
