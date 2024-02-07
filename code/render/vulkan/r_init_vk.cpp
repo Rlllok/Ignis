@@ -481,6 +481,30 @@ void R_VK_CreateSyncTools()
     }
 }
 
+void R_VK_CreateVertexBuffer()
+{
+    R_VertexBuffer = {};
+    R_VertexBuffer.size = Kilobytes(64);
+    R_VK_CreateBuffer(
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        R_VertexBuffer.size, &R_VertexBuffer.buffer, &R_VertexBuffer.memory
+    );
+    
+    vkMapMemory(R_Device.handle, R_VertexBuffer.memory, 0, R_VertexBuffer.size, 0, &R_VertexBuffer.mappedMemory);    
+}
+
+void R_VK_CreateIndexBuffer()
+{
+    R_IndexBuffer = {};
+    R_IndexBuffer.size = Kilobytes(64);
+    R_VK_CreateBuffer(
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+        R_IndexBuffer.size, &R_IndexBuffer.buffer, &R_IndexBuffer.memory
+    );
+    
+    vkMapMemory(R_Device.handle, R_IndexBuffer.memory, 0, R_IndexBuffer.size, 0, &R_IndexBuffer.mappedMemory);    
+}
+
 void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyFlags, u32 size, VkBuffer* outBuffer, VkDeviceMemory* outMemory)
 {
     VkBufferCreateInfo bufferInfo = {};
@@ -565,58 +589,6 @@ void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex)
     vkEndCommandBuffer(cmdBuffer);
 }
 
-void R_Draw(f32 deltaTime)
-{
-    localPersist u32 currentFrame = 0;
-    // static u32 currentFrame = 0;
-
-    vkWaitForFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame], VK_TRUE, U64_MAX);
-    
-    vkResetFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame]);
-
-    // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
-    u32 imageIndex;
-    vkAcquireNextImageKHR(
-        R_Device.handle, R_Swapchain.handle,
-        U64_MAX, R_SyncTools.imageIsAvailableSemaphores[currentFrame],
-        nullptr, &imageIndex
-    );
-
-    R_RecordCmdBuffer(R_CmdPool.cmdBuffers[currentFrame], imageIndex);
-
-    VkPipelineStageFlags waitStage = {
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    };
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &R_SyncTools.imageIsAvailableSemaphores[imageIndex];
-    submitInfo.pWaitDstStageMask = &waitStage;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &R_CmdPool.cmdBuffers[currentFrame];
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &R_SyncTools.imageIsReadySemaphores[currentFrame];
-
-    VkQueue queue;
-    vkGetDeviceQueue(R_Device.handle, R_Device.queueIndex, 0, &queue);
-
-    vkQueueSubmit(queue, 1, &submitInfo, R_SyncTools.fences[currentFrame]);
-
-	VkPresentInfoKHR presentInfo = {};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &R_SyncTools.imageIsReadySemaphores[currentFrame];
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = &R_Swapchain.handle;
-	presentInfo.pImageIndices = &imageIndex;
-	presentInfo.pResults = nullptr;
-
-    vkQueuePresentKHR(queue, &presentInfo);
-
-    currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
-}
-
 void R_DrawMesh()
 {
     // AlNov: TEMP CODE START (SHOULD NOT BE THERE)
@@ -664,23 +636,18 @@ void R_DrawMesh()
         {
             vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.handle);
 
-            VkDeviceSize offsets[] = { 0 };
             R_Mesh* meshToDraw = meshList.firstMesh;
             while (meshToDraw)
             {
+                VkDeviceSize offsets[] = { R_VertexBuffer.currentPosition };
                 // VertexBuffer
-                R_VK_CreateBuffer(
-                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    sizeof(meshToDraw->vertecies), &meshToDraw->vertexBuffer, &meshToDraw->vertexBufferMemory
-                );
-                R_VK_CopyToMemory(meshToDraw->vertexBufferMemory, &meshToDraw->vertecies, sizeof(meshToDraw->vertecies));
+                memcpy((u8*)R_VertexBuffer.mappedMemory + R_VertexBuffer.currentPosition, &meshToDraw->vertecies, sizeof(meshToDraw->vertecies));
+                R_VertexBuffer.currentPosition += sizeof(meshToDraw->vertecies);
 
                 // IndexBuffer
-                R_VK_CreateBuffer(
-                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                    sizeof(meshToDraw->indecies), &meshToDraw->indexBuffer, &meshToDraw->indexBufferMemory
-                );
-                R_VK_CopyToMemory(meshToDraw->indexBufferMemory, &meshToDraw->indecies, sizeof(meshToDraw->indecies));
+                u32 indexBufferOffset = R_IndexBuffer.currentPosition;
+                memcpy((u8*)R_IndexBuffer.mappedMemory + R_IndexBuffer.currentPosition, &meshToDraw->indecies, sizeof(meshToDraw->indecies));
+                R_IndexBuffer.currentPosition += sizeof(meshToDraw->indecies);
 
                 // MVP BUffer
                 R_VK_CreateBuffer(
@@ -718,8 +685,8 @@ void R_DrawMesh()
                     0, 1, &meshToDraw->mvpSet, 0, 0
                 );
 
-                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &meshToDraw->vertexBuffer, offsets);
-                vkCmdBindIndexBuffer(cmdBuffer, meshToDraw->indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &R_VertexBuffer.buffer, offsets);
+                vkCmdBindIndexBuffer(cmdBuffer, R_IndexBuffer.buffer, indexBufferOffset, VK_INDEX_TYPE_UINT32);
 
                 vkCmdDrawIndexed(cmdBuffer, 6, 1, 0, 0, 0);
 
@@ -769,12 +736,8 @@ void R_DrawMesh()
         // But it is how it is now
         vkDeviceWaitIdle(R_Device.handle);
 
-        vkDestroyBuffer(R_Device.handle, meshToDraw->vertexBuffer, nullptr);
-        vkDestroyBuffer(R_Device.handle, meshToDraw->indexBuffer, nullptr);
         vkDestroyBuffer(R_Device.handle, meshToDraw->mvpBuffer, nullptr);
 
-        vkFreeMemory(R_Device.handle, meshToDraw->vertexBufferMemory, nullptr);
-        vkFreeMemory(R_Device.handle, meshToDraw->indexBufferMemory, nullptr);
         vkFreeMemory(R_Device.handle, meshToDraw->mvpBufferMemory, nullptr);
 
         vkResetDescriptorPool(R_Device.handle, R_DescriptorPool.handle, 0);
@@ -783,6 +746,12 @@ void R_DrawMesh()
     }
 
     meshList = {};
+}
+
+void R_EndFrame()
+{
+    R_VertexBuffer.currentPosition = 0;
+    R_IndexBuffer.currentPosition = 0;
 }
 
 void R_Init(const OS_Window& window)
@@ -798,6 +767,8 @@ void R_Init(const OS_Window& window)
     R_VK_CreateCommandPool();
     R_VK_AllocateCommandBuffers();
     R_VK_CreateSyncTools();
+    R_VK_CreateVertexBuffer();
+    R_VK_CreateIndexBuffer();
 }
 
 void R_VK_CreateDescriptorPool()

@@ -154,6 +154,7 @@ int main()
         Sleep(3);
 
         UI_Reset();
+        R_EndFrame();
         ResetArena(frameArena);
     }
 

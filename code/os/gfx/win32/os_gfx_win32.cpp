@@ -35,13 +35,13 @@ OS_Window OS_CreateWindow(const char* title, Vec2u size)
     
     HWND handle = {};
 
-    handle = CreateWindowW(OS_WIN32_WindowClassName, (LPCWSTR)title, WS_OVERLAPPEDWINDOW,
+    handle = CreateWindowW(OS_WIN32_WindowClassName, L"TestApp", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, size.width, size.height, 0, 0, window.instance, 0
     );
 
     if (handle == 0)
     {
-        printf("Cannot create window. Error: %lu", GetLastError());
+        printf("Cannot create window. Error: %lu\n", GetLastError());
         window = {};
         return window;
     }
@@ -72,7 +72,7 @@ OS_EventList OS_GetEventList(Arena* arena)
     while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&message);
-        DispatchMessage(&message);
+        DispatchMessageW(&message);
     }
 
     // OS_WIN32_EventArena = 0;
@@ -208,7 +208,7 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
         default:
         {
-            result = DefWindowProc(hwnd, message, wParam, lParam);
+            result = DefWindowProcW(hwnd, message, wParam, lParam);
         } break;
     }
 

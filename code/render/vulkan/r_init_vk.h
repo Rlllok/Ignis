@@ -26,11 +26,6 @@ struct R_Mesh
     Vertex vertecies[4];
     u32 indecies[6];
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
-
     VkDescriptorSet mvpSet;
     VkBuffer mvpBuffer;
     VkDeviceMemory mvpBufferMemory;
@@ -117,6 +112,26 @@ struct R_VK_SyncTools
 };
 global R_VK_SyncTools R_SyncTools;
 
+struct R_VK_VertexBuffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    void* mappedMemory;
+    u32 currentPosition;
+    u32 size;
+};
+global R_VK_VertexBuffer R_VertexBuffer;
+
+struct R_VK_IndexBuffer
+{
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+    void* mappedMemory;
+    u32 currentPosition;
+    u32 size;
+};
+global R_VK_IndexBuffer R_IndexBuffer;
+
 // --AlNov: Functions --------------------------------------------------
 void R_VK_CreateInstance();
 void R_VK_CreateDevice();
@@ -128,6 +143,8 @@ void R_VK_CreateFramebuffers();
 void R_VK_CreateCommandPool();
 void R_VK_AllocateCommandBuffers();
 void R_VK_CreateSyncTools();
+void R_VK_CreateVertexBuffer();
+void R_VK_CreateIndexBuffer();
 
 // --AlNov: @TODO Handle VK Object destruction
 
@@ -135,4 +152,4 @@ void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyF
 void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size);
 void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex);
 void R_DrawMesh();
-void R_Init(const OS_Window& window, const i32 width, const i32 height);
+void R_EndFrame();
