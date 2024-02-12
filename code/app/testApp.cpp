@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <stdlib.h>
+#include <strsafe.h>
 
 #define UI_ID (__LINE__)
 
@@ -16,7 +17,8 @@ void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color);
 struct UI_State
 {
     Vec2f mousePosition;
-    bool bRelesed;
+    bool bMouseRelesed;
+    bool bMousePressed;
 
     u32 hotId;
     u32 activeId;
@@ -38,6 +40,37 @@ int main()
     OS_Window window = OS_CreateWindow("Test App", windowExtent);
 
     R_Init(window);
+    
+    // --AlNov: GetMonitor data test
+    // HMONITOR monitorHandle = MonitorFromWindow(window.handle, MONITOR_DEFAULTTONULL);
+    // if (monitorHandle == 0)
+    // {
+    //        return 0;
+    // }
+    // MONITORINFOEXW monitorInfo;
+    // GetMonitorInfoW(monitorHandle, &monitorInfo);
+    DISPLAY_DEVICEA displayDevice = {};
+    displayDevice.cb = sizeof(displayDevice); // --AlNov: forgot to do this in test with MONITORINFOEX.
+    if (EnumDisplayDevicesA(0, 0, &displayDevice, 0))
+    {
+        char szSaveDeviceName[33];
+        StringCchCopyA(szSaveDeviceName, 33, displayDevice.DeviceName);
+        if (EnumDisplayDevicesA(szSaveDeviceName, 0, &displayDevice, 0))
+        {
+            char lpszMonitorInfo[129];
+            StringCchCopy(lpszMonitorInfo, 129, displayDevice.DeviceString);
+            printf("%s\n", lpszMonitorInfo);
+        }
+    }
+    DEVMODEW devMode = {};
+    // -- AlNov: @NOTE monitorInfo.szDevice not working for some reason
+    // EnumDisplaySettingsW(monitorInfo.szDevice, ENUM_CURRENT_SETTINGS, &devMode);
+    EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &devMode);
+    printf("Hz: %f\n", (f32)devMode.dmDisplayFrequency);
+    
+    f32 targetMiliseconds = 1000.0f / (f32)devMode.dmDisplayFrequency;
+    printf("ms: %f\n", targetMiliseconds);
+    // END
 
     OS_ShowWindow(&window);
 
@@ -55,14 +88,6 @@ int main()
     u16 bIsFinished = false;
     while (!bIsFinished)
     {
-        QueryPerformanceCounter(&win32Cycles);
-        u64 endCycles = win32Cycles.QuadPart;
-        u64 cyclesDelta = endCycles - startCycles;
-        startCycles = endCycles;
-        f32 ms = (1000.0f) * (f32)cyclesDelta / (f32)frequency;
-        u32 fps = frequency / cyclesDelta;
-        // printf("MS: %fms    FPS: %i\n", ms, fps);
-
         // AlNov: @TODO Cannot understand why OS_EventList working.
         // Not OS_EventList*. I think this is because we are using arena that created there,
         // and pushed to function. Should study more about this case
@@ -77,9 +102,16 @@ int main()
                 {
                     bIsFinished = true;
                 } break;
+                case OS_EVENT_TYPE_MOUSE_PRESS:
+                {
+                    printf("MousePressed\n");
+                    ui_state.bMousePressed = true;
+                    ui_state.bMouseRelesed = false;
+                } break;
                 case OS_EVENT_TYPE_MOUSE_RELEASE:
                 {
-                    ui_state.bRelesed = true;
+                    ui_state.bMouseRelesed = true;
+                    ui_state.bMousePressed = false;
                 } break;
 
                 default:
@@ -89,11 +121,6 @@ int main()
 
             event = event->next;
         }
-
-        static f32 t = 0.0f;
-        t += 0.001f * ms;
-        f32 sinValue = sinf(t);
-        sinValue = (sinValue + 1.0f) / 2.0f;
 
         ui_state.mousePosition = OS_MousePosition(window);
         UI_Prepare();
@@ -141,6 +168,7 @@ int main()
             }
 
         }
+        // Slider
         {
             Vec2f topLeft = MakeVec2f(100, 50);
             Vec2f botRight = MakeVec2f(300, 70);
@@ -151,7 +179,13 @@ int main()
         R_DrawMesh();
 
         // --AlNov: Using sleep to take less CPU Time
-        Sleep(3);
+        QueryPerformanceCounter(&win32Cycles);
+        u64 endCycles = win32Cycles.QuadPart;
+        u64 cyclesDelta = endCycles - startCycles;
+        startCycles = endCycles;
+        f32 ms = (1000.0f) * (f32)cyclesDelta / (f32)frequency;
+        f32 sleepTime = targetMiliseconds - ms;
+        Sleep((sleepTime > 0) ? sleepTime : 0);
 
         UI_Reset();
         R_EndFrame();
@@ -191,7 +225,7 @@ bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color)
     if (UI_CheckBoxHit(topLeft, botRight))
     {
         ui_state.hotId = id;
-        if (ui_state.bRelesed)
+        if (ui_state.bMouseRelesed)
         {
             ui_state.activeId = id;
         }
@@ -238,7 +272,7 @@ void UI_Slider(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, f32& value)
     {
         ui_state.hotId = id;
         // --AlNov: @TODO Maybe change to Hold
-        if (ui_state.bRelesed)
+        if (ui_state.bMousePressed)
         {
             ui_state.activeId = id;
         }
@@ -281,7 +315,8 @@ void UI_Prepare()
 
 void UI_Reset()
 {
-    ui_state = {};
+    // ui_state = {};
+    ui_state.bMouseRelesed = false;
 }
 
 bool UI_CheckBoxHit(Vec2f topLeft, Vec2f botRight)

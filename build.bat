@@ -16,6 +16,7 @@ xcopy /y /q /s /e /i data .\build\data
 rem --- Build Settings ---
 set compiler=clang
 set clang_turnoff_warnings=-Wno-deprecated-declarations -Wno-gnu-anonymous-struct
+rem set clang_flags=-Wall -Wconversion %clang_turnoff_warnings% -pedantic -g -I..\code\ -L..\code\
 set clang_flags=-Wall %clang_turnoff_warnings% -pedantic -g -I..\code\ -L..\code\
 
 rem --- Build ---
