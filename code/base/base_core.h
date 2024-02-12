@@ -28,6 +28,7 @@ typedef double      f64;
 
 // --AlNov: Memory Size
 #define Kilobytes(n) (n << 10)
+#define Megabytes(n) (n << 20)
 
 // -AlNov: Tools
 #define CountArrayElements(inArray) (sizeof(inArray) / sizeof((inArray)[0]))

@@ -72,8 +72,6 @@ int main()
     printf("ms: %f\n", targetMiliseconds);
     // END
 
-    OS_ShowWindow(&window);
-
     LARGE_INTEGER win32Freq;
     QueryPerformanceFrequency(&win32Freq);
     u64 frequency = win32Freq.QuadPart;
@@ -82,9 +80,10 @@ int main()
     QueryPerformanceCounter(&win32Cycles);
     u64 startCycles = win32Cycles.QuadPart;
 
-    // --AlNov: @TODO @NOTE
-    // If there is more information than 10 KB Arena drops error
-    Arena* frameArena = AllocateArena(Kilobytes(10));
+    Arena* frameArena = AllocateArena(Megabytes(50));
+
+    OS_ShowWindow(&window);
+
     u16 bIsFinished = false;
     while (!bIsFinished)
     {
@@ -101,6 +100,13 @@ int main()
                 case OS_EVENT_TYPE_EXIT:
                 {
                     bIsFinished = true;
+                } break;
+                case OS_EVENT_TYPE_RESIZE:
+                {
+                    window.width = event->windowSize.width;
+                    window.height = event->windowSize.height;
+                    R_ResizeWindow();
+                    // R_VK_HandleWindowResize();
                 } break;
                 case OS_EVENT_TYPE_MOUSE_PRESS:
                 {
@@ -166,7 +172,6 @@ int main()
                 topLeft.y = randomY;
                 botRight.y = topLeft.y + 100;
             }
-
         }
         // Slider
         {

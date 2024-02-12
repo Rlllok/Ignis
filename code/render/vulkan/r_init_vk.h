@@ -54,18 +54,20 @@ struct R_VK_Device
 };
 global R_VK_Device R_Device;
 
-struct R_VK_Swapchain
+struct R_VK_WindowResources
 {
-    VkSwapchainKHR handle = VK_NULL_HANDLE;
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    VkExtent2D extent = {};
-    VkSurfaceFormatKHR surfaceFormat = {};
-    u32 imageCount = 0;
-    VkImage* images = nullptr;
-    VkImageView* imageViews = nullptr;
-    VkFramebuffer* framebuffers = nullptr;
+    VkSwapchainKHR      swapchain;
+    VkSurfaceKHR        surface;
+    VkSurfaceFormatKHR  surfaceFormat;
+    Vec2u               size;
+    u32                 imageCount;
+    VkImage*            images;
+    VkImageView*        imageViews;
+    VkFramebuffer*      framebuffers;
+
+    bool bIsWindowResized;
 };
-global R_VK_Swapchain R_Swapchain;
+global R_VK_WindowResources R_WindowResources;
 
 struct R_VK_Pipeline
 {
@@ -135,16 +137,22 @@ global R_VK_IndexBuffer R_IndexBuffer;
 // --AlNov: Functions --------------------------------------------------
 void R_VK_CreateInstance();
 void R_VK_CreateDevice();
-void R_VK_CreateSwapchain(const OS_Window& window);
+void R_VK_CreateSurface(OS_Window window);
+void R_VK_CreateSwapchain();
 void R_VK_CreateDescriptorPool();
 void R_VK_AllocateDesciptorSet();
-void R_VK_CreatePipeline(const i32 width, const i32 height);
+void R_VK_CreatePipeline();
 void R_VK_CreateFramebuffers();
 void R_VK_CreateCommandPool();
 void R_VK_AllocateCommandBuffers();
 void R_VK_CreateSyncTools();
 void R_VK_CreateVertexBuffer();
 void R_VK_CreateIndexBuffer();
+
+void R_VK_CleanSwapchainResources();
+
+void R_ResizeWindow();
+void R_VK_HandleWindowResize();
 
 // --AlNov: @TODO Handle VK Object destruction
 
@@ -153,3 +161,7 @@ void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size);
 void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex);
 void R_DrawMesh();
 void R_EndFrame();
+
+// -- AlNov: Helpers --------------------------------------------------
+void R_UpdateWindowData(OS_Window window);
+VkExtent2D R_VK_VkExtent2DFromVec2u(Vec2u vec);

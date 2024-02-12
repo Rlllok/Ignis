@@ -172,7 +172,9 @@ void R_VK_CreateDevice()
         graphicsQueueInfo.pQueuePriorities = &priority;
 
         const u32 extensionCount = 1;
-        const char* extensionNames[extensionCount] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        const char* extensionNames[extensionCount] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        };
 
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -187,7 +189,46 @@ void R_VK_CreateDevice()
     FreeArena(tempArena);
 }
 
-void R_VK_CreatePipeline(const i32 width, const i32 height)
+void R_VK_CreateSurface(OS_Window window)
+{
+    VkWin32SurfaceCreateInfoKHR surfaceInfo = {};
+    surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    surfaceInfo.hinstance = window.instance;
+    surfaceInfo.hwnd = window.handle;
+
+    vkCreateWin32SurfaceKHR(R_VK_Instance, &surfaceInfo, nullptr, &R_WindowResources.surface);
+
+    // Get Surface Capabilities
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(R_Device.GPU, R_WindowResources.surface, &capabilities);
+
+    R_WindowResources.size.width = capabilities.currentExtent.width;
+    R_WindowResources.size.height = capabilities.currentExtent.height;
+
+    R_WindowResources.imageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && R_WindowResources.imageCount > capabilities.maxImageCount) {
+        R_WindowResources.imageCount = capabilities.maxImageCount;
+    }
+
+    // Get Surface Format
+    Arena* tempArena = AllocateArena(Kilobytes(64));
+    {
+        u32 formatCount = 0;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(R_Device.GPU, R_WindowResources.surface, &formatCount, nullptr);
+        VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(tempArena, formatCount * sizeof(VkSurfaceFormatKHR));
+        vkGetPhysicalDeviceSurfaceFormatsKHR(R_Device.GPU, R_WindowResources.surface, &formatCount, formats);
+
+        for (u32 i = 0; i < formatCount; ++i)
+        {
+            if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
+                R_WindowResources.surfaceFormat = formats[i];
+            }
+        }
+    }
+    FreeArena(tempArena);
+}
+
+void R_VK_CreatePipeline()
 {
     // --AlNov: Vertex Shader
     
@@ -295,15 +336,15 @@ void R_VK_CreatePipeline(const i32 width, const i32 height)
         VkViewport viewport = {};
         viewport.x = 0;
         viewport.y = 0;
-        viewport.height = height;
-        viewport.width = width;
+        viewport.height = R_WindowResources.size.height;
+        viewport.width = R_WindowResources.size.width;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor = {};
         scissor.offset = {0, 0};
-        scissor.extent.height = height;
-        scissor.extent.width = width;
+        scissor.extent.height = R_WindowResources.size.height;
+        scissor.extent.width = R_WindowResources.size.width;
 
         VkPipelineViewportStateCreateInfo viewportStateInfo = {};
         viewportStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -359,7 +400,7 @@ void R_VK_CreatePipeline(const i32 width, const i32 height)
 
         // Color Attachment
         VkAttachmentDescription colorAttachment = {};
-        colorAttachment.format = R_Swapchain.surfaceFormat.format;
+        colorAttachment.format = R_WindowResources.surfaceFormat.format;
         colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -425,20 +466,21 @@ void R_VK_CreatePipeline(const i32 width, const i32 height)
 
 void R_VK_CreateFramebuffers()
 {
-    R_Swapchain.framebuffers = (VkFramebuffer*)PushArena(R_Arena, R_Swapchain.imageCount * sizeof(VkFramebuffer));
+    u32 imageCount = R_WindowResources.imageCount;
+    R_WindowResources.framebuffers = (VkFramebuffer*)PushArena(R_Arena, imageCount * sizeof(VkFramebuffer));
 
-    for (u32 i = 0; i < R_Swapchain.imageCount; ++i)
+    for (u32 i = 0; i < imageCount; ++i)
     {
         VkFramebufferCreateInfo framebufferInfo = {};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = R_Pipeline.renderPass;
+        framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass      = R_Pipeline.renderPass;
         framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = &R_Swapchain.imageViews[i];
-        framebufferInfo.width = R_Swapchain.extent.width;
-        framebufferInfo.height = R_Swapchain.extent.height;
-        framebufferInfo.layers = 1;
+        framebufferInfo.pAttachments    = &R_WindowResources.imageViews[i];
+        framebufferInfo.width           = R_WindowResources.size.width;
+        framebufferInfo.height          = R_WindowResources.size.height;
+        framebufferInfo.layers          = 1;
 
-        vkCreateFramebuffer(R_Device.handle, &framebufferInfo, nullptr, &R_Swapchain.framebuffers[i]);
+        vkCreateFramebuffer(R_Device.handle, &framebufferInfo, nullptr, &R_WindowResources.framebuffers[i]);
     }
 }
 
@@ -505,6 +547,69 @@ void R_VK_CreateIndexBuffer()
     vkMapMemory(R_Device.handle, R_IndexBuffer.memory, 0, R_IndexBuffer.size, 0, &R_IndexBuffer.mappedMemory);    
 }
 
+void R_VK_CleanSwapchainResources()
+{
+    u32 imageCount = R_WindowResources.imageCount;
+
+    vkDeviceWaitIdle(R_Device.handle);
+    for (u32 i = 0; i < imageCount; ++i)
+    {
+        vkDestroyFramebuffer(R_Device.handle, R_WindowResources.framebuffers[i], 0);
+        vkDestroyImageView(R_Device.handle, R_WindowResources.imageViews[i], 0);
+    }
+
+    vkDestroySwapchainKHR(R_Device.handle, R_WindowResources.swapchain, 0);
+}
+
+void R_ResizeWindow()
+{
+    R_WindowResources.bIsWindowResized = true;
+}
+
+void R_VK_HandleWindowResize()
+{
+    vkDeviceWaitIdle(R_Device.handle);
+
+    VkSurfaceCapabilitiesKHR capabilities;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(R_Device.GPU, R_WindowResources.surface, &capabilities);
+
+    R_WindowResources.size.width = capabilities.currentExtent.width;
+    R_WindowResources.size.height = capabilities.currentExtent.height;
+
+    R_VK_CleanSwapchainResources();
+    R_VK_CreateSwapchain();
+
+    for (u32 i = 0; i < R_WindowResources.imageCount; ++i)
+    {
+        VkFramebufferCreateInfo framebufferInfo = {};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = R_Pipeline.renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = &R_WindowResources.imageViews[i];
+        framebufferInfo.width = R_WindowResources.size.width;
+        framebufferInfo.height = R_WindowResources.size.height;
+        framebufferInfo.layers = 1;
+
+        vkCreateFramebuffer(R_Device.handle, &framebufferInfo, nullptr, &R_WindowResources.framebuffers[i]);
+    }
+
+    vkDestroyPipeline(R_Device.handle, R_Pipeline.handle, nullptr);
+    vkDestroyPipelineLayout(R_Device.handle, R_Pipeline.layout, nullptr);
+    vkDestroyRenderPass(R_Device.handle, R_Pipeline.renderPass, nullptr);
+    R_VK_CreatePipeline();
+
+    // --AlNov: @TODO @NOTE For some reason semaphore remains signaled when resizing
+    // Even if vkAcquireNextImageKHR resurn error - it still signal semaphore
+    // So decided to try rercreate sync tools - no changes, still signaled.
+    for (i32 i = 0; i < NUM_FRAMES_IN_FLIGHT; ++i)
+    {
+        vkDestroySemaphore(R_Device.handle, R_SyncTools.imageIsAvailableSemaphores[i], nullptr);
+        vkDestroySemaphore(R_Device.handle, R_SyncTools.imageIsReadySemaphores[i], nullptr);
+        vkDestroyFence(R_Device.handle, R_SyncTools.fences[i], nullptr);
+    }
+    R_VK_CreateSyncTools();
+}
+
 void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyFlags, u32 size, VkBuffer* outBuffer, VkDeviceMemory* outMemory)
 {
     VkBufferCreateInfo bufferInfo = {};
@@ -566,8 +671,9 @@ void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex)
         VkRenderPassBeginInfo renderPassBeginInfo = {};
         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassBeginInfo.renderPass = R_Pipeline.renderPass;
-        renderPassBeginInfo.framebuffer = R_Swapchain.framebuffers[imageIndex];
-        renderPassBeginInfo.renderArea.extent = R_Swapchain.extent;
+        renderPassBeginInfo.framebuffer = R_WindowResources.framebuffers[imageIndex];
+        renderPassBeginInfo.renderArea.extent.height = R_WindowResources.size.height;
+        renderPassBeginInfo.renderArea.extent.width = R_WindowResources.size.width;
         renderPassBeginInfo.renderArea.offset.y = 0;
         renderPassBeginInfo.renderArea.offset.y = 0;
         renderPassBeginInfo.clearValueCount = 1;
@@ -600,15 +706,21 @@ void R_DrawMesh()
 
     vkWaitForFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame], VK_TRUE, U64_MAX);
     
-    vkResetFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame]);
-
     // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
     u32 imageIndex;
-    vkAcquireNextImageKHR(
-        R_Device.handle, R_Swapchain.handle,
+    VkResult imageAquireResult = vkAcquireNextImageKHR(
+        R_Device.handle, R_WindowResources.swapchain,
         U64_MAX, R_SyncTools.imageIsAvailableSemaphores[currentFrame],
         nullptr, &imageIndex
     );
+
+    vkResetFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame]);
+
+    if (imageAquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        R_VK_HandleWindowResize();
+        return;
+    }
 
     // R_RecordCmdBuffer(R_CmdPool.cmdBuffers[currentFrame], imageIndex);
     VkCommandBuffer cmdBuffer = R_CmdPool.cmdBuffers[currentFrame];
@@ -625,8 +737,9 @@ void R_DrawMesh()
         VkRenderPassBeginInfo renderPassBeginInfo = {};
         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassBeginInfo.renderPass = R_Pipeline.renderPass;
-        renderPassBeginInfo.framebuffer = R_Swapchain.framebuffers[imageIndex];
-        renderPassBeginInfo.renderArea.extent = R_Swapchain.extent;
+        renderPassBeginInfo.framebuffer = R_WindowResources.framebuffers[imageIndex];
+        renderPassBeginInfo.renderArea.extent.height = R_WindowResources.size.height;
+        renderPassBeginInfo.renderArea.extent.width = R_WindowResources.size.width;
         renderPassBeginInfo.renderArea.offset.y = 0;
         renderPassBeginInfo.renderArea.offset.y = 0;
         renderPassBeginInfo.clearValueCount = 1;
@@ -721,13 +834,11 @@ void R_DrawMesh()
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &R_SyncTools.imageIsReadySemaphores[currentFrame];
 	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = &R_Swapchain.handle;
+	presentInfo.pSwapchains = &R_WindowResources.swapchain;
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
 
-    vkQueuePresentKHR(queue, &presentInfo);
-
-    currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
+    VkResult presentResult = vkQueuePresentKHR(queue, &presentInfo);
 
     R_Mesh* meshToDraw = meshList.firstMesh;
     while (meshToDraw)
@@ -746,6 +857,15 @@ void R_DrawMesh()
     }
 
     meshList = {};
+
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || R_WindowResources.bIsWindowResized)
+    {
+        R_VK_HandleWindowResize();
+        R_WindowResources.bIsWindowResized = false;
+        return;
+    }
+
+    currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
 }
 
 void R_EndFrame()
@@ -754,15 +874,21 @@ void R_EndFrame()
     R_IndexBuffer.currentPosition = 0;
 }
 
+VkExtent2D R_VK_VkExtent2DFromVec2u(Vec2u vec)
+{
+    return { vec.width, vec.height };
+}
+
 void R_Init(const OS_Window& window)
 {
     R_VK_CreateInstance();
     R_VK_CreateDevice();
-    R_VK_CreateSwapchain(window);
+    R_VK_CreateSurface(window);
+    R_VK_CreateSwapchain();
     R_VK_CreateDescriptorPool();
     R_VK_AllocateDesciptorSet();
     // --AlNov: @NOTE Maybe extent should be used for CreatePipeline
-    R_VK_CreatePipeline(window.width, window.height);
+    R_VK_CreatePipeline();
     R_VK_CreateFramebuffers();
     R_VK_CreateCommandPool();
     R_VK_AllocateCommandBuffers();
@@ -828,73 +954,43 @@ void R_VK_AllocateDesciptorSet()
     // vkUpdateDescriptorSets(R_Device.handle, 1, &writeSet, 0, nullptr);
 }
 
-void R_VK_CreateSwapchain(const OS_Window& window)
+void R_VK_CreateSwapchain()
 {
     Arena* tempArena = AllocateArena(Kilobytes(4));
     {
-        VkWin32SurfaceCreateInfoKHR surfaceInfo = {};
-        surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        surfaceInfo.hinstance = window.instance;
-        surfaceInfo.hwnd = window.handle;
-
-        vkCreateWin32SurfaceKHR(R_VK_Instance, &surfaceInfo, nullptr, &R_Swapchain.surface);
-
-        // Get Surface Capabilities
-        VkSurfaceCapabilitiesKHR capabilities;
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(R_Device.GPU, R_Swapchain.surface, &capabilities);
-
-        R_Swapchain.extent = capabilities.currentExtent;
-
-        R_Swapchain.imageCount = capabilities.minImageCount + 1;
-        if (capabilities.maxImageCount > 0 && R_Swapchain.imageCount > capabilities.maxImageCount) {
-            R_Swapchain.imageCount = capabilities.maxImageCount;
-        }
-
-        // Get Surface Format
-        u32 formatCount = 0;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(R_Device.GPU, R_Swapchain.surface, &formatCount, nullptr);
-        VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(tempArena, formatCount * sizeof(VkSurfaceFormatKHR));
-        vkGetPhysicalDeviceSurfaceFormatsKHR(R_Device.GPU, R_Swapchain.surface, &formatCount, formats);
-
-        for (u32 i = 0; i < formatCount; ++i)
-        {
-            if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
-                R_Swapchain.surfaceFormat = formats[i];
-            }
-        }
-
         VkSwapchainCreateInfoKHR swapchainInfo = {};
         swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        swapchainInfo.surface = R_Swapchain.surface;
-        swapchainInfo.minImageCount = R_Swapchain.imageCount;
-        swapchainInfo.imageFormat = R_Swapchain.surfaceFormat.format;
-        swapchainInfo.imageColorSpace = R_Swapchain.surfaceFormat.colorSpace;
-        swapchainInfo.imageExtent = capabilities.currentExtent;
+        swapchainInfo.surface = R_WindowResources.surface;
+        swapchainInfo.minImageCount = R_WindowResources.imageCount;
+        swapchainInfo.imageFormat = R_WindowResources.surfaceFormat.format;
+        swapchainInfo.imageColorSpace = R_WindowResources.surfaceFormat.colorSpace;
+        swapchainInfo.imageExtent = R_VK_VkExtent2DFromVec2u(R_WindowResources.size);
         swapchainInfo.imageArrayLayers = 1;
         swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
         swapchainInfo.queueFamilyIndexCount = 0;
         swapchainInfo.pQueueFamilyIndices = nullptr;
-        swapchainInfo.preTransform = capabilities.currentTransform;
+        swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
         swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         swapchainInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
         swapchainInfo.clipped = VK_TRUE;
         swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        vkCreateSwapchainKHR(R_Device.handle, &swapchainInfo, nullptr, &R_Swapchain.handle);
+        vkCreateSwapchainKHR(R_Device.handle, &swapchainInfo, nullptr, &R_WindowResources.swapchain);
 
-        vkGetSwapchainImagesKHR(R_Device.handle, R_Swapchain.handle, &R_Swapchain.imageCount, nullptr);
-        R_Swapchain.images = (VkImage*)PushArena(R_Arena, R_Swapchain.imageCount * sizeof(VkImage));
-        vkGetSwapchainImagesKHR(R_Device.handle, R_Swapchain.handle, &R_Swapchain.imageCount, R_Swapchain.images);
+        vkGetSwapchainImagesKHR(R_Device.handle, R_WindowResources.swapchain, &R_WindowResources.imageCount, nullptr);
+        // --AlNov: @TODO Images are lost at the end of the function (FreeArena)
+        R_WindowResources.images = (VkImage*)PushArena(R_Arena, R_WindowResources.imageCount * sizeof(VkImage));
+        vkGetSwapchainImagesKHR(R_Device.handle, R_WindowResources.swapchain, &R_WindowResources.imageCount, R_WindowResources.images);
 
-        R_Swapchain.imageViews = (VkImageView*)PushArena(R_Arena, R_Swapchain.imageCount * sizeof(VkImageView));
-        for (u32 i = 0; i < R_Swapchain.imageCount; ++i)
+        R_WindowResources.imageViews = (VkImageView*)PushArena(R_Arena, R_WindowResources.imageCount * sizeof(VkImageView));
+        for (u32 i = 0; i < R_WindowResources.imageCount; ++i)
         {
             VkImageViewCreateInfo imageViewInfo = {};
             imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            imageViewInfo.image = R_Swapchain.images[i];
+            imageViewInfo.image = R_WindowResources.images[i];
             imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            imageViewInfo.format = R_Swapchain.surfaceFormat.format;
+            imageViewInfo.format = R_WindowResources.surfaceFormat.format;
             imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
             imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
             imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -905,7 +1001,7 @@ void R_VK_CreateSwapchain(const OS_Window& window)
             imageViewInfo.subresourceRange.baseArrayLayer = 0;
             imageViewInfo.subresourceRange.layerCount = 1;
 
-            vkCreateImageView(R_Device.handle, &imageViewInfo, nullptr, &R_Swapchain.imageViews[i]);
+            vkCreateImageView(R_Device.handle, &imageViewInfo, nullptr, &R_WindowResources.imageViews[i]);
         }
     }
     FreeArena(tempArena);

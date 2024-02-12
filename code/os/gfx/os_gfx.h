@@ -9,6 +9,7 @@ enum OS_EventType
     OS_EVENT_TYPE_NONE,
 
     OS_EVENT_TYPE_EXIT,
+    OS_EVENT_TYPE_RESIZE,
     OS_EVENT_TYPE_MOUSE_MOVE,
     OS_EVENT_TYPE_MOUSE_RELEASE,
     OS_EVENT_TYPE_MOUSE_PRESS,
@@ -21,6 +22,8 @@ struct OS_Event
     OS_Event* next;
     OS_Event* previous;
     OS_EventType type;
+
+    Vec2u windowSize;
 
     u32 mouseX;
     u32 mouseY;

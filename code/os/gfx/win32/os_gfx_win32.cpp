@@ -141,7 +141,14 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
     {
         case WM_SIZE:
         {
-            // --AlNov: @TODO handle window resize
+            // --AlNov: WM_SIZE called on window creation - before there arena
+            // mapped to OS_WIN32_EventArena
+            if (!OS_WIN32_EventArena) break;
+
+            event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
+            event->type = OS_EVENT_TYPE_RESIZE;
+            event->windowSize.width = LOWORD(lParam);
+            event->windowSize.height = HIWORD(lParam);
         } break;
 
         case WM_CLOSE:
