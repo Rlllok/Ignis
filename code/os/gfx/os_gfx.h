@@ -45,6 +45,8 @@ void OS_ShowWindow(OS_Window* window);
 OS_EventList OS_GetEventList(Arena* arena);
 void OS_PushEvent(OS_EventList* eventList, OS_Event* event);
 
+f32 OS_GetMonitorHZ();
+
 // --AlNov: @NOTE Convertion time getted from this function can be not as presice.
 // The reason that we delete small number to large inside (tick and frequency).
 f32 OS_CurrentTimeSeconds();

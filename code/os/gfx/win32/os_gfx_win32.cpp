@@ -131,6 +131,14 @@ void OS_PushEvent(OS_EventList* eventList, OS_Event* event)
     }
 }
 
+f32 OS_GetMonitorHZ()
+{
+    DEVMODEW devMode = {};
+    EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &devMode);
+
+    return (f32)devMode.dmDisplayFrequency;
+}
+
 LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     LRESULT result = 0;

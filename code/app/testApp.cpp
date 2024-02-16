@@ -41,34 +41,8 @@ int main()
 
     R_Init(window);
     
-    // --AlNov: GetMonitor data test
-    // HMONITOR monitorHandle = MonitorFromWindow(window.handle, MONITOR_DEFAULTTONULL);
-    // if (monitorHandle == 0)
-    // {
-    //        return 0;
-    // }
-    // MONITORINFOEXW monitorInfo;
-    // GetMonitorInfoW(monitorHandle, &monitorInfo);
-    DISPLAY_DEVICEA displayDevice = {};
-    displayDevice.cb = sizeof(displayDevice); // --AlNov: forgot to do this in test with MONITORINFOEX.
-    if (EnumDisplayDevicesA(0, 0, &displayDevice, 0))
-    {
-        char szSaveDeviceName[33];
-        StringCchCopyA(szSaveDeviceName, 33, displayDevice.DeviceName);
-        if (EnumDisplayDevicesA(szSaveDeviceName, 0, &displayDevice, 0))
-        {
-            char lpszMonitorInfo[129];
-            StringCchCopy(lpszMonitorInfo, 129, displayDevice.DeviceString);
-            printf("%s\n", lpszMonitorInfo);
-        }
-    }
-    DEVMODEW devMode = {};
-    // -- AlNov: @NOTE monitorInfo.szDevice not working for some reason
-    // EnumDisplaySettingsW(monitorInfo.szDevice, ENUM_CURRENT_SETTINGS, &devMode);
-    EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &devMode);
-    printf("Hz: %f\n", (f32)devMode.dmDisplayFrequency);
-    
-    f32 targetMiliseconds = 1000.0f / (f32)devMode.dmDisplayFrequency;
+    f32 monitorHZ = OS_GetMonitorHZ();
+    f32 targetMiliseconds = 1000.0f / monitorHZ;
     printf("ms: %f\n", targetMiliseconds);
     // END
 
