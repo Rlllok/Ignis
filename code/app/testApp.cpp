@@ -12,7 +12,36 @@
 
 #define UI_ID (__LINE__)
 
-void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color);
+union Rect2f
+{
+    struct
+    {
+        Vec2f min;
+        Vec2f max;
+    };
+
+    struct
+    {
+        f32 x0;
+        f32 y0;
+        f32 x1;
+        f32 y1;
+    };
+
+    Vec2f value[2];
+};
+
+struct UI_Widget
+{
+    u32 id;
+
+    UI_Widget* first;
+    UI_Widget* next;
+    u32 childCount;
+
+    Rect2f rectangle;
+    RGB color;
+};
 
 struct UI_State
 {
@@ -30,8 +59,14 @@ void UI_Reset();
 
 bool UI_CheckBoxHit(Vec2f topLeft, Vec2f botRight);
 
-bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color);
-void UI_Slider(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, f32& value);
+UI_Widget   UI_MakeLayout(Arena* arena, u32 id, Rect2f box, RGB color);
+bool        UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color);
+bool        UI_Button(Arena* arena, u32 id, UI_Widget* parent, RGB color);
+void        UI_Slider(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, f32& value);
+void        UI_Draw(Arena* arena, UI_Widget* parent);
+
+void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color);
+void R_DrawSquare(Arena* arena, Rect2f box, RGB color);
 
 int main()
 {
@@ -80,11 +115,9 @@ int main()
                     window.width = event->windowSize.width;
                     window.height = event->windowSize.height;
                     R_ResizeWindow();
-                    // R_VK_HandleWindowResize();
                 } break;
                 case OS_EVENT_TYPE_MOUSE_PRESS:
                 {
-                    printf("MousePressed\n");
                     ui_state.bMousePressed = true;
                     ui_state.bMouseRelesed = false;
                 } break;
@@ -106,54 +139,33 @@ int main()
         UI_Prepare();
 
         // --AlNov: @NOTE @TODO Maximum number of meshes is 10. This is the number of Vulkan DescriptorSets
-
-        // Button 1
+        localPersist Vec2f topLeft = MakeVec2f(0, 0);
+        localPersist Vec2f botRight = MakeVec2f(300, 350);
+        Rect2f box = {};
+        box.min = topLeft;
+        box.max = botRight;
+        Vec3f buttonColor = MakeRGB(0.3f, 0.3f, 0.3f);
+        UI_Widget layout = UI_MakeLayout(frameArena, UI_ID, box, buttonColor);
         {
-            localPersist Vec2f topLeft = MakeVec2f(200, 250);
-            localPersist Vec2f botRight = MakeVec2f(300, 350);
-            Vec3f buttonColor = MakeRGB(0.0f, 1.0f, 0.0f);
-            if (UI_Button(frameArena, UI_ID, topLeft, botRight, buttonColor))
+            if (UI_Button(frameArena, UI_ID, &layout, MakeRGB(1.0f, 0.0f, 0.0f)))
             {
-                u32 maxX = window.width - 200;
-                u32 minX = 200;
-                f32 randomX = (f32)(rand() % (maxX - minX + 1) + minX);
-                u32 maxY = window.height - 100;
-                u32 minY = 100;
-                f32 randomY = (f32)(rand() % (maxY - minY + 1) + minY);
+                printf("Hello, Red Button!\n");
+            }
 
-                topLeft.x = randomX;
-                botRight.x = topLeft.x + 100;
-                topLeft.y = randomY;
-                botRight.y = topLeft.y + 100;
+            if (UI_Button(frameArena, UI_ID, &layout, MakeRGB(0.0f, 0.0f, 1.0f)))
+            {
+                printf("Hello, Blue Button!\n");
             }
         }
-        // Button2
-        {
-            localPersist Vec2f topLeft = MakeVec2f(400, 150);
-            localPersist Vec2f botRight = MakeVec2f(500, 250);
-            Vec3f buttonColor = MakeRGB(1.0f, 0.0f, 0.0f);
-            if (UI_Button(frameArena, UI_ID, topLeft, botRight, buttonColor))
-            {
-                u32 maxX = window.width - 200;
-                u32 minX = 200;
-                f32 randomX = (f32)(rand() % (maxX - minX + 1) + minX);
-                u32 maxY = window.height - 100;
-                u32 minY = 100;
-                f32 randomY = (f32)(rand() % (maxY - minY + 1) + minY);
+        UI_Draw(frameArena, &layout);
 
-                topLeft.x = randomX;
-                botRight.x = topLeft.x + 100;
-                topLeft.y = randomY;
-                botRight.y = topLeft.y + 100;
-            }
-        }
         // Slider
-        {
-            Vec2f topLeft = MakeVec2f(100, 50);
-            Vec2f botRight = MakeVec2f(300, 70);
-            localPersist f32 sliderValue = 0;
-            UI_Slider(frameArena, UI_ID, topLeft, botRight, sliderValue);
-        }
+        // {
+        //     Vec2f topLeft = MakeVec2f(100, 50);
+        //     Vec2f botRight = MakeVec2f(300, 70);
+        //     localPersist f32 sliderValue = 0;
+        //     UI_Slider(frameArena, UI_ID, topLeft, botRight, sliderValue);
+        // }
 
         R_DrawMesh();
 
@@ -198,6 +210,43 @@ void R_DrawSquare(Arena* arena, Vec2f topLeft, Vec2f botRight, RGB color)
     R_AddMeshToDrawList(mesh);
 }
 
+void R_DrawSquare(Arena* arena, Rect2f box, RGB color)
+{
+    box.x0 = (box.x0 / 1280.0f) * 2 - 1;
+    box.y0 = (box.y0 / 720.0f) * 2 - 1;
+    box.x1 = (box.x1 / 1280.0f) * 2 - 1;
+    box.y1 = (box.y1 / 720.0f) * 2 - 1;
+
+    R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+    mesh->mvp.color = color;
+    mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
+    mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
+    mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
+    mesh->vertecies[2].position = MakeVec3f(box.x1, box.y1, 0.0f);
+    mesh->vertecies[3].position = MakeVec3f(box.x0, box.y1, 0.0f);
+    mesh->indecies[0] = 0;
+    mesh->indecies[1] = 1;
+    mesh->indecies[2] = 2;
+    mesh->indecies[3] = 2;
+    mesh->indecies[4] = 3;
+    mesh->indecies[5] = 0;
+
+    R_AddMeshToDrawList(mesh);
+}
+
+UI_Widget UI_MakeLayout(Arena* arena, u32 id, Rect2f box, RGB color)
+{
+    UI_Widget widget = {};
+    widget.id = id;
+    widget.rectangle = box;
+    widget.color = color;
+    widget.childCount = 0;
+    widget.first = 0;
+    widget.next = 0;
+
+    return widget;
+}
+
 bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color)
 {
     R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
@@ -235,6 +284,63 @@ bool UI_Button(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, RGB color)
     mesh->indecies[5] = 0;
 
     R_AddMeshToDrawList(mesh);
+
+    if (ui_state.activeId == id)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool UI_Button(Arena* arena, u32 id, UI_Widget* parent, RGB color)
+{
+    Rect2f box = {};
+    box.x0 = parent->rectangle.x0 + 10;
+    box.y0 = parent->rectangle.y0 + 10 + (50 * parent->childCount);
+    box.x1 = parent->rectangle.x1 - 10;
+    box.y1 = box.y0 + 30;
+
+    if (UI_CheckBoxHit(box.min, box.max))
+    {
+        ui_state.hotId = id;
+        if (ui_state.bMouseRelesed)
+        {
+            ui_state.activeId = id;
+        }
+    }
+
+    UI_Widget* button = (UI_Widget*)PushArena(arena, sizeof(UI_Widget));
+    button->id = id;
+    button->first = 0;
+    button->next = 0;
+    button->childCount = 0;
+    button->rectangle = box;
+    if (ui_state.hotId == id)
+    {
+        button->color = MakeRGB(1.0f - color.r, 1.0f - color.g, 1.0f - color.b);
+    }
+    else
+    {
+        button->color = color;
+    }
+
+    if (parent->first)
+    {
+        UI_Widget* head = parent->first;
+        while (head->next)
+        {
+            head = head->next;
+        }
+
+        head->next = button;
+        ++parent->childCount;
+    }
+    else
+    {
+        parent->first = button;
+        parent->childCount = 1;
+    }
 
     if (ui_state.activeId == id)
     {
@@ -284,6 +390,22 @@ void UI_Slider(Arena* arena, u32 id, Vec2f topLeft, Vec2f botRight, f32& value)
     sliderBotRight.x += 10;
     sliderBotRight.y =  botRight.y;
     R_DrawSquare(arena, sliderTopLeft, sliderBotRight, MakeRGB(0.2f, 0.4f, 0.7f));
+}
+
+void UI_Draw(Arena* arena, UI_Widget* parent)
+{
+    R_DrawSquare(arena, parent->rectangle, parent->color);
+
+    if (parent->first)
+    {
+        UI_Widget* head = parent->first;
+        while (head)
+        {
+            R_DrawSquare(arena, head->rectangle, head->color);
+
+            head = head->next;
+        }
+    }
 }
 
 void UI_Prepare()
