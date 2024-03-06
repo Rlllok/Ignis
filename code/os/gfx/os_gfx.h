@@ -13,8 +13,17 @@ enum OS_EventType
     OS_EVENT_TYPE_MOUSE_MOVE,
     OS_EVENT_TYPE_MOUSE_RELEASE,
     OS_EVENT_TYPE_MOUSE_PRESS,
+    OS_EVENT_TYPE_KEYBOARD,
 
     OS_EVENT_TYPE_COUNT
+};
+
+enum OS_KeyCode
+{
+    OS_KEY_ARROW_LEFT,
+    OS_KEY_ARROW_RIGHT,
+
+    OS_KEY_COUNT
 };
 
 struct OS_Event
@@ -28,6 +37,8 @@ struct OS_Event
     u32 mouseX;
     u32 mouseY;
     bool isDown;
+
+    OS_KeyCode key;
 };
 
 struct OS_EventList

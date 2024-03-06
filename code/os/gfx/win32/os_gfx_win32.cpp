@@ -176,7 +176,6 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
         {
-           // --AlNov: Not interestiong for now.
         } break;
 
         case WM_SYSKEYUP:
@@ -185,6 +184,20 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
             if (wParam == VK_ESCAPE)
             {
                 DestroyWindow(hwnd);
+            }
+
+            if (wParam == VK_LEFT)
+            {
+                event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
+                event->type = OS_EVENT_TYPE_KEYBOARD;
+                event->key = OS_KEY_ARROW_LEFT;
+            }
+
+            if (wParam == VK_RIGHT)
+            {
+                event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
+                event->type = OS_EVENT_TYPE_KEYBOARD;
+                event->key = OS_KEY_ARROW_RIGHT;
             }
         } break;
 
