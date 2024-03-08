@@ -88,8 +88,8 @@ int main()
     ball.size.y = 30.0f;
     ball.position.x = 100.0f;
     ball.position.y = 100.0f;
-    ball.velocity.x = 0.0f;
-    ball.velocity.y = 300.0;
+    ball.velocity.x = 500.0f;
+    ball.velocity.y = 0.0;
 
     f32 timeSec = 0.0f;
 
@@ -156,20 +156,23 @@ int main()
             player.position.x += player.speed * timeSec;
         }
 
-        // --AlNov: @TODO There is bag when ball goes outside border and begins
-        // straifing right-left
-        if (ball.position.x + ball.size.x / 2.0f > 1280.0f
-            || ball.position.x - ball.size.x / 2.0f < 0.0f)
+        if (ball.position.x + ball.size.x / 2.0f > 1280.0f)
         {
             ball.velocity.x *= -1;
         }
-        if (ball.position.y + ball.size.y / 2.0f > 720.0f
-            || ball.position.x - ball.size.y / 2.0f < 0.0f)
+        else
         {
-            ball.velocity.y *= -1;
+            ball.position.x += ball.velocity.x * timeSec;
         }
-        ball.position.x += ball.velocity.x * timeSec;
-        ball.position.y += ball.velocity.y * timeSec;
+
+        if (ball.position.x - ball.size.y / 2.0f < 0.0f)
+        {
+            ball.velocity.x *= -1;
+        }
+        else
+        {
+            ball.position.x += ball.velocity.x * timeSec;
+        }
 
         DrawPlayer(tmpArena, player);
         DrawBall(tmpArena, ball);

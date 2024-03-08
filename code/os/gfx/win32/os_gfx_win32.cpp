@@ -176,11 +176,14 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
         {
-        } break;
-
+            DefWindowProcW(hwnd, message, wParam, lParam);
+        } // go through;
         case WM_SYSKEYUP:
         case WM_KEYUP:
         {
+            bool wasDown = !!(lParam & (1 << 30));
+            bool isDown = !(lParam & (1 << 31));
+
             if (wParam == VK_ESCAPE)
             {
                 DestroyWindow(hwnd);
@@ -191,6 +194,8 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
                 event->type = OS_EVENT_TYPE_KEYBOARD;
                 event->key = OS_KEY_ARROW_LEFT;
+                event->wasDown = wasDown;
+                event->isDown = isDown;
             }
 
             if (wParam == VK_RIGHT)
@@ -198,6 +203,8 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
                 event->type = OS_EVENT_TYPE_KEYBOARD;
                 event->key = OS_KEY_ARROW_RIGHT;
+                event->wasDown = wasDown;
+                event->isDown = isDown;
             }
         } break;
 

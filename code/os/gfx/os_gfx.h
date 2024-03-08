@@ -36,6 +36,7 @@ struct OS_Event
 
     u32 mouseX;
     u32 mouseY;
+    bool wasDown;
     bool isDown;
 
     OS_KeyCode key;
