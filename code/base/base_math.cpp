@@ -21,3 +21,22 @@ Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
     Vec4f result = { {x, y, z, w} };
     return result;
 }
+
+
+Vec2f AddVec2f(Vec2f a, Vec2f b)
+{
+    Vec2f result = {};
+    result.x = a.x + b.x;
+    result.y = a.y + b.y;
+
+    return result;
+}
+
+Vec2f MulVec2f(Vec2f a, f32 num)
+{
+    Vec2f result = a;
+    result.x *= num;
+    result.y *= num;
+
+    return result;
+}

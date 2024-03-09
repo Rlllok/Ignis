@@ -75,3 +75,9 @@ Vec2u MakeVec2u(u32 x, u32 y);
 Vec2f MakeVec2f(f32 x, f32 y);
 Vec3f MakeVec3f(f32 x, f32 y, f32 z);
 Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w);
+
+// ------------------------------------------------------------
+// --AlNov: Vector Math
+
+Vec2f AddVec2f(Vec2f a, Vec2f b);
+Vec2f MulVec2f(Vec2f a, f32 num);

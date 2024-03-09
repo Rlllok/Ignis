@@ -33,8 +33,9 @@ union Rect2f
 
 struct Player
 {
-    Rect2f rectSize;
     Vec2f position;
+    f32 width;
+    f32 height;
     f32 speed;
 };
 
@@ -78,18 +79,15 @@ int main()
 // @TODO Coordinates is in pixel, so it can be better to change value to i32.
 // And even better that that - change to world coordinates.
     Player player = {};
-    player.rectSize.min = MakeVec2f(0.0f, 0.0f);
-    player.rectSize.max = MakeVec2f(50.0f, 20.0f);
-    player.position = MakeVec2f(300.0f, 300.0f);
-    player.speed = 100.0f;
+    player.position = MakeVec2f(600.0f, 300.0f);
+    player.width = 100.0f;
+    player.height = 20.0f;
+    player.speed = 250.0f;
 
     Ball ball = {};
-    ball.size.x = 30.0f;
-    ball.size.y = 30.0f;
-    ball.position.x = 100.0f;
-    ball.position.y = 100.0f;
-    ball.velocity.x = 0.0f;
-    ball.velocity.y = 300.0;
+    ball.size = MakeVec2f(30.0f, 30.0f);
+    ball.position = MakeVec2f(600.0f, 600.0f);
+    ball.velocity = MakeVec2f(0.0f, 200.0f);
 
     f32 timeSec = 0.0f;
 
@@ -107,7 +105,7 @@ int main()
         u64 cyclesDelta = endCycles - startCycles;
         startCycles = endCycles;
         timeSec = (f32)cyclesDelta / (f32)frequency;
-        printf("Time: %f\n", timeSec * 1000.0f);
+        // printf("Time: %f\n", timeSec * 1000.0f);
 
         OS_EventList eventList = OS_GetEventList(tmpArena);
 
@@ -137,8 +135,6 @@ int main()
 
                         default: break;
                     }
-
-                    printf("Player Position: %f\n", player.position.x);
                 } break;
                 
                 default: break;
@@ -147,29 +143,43 @@ int main()
             currentEvent = currentEvent->next;
         }
 
+        Vec2f newPlayerPosition = player.position;
         if (bLeftDown)
         {
-            player.position.x += -player.speed * timeSec;
+            newPlayerPosition.x += -player.speed * timeSec;
         }
         if (bRightDown)
         {
-            player.position.x += player.speed * timeSec;
+            newPlayerPosition.x += player.speed * timeSec;
+        }
+
+        if (newPlayerPosition.x + player.width / 2.0f < 1280.0f
+            && newPlayerPosition.x - player.width / 2.0f > 0.0f)
+        {
+            player.position = newPlayerPosition;
         }
 
         // --AlNov: @TODO There is bag when ball goes outside border and begins
         // straifing right-left
-        if (ball.position.x + ball.size.x / 2.0f > 1280.0f
-            || ball.position.x - ball.size.x / 2.0f < 0.0f)
+        Vec2f newBallPosition = AddVec2f(ball.position, MulVec2f(ball.velocity, timeSec));
+
+        bool bNoPlayerCollision = (newBallPosition.y - ball.size.y / 2.0f > player.position.y + player.height / 2.0f
+            ||newBallPosition.y + ball.size.y / 2.0f < player.position.y - player.height / 2.0f
+            ||newBallPosition.x - ball.size.x / 2.0f > player.position.x + player.width / 2.0f
+            ||newBallPosition.x + ball.size.x / 2.0f < player.position.x - player.width / 2.0f);
+
+        if (newBallPosition.x + ball.size.x / 2.0f < 1280.0f
+            && newBallPosition.x - ball.size.x / 2.0f > 0.0f
+            && newBallPosition.y + ball.size.y / 2.0f < 720.0f
+            && newBallPosition.y - ball.size.y / 2.0f > 0.0f
+            && bNoPlayerCollision)
         {
-            ball.velocity.x *= -1;
+            ball.position = newBallPosition;
         }
-        if (ball.position.y + ball.size.y / 2.0f > 720.0f
-            || ball.position.x - ball.size.y / 2.0f < 0.0f)
+        else
         {
-            ball.velocity.y *= -1;
+            ball.velocity = MulVec2f(ball.velocity, -1);
         }
-        ball.position.x += ball.velocity.x * timeSec;
-        ball.position.y += ball.velocity.y * timeSec;
 
         DrawPlayer(tmpArena, player);
         DrawBall(tmpArena, ball);
@@ -193,11 +203,11 @@ int main()
 
 void DrawPlayer(Arena* arena, Player player)
 {
-    Rect2f box = player.rectSize;
-    box.x0 += player.position.x;
-    box.x1 += player.position.x;
-    box.y0 += player.position.y;
-    box.y1 += player.position.y;
+    Rect2f box = {};
+    box.x0 = player.position.x - (player.width / 2.0f);
+    box.y0 = player.position.y - (player.height / 2.0f);
+    box.x1 = player.position.x + (player.width / 2.0f);
+    box.y1 = player.position.y + (player.height / 2.0f);
 
     box.x0 = (box.x0 / 1280.0f) * 2 - 1;
     box.y0 = (box.y0 / 720.0f) * 2 - 1;
