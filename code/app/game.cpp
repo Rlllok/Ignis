@@ -33,10 +33,9 @@ union Rect2f
 
 struct Player
 {
-    Vec2f position;
-    f32 width;
-    f32 height;
-    f32 speed;
+    Vec2f   size;
+    Vec2f   position;
+    f32     speed;
 };
 
 struct Ball
@@ -46,12 +45,26 @@ struct Ball
     Vec2f velocity;
 };
 
+struct Brick
+{
+    Vec2f   size;
+    Vec2f   position;
+    RGB     color;
+};
+
 // ------------------------------------------------------------
 // --AlNov: Functions Prototypes
 
 void DrawPlayer(Arena* arena, Player player);
 void DrawBall(Arena* arena, Ball ball);
+void DrawBricks(Arena* arena, Brick* bricks, u32 bricksCount);
 
+Rect2f Rect2fFromPlayer(const Player* player);
+Rect2f Rect2fFromBall(const Ball* ball);
+Rect2f Rect2fFromBrick(const Brick* brick);
+
+bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2);
+bool CheckBallPlayerCollision(Vec2f newBallPosition, const Ball* ball, const Player* player);
 
 int main()
 {
@@ -80,14 +93,19 @@ int main()
 // And even better that that - change to world coordinates.
     Player player = {};
     player.position = MakeVec2f(600.0f, 300.0f);
-    player.width = 100.0f;
-    player.height = 20.0f;
+    player.size = MakeVec2f(100.0f, 20.0f);
     player.speed = 250.0f;
 
     Ball ball = {};
     ball.size = MakeVec2f(30.0f, 30.0f);
     ball.position = MakeVec2f(600.0f, 600.0f);
     ball.velocity = MakeVec2f(0.0f, 200.0f);
+
+    const u32 bricksCount = 2;
+    Brick bricks[bricksCount] = {};
+    Vec2f brickSize = MakeVec2f(60.0f, 20.0f);
+    Vec2f firstBrickPosition = MakeVec2f(100.0f, 100.0f);
+    f32 brickPaddingX = 5.0f;
 
     f32 timeSec = 0.0f;
 
@@ -96,6 +114,14 @@ int main()
 // END Game Staff
 
     Arena* tmpArena = AllocateArena(Megabytes(64));
+
+    // --AlNov: Init Bricks
+    for (u32 i = 0; i < bricksCount; i += 1)
+    {
+        bricks[i].size = brickSize;
+        bricks[i].position = firstBrickPosition;
+        bricks[i].position.x += i * (brickSize.x + brickPaddingX);
+    }
     
     bool bFinished = false;
     while (!bFinished)
@@ -153,8 +179,8 @@ int main()
             newPlayerPosition.x += player.speed * timeSec;
         }
 
-        if (newPlayerPosition.x + player.width / 2.0f < 1280.0f
-            && newPlayerPosition.x - player.width / 2.0f > 0.0f)
+        if (newPlayerPosition.x + player.size.x / 2.0f < 1280.0f
+            && newPlayerPosition.x - player.size.x / 2.0f > 0.0f)
         {
             player.position = newPlayerPosition;
         }
@@ -163,16 +189,13 @@ int main()
         // straifing right-left
         Vec2f newBallPosition = AddVec2f(ball.position, MulVec2f(ball.velocity, timeSec));
 
-        bool bNoPlayerCollision = (newBallPosition.y - ball.size.y / 2.0f > player.position.y + player.height / 2.0f
-            ||newBallPosition.y + ball.size.y / 2.0f < player.position.y - player.height / 2.0f
-            ||newBallPosition.x - ball.size.x / 2.0f > player.position.x + player.width / 2.0f
-            ||newBallPosition.x + ball.size.x / 2.0f < player.position.x - player.width / 2.0f);
+        bool bBallPlayerCollision = CheckBallPlayerCollision(newBallPosition, &ball, &player);
 
         if (newBallPosition.x + ball.size.x / 2.0f < 1280.0f
             && newBallPosition.x - ball.size.x / 2.0f > 0.0f
             && newBallPosition.y + ball.size.y / 2.0f < 720.0f
             && newBallPosition.y - ball.size.y / 2.0f > 0.0f
-            && bNoPlayerCollision)
+            && !bBallPlayerCollision)
         {
             ball.position = newBallPosition;
         }
@@ -183,6 +206,7 @@ int main()
 
         DrawPlayer(tmpArena, player);
         DrawBall(tmpArena, ball);
+        DrawBricks(tmpArena, bricks, bricksCount);
 
         R_DrawMesh();
 
@@ -203,11 +227,7 @@ int main()
 
 void DrawPlayer(Arena* arena, Player player)
 {
-    Rect2f box = {};
-    box.x0 = player.position.x - (player.width / 2.0f);
-    box.y0 = player.position.y - (player.height / 2.0f);
-    box.x1 = player.position.x + (player.width / 2.0f);
-    box.y1 = player.position.y + (player.height / 2.0f);
+    Rect2f box = Rect2fFromPlayer(&player);
 
     box.x0 = (box.x0 / 1280.0f) * 2 - 1;
     box.y0 = (box.y0 / 720.0f) * 2 - 1;
@@ -233,11 +253,7 @@ void DrawPlayer(Arena* arena, Player player)
 
 void DrawBall(Arena* arena, Ball ball)
 {
-    Rect2f box = {};
-    box.x0 = ball.position.x - (ball.size.x / 2.0f);
-    box.y0 = ball.position.y - (ball.size.y / 2.0f);
-    box.x1 = ball.position.x + (ball.size.x / 2.0f);
-    box.y1 = ball.position.y + (ball.size.y / 2.0f);
+    Rect2f box = Rect2fFromBall(&ball);
 
     box.x0 = (box.x0 / 1280.0f) * 2 - 1;
     box.y0 = (box.y0 / 720.0f) * 2 - 1;
@@ -259,4 +275,82 @@ void DrawBall(Arena* arena, Ball ball)
     mesh->indecies[5] = 0;
 
     R_AddMeshToDrawList(mesh);
+}
+
+void DrawBricks(Arena* arena, Brick* bricks, u32 bricksCount)
+{
+    for (u32 i = 0; i < bricksCount; i += 1)
+    {
+        Rect2f box = Rect2fFromBrick(&bricks[i]);
+
+        box.x0 = (box.x0 / 1280.0f) * 2 - 1;
+        box.y0 = (box.y0 / 720.0f) * 2 - 1;
+        box.x1 = (box.x1 / 1280.0f) * 2 - 1;
+        box.y1 = (box.y1 / 720.0f) * 2 - 1;
+
+        R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+        mesh->mvp.color = MakeRGB(0.4f, 0.8f, 1.0f);
+        mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
+        mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
+        mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
+        mesh->vertecies[2].position = MakeVec3f(box.x1, box.y1, 0.0f);
+        mesh->vertecies[3].position = MakeVec3f(box.x0, box.y1, 0.0f);
+        mesh->indecies[0] = 0;
+        mesh->indecies[1] = 1;
+        mesh->indecies[2] = 2;
+        mesh->indecies[3] = 2;
+        mesh->indecies[4] = 3;
+        mesh->indecies[5] = 0;
+
+        R_AddMeshToDrawList(mesh);
+    }
+}
+
+Rect2f Rect2fFromPlayer(const Player* player)
+{
+    Rect2f box = {};
+    box.x0 = player->position.x - player->size.x / 2.0f;
+    box.y0 = player->position.y - player->size.y / 2.0f;
+    box.x1 = player->position.x + player->size.x / 2.0f;
+    box.y1 = player->position.y + player->size.y / 2.0f;
+
+    return box;
+}
+
+Rect2f Rect2fFromBall(const Ball* ball)
+{
+    Rect2f box = {};
+    box.x0 = ball->position.x - ball->size.x / 2.0f;
+    box.y0 = ball->position.y - ball->size.y / 2.0f;
+    box.x1 = ball->position.x + ball->size.x / 2.0f;
+    box.y1 = ball->position.y + ball->size.y / 2.0f;
+
+    return box;
+}
+
+Rect2f Rect2fFromBrick(const Brick* brick)
+{
+    Rect2f box = {};
+    box.x0 = brick->position.x - brick->size.x / 2.0f;
+    box.y0 = brick->position.y - brick->size.y / 2.0f;
+    box.x1 = brick->position.x + brick->size.x / 2.0f;
+    box.y1 = brick->position.y + brick->size.y / 2.0f;
+
+    return box;
+}
+
+bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2)
+{
+    // AlNov: @TODO
+    return false;
+}
+
+bool CheckBallPlayerCollision(Vec2f newBallPosition, const Ball* ball, const Player* player)
+{
+    bool bNoPlayerCollision = (newBallPosition.y - ball->size.y / 2.0f > player->position.y + player->size.y / 2.0f
+        ||newBallPosition.y + ball->size.y / 2.0f < player->position.y - player->size.y / 2.0f
+        ||newBallPosition.x - ball->size.x / 2.0f > player->position.x + player->size.x / 2.0f
+        ||newBallPosition.x + ball->size.x / 2.0f < player->position.x - player->size.x / 2.0f);
+
+    return !bNoPlayerCollision;
 }
