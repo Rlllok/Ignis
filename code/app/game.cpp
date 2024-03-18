@@ -64,7 +64,8 @@ Rect2f Rect2fFromBall(const Ball* ball);
 Rect2f Rect2fFromBrick(const Brick* brick);
 
 bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2);
-bool CheckBallPlayerCollision(Vec2f newBallPosition, const Ball* ball, const Player* player);
+bool CheckBallPlayerCollision(const Ball* ball, const Player* player);
+i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count);
 
 int main()
 {
@@ -101,10 +102,12 @@ int main()
     ball.position = MakeVec2f(600.0f, 600.0f);
     ball.velocity = MakeVec2f(0.0f, 200.0f);
 
-    const u32 bricksCount = 2;
+    const u32 bricksCount = 5;
     Brick bricks[bricksCount] = {};
+    RGB default_brick_color = MakeRGB(0.4f, 0.8f, 1.0f);
+    RGB hit_brick_color = MakeRGB(1.0f, 0.0f, 0.0f);
     Vec2f brickSize = MakeVec2f(60.0f, 20.0f);
-    Vec2f firstBrickPosition = MakeVec2f(100.0f, 100.0f);
+    Vec2f firstBrickPosition = MakeVec2f(400.0f, 100.0f);
     f32 brickPaddingX = 5.0f;
 
     f32 timeSec = 0.0f;
@@ -121,6 +124,7 @@ int main()
         bricks[i].size = brickSize;
         bricks[i].position = firstBrickPosition;
         bricks[i].position.x += i * (brickSize.x + brickPaddingX);
+        bricks[i].color = default_brick_color;
     }
     
     bool bFinished = false;
@@ -185,23 +189,30 @@ int main()
             player.position = newPlayerPosition;
         }
 
-        // --AlNov: @TODO There is bag when ball goes outside border and begins
-        // straifing right-left
+        // --AlNov: @TODO It can be to much to copy ball structure to check
+        // collision with regards to the new ball position.
+        // Should be better solution
+        Ball ball_with_new_position = ball;
         Vec2f newBallPosition = AddVec2f(ball.position, MulVec2f(ball.velocity, timeSec));
+        ball_with_new_position.position = newBallPosition;
 
-        bool bBallPlayerCollision = CheckBallPlayerCollision(newBallPosition, &ball, &player);
+        bool bBallPlayerCollision = CheckBallPlayerCollision( &ball_with_new_position, &player);
+        
+        i32 collieded_brick_index = CheckBallBricksCollision(&ball_with_new_position, bricks, bricksCount);
 
         if (newBallPosition.x + ball.size.x / 2.0f < 1280.0f
             && newBallPosition.x - ball.size.x / 2.0f > 0.0f
             && newBallPosition.y + ball.size.y / 2.0f < 720.0f
             && newBallPosition.y - ball.size.y / 2.0f > 0.0f
-            && !bBallPlayerCollision)
+            && !bBallPlayerCollision
+            && collieded_brick_index == -1)
         {
             ball.position = newBallPosition;
         }
         else
         {
             ball.velocity = MulVec2f(ball.velocity, -1);
+            bricks[collieded_brick_index].color = hit_brick_color;
         }
 
         DrawPlayer(tmpArena, player);
@@ -289,7 +300,7 @@ void DrawBricks(Arena* arena, Brick* bricks, u32 bricksCount)
         box.y1 = (box.y1 / 720.0f) * 2 - 1;
 
         R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-        mesh->mvp.color = MakeRGB(0.4f, 0.8f, 1.0f);
+        mesh->mvp.color = bricks[i].color;
         mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
         mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
         mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
@@ -342,15 +353,36 @@ Rect2f Rect2fFromBrick(const Brick* brick)
 bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2)
 {
     // AlNov: @TODO
-    return false;
+    bool result = (box1.y0 > box2.y1) || (box1.y1 < box2.y0)
+        || (box1.x0 > box2.x1) || (box1.x1 < box2.x0);
+
+    return !result;
 }
 
-bool CheckBallPlayerCollision(Vec2f newBallPosition, const Ball* ball, const Player* player)
+bool CheckBallPlayerCollision(const Ball* ball, const Player* player)
 {
-    bool bNoPlayerCollision = (newBallPosition.y - ball->size.y / 2.0f > player->position.y + player->size.y / 2.0f
-        ||newBallPosition.y + ball->size.y / 2.0f < player->position.y - player->size.y / 2.0f
-        ||newBallPosition.x - ball->size.x / 2.0f > player->position.x + player->size.x / 2.0f
-        ||newBallPosition.x + ball->size.x / 2.0f < player->position.x - player->size.x / 2.0f);
+    Rect2f ball_box   = Rect2fFromBall(ball);
+    Rect2f player_box = Rect2fFromPlayer(player);
 
-    return !bNoPlayerCollision;
+    return CheckBoxBoxCollision(ball_box, player_box);
+}
+
+i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count)
+{
+    i32 collided_brick_index = -1;
+
+    for (i32 i = 0; i < bricks_count; i += 1)
+    {
+        Rect2f ball_box     = Rect2fFromBall(ball);
+        Rect2f brick_box    = Rect2fFromBrick(&bricks[i]);
+
+        bool b_is_colided = CheckBoxBoxCollision(ball_box, brick_box);
+        if (b_is_colided)
+        {
+            collided_brick_index = i;
+            break;
+        }
+    }
+
+    return collided_brick_index;
 }
