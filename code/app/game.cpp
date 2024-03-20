@@ -8,6 +8,7 @@
 #include "../os/os_include.cpp"
 #include "../render/vulkan/r_init_vk.cpp"
 
+#define function static
 
 // ------------------------------------------------------------
 // --AlNov: Data
@@ -55,17 +56,17 @@ struct Brick
 // ------------------------------------------------------------
 // --AlNov: Functions Prototypes
 
-void DrawPlayer(Arena* arena, Player player);
-void DrawBall(Arena* arena, Ball ball);
-void DrawBricks(Arena* arena, Brick* bricks, u32 bricksCount);
+function void DrawPlayer(Arena* arena, Player player);
+function void DrawBall(Arena* arena, Ball ball);
+function void DrawBricks(Arena* arena, Brick* bricks, u32 bricks_count);
 
-Rect2f Rect2fFromPlayer(const Player* player);
-Rect2f Rect2fFromBall(const Ball* ball);
-Rect2f Rect2fFromBrick(const Brick* brick);
+function Rect2f Rect2fFromPlayer(const Player* player);
+function Rect2f Rect2fFromBall(const Ball* ball);
+function Rect2f Rect2fFromBrick(const Brick* brick);
 
-bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2);
-bool CheckBallPlayerCollision(const Ball* ball, const Player* player);
-i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count);
+function bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2);
+function bool CheckBallPlayerCollision(const Ball* ball, const Player* player);
+function i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count);
 
 int main()
 {
@@ -73,20 +74,20 @@ int main()
     
     // --AlNov: change Windows schedular granuality
     // Should be added to win32 layer
-    u32 desiredSchedularMS = 1;
-    timeBeginPeriod(desiredSchedularMS);
+    u32 desired_schedular_ms = 1;
+    timeBeginPeriod(desired_schedular_ms);
 
     R_Init(window);
 
     OS_ShowWindow(&window);
 
-    LARGE_INTEGER win32Freq;
-    QueryPerformanceFrequency(&win32Freq);
-    u64 frequency = win32Freq.QuadPart;
+    LARGE_INTEGER win32_freq;
+    QueryPerformanceFrequency(&win32_freq);
+    u64 frequency = win32_freq.QuadPart;
 
-    LARGE_INTEGER win32Cycles;
-    QueryPerformanceCounter(&win32Cycles);
-    u64 startCycles = win32Cycles.QuadPart;
+    LARGE_INTEGER win32_cycles;
+    QueryPerformanceCounter(&win32_cycles);
+    u64 start_cycles = win32_cycles.QuadPart;
 
 // ------------------------------------------------------------
 // --AlNov: Game Staff
@@ -102,65 +103,65 @@ int main()
     ball.position = MakeVec2f(600.0f, 600.0f);
     ball.velocity = MakeVec2f(0.0f, 200.0f);
 
-    const u32 bricksCount = 5;
-    Brick bricks[bricksCount] = {};
+    const u32 bricks_count = 5;
+    Brick bricks[bricks_count] = {};
     RGB default_brick_color = MakeRGB(0.4f, 0.8f, 1.0f);
     RGB hit_brick_color = MakeRGB(1.0f, 0.0f, 0.0f);
-    Vec2f brickSize = MakeVec2f(60.0f, 20.0f);
-    Vec2f firstBrickPosition = MakeVec2f(400.0f, 100.0f);
-    f32 brickPaddingX = 5.0f;
+    Vec2f brick_size = MakeVec2f(60.0f, 20.0f);
+    Vec2f first_brick_position = MakeVec2f(400.0f, 100.0f);
+    f32 brick_padding_x = 5.0f;
 
-    f32 timeSec = 0.0f;
+    f32 time_sec = 0.0f;
 
-    bool bLeftDown = false;
-    bool bRightDown = false;
+    bool b_left_down = false;
+    bool b_right_down = false;
 // END Game Staff
 
-    Arena* tmpArena = AllocateArena(Megabytes(64));
+    Arena* tmp_arena = AllocateArena(Megabytes(64));
 
     // --AlNov: Init Bricks
-    for (u32 i = 0; i < bricksCount; i += 1)
+    for (u32 i = 0; i < bricks_count; i += 1)
     {
-        bricks[i].size = brickSize;
-        bricks[i].position = firstBrickPosition;
-        bricks[i].position.x += i * (brickSize.x + brickPaddingX);
+        bricks[i].size = brick_size;
+        bricks[i].position = first_brick_position;
+        bricks[i].position.x += i * (brick_size.x + brick_padding_x);
         bricks[i].color = default_brick_color;
     }
     
-    bool bFinished = false;
-    while (!bFinished)
+    bool b_finished = false;
+    while (!b_finished)
     {
-        QueryPerformanceCounter(&win32Cycles);
-        u64 endCycles = win32Cycles.QuadPart;
-        u64 cyclesDelta = endCycles - startCycles;
-        startCycles = endCycles;
-        timeSec = (f32)cyclesDelta / (f32)frequency;
+        QueryPerformanceCounter(&win32_cycles);
+        u64 end_cycles = win32_cycles.QuadPart;
+        u64 cycles_delta = end_cycles - start_cycles;
+        start_cycles = end_cycles;
+        time_sec = (f32)cycles_delta / (f32)frequency;
         // printf("Time: %f\n", timeSec * 1000.0f);
 
-        OS_EventList eventList = OS_GetEventList(tmpArena);
+        OS_EventList event_list = OS_GetEventList(tmp_arena);
 
-        OS_Event* currentEvent = eventList.firstEvent;
-        while (currentEvent)
+        OS_Event* current_event = event_list.firstEvent;
+        while (current_event)
         {
-            switch (currentEvent->type)
+            switch (current_event->type)
             {
                 case OS_EVENT_TYPE_EXIT:
                 {
-                    bFinished = true;
+                    b_finished = true;
                 } break;
 
                 case OS_EVENT_TYPE_KEYBOARD:
                 {
-                    switch (currentEvent->key)
+                    switch (current_event->key)
                     {
                         case OS_KEY_ARROW_LEFT:
                         {
-                            bLeftDown = currentEvent->isDown;
+                            b_left_down = current_event->isDown;
                         } break;
 
                         case OS_KEY_ARROW_RIGHT:
                         {
-                            bRightDown = currentEvent->isDown;
+                            b_right_down = current_event->isDown;
                         } break;
 
                         default: break;
@@ -170,44 +171,44 @@ int main()
                 default: break;
             }
 
-            currentEvent = currentEvent->next;
+            current_event = current_event->next;
         }
 
-        Vec2f newPlayerPosition = player.position;
-        if (bLeftDown)
+        Vec2f new_player_position = player.position;
+        if (b_left_down)
         {
-            newPlayerPosition.x += -player.speed * timeSec;
+            new_player_position.x += -player.speed * time_sec;
         }
-        if (bRightDown)
+        if (b_right_down)
         {
-            newPlayerPosition.x += player.speed * timeSec;
+            new_player_position.x += player.speed * time_sec;
         }
 
-        if (newPlayerPosition.x + player.size.x / 2.0f < 1280.0f
-            && newPlayerPosition.x - player.size.x / 2.0f > 0.0f)
+        if (new_player_position.x + player.size.x / 2.0f < 1280.0f
+            && new_player_position.x - player.size.x / 2.0f > 0.0f)
         {
-            player.position = newPlayerPosition;
+            player.position = new_player_position;
         }
 
         // --AlNov: @TODO It can be to much to copy ball structure to check
         // collision with regards to the new ball position.
         // Should be better solution
         Ball ball_with_new_position = ball;
-        Vec2f newBallPosition = AddVec2f(ball.position, MulVec2f(ball.velocity, timeSec));
-        ball_with_new_position.position = newBallPosition;
+        Vec2f new_ball_position = AddVec2f(ball.position, MulVec2f(ball.velocity, time_sec));
+        ball_with_new_position.position = new_ball_position;
 
-        bool bBallPlayerCollision = CheckBallPlayerCollision( &ball_with_new_position, &player);
+        bool b_ball_player_collision = CheckBallPlayerCollision( &ball_with_new_position, &player);
         
-        i32 collieded_brick_index = CheckBallBricksCollision(&ball_with_new_position, bricks, bricksCount);
+        i32 collieded_brick_index = CheckBallBricksCollision(&ball_with_new_position, bricks, bricks_count);
 
-        if (newBallPosition.x + ball.size.x / 2.0f < 1280.0f
-            && newBallPosition.x - ball.size.x / 2.0f > 0.0f
-            && newBallPosition.y + ball.size.y / 2.0f < 720.0f
-            && newBallPosition.y - ball.size.y / 2.0f > 0.0f
-            && !bBallPlayerCollision
+        if (new_ball_position.x + ball.size.x / 2.0f < 1280.0f
+            && new_ball_position.x - ball.size.x / 2.0f > 0.0f
+            && new_ball_position.y + ball.size.y / 2.0f < 720.0f
+            && new_ball_position.y - ball.size.y / 2.0f > 0.0f
+            && !b_ball_player_collision
             && collieded_brick_index == -1)
         {
-            ball.position = newBallPosition;
+            ball.position = new_ball_position;
         }
         else
         {
@@ -215,18 +216,18 @@ int main()
             bricks[collieded_brick_index].color = hit_brick_color;
         }
 
-        DrawPlayer(tmpArena, player);
-        DrawBall(tmpArena, ball);
-        DrawBricks(tmpArena, bricks, bricksCount);
+        DrawPlayer(tmp_arena, player);
+        DrawBall(tmp_arena, ball);
+        DrawBricks(tmp_arena, bricks, bricks_count);
 
         R_DrawMesh();
 
         // --AlNov: Locked to 60 fps
-        f32 sleepTime = (1000.0f / 60.0f) - (timeSec * 1000.0f);
-        Sleep((sleepTime > 0) ? sleepTime : 0);
+            f32 sleep_time = (1000.0f / 60.0f) - (time_sec * 1000.0f);
+            Sleep((sleep_time > 0) ? sleep_time : 0);
 
         R_EndFrame();
-        ResetArena(tmpArena);
+        ResetArena(tmp_arena);
     }
 
     return 0;
@@ -234,9 +235,9 @@ int main()
 
 
 // ------------------------------------------------------------
-// --AlNov: Functions Prototypes
+// --AlNov: Functions' Implementation
 
-void DrawPlayer(Arena* arena, Player player)
+function void DrawPlayer(Arena* arena, Player player)
 {
     Rect2f box = Rect2fFromPlayer(&player);
 
@@ -262,7 +263,7 @@ void DrawPlayer(Arena* arena, Player player)
     R_AddMeshToDrawList(mesh);
 }
 
-void DrawBall(Arena* arena, Ball ball)
+function void DrawBall(Arena* arena, Ball ball)
 {
     Rect2f box = Rect2fFromBall(&ball);
 
@@ -288,9 +289,9 @@ void DrawBall(Arena* arena, Ball ball)
     R_AddMeshToDrawList(mesh);
 }
 
-void DrawBricks(Arena* arena, Brick* bricks, u32 bricksCount)
+function void DrawBricks(Arena* arena, Brick* bricks, u32 bricks_count)
 {
-    for (u32 i = 0; i < bricksCount; i += 1)
+    for (u32 i = 0; i < bricks_count; i += 1)
     {
         Rect2f box = Rect2fFromBrick(&bricks[i]);
 
@@ -317,7 +318,7 @@ void DrawBricks(Arena* arena, Brick* bricks, u32 bricksCount)
     }
 }
 
-Rect2f Rect2fFromPlayer(const Player* player)
+function Rect2f Rect2fFromPlayer(const Player* player)
 {
     Rect2f box = {};
     box.x0 = player->position.x - player->size.x / 2.0f;
@@ -328,7 +329,7 @@ Rect2f Rect2fFromPlayer(const Player* player)
     return box;
 }
 
-Rect2f Rect2fFromBall(const Ball* ball)
+function Rect2f Rect2fFromBall(const Ball* ball)
 {
     Rect2f box = {};
     box.x0 = ball->position.x - ball->size.x / 2.0f;
@@ -339,7 +340,7 @@ Rect2f Rect2fFromBall(const Ball* ball)
     return box;
 }
 
-Rect2f Rect2fFromBrick(const Brick* brick)
+function Rect2f Rect2fFromBrick(const Brick* brick)
 {
     Rect2f box = {};
     box.x0 = brick->position.x - brick->size.x / 2.0f;
@@ -350,7 +351,7 @@ Rect2f Rect2fFromBrick(const Brick* brick)
     return box;
 }
 
-bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2)
+function bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2)
 {
     // AlNov: @TODO
     bool result = (box1.y0 > box2.y1) || (box1.y1 < box2.y0)
@@ -359,7 +360,7 @@ bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2)
     return !result;
 }
 
-bool CheckBallPlayerCollision(const Ball* ball, const Player* player)
+function bool CheckBallPlayerCollision(const Ball* ball, const Player* player)
 {
     Rect2f ball_box   = Rect2fFromBall(ball);
     Rect2f player_box = Rect2fFromPlayer(player);
@@ -367,7 +368,7 @@ bool CheckBallPlayerCollision(const Ball* ball, const Player* player)
     return CheckBoxBoxCollision(ball_box, player_box);
 }
 
-i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count)
+function i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count)
 {
     i32 collided_brick_index = -1;
 
