@@ -21,6 +21,7 @@ struct OS_Window
     
     u32 width;
     u32 height;
+    bool is_fullscreen;
 
     OS_WindowStatus status;
 // --AlNov: @TODO Check name convention
@@ -32,6 +33,7 @@ void OS_WIN32_InitGfx();
 // Is it better to not redefine. Better to experement
 OS_Window OS_CreateWindow(const char* title, Vec2u size);
 void OS_ShowWindow(const OS_Window* window);
+void OS_Win32_ToggleFullscreen(const OS_Window* window);
 
 OS_EventList OS_GetEventList(Arena* arena);
 void OS_PushEvent(OS_EventList* eventList, OS_Event* event);

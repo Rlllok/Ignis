@@ -9,6 +9,7 @@
 
 global Arena* OS_WIN32_EventArena;
 global OS_EventList* OS_WIN32_EventList;
+global WINDOWPLACEMENT previous_window_params = { sizeof(previous_window_params) };
 
 void OS_WIN32_InitGfx()
 {
@@ -49,6 +50,7 @@ OS_Window OS_CreateWindow(const char* title, Vec2u size)
     window.handle = handle;
     window.width = size.width;
     window.height = size.height;
+    window.is_fullscreen = false;
     window.status = OS_WINDOW_STATUS_CREATED;
 
     return window;
@@ -60,6 +62,33 @@ void OS_ShowWindow(OS_Window* window)
     UpdateWindow(window->handle);
 
     window->status = OS_WINDOW_STATUS_OPEN;
+}
+
+void OS_WIN32_ToggleFullscreen(HWND window_handle)
+{
+    DWORD style = GetWindowLong(window_handle, GWL_STYLE);
+    if (style & WS_OVERLAPPEDWINDOW)
+    {
+        MONITORINFO monitor_info = { sizeof(monitor_info) };
+        if (GetWindowPlacement(window_handle, &previous_window_params)
+            && GetMonitorInfo(MonitorFromWindow(window_handle, MONITOR_DEFAULTTOPRIMARY), &monitor_info))
+        {
+          SetWindowLong(window_handle, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+          SetWindowPos(window_handle, HWND_TOP,
+                       monitor_info.rcMonitor.left, monitor_info.rcMonitor.top,
+                       monitor_info.rcMonitor.right - monitor_info.rcMonitor.left,
+                       monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top,
+                       SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else
+    {
+        SetWindowLong(window_handle, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(window_handle, &previous_window_params);
+        SetWindowPos(window_handle, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
 }
 
 OS_EventList OS_GetEventList(Arena* arena)
@@ -205,6 +234,14 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 event->key = OS_KEY_ARROW_RIGHT;
                 event->wasDown = wasDown;
                 event->isDown = isDown;
+            }
+
+            if (wParam == VK_RETURN && (lParam & (1 << 29)))
+            {
+                if (wasDown && !isDown)
+                {
+                    OS_WIN32_ToggleFullscreen(hwnd);
+                }
             }
         } break;
 
