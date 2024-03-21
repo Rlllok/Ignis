@@ -48,17 +48,30 @@ struct Ball
 
 struct Brick
 {
+    Brick* previous;
+    Brick* next;
+
     Vec2f   size;
     Vec2f   position;
     RGB     color;
 };
 
+struct BrickList
+{
+    Brick* first;
+    Brick* last;
+    
+    u32 brick_count;
+};
+
 // ------------------------------------------------------------
 // --AlNov: Functions Prototypes
 
+function void BrickListPush(BrickList* brick_list, Brick* brick);
+
 function void DrawPlayer(Arena* arena, Player player);
 function void DrawBall(Arena* arena, Ball ball);
-function void DrawBricks(Arena* arena, Brick* bricks, u32 bricks_count);
+function void DrawBricks(Arena* arena, BrickList brick_list);
 
 function Rect2f Rect2fFromPlayer(const Player* player);
 function Rect2f Rect2fFromBall(const Ball* ball);
@@ -66,7 +79,7 @@ function Rect2f Rect2fFromBrick(const Brick* brick);
 
 function bool CheckBoxBoxCollision(Rect2f box1, Rect2f box2);
 function bool CheckBallPlayerCollision(const Ball* ball, const Player* player);
-function i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count);
+function Brick* CheckBallBricksCollision(const Ball* ball, const BrickList brick_list);
 
 int main()
 {
@@ -103,8 +116,8 @@ int main()
     ball.position = MakeVec2f(600.0f, 600.0f);
     ball.velocity = MakeVec2f(0.0f, 200.0f);
     
+    BrickList brick_list;
     const u32 bricks_count = 5;
-    Brick bricks[bricks_count] = {};
     RGB default_brick_color = MakeRGB(0.4f, 0.8f, 1.0f);
     RGB hit_brick_color = MakeRGB(1.0f, 0.0f, 0.0f);
     Vec2f brick_size = MakeVec2f(60.0f, 20.0f);
@@ -118,14 +131,17 @@ int main()
     // END Game Staff
     
     Arena* tmp_arena = AllocateArena(Megabytes(64));
-    
+
     // --AlNov: Init Bricks
+    Arena* brick_arena = AllocateArena(Megabytes(4));
     for (u32 i = 0; i < bricks_count; i += 1)
     {
-        bricks[i].size = brick_size;
-        bricks[i].position = first_brick_position;
-        bricks[i].position.x += i * (brick_size.x + brick_padding_x);
-        bricks[i].color = default_brick_color;
+        Brick* brick = (Brick*)PushArena(brick_arena, sizeof(Brick));
+        brick->size = brick_size;
+        brick->position = first_brick_position;
+        brick->position.x += i * (brick_size.x + brick_padding_x);
+        brick->color = default_brick_color;
+        BrickListPush(&brick_list, brick);
     }
     
     bool b_finished = false;
@@ -199,26 +215,30 @@ int main()
         
         bool b_ball_player_collision = CheckBallPlayerCollision( &ball_with_new_position, &player);
         
-        i32 collieded_brick_index = CheckBallBricksCollision(&ball_with_new_position, bricks, bricks_count);
+        Brick* collided_brick = CheckBallBricksCollision(&ball_with_new_position, brick_list);
         
         if (new_ball_position.x + ball.size.x / 2.0f < 1280.0f
             && new_ball_position.x - ball.size.x / 2.0f > 0.0f
             && new_ball_position.y + ball.size.y / 2.0f < 720.0f
             && new_ball_position.y - ball.size.y / 2.0f > 0.0f
             && !b_ball_player_collision
-            && collieded_brick_index == -1)
+            && collided_brick == 0)
         {
             ball.position = new_ball_position;
         }
         else
         {
             ball.velocity = MulVec2f(ball.velocity, -1);
-            bricks[collieded_brick_index].color = hit_brick_color;
+            
+            if (collided_brick != 0)
+            {
+                collided_brick->color = hit_brick_color;
+            }
         }
         
         DrawPlayer(tmp_arena, player);
         DrawBall(tmp_arena, ball);
-        DrawBricks(tmp_arena, bricks, bricks_count);
+        DrawBricks(tmp_arena, brick_list);
         
         R_DrawMesh();
         
@@ -229,6 +249,14 @@ int main()
         R_EndFrame();
         ResetArena(tmp_arena);
     }
+
+    // --AlNov: There is no sense to reset and free brick arena for now.
+    // The reason is that it is done at the end of the program.
+    // But the logic is that bricks is bound to the level.
+    // We cannot use frame arena for them (As I tried to do)
+    // So we should have another arena with another life scope.
+    ResetArena(brick_arena);
+    FreeArena(brick_arena);
     
     return 0;
 }
@@ -236,6 +264,27 @@ int main()
 
 // ------------------------------------------------------------
 // --AlNov: Functions' Implementation
+
+function void BrickListPush(BrickList* brick_list, Brick* brick)
+{
+    if (brick_list->brick_count == 0)
+    {
+        brick_list->first = brick;
+        brick_list->last = brick;
+        brick_list->brick_count = 1;
+
+        brick->previous = 0;
+        brick->next = 0;
+    }
+    else
+    {
+        brick->previous = brick_list->last;
+        brick->next = 0;
+        brick_list->last->next = brick;
+        brick_list->last = brick;
+        brick_list->brick_count += 1;
+    }
+}
 
 function void DrawPlayer(Arena* arena, Player player)
 {
@@ -245,7 +294,7 @@ function void DrawPlayer(Arena* arena, Player player)
     box.y0 = (box.y0 / 720.0f) * 2 - 1;
     box.x1 = (box.x1 / 1280.0f) * 2 - 1;
     box.y1 = (box.y1 / 720.0f) * 2 - 1;
-    
+
     R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
     mesh->mvp.color = MakeRGB(1.0f, 1.0f, 1.0f);
     mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
@@ -289,11 +338,11 @@ function void DrawBall(Arena* arena, Ball ball)
     R_AddMeshToDrawList(mesh);
 }
 
-function void DrawBricks(Arena* arena, Brick* bricks, u32 bricks_count)
+function void DrawBricks(Arena* arena, BrickList brick_list)
 {
-    for (u32 i = 0; i < bricks_count; i += 1)
+    for (Brick* brick = brick_list.first; brick != 0; brick = brick->next)
     {
-        Rect2f box = Rect2fFromBrick(&bricks[i]);
+        Rect2f box = Rect2fFromBrick(brick);
         
         box.x0 = (box.x0 / 1280.0f) * 2 - 1;
         box.y0 = (box.y0 / 720.0f) * 2 - 1;
@@ -301,7 +350,7 @@ function void DrawBricks(Arena* arena, Brick* bricks, u32 bricks_count)
         box.y1 = (box.y1 / 720.0f) * 2 - 1;
         
         R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-        mesh->mvp.color = bricks[i].color;
+        mesh->mvp.color = brick->color;
         mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
         mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
         mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
@@ -368,22 +417,22 @@ function bool CheckBallPlayerCollision(const Ball* ball, const Player* player)
     return CheckBoxBoxCollision(ball_box, player_box);
 }
 
-function i32 CheckBallBricksCollision(const Ball* ball, const Brick* bricks, u32 bricks_count)
+function Brick* CheckBallBricksCollision(const Ball* ball, const BrickList brick_list)
 {
-    i32 collided_brick_index = -1;
+    Brick* collided_brick = 0;
     
-    for (i32 i = 0; i < bricks_count; i += 1)
+    for (Brick* brick = brick_list.first; brick != 0; brick = brick->next)
     {
-        Rect2f ball_box     = Rect2fFromBall(ball);
-        Rect2f brick_box    = Rect2fFromBrick(&bricks[i]);
+        Rect2f ball_box = Rect2fFromBall(ball);
+        Rect2f brick_box = Rect2fFromBrick(brick);
         
         bool b_is_colided = CheckBoxBoxCollision(ball_box, brick_box);
         if (b_is_colided)
         {
-            collided_brick_index = i;
+            collided_brick = brick;
             break;
         }
     }
     
-    return collided_brick_index;
+    return collided_brick;
 }
