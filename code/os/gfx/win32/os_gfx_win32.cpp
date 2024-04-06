@@ -218,6 +218,24 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
                 DestroyWindow(hwnd);
             }
 
+            if (wParam == VK_UP)
+            {
+                event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
+                event->type = OS_EVENT_TYPE_KEYBOARD;
+                event->key = OS_KEY_ARROW_UP;
+                event->wasDown = wasDown;
+                event->isDown = isDown;
+            }
+
+            if (wParam == VK_DOWN)
+            {
+                event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));
+                event->type = OS_EVENT_TYPE_KEYBOARD;
+                event->key = OS_KEY_ARROW_DOWN;
+                event->wasDown = wasDown;
+                event->isDown = isDown;
+            }
+
             if (wParam == VK_LEFT)
             {
                 event = (OS_Event*)PushArena(OS_WIN32_EventArena, sizeof(OS_Event));

@@ -30,11 +30,11 @@ void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messen
 
 VkResult createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
 {
-	auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	auto f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 
-	if (func != nullptr)
+	if (f != nullptr)
     {
-		return func(instance, pCreateInfo, pAllocator, pDebugMesseneger);
+		return f(instance, pCreateInfo, pAllocator, pDebugMesseneger);
 	}
 	else
     {
@@ -44,11 +44,11 @@ VkResult createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
 
 void destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator)
 {
-	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+	auto f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 
-	if (func != nullptr)
+	if (f != nullptr)
     {
-		func(instance, debugMessenger, pAllocator);
+		f(instance, debugMessenger, pAllocator);
 	}
 }
 
@@ -84,6 +84,31 @@ void R_PushMesh(R_MeshList* list, R_Mesh* mesh)
 void R_AddMeshToDrawList(R_Mesh* mesh)
 {
     R_PushMesh(&meshList, mesh);
+}
+
+void R_PushLine(R_LineList* list, R_Line* line)
+{
+    if (list->count == 0)
+    {
+        list->first = line;
+        list->last = line;
+        list->count = 1;
+
+        line->next = 0;
+        line->previous = 0;
+    }
+    else
+    {
+        line->previous = list->last;
+        line->next = 0;
+        list->last->next = line;
+        list->last = line;
+        list->count += 1;
+    }
+}
+void R_AddLineToDrawList(R_Line* line)
+{
+  R_PushLine(&line_list, line);
 }
 
 // --AlNov: Vulkan Renderer
@@ -233,7 +258,7 @@ void R_VK_CreatePipeline()
     // --AlNov: Vertex Shader
     
     // --AlNov: @TODO Compiler says that fopen is not safe to use
-    // It recomends to use the fopen_s function intead.
+    // It recomends to use the fopen_s ftion intead.
     // I should read about this more
 
     // -- AlNov: @NOTE Reading files for Vulkan is total mess.
@@ -460,6 +485,229 @@ void R_VK_CreatePipeline()
         pipelineInfo.subpass = 0;
 
         vkCreateGraphicsPipelines(R_Device.handle, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &R_Pipeline.handle);
+    }
+    FreeArena(tempArena);
+}
+
+void R_VK_CreateLinePipeline()
+{
+    // --AlNov: Vertex Shader
+    Arena* tempArena = AllocateArena(Kilobytes(4000));
+    {
+        const char* vertexPath = "data/shaders/lineVS.spv";
+        FILE* vertexFile = nullptr;
+        vertexFile = fopen(vertexPath, "rb");
+        if (!vertexFile)
+        {
+            printf("Cannot open file %s\n", vertexPath);
+            return;
+        }
+        fseek(vertexFile, 0L, SEEK_END);
+        u32 vertexFileSize = ftell(vertexFile);
+        u8* vertexCode = (u8*)PushArena(tempArena, vertexFileSize * sizeof(u8));
+        rewind(vertexFile);
+        fread(vertexCode, vertexFileSize * sizeof(u8), 1, vertexFile);
+        fclose(vertexFile);
+
+        VkShaderModuleCreateInfo vertexModuleInfo = {};
+        vertexModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        vertexModuleInfo.codeSize = vertexFileSize;
+        vertexModuleInfo.pCode = (u32*)vertexCode;
+
+        VkShaderModule vertexModule = VK_NULL_HANDLE;
+        vkCreateShaderModule(R_Device.handle, &vertexModuleInfo, nullptr, &vertexModule);
+
+        // --AlNov: Fragment Shader
+        const char* fragmentPath = "data/shaders/lineFS.spv";
+        FILE* fragmentFile = fopen(fragmentPath, "rb");
+        if (!fragmentFile)
+        {
+            printf("Cannot open file %s\n", fragmentPath);
+            return;
+        }
+        fseek(fragmentFile, 0L, SEEK_END);
+        u32 fragmentFileSize = ftell(fragmentFile);
+        u8* fragmentCode = (u8*)PushArena(tempArena, fragmentFileSize * sizeof(u8));
+        rewind(fragmentFile);
+        fread(fragmentCode, fragmentFileSize * sizeof(u8), 1, fragmentFile);
+        fclose(fragmentFile);
+
+        VkShaderModuleCreateInfo fragmentModuleInfo = {};
+        fragmentModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        fragmentModuleInfo.codeSize = fragmentFileSize;
+        fragmentModuleInfo.pCode = (u32*)fragmentCode;
+
+        VkShaderModule fragmentModule = VK_NULL_HANDLE;
+        vkCreateShaderModule(R_Device.handle, &fragmentModuleInfo, nullptr, &fragmentModule);
+
+        VkPipelineShaderStageCreateInfo vertexShaderInfo = {};
+        vertexShaderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertexShaderInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertexShaderInfo.module = vertexModule;
+        vertexShaderInfo.pName = "main";
+
+        VkPipelineShaderStageCreateInfo fragmentShaderInfo = {};
+        fragmentShaderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragmentShaderInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragmentShaderInfo.module = fragmentModule;
+        fragmentShaderInfo.pName = "main";
+
+        VkPipelineShaderStageCreateInfo stages[] = {
+            vertexShaderInfo,
+            fragmentShaderInfo,
+        };
+
+        VkVertexInputBindingDescription vertexDescription = {};
+        vertexDescription.binding = 0;
+        vertexDescription.stride = sizeof(Vec3f);
+        vertexDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        VkVertexInputAttributeDescription vertexAttributeDescription = {};
+        vertexAttributeDescription.location = 0;
+        vertexAttributeDescription.binding = 0;
+        vertexAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+        vertexAttributeDescription.offset = 0;
+        
+        VkPipelineVertexInputStateCreateInfo vertexInputStateInfo = {};
+        vertexInputStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputStateInfo.vertexBindingDescriptionCount = 1;
+        vertexInputStateInfo.pVertexBindingDescriptions = &vertexDescription;
+        vertexInputStateInfo.vertexAttributeDescriptionCount = 1;
+        vertexInputStateInfo.pVertexAttributeDescriptions = &vertexAttributeDescription;
+
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateInfo = {};
+        inputAssemblyStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssemblyStateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+        inputAssemblyStateInfo.primitiveRestartEnable = VK_FALSE;
+
+        // --AlNov: Viewport State
+        VkViewport viewport = {};
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.height = R_WindowResources.size.height;
+        viewport.width = R_WindowResources.size.width;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        VkRect2D scissor = {};
+        scissor.offset = {0, 0};
+        scissor.extent.height = R_WindowResources.size.height;
+        scissor.extent.width = R_WindowResources.size.width;
+
+        VkPipelineViewportStateCreateInfo viewportStateInfo = {};
+        viewportStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportStateInfo.viewportCount = 1;
+        viewportStateInfo.pViewports = &viewport;
+        viewportStateInfo.scissorCount = 1;
+        viewportStateInfo.pScissors = &scissor;
+
+        VkPipelineRasterizationStateCreateInfo rasterizationStateInfo = {};
+        rasterizationStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizationStateInfo.depthClampEnable = VK_FALSE;
+        rasterizationStateInfo.rasterizerDiscardEnable = VK_FALSE;
+        rasterizationStateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterizationStateInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizationStateInfo.depthBiasEnable = VK_FALSE;
+        rasterizationStateInfo.lineWidth = 1.0f;
+
+        VkPipelineMultisampleStateCreateInfo multisampleStateInfo = {};
+        multisampleStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampleStateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisampleStateInfo.sampleShadingEnable = VK_FALSE;
+        multisampleStateInfo.minSampleShading = 0.0f;
+        multisampleStateInfo.pSampleMask = nullptr;
+        multisampleStateInfo.alphaToCoverageEnable = VK_FALSE;
+        multisampleStateInfo.alphaToOneEnable = VK_FALSE;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencilStateInfo = {};
+        depthStencilStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencilStateInfo.depthTestEnable = VK_FALSE;
+        depthStencilStateInfo.depthWriteEnable = VK_FALSE;
+        depthStencilStateInfo.depthBoundsTestEnable = VK_FALSE;
+        depthStencilStateInfo.stencilTestEnable = VK_FALSE;
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT| VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+            | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+
+        VkPipelineColorBlendStateCreateInfo colorBlendStateInfo = {};
+        colorBlendStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendStateInfo.logicOpEnable = VK_FALSE;
+        colorBlendStateInfo.attachmentCount = 1;
+        colorBlendStateInfo.pAttachments = &colorBlendAttachment;
+
+        VkPipelineLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        layoutInfo.setLayoutCount = 0;
+        layoutInfo.pSetLayouts = 0;
+        layoutInfo.pushConstantRangeCount = 0;
+        layoutInfo.pPushConstantRanges = nullptr;
+
+        vkCreatePipelineLayout(R_Device.handle, &layoutInfo, nullptr, &R_LinePipeline.layout);
+
+        // Color Attachment
+        VkAttachmentDescription colorAttachment = {};
+        colorAttachment.format = R_WindowResources.surfaceFormat.format;
+        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentReference colorAttachmentReference = {};
+        colorAttachmentReference.attachment = 0;
+        colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass = {};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.inputAttachmentCount = 0;
+        subpass.pInputAttachments = nullptr;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentReference;
+        subpass.pResolveAttachments = nullptr;
+        subpass.pDepthStencilAttachment = nullptr;
+        subpass.preserveAttachmentCount = 0;
+        subpass.pPreserveAttachments = nullptr;
+
+        VkSubpassDependency subpassDependency = {};
+        subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        subpassDependency.dstSubpass = 0;
+        subpassDependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        subpassDependency.srcAccessMask = 0;
+        subpassDependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        subpassDependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        VkRenderPassCreateInfo renderPassInfo = {};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &subpassDependency;
+
+        vkCreateRenderPass(R_Device.handle, &renderPassInfo, nullptr, &R_LinePipeline.renderPass);
+
+        VkGraphicsPipelineCreateInfo pipelineInfo = {};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = stages;
+        pipelineInfo.pVertexInputState = &vertexInputStateInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssemblyStateInfo;
+        pipelineInfo.pViewportState = &viewportStateInfo;
+        pipelineInfo.pRasterizationState = &rasterizationStateInfo;
+        pipelineInfo.pMultisampleState = &multisampleStateInfo;
+        pipelineInfo.pDepthStencilState = &depthStencilStateInfo;
+        pipelineInfo.pColorBlendState = &colorBlendStateInfo;
+        pipelineInfo.pDynamicState = nullptr;
+        pipelineInfo.layout = R_Pipeline.layout;
+        pipelineInfo.renderPass = R_Pipeline.renderPass;
+        pipelineInfo.subpass = 0;
+
+        vkCreateGraphicsPipelines(R_Device.handle, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &R_LinePipeline.handle);
     }
     FreeArena(tempArena);
 }
@@ -868,6 +1116,121 @@ void R_DrawMesh()
     currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
 }
 
+void R_DrawLine()
+{
+    // AlNov: TEMP CODE START (SHOULD NOT BE THERE)
+
+    // AlNov: TEMP CODE END
+
+    localPersist u32 currentFrame = 0;
+    // static u32 currentFrame = 0;
+
+    vkWaitForFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame], VK_TRUE, U64_MAX);
+    
+    // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
+    u32 imageIndex;
+    VkResult imageAquireResult = vkAcquireNextImageKHR(
+        R_Device.handle, R_WindowResources.swapchain,
+        U64_MAX, R_SyncTools.imageIsAvailableSemaphores[currentFrame],
+        nullptr, &imageIndex
+    );
+
+    vkResetFences(R_Device.handle, 1, &R_SyncTools.fences[currentFrame]);
+
+    if (imageAquireResult == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        R_VK_HandleWindowResize();
+        return;
+    }
+
+    // R_RecordCmdBuffer(R_CmdPool.cmdBuffers[currentFrame], imageIndex);
+    VkCommandBuffer cmdBuffer = R_CmdPool.cmdBuffers[currentFrame];
+    vkResetCommandBuffer(cmdBuffer, 0);
+
+    VkCommandBufferBeginInfo cmdBeginInfo = {};
+    cmdBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    
+    vkBeginCommandBuffer(cmdBuffer, &cmdBeginInfo);
+    {
+        VkClearValue colorClearValue = {};
+        colorClearValue.color = { {0.05f, 0.05f, 0.05f, 1.0f} };
+
+        VkRenderPassBeginInfo renderPassBeginInfo = {};
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBeginInfo.renderPass = R_Pipeline.renderPass;
+        renderPassBeginInfo.framebuffer = R_WindowResources.framebuffers[imageIndex];
+        renderPassBeginInfo.renderArea.extent.height = R_WindowResources.size.height;
+        renderPassBeginInfo.renderArea.extent.width = R_WindowResources.size.width;
+        renderPassBeginInfo.renderArea.offset.y = 0;
+        renderPassBeginInfo.renderArea.offset.y = 0;
+        renderPassBeginInfo.clearValueCount = 1;
+        renderPassBeginInfo.pClearValues = &colorClearValue;
+
+        vkCmdBeginRenderPass(cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        {
+            vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, R_Pipeline.handle);
+
+            R_Line* line_to_draw = line_list.first;
+            while (line_to_draw)
+            {
+                VkDeviceSize offsets[] = { R_VertexBuffer.currentPosition };
+                // VertexBuffer
+                memcpy((u8*)R_VertexBuffer.mappedMemory + R_VertexBuffer.currentPosition, &line_to_draw->vertecies, sizeof(line_to_draw->vertecies));
+                R_VertexBuffer.currentPosition += sizeof(line_to_draw->vertecies);
+
+                vkCmdBindVertexBuffers(cmdBuffer, 0, 1, &R_VertexBuffer.buffer, offsets);
+
+                vkCmdDraw(cmdBuffer, 2, 1, 0, 0);
+
+                line_to_draw = line_to_draw->next;
+            }
+        }
+        vkCmdEndRenderPass(cmdBuffer);
+    }
+    vkEndCommandBuffer(cmdBuffer);
+
+    VkPipelineStageFlags waitStage = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    };
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &R_SyncTools.imageIsAvailableSemaphores[imageIndex];
+    submitInfo.pWaitDstStageMask = &waitStage;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &R_CmdPool.cmdBuffers[currentFrame];
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &R_SyncTools.imageIsReadySemaphores[currentFrame];
+
+    VkQueue queue;
+    vkGetDeviceQueue(R_Device.handle, R_Device.queueIndex, 0, &queue);
+
+    vkQueueSubmit(queue, 1, &submitInfo, R_SyncTools.fences[currentFrame]);
+
+    VkPresentInfoKHR presentInfo = {};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &R_SyncTools.imageIsReadySemaphores[currentFrame];
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = &R_WindowResources.swapchain;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr;
+
+    VkResult presentResult = vkQueuePresentKHR(queue, &presentInfo);
+
+    line_list = {};
+
+    if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || R_WindowResources.bIsWindowResized)
+    {
+        R_VK_HandleWindowResize();
+        R_WindowResources.bIsWindowResized = false;
+        return;
+    }
+
+    currentFrame = (currentFrame + 1) % NUM_FRAMES_IN_FLIGHT;
+}
+
 void R_EndFrame()
 {
     R_VertexBuffer.currentPosition = 0;
@@ -889,6 +1252,7 @@ void R_Init(const OS_Window& window)
     R_VK_AllocateDesciptorSet();
     // --AlNov: @NOTE Maybe extent should be used for CreatePipeline
     R_VK_CreatePipeline();
+    R_VK_CreateLinePipeline();
     R_VK_CreateFramebuffers();
     R_VK_CreateCommandPool();
     R_VK_AllocateCommandBuffers();
@@ -899,7 +1263,7 @@ void R_Init(const OS_Window& window)
 
 void R_VK_CreateDescriptorPool()
 {
-    u32 descriptorCount = 10;
+    u32 descriptorCount = 100;
 
     VkDescriptorPoolSize poolSize = {};
     poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

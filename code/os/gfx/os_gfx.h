@@ -20,6 +20,8 @@ enum OS_EventType
 
 enum OS_KeyCode
 {
+    OS_KEY_ARROW_UP,
+    OS_KEY_ARROW_DOWN,
     OS_KEY_ARROW_LEFT,
     OS_KEY_ARROW_RIGHT,
 

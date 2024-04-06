@@ -8,6 +8,7 @@ pushd build
     if "%testApp%"=="1" testApp.exe
     if "%memoryTest%"=="1" memoryTest.exe
     if "%game%"=="1" game.exe
+    if "%physics%" == "1" physics.exe
 popd
 
 rem --- Unset Arguments ---

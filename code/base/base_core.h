@@ -6,6 +6,8 @@
 #define global          static
 #define localPersist    static
 
+#define func static
+
 // --AlNov: Types
 typedef int8_t      i8;
 typedef int16_t     i16;

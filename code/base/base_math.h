@@ -1,5 +1,11 @@
 #pragma once
 
+// --AlNov: STD ------------------------------------------------------
+#include "stdio.h"
+#include "math.h"
+
+// -------------------------------------------------------------------
+// --AlNov: Vectors
 union Vec2u
 {
     struct
@@ -78,6 +84,31 @@ Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w);
 
 // ------------------------------------------------------------
 // --AlNov: Vector Math
-
 Vec2f AddVec2f(Vec2f a, Vec2f b);
 Vec2f MulVec2f(Vec2f a, f32 num);
+
+f32   MagnitudeSquareVec2f(Vec2f v);
+f32   MagnitudeVec2f(Vec2f v);
+Vec2f NormalizeVec2f(Vec2f v);
+
+// -------------------------------------------------------------------
+// --AlNov: Rectangle
+union Rect2f
+{
+  struct
+  {
+    Vec2f min;
+    Vec2f max;
+  };
+
+  struct
+  {
+    f32 x0;
+    f32 y0;
+    f32 x1;
+    f32 y1;
+  };
+
+  Vec2f value[2];
+};
+

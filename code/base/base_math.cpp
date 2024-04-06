@@ -32,6 +32,11 @@ Vec2f AddVec2f(Vec2f a, Vec2f b)
     return result;
 }
 
+Vec2f SubVec2f(Vec2f a, Vec2f b)
+{
+  return { {a.x - b.x, a.y - b.y} };
+}
+
 Vec2f MulVec2f(Vec2f a, f32 num)
 {
     Vec2f result = a;
@@ -39,4 +44,25 @@ Vec2f MulVec2f(Vec2f a, f32 num)
     result.y *= num;
 
     return result;
+}
+
+f32 MagnitudeSquareVec2f(Vec2f v)
+{
+  return v.x * v.x + v.y * v.y;
+}
+
+f32 MagnitudeVec2f(Vec2f v)
+{
+  return sqrt(v.x * v.x + v.y * v.y);
+}
+
+Vec2f NormalizeVec2f(Vec2f v)
+{
+  f32 magnitude = MagnitudeVec2f(v);
+  if (magnitude == 0)
+  {
+    return { {0.0f, 0.0f} };
+  }
+
+  return { {v.x / magnitude, v.y / magnitude} };
 }

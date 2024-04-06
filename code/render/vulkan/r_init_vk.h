@@ -41,6 +41,33 @@ global R_MeshList meshList = {};
 
 void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
 void R_AddMeshToDrawList(R_Mesh* mesh);
+
+struct R_Line
+{
+  Vec2f p0;
+  Vec2f p1;
+
+  struct Vertex
+  {
+    Vec3f position;
+  };
+
+  Vertex vertecies[2];
+
+  R_Line* next;
+  R_Line* previous;
+};
+
+struct R_LineList
+{
+  R_Line* first;
+  R_Line* last;
+  u32 count;
+};
+global R_LineList line_list = {};
+
+void R_PushLine(R_LineList* list, R_Line* line);
+void R_AddLineToDrawList(R_Line* mesh);
 // --AlNov: End Temp Data
 
 global VkInstance R_VK_Instance = VK_NULL_HANDLE;
@@ -76,6 +103,7 @@ struct R_VK_Pipeline
     VkRenderPass renderPass = VK_NULL_HANDLE;
 };
 global R_VK_Pipeline R_Pipeline;
+global R_VK_Pipeline R_LinePipeline;
 
 struct R_VK_CommandPool
 {
@@ -142,6 +170,7 @@ void R_VK_CreateSwapchain();
 void R_VK_CreateDescriptorPool();
 void R_VK_AllocateDesciptorSet();
 void R_VK_CreatePipeline();
+void R_VK_CreateLinePipeline();
 void R_VK_CreateFramebuffers();
 void R_VK_CreateCommandPool();
 void R_VK_AllocateCommandBuffers();
@@ -160,6 +189,7 @@ void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyF
 void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size);
 void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex);
 void R_DrawMesh();
+void R_DrawLine();
 void R_EndFrame();
 
 // -- AlNov: Helpers --------------------------------------------------
