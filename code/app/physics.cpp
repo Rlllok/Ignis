@@ -4,114 +4,17 @@
 #include "../base/base_include.h"
 #include "../os/os_include.h"
 #include "../render/vulkan/r_init_vk.h"
+#include "../physics/ph_core.h"
 
 // --AlNov: .cpp -----------------------------------------------------
 #include "../base/base_include.cpp"
 #include "../os/os_include.cpp"
 #include "../render/vulkan/r_init_vk.cpp"
+#include "../physics/ph_core.cpp"
 
 // --AlNov: TMP Globals ----------------------------------------------
 global f32 pixels_per_meter = 20.0f;
 global f32 particle_radius = pixels_per_meter / 4.0f;
-
-struct Particle
-{
-  f32 mass;
-
-  Vec2f position;
-  Vec2f velocity;
-  Vec2f acceleration;
-
-  Vec2f sum_of_forces;
-
-  Particle* next;
-};
-
-struct ParticleList
-{
-  Particle* first;
-  Particle* last;
-
-  u32 count;
-};
-
-func void PushParticle(ParticleList* list, Particle* particle)
-{
-  if (list->count == 0)
-  {
-    list->first = particle;
-    list->last = particle;
-    list->count += 1;
-
-    particle->next = 0;
-  }
-  else
-  {
-    particle->next = 0;
-    list->last->next = particle;
-    list->last = particle;
-    list->count += 1;
-  };
-}
-
-func Particle* CreateParticle(Arena* arena, Vec2f position)
-{
-  Particle* particle = (Particle*)PushArena(arena, sizeof(Particle));
-  particle->position = position;
-  particle->mass = 1;
-  particle->velocity = MakeVec2f(0.0f, 0.0f);
-  particle->acceleration = MakeVec2f(0.0f, 0.0f);
-  particle->sum_of_forces = MakeVec2f(0.0f, 0.0f);
-  particle->next = 0;
-  return particle;
-}
-
-func void ApplyForceToParticle(Particle* particle, Vec2f force)
-{
-  if (particle == 0) return;
-  particle->sum_of_forces = AddVec2f(particle->sum_of_forces, force);
-}
-
-func void ApplyWeightToParticle(Particle* particle)
-{
-  Vec2f weight = MakeVec2f(0.0f, particle->mass * 9.8f * pixels_per_meter);
-  particle->sum_of_forces = AddVec2f(particle->sum_of_forces, weight);
-}
-
-func void ApplyDragToParticle(Particle* particle)
-{
-  Vec2f drag = NormalizeVec2f(particle->velocity);
-  // f32 ro = 1.2f; // Air density at 30 C
-  // f32 K = 0.04f; // Drag coeff of "drop" like shape
-  // f32 A = 1;
-  // f32 drag_magnitude = 0.5f * ro * K * A * MagnitudeSquareVec2f(particle->velocity);
-  // drag = MulVec2f(drag-, drag_magnitude);
-  drag = MulVec2f(drag, -1 * MagnitudeSquareVec2f(particle->velocity));
-  drag = MulVec2f(drag, 0.03f);
-  particle->sum_of_forces = AddVec2f(particle->sum_of_forces, drag);
-}
-
-func void ApplySpringToParticle(Particle* particle, Vec2f anchor_position, f32 rest_length, f32 k)
-{
-  Vec2f distance = SubVec2f(particle->position, anchor_position);
-  Vec2f direction = NormalizeVec2f(distance);
-  f32 spring_force_magnitude = (rest_length - MagnitudeVec2f(distance)) * k;
-  Vec2f spring_force = MulVec2f(direction, spring_force_magnitude);
-  particle->sum_of_forces = AddVec2f(particle->sum_of_forces, spring_force);
-}
-
-func void IntegrateParticle(Particle* particle, f32 dt)
-{
-  // --AlNov: Euler Integration
-  particle->acceleration = MulVec2f(particle->sum_of_forces, 1.0f / particle->mass);
-  particle->velocity = AddVec2f(particle->velocity, MulVec2f(particle->acceleration, dt));
-  particle->position = AddVec2f(particle->position, MulVec2f(particle->velocity, dt));
-}
-
-func void ResetParticleForce(Particle* particle)
-{
-  particle->sum_of_forces = {};
-}
 
 func void DrawCircle(Arena* arena, Vec2f position, f32 radius)
 {
@@ -150,36 +53,8 @@ func void DrawCircle(Arena* arena, Vec2f position, f32 radius)
   R_AddMeshToDrawList(mesh);
 }
 
-func void DrawParticle(Arena* arena, Particle* particle)
+func void DrawParticle(Arena* arena, PH_Particle* particle)
 {
-  /*
-  Rect2f box = {};
-  box.min = MakeVec2f(particle->position.x - particle_radius, particle->position.y - particle_radius);
-  box.max = MakeVec2f(particle->position.x + particle_radius, particle->position.y + particle_radius);
-  box.x0 = (box.x0 / 1280.0f) * 2 - 1;
-  box.y0 = (box.y0 / 720.0f) * 2 - 1;
-  box.x1 = (box.x1 / 1280.0f) * 2 - 1;
-  box.y1 = (box.y1 / 720.0f) * 2 - 1;
-
-  R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color = MakeRGB(0.0f, 1.0f, 1.0f);
-  mesh->vertex_count = 4;
-  mesh->vertecies = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
-  mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
-  mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
-  mesh->vertecies[2].position = MakeVec3f(box.x1, box.y1, 0.0f);
-  mesh->vertecies[3].position = MakeVec3f(box.x0, box.y1, 0.0f);
-  mesh->index_count = 6;
-  mesh->indecies = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
-  mesh->indecies[0] = 0;
-  mesh->indecies[1] = 1;
-  mesh->indecies[2] = 2;
-  mesh->indecies[3] = 2;
-  mesh->indecies[4] = 3;
-  mesh->indecies[5] = 0;
-
-  R_AddMeshToDrawList(mesh);
-  */
   DrawCircle(arena, particle->position, 0.01f);
 }
 
@@ -222,9 +97,9 @@ int main()
   f32 time_sec = 0.0f;
 
   Arena* particle_arena = AllocateArena(Megabytes(8));
-  ParticleList particle_list;
-  Particle* particle0 = CreateParticle(particle_arena, MakeVec2f(200.0f, 400.0f));
-  PushParticle(&particle_list, particle0);
+  PH_ParticleList particle_list;
+  PH_Particle* particle0 = PH_CreateParticle(particle_arena, MakeVec2f(200.0f, 400.0f), 1.0f);
+  PH_PushParticle(&particle_list, particle0);
   Vec2f anchor_position = MakeVec2f(200.0f, 200.0f);
 
   Vec2f wind_force = {};
@@ -268,8 +143,8 @@ int main()
         case OS_EVENT_TYPE_MOUSE_RELEASE:
         {
           Vec2f particle_position = MakeVec2f(current_event->mouseX, current_event->mouseY);
-          Particle* particle = CreateParticle(particle_arena, particle_position);
-          PushParticle(&particle_list, particle);
+          PH_Particle* particle = PH_CreateParticle(particle_arena, particle_position, 1.0f);
+          PH_PushParticle(&particle_list, particle);
         }
 
         default: break;
@@ -279,16 +154,19 @@ int main()
     }
 
     // --AlNov: Update Particle
-    for (Particle* particle = particle_list.first;
+    for (PH_Particle* particle = particle_list.first;
          particle;
          particle = particle->next)
     {
-      ApplyForceToParticle(particle, wind_force);
-      ApplyWeightToParticle(particle);
-      ApplyDragToParticle(particle);
-      ApplySpringToParticle(particle, anchor_position, 100.0f, 10.0f);
+      Vec2f weight = PH_CalculateWeight(particle->mass, 9.8 * pixels_per_meter);
+      PH_ApplyForceToParticle(particle, weight);
+      Vec2f drag = PH_CalculateDrag(particle->velocity, 0.03f);
+      PH_ApplyForceToParticle(particle, drag);
+      Vec2f spring = PH_CalculateSpring(particle->position, anchor_position, 100.0f, 10.0f);
+      PH_ApplyForceToParticle(particle, spring);
+      PH_ApplyForceToParticle(particle, wind_force);
 
-      IntegrateParticle(particle, time_sec);
+      PH_IntegrateParticle(particle, time_sec);
 
       if (particle->position.y + particle_radius > window.height)
       {
@@ -316,7 +194,7 @@ int main()
       Vec3f second_point = MakeVec3f(particle->position.x, particle->position.y, 0.0f);
       DrawLine(frame_arena, first_point, second_point);
       DrawParticle(frame_arena, particle);
-      ResetParticleForce(particle);
+      PH_ResetParticleForce(particle);
     }
 
     R_DrawFrame();
