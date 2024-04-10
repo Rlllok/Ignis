@@ -4,7 +4,7 @@
 
 // --AlNov: Scope
 #define global          static
-#define localPersist    static
+#define local_persist    static
 
 #define func static
 

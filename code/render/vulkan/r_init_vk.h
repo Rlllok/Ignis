@@ -1,61 +1,66 @@
 #pragma once
 
-#include "third_party/vulkan/include/vulkan.h"
-#include "third_party/vulkan/include/vulkan_win32.h"
+#include "../../third_party/vulkan/include/vulkan.h"
+#include "../../third_party/vulkan/include/vulkan_win32.h"
 
-#include "base/base_include.h"
+#include "../../base/base_include.h"
 
 #define NUM_FRAMES_IN_FLIGHT 3
 
-// --AlNov: @NOTE Temporary there
+// -------------------------------------------------------------------
+// --AlNov: Mesh Info ------------------------------------------------
+// @TODO TO MOVE
+struct R_VK_MVP
+{
+  alignas(16) Vec3f color;
+  alignas(16) Vec3f center_position;
+};
+
+struct R_MeshVertex
+{
+  Vec3f position;
+};
+
 struct R_Mesh
 {
-    struct MVP {
-        alignas(16) Vec3f color;
-        alignas(16) Vec3f centerPosition;
-    } mvp;
+  R_VK_MVP mvp;
 
-    R_Mesh* next;
-    R_Mesh* previous;
+  R_Mesh* next;
+  R_Mesh* previous;
 
-    struct Vertex
-    {
-        Vec3f position;
-    };
+  R_MeshVertex* vertecies;
+  u32 vertex_count;
+  
+  u32* indecies;
+  u32 index_count;
 
-    Vertex vertecies[4];
-    u32 indecies[6];
-
-    VkDescriptorSet mvpSet;
-    VkBuffer mvpBuffer;
-    VkDeviceMemory mvpBufferMemory;
+  // --AlNov: @TODO Should not be here
+  VkDescriptorSet mvp_set;
+  VkBuffer mvp_buffer;
+  VkDeviceMemory mvp_memory;
 };
 
 struct R_MeshList
 {
-    R_Mesh* firstMesh;
-    R_Mesh* lastMesh;
+    R_Mesh* first;
+    R_Mesh* last;
     u32 count;
 };
-global R_MeshList meshList = {};
 
-void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
-void R_AddMeshToDrawList(R_Mesh* mesh);
+// -------------------------------------------------------------------
+// --AlNov: Line Info ------------------------------------------------
+// @TODO TO MOVE
+struct R_LineVertex
+{
+  Vec3f position;
+};
 
 struct R_Line
 {
-  Vec2f p0;
-  Vec2f p1;
-
-  struct Vertex
-  {
-    Vec3f position;
-  };
-
-  Vertex vertecies[2];
-
   R_Line* next;
   R_Line* previous;
+  
+  R_LineVertex vertecies[2];
 };
 
 struct R_LineList
@@ -64,134 +69,138 @@ struct R_LineList
   R_Line* last;
   u32 count;
 };
-global R_LineList line_list = {};
 
-void R_PushLine(R_LineList* list, R_Line* line);
-void R_AddLineToDrawList(R_Line* mesh);
-// --AlNov: End Temp Data
-
-global VkInstance R_VK_Instance = VK_NULL_HANDLE;
-global VkDebugUtilsMessengerEXT R_VK_DebugMessenger = VK_NULL_HANDLE;
-
+// -------------------------------------------------------------------
+// --AlNov: Main States ----------------------------------------------
 struct R_VK_Device
 {
-    VkDevice handle = VK_NULL_HANDLE;
-    VkPhysicalDevice GPU = VK_NULL_HANDLE;
-    u32 queueIndex = 0;
+  VkDevice logical;
+  VkPhysicalDevice physical;
+  u32 queue_index;
 };
-global R_VK_Device R_Device;
 
 struct R_VK_WindowResources
 {
-    VkSwapchainKHR      swapchain;
-    VkSurfaceKHR        surface;
-    VkSurfaceFormatKHR  surfaceFormat;
-    Vec2u               size;
-    u32                 imageCount;
-    VkImage*            images;
-    VkImageView*        imageViews;
-    VkFramebuffer*      framebuffers;
+  VkSwapchainKHR swapchain;
+  VkSurfaceKHR surface;
+  VkSurfaceFormatKHR surface_format;
+  Vec2u size;
+  u32 image_count;
+  VkImage* images;
+  VkImageView* image_views;
+  VkFramebuffer* framebuffers;
 
-    bool bIsWindowResized;
+  bool is_window_resized;
 };
-global R_VK_WindowResources R_WindowResources;
-
-struct R_VK_Pipeline
-{
-    VkPipeline handle = VK_NULL_HANDLE;
-    VkPipelineLayout layout = VK_NULL_HANDLE;
-    VkRenderPass renderPass = VK_NULL_HANDLE;
-};
-global R_VK_Pipeline R_Pipeline;
-global R_VK_Pipeline R_LinePipeline;
 
 struct R_VK_CommandPool
 {
-    VkCommandPool handle = VK_NULL_HANDLE;
-    VkCommandBuffer cmdBuffers[NUM_FRAMES_IN_FLIGHT] = {};
+  VkCommandPool pool;
+  VkCommandBuffer buffers[NUM_FRAMES_IN_FLIGHT];
 };
-global R_VK_CommandPool R_CmdPool;
 
 struct R_VK_DescriptorPool
 {
-    VkDescriptorPool handle = VK_NULL_HANDLE;
+  VkDescriptorPool pool;
 };
-global R_VK_DescriptorPool R_DescriptorPool;
 
-struct R_VK_MVP
+struct R_VK_Pipeline
 {
-    alignas(16) Vec3f centerPosition;
-    alignas(16) Vec3f color;
+  VkPipeline pipeline;
+  VkPipelineLayout layout;
 };
-global R_VK_MVP R_MVP = {};
-global VkBuffer R_MVPBuffer = VK_NULL_HANDLE;
-global VkDeviceMemory R_MVPMemory = VK_NULL_HANDLE;
-
-struct R_VK_MVPDescriptor
-{
-    VkDescriptorSet handle = VK_NULL_HANDLE;
-    VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-};  
-global R_VK_MVPDescriptor R_MVPDescriptor;
 
 struct R_VK_SyncTools
 {
-    VkFence fences[NUM_FRAMES_IN_FLIGHT] = {};
-    VkSemaphore imageIsAvailableSemaphores[NUM_FRAMES_IN_FLIGHT] = {};
-    VkSemaphore imageIsReadySemaphores[NUM_FRAMES_IN_FLIGHT] = {};
+  VkFence fences[NUM_FRAMES_IN_FLIGHT];
+  VkSemaphore image_available_semaphores[NUM_FRAMES_IN_FLIGHT];
+  VkSemaphore image_ready_semaphores[NUM_FRAMES_IN_FLIGHT];
 };
-global R_VK_SyncTools R_SyncTools;
 
 struct R_VK_VertexBuffer
 {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-    void* mappedMemory;
-    u32 currentPosition;
-    u32 size;
+  VkBuffer buffer;
+  VkDeviceMemory memory;
+  void* mapped_memory;
+  u32 current_position;
+  u32 size;
 };
-global R_VK_VertexBuffer R_VertexBuffer;
 
 struct R_VK_IndexBuffer
 {
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-    void* mappedMemory;
-    u32 currentPosition;
-    u32 size;
+  VkBuffer buffer;
+  VkDeviceMemory memory;
+  void* mapped_memory;
+  u32 current_position;
+  u32 size;
 };
-global R_VK_IndexBuffer R_IndexBuffer;
 
-// --AlNov: Functions --------------------------------------------------
-void R_VK_CreateInstance();
-void R_VK_CreateDevice();
-void R_VK_CreateSurface(OS_Window window);
-void R_VK_CreateSwapchain();
-void R_VK_CreateDescriptorPool();
-void R_VK_AllocateDesciptorSet();
-void R_VK_CreatePipeline();
-void R_VK_CreateLinePipeline();
-void R_VK_CreateFramebuffers();
-void R_VK_CreateCommandPool();
-void R_VK_AllocateCommandBuffers();
-void R_VK_CreateSyncTools();
-void R_VK_CreateVertexBuffer();
-void R_VK_CreateIndexBuffer();
+struct R_VK_State
+{
+  Arena* arena;
 
-void R_VK_CleanSwapchainResources();
+  VkInstance instance;
+  R_VK_Device device;
+  R_VK_WindowResources window_resources;
+  R_VK_CommandPool cmd_pool;
+  R_VK_DescriptorPool descriptor_pool;
+  R_VK_SyncTools sync_tools;
+  R_VK_VertexBuffer vertex_buffer;
+  R_VK_IndexBuffer index_buffer;
+  
+  VkRenderPass render_pass;
+  R_VK_Pipeline mesh_pipeline;
+  R_VK_Pipeline line_pipeline;
 
-void R_ResizeWindow();
-void R_VK_HandleWindowResize();
+  VkDescriptorSetLayout mvp_layout;
 
-// --AlNov: @TODO Handle VK Object destruction
+  R_MeshList mesh_list;
+  R_LineList line_list;
+};
 
-void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags propertyFlags, u32 size, VkBuffer* outBuffer, VkDeviceMemory* outMemory);
-void R_VK_CopyToMemory(VkDeviceMemory memory, void* data, u32 size);
-void R_RecordCmdBuffer(VkCommandBuffer cmdBuffer, u32 imageIndex);
-void R_DrawMesh();
-void R_DrawLine();
-void R_EndFrame();
+// -------------------------------------------------------------------
+// --AlNov: Globals --------------------------------------------------
+global R_VK_State r_vk_state;
 
-// -- AlNov: Helpers --------------------------------------------------
-void R_UpdateWindowData(OS_Window window);
-VkExtent2D R_VK_VkExtent2DFromVec2u(Vec2u vec);
+// -------------------------------------------------------------------
+// --AlNov: Init Stuff -----------------------------------------------
+func void R_VK_Init(OS_Window* window);
+func void R_VK_CreateInstance();
+func void R_VK_CreateDevice();
+func void R_VK_CreateSurface(OS_Window* window);
+func void R_VK_CreateSwapchain();
+func void R_VK_CreateCommandPool();
+func void R_VK_CreateDescriptorPool();
+func void R_VK_CreateMvpSetLayout();
+func void R_VK_CreateRenderPass();
+func void R_VK_CreateMeshPipeline();
+func void R_VK_CreateLinePipeline();
+func void R_VK_CreateFramebuffers();
+func void R_VK_AllocateCommandBuffers();
+func void R_VK_CreateSyncTools();
+func void R_VK_CreateVertexBuffer();
+func void R_VK_CreateIndexBuffer();
+
+// -------------------------------------------------------------------
+// --AlNov: Draw Functions -------------------------------------------
+func void R_DrawFrame();
+func void R_EndFrame();
+
+// -------------------------------------------------------------------
+// --AlNov: Helpers --------------------------------------------------
+func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
+// --AlNov: @TODO Maybe Vertex and Index buffer can be replaced with one R_VK_Buffer structure
+func void R_VK_PushVertexBuffer(R_VK_VertexBuffer* buffer, void* data, u64 size);
+func void R_VK_PushIndexBuffer(R_VK_IndexBuffer* buffer, void* data, u64 size);
+// --AlNov: @TODO Is it needed - it mappes memory inside
+func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
+
+// -------------------------------------------------------------------
+// --AlNov: Mesh List Functions
+func void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
+func void R_AddMeshToDrawList(R_Mesh* mesh);
+
+// -------------------------------------------------------------------
+// --AlNov: Line List Functions
+func void R_PushLine(R_LineList* list, R_Line* line);
+func void R_AddLineToDrawList(R_Line* line);

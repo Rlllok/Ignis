@@ -42,9 +42,12 @@ func void PushParticle(ParticleList* list, Particle* particle)
     list->first = particle;
     list->last = particle;
     list->count += 1;
+
+    particle->next = 0;
   }
   else
   {
+    particle->next = 0;
     list->last->next = particle;
     list->last = particle;
     list->count += 1;
@@ -110,8 +113,46 @@ func void ResetParticleForce(Particle* particle)
   particle->sum_of_forces = {};
 }
 
+func void DrawCircle(Arena* arena, Vec2f position, f32 radius)
+{
+  const u32 points_number = 40;
+  f32 angle_step = 2.0f * 3.141592654f / (f32)points_number;
+  R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+  mesh->mvp.color = MakeRGB(1.0f, 1.0f, 1.0f);
+  mesh->mvp.center_position = MakeVec3f((position.x / 1280.0f) * 2 - 1, (position.y / 720.0f) * 2 - 1, 0.0f);
+  mesh->vertex_count = points_number;
+  mesh->vertecies = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
+  mesh->index_count = (points_number - 2) * 3;
+  mesh->indecies = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
+
+  for (u32 i = 0; i < points_number; i += 1)
+  {
+    f32 current_angle = angle_step * i;
+    Vec3f point_position = MakeVec3f(    
+      radius * cos(current_angle), 
+      radius * sin(current_angle),
+      0.0f
+    );
+
+    mesh->vertecies[i].position = point_position;
+  }
+
+  u32 vertex_index = 0;
+  for (u32 i = 0; i < mesh->index_count; i += 3)
+  {
+    mesh->indecies[i] = 0;
+    mesh->indecies[i + 1] = vertex_index + 1;
+    mesh->indecies[i + 2] = vertex_index + 2;
+
+    vertex_index += 1;
+  }
+
+  R_AddMeshToDrawList(mesh);
+}
+
 func void DrawParticle(Arena* arena, Particle* particle)
 {
+  /*
   Rect2f box = {};
   box.min = MakeVec2f(particle->position.x - particle_radius, particle->position.y - particle_radius);
   box.max = MakeVec2f(particle->position.x + particle_radius, particle->position.y + particle_radius);
@@ -121,12 +162,15 @@ func void DrawParticle(Arena* arena, Particle* particle)
   box.y1 = (box.y1 / 720.0f) * 2 - 1;
 
   R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color = MakeRGB(1.0f, 1.0f, 1.0f);
-  mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
+  mesh->mvp.color = MakeRGB(0.0f, 1.0f, 1.0f);
+  mesh->vertex_count = 4;
+  mesh->vertecies = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
   mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
   mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
   mesh->vertecies[2].position = MakeVec3f(box.x1, box.y1, 0.0f);
   mesh->vertecies[3].position = MakeVec3f(box.x0, box.y1, 0.0f);
+  mesh->index_count = 6;
+  mesh->indecies = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
   mesh->indecies[0] = 0;
   mesh->indecies[1] = 1;
   mesh->indecies[2] = 2;
@@ -135,84 +179,33 @@ func void DrawParticle(Arena* arena, Particle* particle)
   mesh->indecies[5] = 0;
 
   R_AddMeshToDrawList(mesh);
-}
-
-func void DrawCircle(Arena* arena, Vec2f position, f32 radius)
-{
-  const u32 points_number = 4;
-  f32 angle_step = 2.0f * 3.141592654f / (f32)points_number;
-  R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color = MakeRGB(1.0f, 1.0f, 1.0f);
-  // mesh->mvp.centerPosition = MakeVec3f(position.x, position.y, 0.0f);
-  mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
-
-  for (u32 i = 0; i < points_number; i += 1)
-  {
-    f32 current_angle = angle_step * i;
-    Vec3f point_position = MakeVec3f(    
-        radius * cos(current_angle), 
-        radius * sin(current_angle),
-        0.0f
-        );
-
-    mesh->vertecies[i].position = point_position;
-  }
-
-  for (u32 i = 0; i < points_number - 2; i += 1)
-  {
-    mesh->indecies[i + 2*i] = 0;
-    mesh->indecies[i + 1 + 2*i] = i + 1;
-    mesh->indecies[i + 2 + 2*i] = i + 2;
-  }
-
-  R_AddMeshToDrawList(mesh);
+  */
+  DrawCircle(arena, particle->position, 0.01f);
 }
 
 func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1)
 {
   R_Line* line = (R_Line*)PushArena(arena, sizeof(R_Line));
+  p0.x = (p0.x / 1280.0f) * 2 - 1;
+  p0.y = (p0.y / 720.0f) * 2 - 1;
+  p1.x = (p1.x / 1280.0f) * 2 - 1;
+  p1.y = (p1.y / 720.0f) * 2 - 1;
   line->vertecies[0].position = p0;
   line->vertecies[1].position = p1;
 
   R_AddLineToDrawList(line);
 }
 
-func void DrawWater(Arena* arena, Rect2f water_rect)
-{
-    Rect2f box = water_rect;
-    
-    box.x0 = (box.x0 / 1280.0f) * 2 - 1;
-    box.y0 = (box.y0 / 720.0f) * 2 - 1;
-    box.x1 = (box.x1 / 1280.0f) * 2 - 1;
-    box.y1 = (box.y1 / 720.0f) * 2 - 1;
-    
-    R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-    mesh->mvp.color = MakeRGB(0.05f, 0.1f, 0.8f);
-    mesh->mvp.centerPosition = MakeVec3f(0.0f, 0.0f, 0.0f);
-    mesh->vertecies[0].position = MakeVec3f(box.x0, box.y0, 0.0f);
-    mesh->vertecies[1].position = MakeVec3f(box.x1, box.y0, 0.0f);
-    mesh->vertecies[2].position = MakeVec3f(box.x1, box.y1, 0.0f);
-    mesh->vertecies[3].position = MakeVec3f(box.x0, box.y1, 0.0f);
-    mesh->indecies[0] = 0;
-    mesh->indecies[1] = 1;
-    mesh->indecies[2] = 2;
-    mesh->indecies[3] = 2;
-    mesh->indecies[4] = 3;
-    mesh->indecies[5] = 0;
-    
-    R_AddMeshToDrawList(mesh);
-}
-
 int main()
 {
-  OS_Window window = OS_CreateWindow("Game", MakeVec2u(1280, 720));
+  OS_Window window = OS_CreateWindow("Physics", MakeVec2u(1280, 720));
 
   // --AlNov: change Windows schedular granuality
   // Should be added to win32 layer
   u32 desired_schedular_ms = 1;
   timeBeginPeriod(desired_schedular_ms);
 
-  R_Init(window);
+  R_VK_Init(&window);
 
   OS_ShowWindow(&window);
 
@@ -224,20 +217,15 @@ int main()
   QueryPerformanceCounter(&win32_cycles);
   u64 start_cycles = win32_cycles.QuadPart;
 
-  Arena* tmp_arena = AllocateArena(Megabytes(64));
+  Arena* frame_arena = AllocateArena(Megabytes(128));
 
   f32 time_sec = 0.0f;
 
   Arena* particle_arena = AllocateArena(Megabytes(8));
   ParticleList particle_list;
-  Particle* particle0 = CreateParticle(particle_arena, MakeVec2f(200.0f, 300.0f));
+  Particle* particle0 = CreateParticle(particle_arena, MakeVec2f(200.0f, 400.0f));
   PushParticle(&particle_list, particle0);
-  Particle* particle1 = CreateParticle(particle_arena, MakeVec2f(200.0f, 400.0f));
-  PushParticle(&particle_list, particle1);
-  Particle* particle2 = CreateParticle(particle_arena, MakeVec2f(300.0f, 400.0f));
-  PushParticle(&particle_list, particle2);
-  Particle* particle3 = CreateParticle(particle_arena, MakeVec2f(300.0f, 300.0f));
-  PushParticle(&particle_list, particle3);
+  Vec2f anchor_position = MakeVec2f(200.0f, 200.0f);
 
   Vec2f wind_force = {};
   f32 wind_force_magnitude = 100.0f * pixels_per_meter;
@@ -245,7 +233,7 @@ int main()
   bool b_finished = false;
   while (!b_finished)
   {
-    OS_EventList event_list = OS_GetEventList(tmp_arena);
+    OS_EventList event_list = OS_GetEventList(frame_arena);
 
     OS_Event* current_event = event_list.firstEvent;
     while (current_event)
@@ -292,20 +280,14 @@ int main()
 
     // --AlNov: Update Particle
     for (Particle* particle = particle_list.first;
-         particle != 0;
+         particle;
          particle = particle->next)
     {
       ApplyForceToParticle(particle, wind_force);
       ApplyWeightToParticle(particle);
       ApplyDragToParticle(particle);
-      if (particle->next)
-      {
-        ApplySpringToParticle(particle, particle->next->position, 100.0f, 10.0f);
-      }
-      else
-      {
-        ApplySpringToParticle(particle, particle_list.last->position, 100.0f, 10.0f);
-      }
+      ApplySpringToParticle(particle, anchor_position, 100.0f, 10.0f);
+
       IntegrateParticle(particle, time_sec);
 
       if (particle->position.y + particle_radius > window.height)
@@ -330,19 +312,19 @@ int main()
         particle->velocity.x *= -0.9f;
       }
 
-      DrawParticle(tmp_arena, particle);
+      Vec3f first_point = MakeVec3f(anchor_position.x, anchor_position.y, 0.0f);
+      Vec3f second_point = MakeVec3f(particle->position.x, particle->position.y, 0.0f);
+      DrawLine(frame_arena, first_point, second_point);
+      DrawParticle(frame_arena, particle);
       ResetParticleForce(particle);
     }
 
-    R_DrawMesh();
+    R_DrawFrame();
 
     // DrawLine(tmp_arena, MakeVec3f(50.0f, 50.0f, 0.0f), MakeVec3f(150.0f, 150.0f, 0.0f));
     // R_DrawLine();
 
     wind_force = {};
-
-    R_EndFrame();
-    ResetArena(tmp_arena);
 
     // --AlNov: @TODO Not really understand how fixed fps works.
     // Because of this, it is looks ugly as ...
@@ -365,6 +347,9 @@ int main()
     cycles_delta = end_cycles - start_cycles;
     start_cycles = end_cycles;
     time_sec = (f32)cycles_delta / (f32)frequency;
+
+    R_EndFrame();
+    ResetArena(frame_arena);
   }
 
   return 0;

@@ -113,7 +113,7 @@ OS_EventList OS_GetEventList(Arena* arena)
 f32 OS_CurrentTimeSeconds()
 {
     // --AlNov: @NOTE Frequency should be computed only ones, as it doens't change after system start.
-    localPersist LARGE_INTEGER frequency = {};
+    local_persist LARGE_INTEGER frequency = {};
     if (!frequency.QuadPart)
     {
         QueryPerformanceFrequency(&frequency);
