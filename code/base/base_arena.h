@@ -13,6 +13,7 @@ struct Arena
 
 Arena* AllocateArena(u64 size);
 
+// --AlNov: @TODO Initialize with zero
 void* PushArena(Arena* arena, u64 size);
 
 void ResetArena(Arena* arena);

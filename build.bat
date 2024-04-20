@@ -15,7 +15,7 @@ xcopy /y /q /s /e /i data .\build\data
 
 rem --- Build Settings ---
 set compiler=clang
-set clang_turnoff_warnings=-Wno-deprecated-declarations -Wno-gnu-anonymous-struct
+set clang_turnoff_warnings=-Wno-deprecated-declarations -Wno-gnu-anonymous-struct -Wno-unused-function
 rem set clang_flags=-Wall -Wconversion %clang_turnoff_warnings% -pedantic -g -I..\code\ -L..\code\
 set clang_flags=-Wall %clang_turnoff_warnings% -pedantic -g -I..\code\ -L..\code\
 
@@ -27,10 +27,11 @@ rem --- Build ---
 @echo.
 
 pushd build
-    if "%testApp%" == "1" %compiler% %clang_flags% ..\code\app\testApp.cpp -o testApp.exe
+    if "%testApp%"    == "1" %compiler% %clang_flags% ..\code\app\testApp.cpp -o testApp.exe
     if "%memoryTest%" == "1" %compiler% %clang_flags% ..\code\app\memoryTest.cpp -o memoryTest.exe
-    if "%game%" == "1" %compiler% %clang_flags% ..\code\app\game.cpp -o game.exe
-    if "%physics%" == "1" %compiler% %clang_flags% ..\code\app\physics.cpp -o physics.exe
+    if "%game%"       == "1" %compiler% %clang_flags% ..\code\app\game.cpp -o game.exe
+    if "%physics%"    == "1" %compiler% %clang_flags% ..\code\app\physics.cpp -o physics.exe
+    if "%soa_test%"       == "1" %compiler% %clang_flags% -O0 ..\code\app\soa_test.cpp -o soa_test.exe
 popd
 
 @echo.

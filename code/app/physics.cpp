@@ -14,73 +14,21 @@
 
 // --AlNov: TMP Globals ----------------------------------------------
 global f32 pixels_per_meter = 20.0f;
-global f32 particle_radius = pixels_per_meter / 4.0f;
 
-func void DrawCircle(Arena* arena, Vec2f position, f32 radius)
-{
-  const u32 points_number = 40;
-  f32 angle_step = 2.0f * 3.141592654f / (f32)points_number;
-  R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color = MakeRGB(1.0f, 1.0f, 1.0f);
-  mesh->mvp.center_position = MakeVec3f((position.x / 1280.0f) * 2 - 1, (position.y / 720.0f) * 2 - 1, 0.0f);
-  mesh->vertex_count = points_number;
-  mesh->vertecies = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
-  mesh->index_count = (points_number - 2) * 3;
-  mesh->indecies = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
+func void DrawBox(Arena* arena, Vec2f position, f32 width, f32 height, f32 angle);
+func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle);
+func void DrawPhysicsShape(Arena* arena, PH_Shape* shape);
+func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1);
 
-  for (u32 i = 0; i < points_number; i += 1)
-  {
-    f32 current_angle = angle_step * i;
-    Vec3f point_position = MakeVec3f(    
-      radius * cos(current_angle), 
-      radius * sin(current_angle),
-      0.0f
-    );
-
-    mesh->vertecies[i].position = point_position;
-  }
-
-  u32 vertex_index = 0;
-  for (u32 i = 0; i < mesh->index_count; i += 3)
-  {
-    mesh->indecies[i] = 0;
-    mesh->indecies[i + 1] = vertex_index + 1;
-    mesh->indecies[i + 2] = vertex_index + 2;
-
-    vertex_index += 1;
-  }
-
-  R_AddMeshToDrawList(mesh);
-}
-
-func void DrawParticle(Arena* arena, PH_Particle* particle)
-{
-  DrawCircle(arena, particle->position, 0.01f);
-}
-
-func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1)
-{
-  R_Line* line = (R_Line*)PushArena(arena, sizeof(R_Line));
-  p0.x = (p0.x / 1280.0f) * 2 - 1;
-  p0.y = (p0.y / 720.0f) * 2 - 1;
-  p1.x = (p1.x / 1280.0f) * 2 - 1;
-  p1.y = (p1.y / 720.0f) * 2 - 1;
-  line->vertecies[0].position = p0;
-  line->vertecies[1].position = p1;
-
-  R_AddLineToDrawList(line);
-}
-
-int main()
+i32 main()
 {
   OS_Window window = OS_CreateWindow("Physics", MakeVec2u(1280, 720));
+  R_VK_Init(&window);
 
   // --AlNov: change Windows schedular granuality
   // Should be added to win32 layer
   u32 desired_schedular_ms = 1;
   timeBeginPeriod(desired_schedular_ms);
-
-  R_VK_Init(&window);
 
   OS_ShowWindow(&window);
 
@@ -92,14 +40,18 @@ int main()
   QueryPerformanceCounter(&win32_cycles);
   u64 start_cycles = win32_cycles.QuadPart;
 
-  Arena* frame_arena = AllocateArena(Megabytes(128));
+  Arena* frame_arena = AllocateArena(Megabytes(256));
 
   f32 time_sec = 0.0f;
 
-  Arena* particle_arena = AllocateArena(Megabytes(8));
-  PH_ParticleList particle_list;
-  PH_Particle* particle0 = PH_CreateParticle(particle_arena, MakeVec2f(200.0f, 400.0f), 1.0f);
-  PH_PushParticle(&particle_list, particle0);
+  Arena* shape_arena = AllocateArena(Megabytes(64));
+
+  PH_ShapeList shape_list;
+  PH_Shape* circle_a = PH_CreateCircleShape(shape_arena, MakeVec2f(200.0f, 400.0f), 0.03f, 1.0f);
+  PH_PushShapeList(&shape_list, circle_a);
+  PH_Shape* circle_b = PH_CreateCircleShape(shape_arena, MakeVec2f(400.0f, 400.0f), 0.08f, 1.0f);
+  PH_PushShapeList(&shape_list, circle_b);
+
   Vec2f anchor_position = MakeVec2f(200.0f, 200.0f);
 
   Vec2f wind_force = {};
@@ -142,9 +94,9 @@ int main()
 
         case OS_EVENT_TYPE_MOUSE_RELEASE:
         {
-          Vec2f particle_position = MakeVec2f(current_event->mouseX, current_event->mouseY);
-          PH_Particle* particle = PH_CreateParticle(particle_arena, particle_position, 1.0f);
-          PH_PushParticle(&particle_list, particle);
+          // Vec2f particle_position = MakeVec2f(current_event->mouseX, current_event->mouseY);
+          // PH_Particle* particle = PH_CreateParticle(particle_arena, particle_position, 1.0f);
+          // PH_PushParticle(&particle_list, particle);
         }
 
         default: break;
@@ -153,82 +105,204 @@ int main()
       current_event = current_event->next;
     }
 
-    // --AlNov: Update Particle
-    for (PH_Particle* particle = particle_list.first;
-         particle;
-         particle = particle->next)
+    // --AlNov: Update Physics
+    for (PH_Shape* shape = shape_list.first;
+         shape;
+         shape = shape->next)
     {
-      Vec2f weight = PH_CalculateWeight(particle->mass, 9.8 * pixels_per_meter);
-      PH_ApplyForceToParticle(particle, weight);
-      Vec2f drag = PH_CalculateDrag(particle->velocity, 0.03f);
-      PH_ApplyForceToParticle(particle, drag);
-      Vec2f spring = PH_CalculateSpring(particle->position, anchor_position, 100.0f, 10.0f);
-      PH_ApplyForceToParticle(particle, spring);
-      PH_ApplyForceToParticle(particle, wind_force);
+      Vec2f weight = PH_CalculateWeight(shape->mass, 9.8 * pixels_per_meter);
+      PH_ApplyForceToShape(shape, weight);
+      
+      Vec2f wind = MakeVec2f(50.0f, 0.0f);
+      PH_ApplyForceToShape(shape, wind);
 
-      PH_IntegrateParticle(particle, time_sec);
+      PH_IntegrateShape(shape, time_sec);
 
-      if (particle->position.y + particle_radius > window.height)
+      if (shape->type == PH_SHAPE_TYPE_CIRCLE)
       {
-        particle->position.y = window.height - particle_radius;
-        particle->velocity.y *= -0.9f;
-      }
-      else if (particle->position.y - particle_radius < 0)
-      {
-        particle->position.y = particle_radius;
-        particle->velocity.y *= -0.9f;
-      }
+        if (shape->position.y + shape->circle.radius > window.height)
+        {
+          shape->position.y = window.height - shape->circle.radius;
+          shape->velocity.y *= -0.9f;
+        }
+        else if (shape->position.y - shape->circle.radius < 0)
+        {
+          shape->position.y = shape->circle.radius;
+          shape->velocity.y *= -0.9f;
+        }
 
-      if (particle->position.x + particle_radius > window.width)
-      {
-        particle->position.x = window.width - particle_radius;
-        particle->velocity.x *= -0.9f;
+        if (shape->position.x + shape->circle.radius > window.width)
+        {
+          shape->position.x = window.width - shape->circle.radius;
+          shape->velocity.x *= -0.9f;
+        }
+        else if (shape->position.x - shape->circle.radius < 0)
+        {
+          shape->position.x = shape->circle.radius;
+          shape->velocity.x *= -0.9f;
+        }
       }
-      else if (particle->position.x - particle_radius < 0)
-      {
-        particle->position.x = particle_radius;
-        particle->velocity.x *= -0.9f;
-      }
+    }
 
-      Vec3f first_point = MakeVec3f(anchor_position.x, anchor_position.y, 0.0f);
-      Vec3f second_point = MakeVec3f(particle->position.x, particle->position.y, 0.0f);
-      DrawLine(frame_arena, first_point, second_point);
-      DrawParticle(frame_arena, particle);
-      PH_ResetParticleForce(particle);
+    // --AlNov: Collision
+    for (PH_Shape* shape_a = shape_list.first;
+         shape_a;
+         shape_a = shape_a->next)
+    {
+      for (PH_Shape* shape_b = shape_a->next;
+          shape_b;
+          shape_b = shape_b->next)
+      {
+        PH_CollisionInfo collision_info = {};
+        if (PH_CheckCollision(&collision_info, shape_a, shape_b))
+        {
+          printf("Depth: %f\n", collision_info.depth);
+        }
+      }
+    }
+
+    // --AlNov: Drawing
+    for (PH_Shape* shape = shape_list.first;
+         shape;
+         shape = shape->next)
+    {
+      DrawPhysicsShape(frame_arena, shape);
     }
 
     R_DrawFrame();
-
-    // DrawLine(tmp_arena, MakeVec3f(50.0f, 50.0f, 0.0f), MakeVec3f(150.0f, 150.0f, 0.0f));
-    // R_DrawLine();
 
     wind_force = {};
 
     // --AlNov: @TODO Not really understand how fixed fps works.
     // Because of this, it is looks ugly as ...
     QueryPerformanceCounter(&win32_cycles);
-    u64 end_cycles = win32_cycles.QuadPart;
-    u64 cycles_delta = end_cycles - start_cycles;
-    start_cycles = end_cycles;
-    time_sec = (f32)cycles_delta / (f32)frequency;
+    u64 end_cycles    = win32_cycles.QuadPart;
+    u64 cycles_delta  = end_cycles - start_cycles;
+    start_cycles      = end_cycles;
+    time_sec          = (f32)cycles_delta / (f32)frequency;
 
-    const f32 fps = 60.0f;
-    const f32 ms_per_frame = 1000.0f / fps; 
-    f32 sleep_time = ms_per_frame - (time_sec * 1000.0f);
+    const f32 fps           = 60.0f;
+    const f32 ms_per_frame  = 1000.0f / fps; 
+    f32 sleep_time          = ms_per_frame - (time_sec * 1000.0f);
     if (sleep_time > 0)
     {
       Sleep(sleep_time);
     }
 
     QueryPerformanceCounter(&win32_cycles);
-    end_cycles = win32_cycles.QuadPart;
-    cycles_delta = end_cycles - start_cycles;
-    start_cycles = end_cycles;
-    time_sec = (f32)cycles_delta / (f32)frequency;
+    end_cycles    = win32_cycles.QuadPart;
+    cycles_delta  = end_cycles - start_cycles;
+    start_cycles  = end_cycles;
+    time_sec      = (f32)cycles_delta / (f32)frequency;
 
     R_EndFrame();
     ResetArena(frame_arena);
   }
 
   return 0;
+}
+
+func void DrawBox(Arena* arena, Vec2f position, f32 width, f32 height, f32 angle)
+{
+  f32 local_width   = width / 2.0f;
+  local_width       = (local_width / 1280.0f);
+  f32 local_height  = height / 2.0f;
+  local_height      = (local_height / 720.0f);
+
+  R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+  mesh->mvp.color             = MakeRGB(1.0f, 1.0f, 1.0f);
+  mesh->mvp.center_position.x = position.x / 1280.0f * 2.0f - 1.0f;
+  mesh->mvp.center_position.y = position.y / 720.0f * 2.0f - 1.0f;
+  mesh->mvp.center_position.z = 0.0f;
+  mesh->vertex_count          = 4;
+  mesh->vertecies             = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
+  mesh->vertecies[0].position = MakeVec3f(-local_width, -local_height, 0.0f);
+  mesh->vertecies[0].position = Vec3fFromVec2f(RotateVec2f(MakeVec2f(mesh->vertecies[0].position.x, mesh->vertecies[0].position.y), angle));
+  mesh->vertecies[1].position = MakeVec3f(local_width, -local_height, 0.0f);
+  mesh->vertecies[1].position = Vec3fFromVec2f(RotateVec2f(MakeVec2f(mesh->vertecies[1].position.x, mesh->vertecies[1].position.y), angle));
+  mesh->vertecies[2].position = MakeVec3f(local_width, local_height, 0.0f);
+  mesh->vertecies[2].position = Vec3fFromVec2f(RotateVec2f(MakeVec2f(mesh->vertecies[2].position.x, mesh->vertecies[2].position.y), angle));
+  mesh->vertecies[3].position = MakeVec3f(-local_width, local_height, 0.0f);
+  mesh->vertecies[3].position = Vec3fFromVec2f(RotateVec2f(MakeVec2f(mesh->vertecies[3].position.x, mesh->vertecies[3].position.y), angle));
+  mesh->index_count           = 6;
+  mesh->indecies              = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
+  mesh->indecies[0]           = 0;
+  mesh->indecies[1]           = 1;
+  mesh->indecies[2]           = 2;
+  mesh->indecies[3]           = 2;
+  mesh->indecies[4]           = 3;
+  mesh->indecies[5]           = 0;
+  R_AddMeshToDrawList(mesh);
+} 
+
+func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle)
+{
+  const u32 points_number   = 40;
+  f32 angle_step            = 2.0f * 3.141592654f / (f32)points_number;
+
+  R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+  mesh->mvp.color           = MakeRGB(1.0f, 1.0f, 1.0f);
+  mesh->mvp.center_position = MakeVec3f((position.x / 1280.0f) * 2 - 1, (position.y / 720.0f) * 2 - 1, 0.0f);
+  mesh->vertex_count        = points_number;
+  mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
+  mesh->index_count         = (points_number - 2) * 3;
+  mesh->indecies            = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
+
+  for (u32 i = 0; i < points_number; i += 1)
+  {
+    f32 current_angle = angle_step * i;
+    Vec3f point_position = MakeVec3f(    
+      radius * cos(current_angle), 
+      radius * sin(current_angle),
+      0.0f
+    );
+
+    mesh->vertecies[i].position = point_position;
+  }
+
+  u32 vertex_index = 0;
+  for (u32 i = 0; i < mesh->index_count; i += 3)
+  {
+    mesh->indecies[i]     = 0;
+    mesh->indecies[i + 1] = vertex_index + 1;
+    mesh->indecies[i + 2] = vertex_index + 2;
+
+    vertex_index += 1;
+  }
+
+  R_AddMeshToDrawList(mesh);
+
+  f32 radius_screen_value = radius * 1280.0f / 2.0f;
+  Vec2f rotation_second_point = RotateVec2f(MakeVec2f(radius_screen_value, 0.0f), angle);
+  DrawLine(arena, MakeVec3f(position.x, position.y, 0.0f), MakeVec3f(position.x + rotation_second_point.x, position.y + rotation_second_point.y, 0));
+}
+
+func void DrawPhysicsShape(Arena* arena, PH_Shape* shape)
+{
+  switch (shape->type)
+  {
+    case PH_SHAPE_TYPE_CIRCLE:
+    {
+      DrawCircle(arena, shape->position, shape->circle.radius, shape->angle);
+    } break;
+    case PH_SHAPE_TYPE_BOX:
+    {
+      DrawBox(arena, shape->position, shape->box.width, shape->box.height, shape->angle);
+    } break;
+    default: break;
+  }
+}
+
+func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1)
+{
+  p0.x = (p0.x / 1280.0f) * 2 - 1;
+  p0.y = (p0.y / 720.0f) * 2 - 1;
+  p1.x = (p1.x / 1280.0f) * 2 - 1;
+  p1.y = (p1.y / 720.0f) * 2 - 1;
+
+  R_Line* line = (R_Line*)PushArena(arena, sizeof(R_Line));
+  line->vertecies[0].position = p0;
+  line->vertecies[1].position = p1;
+
+  R_AddLineToDrawList(line);
 }

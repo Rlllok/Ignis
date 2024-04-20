@@ -1,5 +1,7 @@
 #pragma once
 
+#include "base_core.h"
+
 // --AlNov: STD ------------------------------------------------------
 #include "stdio.h"
 #include "math.h"
@@ -82,14 +84,28 @@ Vec2f MakeVec2f(f32 x, f32 y);
 Vec3f MakeVec3f(f32 x, f32 y, f32 z);
 Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w);
 
+Vec3f Vec3fFromVec2f(Vec2f v);
+
 // ------------------------------------------------------------
 // --AlNov: Vector Math
 Vec2f AddVec2f(Vec2f a, Vec2f b);
 Vec2f MulVec2f(Vec2f a, f32 num);
+Vec3f MulVec3f(Vec3f a, f32 num);
+Vec2f RotateVec2f(Vec2f v, f32 radians);
 
 f32   MagnitudeSquareVec2f(Vec2f v);
 f32   MagnitudeVec2f(Vec2f v);
 Vec2f NormalizeVec2f(Vec2f v);
+
+// -------------------------------------------------------------------
+// --AlNov: Matrices
+struct Mat4x4f32
+{
+  f32 values[4][4];
+};
+
+func Mat4x4f32 Make4x4f32(f32 diagonal_value);
+func Mat4x4f32 MakeOrthographic4x4f32(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z);
 
 // -------------------------------------------------------------------
 // --AlNov: Rectangle
