@@ -6,7 +6,6 @@ layout(binding = 0) uniform MVP
 {
   vec3 color;
   vec3 center_position;
-  mat4 projection;
 } mvp;
 
 vec3 positions[] = {

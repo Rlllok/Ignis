@@ -47,9 +47,9 @@ i32 main()
   Arena* shape_arena = AllocateArena(Megabytes(64));
 
   PH_ShapeList shape_list;
-  PH_Shape* circle_a = PH_CreateCircleShape(shape_arena, MakeVec2f(200.0f, 400.0f), 0.03f, 1.0f);
+  PH_Shape* circle_a = PH_CreateCircleShape(shape_arena, MakeVec2f(200.0f, 400.0f), 50.0f, 1.0f);
   PH_PushShapeList(&shape_list, circle_a);
-  PH_Shape* circle_b = PH_CreateCircleShape(shape_arena, MakeVec2f(400.0f, 400.0f), 0.08f, 1.0f);
+  PH_Shape* circle_b = PH_CreateCircleShape(shape_arena, MakeVec2f(400.0f, 400.0f), 90.0f, 0.0f);
   PH_PushShapeList(&shape_list, circle_b);
 
   Vec2f anchor_position = MakeVec2f(200.0f, 200.0f);
@@ -74,29 +74,29 @@ i32 main()
 
         case OS_EVENT_TYPE_KEYBOARD:
         {
-          if (current_event->key == OS_KEY_ARROW_UP)
-          {
-            wind_force = MakeVec2f(0.0f, -1 * wind_force_magnitude);
-          }
-          if (current_event->key == OS_KEY_ARROW_DOWN)
-          {
-            wind_force = MakeVec2f(0.0f, wind_force_magnitude);
-          }
-          if (current_event->key == OS_KEY_ARROW_LEFT)
-          {
-            wind_force = MakeVec2f(-1 * wind_force_magnitude, 0.0f);
-          }
-          if (current_event->key == OS_KEY_ARROW_RIGHT)
-          {
-            wind_force = MakeVec2f(wind_force_magnitude, 0.0f);
-          }
+          // if (current_event->key == OS_KEY_ARROW_UP)
+          // {
+          //   wind_force = MakeVec2f(0.0f, -1 * wind_force_magnitude);
+          // }
+          // if (current_event->key == OS_KEY_ARROW_DOWN)
+          // {
+          //   wind_force = MakeVec2f(0.0f, wind_force_magnitude);
+          // }
+          // if (current_event->key == OS_KEY_ARROW_LEFT)
+          // {
+          //   wind_force = MakeVec2f(-1 * wind_force_magnitude, 0.0f);
+          // }
+          // if (current_event->key == OS_KEY_ARROW_RIGHT)
+          // {
+          //   wind_force = MakeVec2f(wind_force_magnitude, 0.0f);
+          // }
         } break;
 
         case OS_EVENT_TYPE_MOUSE_RELEASE:
         {
-          // Vec2f particle_position = MakeVec2f(current_event->mouseX, current_event->mouseY);
-          // PH_Particle* particle = PH_CreateParticle(particle_arena, particle_position, 1.0f);
-          // PH_PushParticle(&particle_list, particle);
+          Vec2f     position = MakeVec2f(current_event->mouseX, current_event->mouseY);
+          PH_Shape* circle   = PH_CreateCircleShape(shape_arena, position, 50.0f, 1.0f);
+          PH_PushShapeList(&shape_list, circle);
         }
 
         default: break;
@@ -110,11 +110,11 @@ i32 main()
          shape;
          shape = shape->next)
     {
-      Vec2f weight = PH_CalculateWeight(shape->mass, 9.8 * pixels_per_meter);
+      Vec2f weight = PH_CalculateWeight(shape->mass, 9.8 * 40);
       PH_ApplyForceToShape(shape, weight);
-      
-      Vec2f wind = MakeVec2f(50.0f, 0.0f);
-      PH_ApplyForceToShape(shape, wind);
+
+      // --AlNov: Wind Force
+      PH_ApplyForceToShape(shape, MakeVec2f(50.0f, 0.0f));
 
       PH_IntegrateShape(shape, time_sec);
 
@@ -156,7 +156,11 @@ i32 main()
         PH_CollisionInfo collision_info = {};
         if (PH_CheckCollision(&collision_info, shape_a, shape_b))
         {
-          printf("Depth: %f\n", collision_info.depth);
+          Vec3f p0 = Vec3fFromVec2f(collision_info.start_point);
+          Vec3f p1 = Vec3fFromVec2f(collision_info.end_point);
+          DrawLine(frame_arena, p0, p1);
+
+          PH_ResolveCollisionImpulse(&collision_info);
         }
       }
     }
@@ -170,8 +174,6 @@ i32 main()
     }
 
     R_DrawFrame();
-
-    wind_force = {};
 
     // --AlNov: @TODO Not really understand how fixed fps works.
     // Because of this, it is looks ugly as ...
@@ -235,14 +237,14 @@ func void DrawBox(Arena* arena, Vec2f position, f32 width, f32 height, f32 angle
   R_AddMeshToDrawList(mesh);
 } 
 
-func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle)
+func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle, Vec3f color)
 {
   const u32 points_number   = 40;
   f32 angle_step            = 2.0f * 3.141592654f / (f32)points_number;
 
   R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color           = MakeRGB(1.0f, 1.0f, 1.0f);
-  mesh->mvp.center_position = MakeVec3f((position.x / 1280.0f) * 2 - 1, (position.y / 720.0f) * 2 - 1, 0.0f);
+  mesh->mvp.color           = color;
+  mesh->mvp.center_position = MakeVec3f(position.x, position.y, 0.0f);
   mesh->vertex_count        = points_number;
   mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
   mesh->index_count         = (points_number - 2) * 3;
@@ -272,8 +274,7 @@ func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle)
 
   R_AddMeshToDrawList(mesh);
 
-  f32 radius_screen_value = radius * 1280.0f / 2.0f;
-  Vec2f rotation_second_point = RotateVec2f(MakeVec2f(radius_screen_value, 0.0f), angle);
+  Vec2f rotation_second_point = RotateVec2f(MakeVec2f(radius, 0.0f), angle);
   DrawLine(arena, MakeVec3f(position.x, position.y, 0.0f), MakeVec3f(position.x + rotation_second_point.x, position.y + rotation_second_point.y, 0));
 }
 
@@ -283,7 +284,7 @@ func void DrawPhysicsShape(Arena* arena, PH_Shape* shape)
   {
     case PH_SHAPE_TYPE_CIRCLE:
     {
-      DrawCircle(arena, shape->position, shape->circle.radius, shape->angle);
+      DrawCircle(arena, shape->position, shape->circle.radius, shape->angle, MakeRGB(1.0f, 0.3f, 0.1f));
     } break;
     case PH_SHAPE_TYPE_BOX:
     {

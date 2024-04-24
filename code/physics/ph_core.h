@@ -56,6 +56,7 @@ struct PH_Box
 struct PH_Shape
 {
   f32   mass;
+  f32   inv_mass;
   Vec2f position;
   Vec2f velocity;
   Vec2f acceleration;
@@ -88,6 +89,7 @@ func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f3
 func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 width, f32 mass);
 
 func void PH_ApplyForceToShape(PH_Shape* shape, Vec2f force);
+func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j);
 func void PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque);
 func void PH_IntegrateShape(PH_Shape* shape, f32 dt);
 
@@ -98,6 +100,10 @@ func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape);
 func Vec2f PH_CalculateWeight(f32 m, f32 g);
 func Vec2f PH_CalculateDrag(Vec2f velocity, f32 k);
 func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k);
+
+// -------------------------------------------------------------------
+// --AlNov: Helpers --------------------------------------------------
+func bool PH_IsStatic(PH_Shape* shape);
 
 // -------------------------------------------------------------------
 // --AlNov: Collision ------------------------------------------------
@@ -113,5 +119,9 @@ struct PH_CollisionInfo
   f32   depth;
 };
 
+func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info);
+
 func bool PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Shape* shape_b);
 func bool PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b);
+func void PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info);
+func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info);

@@ -91,6 +91,7 @@ Vec3f Vec3fFromVec2f(Vec2f v);
 Vec2f AddVec2f(Vec2f a, Vec2f b);
 Vec2f MulVec2f(Vec2f a, f32 num);
 Vec3f MulVec3f(Vec3f a, f32 num);
+func f32 Dot2f32(Vec2f a, Vec2f b);
 Vec2f RotateVec2f(Vec2f v, f32 radians);
 
 f32   MagnitudeSquareVec2f(Vec2f v);

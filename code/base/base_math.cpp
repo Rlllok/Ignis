@@ -16,6 +16,10 @@ Vec3f MakeVec3f(f32 x, f32 y, f32 z)
     return result;
 }
 
+func f32 Dot2f32(Vec2f a, Vec2f b)
+{
+  return a.x*b.x + a.y*b.y;
+}
 
 Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
 {

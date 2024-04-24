@@ -15,7 +15,6 @@ struct R_VK_MVP
   // --AlNov: @TDO Projection matrix should be stored somewhere else
   alignas(16) Vec3f     color;
   alignas(16) Vec3f     center_position;
-  alignas(16) Mat4x4f32 projection;
 };
 
 struct R_MeshVertex

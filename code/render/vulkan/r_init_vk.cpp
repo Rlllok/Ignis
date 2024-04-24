@@ -369,7 +369,7 @@ func void R_VK_CreateMeshPipeline()
   // --AlNov: Vertex Shader
   Arena* tmp_arena = AllocateArena(Kilobytes(4000));
   {
-    const char* vs_path = "data/shaders/triangleVS.spv";
+    const char* vs_path = "data/shaders/default2DVS.spv";
     FILE* vs_file = 0;
     vs_file = fopen(vs_path, "rb");
     if (!vs_file)
@@ -393,7 +393,7 @@ func void R_VK_CreateMeshPipeline()
     vkCreateShaderModule(r_vk_state.device.logical, &vs_module_info, 0, &vs_module);
 
     // --AlNov: Fragment Shader
-    const char* fs_path = "data/shaders/triangleFS.spv";
+    const char* fs_path = "data/shaders/default2DFS.spv";
     FILE* fs_file = fopen(fs_path, "rb");
     if (!fs_file)
     {
