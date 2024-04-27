@@ -27,6 +27,13 @@ typedef double      f64;
 #define U32_MAX 0xFFFFFFFF
 #define U64_MIN 0x0000000000000000
 #define U64_MAX 0xFFFFFFFFFFFFFFFF
+#define F32_MIN -3.40282347E+38f
+#define F32_MAX 3.40282347E+38f
+
+// -------------------------------------------------------------------
+// --AlNov: Min, Max -------------------------------------------------
+#define Min(a, b) (((a) < (b)) ? (a) : (b))
+#define Max(a, b) (((a) > (b)) ? (a) : (b))
 
 // --AlNov: Memory Size
 #define Kilobytes(n) (n << 10)

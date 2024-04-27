@@ -283,8 +283,8 @@ LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
             {
                 event->type = OS_EVENT_TYPE_MOUSE_PRESS;
             }
-            event->mouseX = LOWORD(lParam);
-            event->mouseY = HIWORD(lParam);
+            event->mouse_position.x = LOWORD(lParam);
+            event->mouse_position.y = HIWORD(lParam);
 
             // if (release)
             // {

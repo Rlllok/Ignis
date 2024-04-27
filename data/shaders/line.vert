@@ -6,6 +6,6 @@ layout(location = 0) out vec3 fragColor;
 
 void main()
 {
-    fragColor = vec3(1.0f, 0.1f, 0.1f);
+    fragColor = vec3(0.0f, 1.0f, 0.1f);
     gl_Position = vec4(position, 1.0f);
 }

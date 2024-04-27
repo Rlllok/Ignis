@@ -20,7 +20,7 @@ void main()
 {
   vec2 viewport = vec2(1280.0f, 720.0f);
   fragColor = mvp.color;
-  vec3 position = position + mvp.center_position;
+  vec3 position = position;
   position.x = position.x / 1280.0f * 2 - 1;
   position.y = position.y / 720.0f * 2 - 1;
   gl_Position = vec4(position, 1.0f);

@@ -16,9 +16,14 @@ Vec3f MakeVec3f(f32 x, f32 y, f32 z)
     return result;
 }
 
-func f32 Dot2f32(Vec2f a, Vec2f b)
+func f32 DotVec2f(Vec2f a, Vec2f b)
 {
   return a.x*b.x + a.y*b.y;
+}
+
+func f32 CrossVec2f(Vec2f a, Vec2f b)
+{
+  return a.x*b.y - a.y*b.x;
 }
 
 Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
@@ -93,6 +98,11 @@ Vec2f NormalizeVec2f(Vec2f v)
   }
 
   return { {v.x / magnitude, v.y / magnitude} };
+}
+
+func Vec2f NormalToVec2f(Vec2f v)
+{
+  return NormalizeVec2f(MakeVec2f(v.y, -v.x));
 }
 
 func Mat4x4f32 Make4x4f32(f32 diagonal_value)

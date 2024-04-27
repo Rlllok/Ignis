@@ -84,6 +84,8 @@ Vec2f MakeVec2f(f32 x, f32 y);
 Vec3f MakeVec3f(f32 x, f32 y, f32 z);
 Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w);
 
+func Vec2f Vec2fFromVec2u(Vec2u v) { return MakeVec2f(v.x, v.y); }
+ 
 Vec3f Vec3fFromVec2f(Vec2f v);
 
 // ------------------------------------------------------------
@@ -91,12 +93,15 @@ Vec3f Vec3fFromVec2f(Vec2f v);
 Vec2f AddVec2f(Vec2f a, Vec2f b);
 Vec2f MulVec2f(Vec2f a, f32 num);
 Vec3f MulVec3f(Vec3f a, f32 num);
-func f32 Dot2f32(Vec2f a, Vec2f b);
+func f32 DotVec2f(Vec2f a, Vec2f b);
+func f32 CrossVec2f(Vec2f a, Vec2f b);
 Vec2f RotateVec2f(Vec2f v, f32 radians);
 
 f32   MagnitudeSquareVec2f(Vec2f v);
 f32   MagnitudeVec2f(Vec2f v);
 Vec2f NormalizeVec2f(Vec2f v);
+
+func Vec2f NormalToVec2f(Vec2f v);
 
 // -------------------------------------------------------------------
 // --AlNov: Matrices

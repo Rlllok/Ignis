@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base/base_include.h"
+#include "../../base/base_include.h"
 
 struct OS_Window;
 
@@ -36,8 +36,7 @@ struct OS_Event
 
     Vec2u windowSize;
 
-    u32 mouseX;
-    u32 mouseY;
+    Vec2u mouse_position;
     bool wasDown;
     bool isDown;
 

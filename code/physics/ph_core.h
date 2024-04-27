@@ -51,6 +51,8 @@ struct PH_Box
 {
   f32 height;
   f32 width;
+
+  Vec2f vertecies[4];
 };
 
 struct PH_Shape
@@ -63,6 +65,7 @@ struct PH_Shape
   Vec2f sum_of_forces;
 
   f32 moment_of_inertia;
+  f32 inv_moment_of_inertia;
   f32 angle;
   f32 angular_velocity;
   f32 angular_acceleration;
@@ -89,7 +92,7 @@ func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f3
 func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 width, f32 mass);
 
 func void PH_ApplyForceToShape(PH_Shape* shape, Vec2f force);
-func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j);
+func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point);
 func void PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque);
 func void PH_IntegrateShape(PH_Shape* shape, f32 dt);
 
@@ -107,6 +110,9 @@ func bool PH_IsStatic(PH_Shape* shape);
 
 // -------------------------------------------------------------------
 // --AlNov: Collision ------------------------------------------------
+// --AlNov: @TODO Create NIL object of PH_CollisionInfo
+// And use it as collision result. If there is no collision - return NIL.
+// It will get read of returning bool and inplace changes of out_coliision_info
 struct PH_CollisionInfo
 {
   PH_Shape* shape_a;
@@ -123,5 +129,10 @@ func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info);
 
 func bool PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Shape* shape_b);
 func bool PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b);
+func bool PH_BoxBoxCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box_a, PH_Shape* box_b);
+
 func void PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info);
 func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info);
+
+// AlNov: @TODO Temporary helper
+func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index);
