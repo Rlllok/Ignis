@@ -343,22 +343,39 @@ func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
   PH_Shape* shape_a = collision_info->shape_a;
   PH_Shape* shape_b = collision_info->shape_b;
 
-  f32   e                   = 0.9f;
+  f32   e                   = 0.0f;
   Vec2f ra                  = SubVec2f(collision_info->end_point, shape_a->position);
   Vec2f rb                  = SubVec2f(collision_info->start_point, shape_b->position);
   // --AlNov: va = VelocityAtCenter + w x r_a
   Vec2f va                  = AddVec2f(shape_a->velocity, MakeVec2f(-shape_a->angular_velocity * ra.y, shape_a->angular_velocity * ra.x));
   Vec2f vb                  = AddVec2f(shape_b->velocity, MakeVec2f(-shape_b->angular_velocity * rb.y, shape_b->angular_velocity * rb.x));
   Vec2f vrel                = SubVec2f(va, vb);
-  f32   vrel_dot_normal     = DotVec2f(vrel, collision_info->normal);
-  f32   ra_cross_normal_sqr = CrossVec2f(ra, collision_info->normal) * CrossVec2f(ra, collision_info->normal);
-  f32   rb_cross_normal_sqr = CrossVec2f(rb, collision_info->normal) * CrossVec2f(rb, collision_info->normal);
 
-  f32 j_magnitude = -(1.0f + e) * vrel_dot_normal / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_normal_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_normal_sqr * shape_b->inv_moment_of_inertia));
+  Vec2f j = {};
 
-  Vec2f ja = MulVec2f(collision_info->normal, j_magnitude);
-  Vec2f jb = MulVec2f(collision_info->normal, -j_magnitude);
+  // --AlNov: Impulse along Normal of collison
+  {
+    f32   vrel_dot_normal     = DotVec2f(vrel, collision_info->normal);
+    f32   ra_cross_normal_sqr = CrossVec2f(ra, collision_info->normal) * CrossVec2f(ra, collision_info->normal);
+    f32   rb_cross_normal_sqr = CrossVec2f(rb, collision_info->normal) * CrossVec2f(rb, collision_info->normal);
+    f32   j_magnitude         = -(1.0f + e) * vrel_dot_normal / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_normal_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_normal_sqr * shape_b->inv_moment_of_inertia));
+    Vec2f jn                  = MulVec2f(collision_info->normal, j_magnitude);
+    
+    j = AddVec2f(j, jn);
+  }
+  // --AlNov: Impulse along Tangent of collision (Friction)
+  {
+    f32   f                    = 0.3f;
+    Vec2f tangent              = NormalToVec2f(collision_info->normal);
+    f32   vrel_dot_tangent     = DotVec2f(vrel, tangent);
+    f32   ra_cross_tangent_sqr = CrossVec2f(ra, tangent) * CrossVec2f(ra, tangent);
+    f32   rb_cross_tangent_sqr = CrossVec2f(rb, tangent) * CrossVec2f(rb, tangent);
+    f32   j_magnitude          = -(1.0f + f) * vrel_dot_tangent / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_tangent_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_tangent_sqr * shape_b->inv_moment_of_inertia));
+    Vec2f jf                   = MulVec2f(tangent, j_magnitude);
 
-  PH_ApplyImpulseToShape(shape_a, ja, ra);
-  PH_ApplyImpulseToShape(shape_b, jb, rb);
+    j = AddVec2f(j, jf);
+  }
+
+  PH_ApplyImpulseToShape(shape_a, j, ra);
+  PH_ApplyImpulseToShape(shape_b, MulVec2f(j, -1.0f), rb);
 }

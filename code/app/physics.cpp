@@ -59,6 +59,10 @@ i32 main()
   PH_PushShapeList(&shape_list, box);
   PH_Shape* floor = PH_CreateBoxShape(shape_arena, MakeVec2f(640.0f, 700.0f), 20.0f, 1200.0f, 0.0f);
   PH_PushShapeList(&shape_list, floor);
+  PH_Shape* right_wall = PH_CreateBoxShape(shape_arena, MakeVec2f(50.0f, 450.0f), 600.0f, 30.0f, 0.0f);
+  PH_PushShapeList(&shape_list, right_wall);
+  PH_Shape* left_wall = PH_CreateBoxShape(shape_arena, MakeVec2f(1240.0f, 450.0f), 600.0f, 30.0f, 0.0f);
+  PH_PushShapeList(&shape_list, left_wall);
 
   bool b_finished = false;
   while (!b_finished)
