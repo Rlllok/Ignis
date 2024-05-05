@@ -34,6 +34,7 @@ typedef double      f64;
 // --AlNov: Min, Max -------------------------------------------------
 #define Min(a, b) (((a) < (b)) ? (a) : (b))
 #define Max(a, b) (((a) > (b)) ? (a) : (b))
+#define Clamp(v, low, high) Max(Min(v, high), low)
 
 // --AlNov: Memory Size
 #define Kilobytes(n) (n << 10)

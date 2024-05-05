@@ -93,8 +93,12 @@ func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 w
 
 func void PH_ApplyForceToShape(PH_Shape* shape, Vec2f force);
 func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point);
+func void PH_ApplyLinearImpulseToShape(PH_Shape* shape, Vec2f j);
+func void PH_ApplyAngularImpulseToShape(PH_Shape* shape, f32 j);
 func void PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque);
 func void PH_IntegrateShape(PH_Shape* shape, f32 dt);
+func void PH_IntegrateForceShape(PH_Shape* shape, f32 dt);
+func void PH_IntegrateVelocityShape(PH_Shape* shape, f32 dt);
 
 func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape);
 
@@ -106,7 +110,9 @@ func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 re
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
-func bool PH_IsStatic(PH_Shape* shape);
+func bool  PH_IsStatic(PH_Shape* shape);
+func Vec2f PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point);
+func Vec2f PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point);
 
 // -------------------------------------------------------------------
 // --AlNov: Collision ------------------------------------------------
@@ -130,9 +136,42 @@ func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info);
 func bool PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Shape* shape_b);
 func bool PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b);
 func bool PH_BoxBoxCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box_a, PH_Shape* box_b);
+func bool PH_BoxCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box, PH_Shape* circle);
 
 func void PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info);
 func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info);
 
 // AlNov: @TODO Temporary helper
 func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index);
+
+// -------------------------------------------------------------------
+// --AlNov: Constrains -----------------------------------------------
+// --AlNov: @TODO Not Working :(
+struct PH_Constrain
+{
+  PH_Shape* shape_a;
+  PH_Shape* shape_b;
+
+  Vec2f point_a_space;
+  Vec2f point_b_space;
+};
+
+func PH_Constrain PH_CreateDistanceConstrain(PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location);
+func void PH_SolveConstrain(PH_Constrain* constrain);
+
+struct PH_PointConstrain
+{
+  PH_Shape* shape;
+  Vec2f     anchor_point;
+  Vec2f     local_point;
+};
+
+func PH_PointConstrain PH_CreatePointConstrain(PH_Shape* shape, Vec2f anchor_point);
+func void PH_SolvePointConstrain(PH_PointConstrain* constrain);
+
+struct PH_DistanceConstrain
+{
+  PH_Shape* shape;
+  Vec2f     anchor_point;
+  Vec2f     local_point;
+};

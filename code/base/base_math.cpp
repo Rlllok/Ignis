@@ -16,9 +16,26 @@ Vec3f MakeVec3f(f32 x, f32 y, f32 z)
     return result;
 }
 
+func Vec3f TransformVec3f(Vec3f v, Mat3x3f32 m)
+{
+  Vec3f result = {};
+  for (i32 i = 0; i < 3; i += 1)
+  {
+    result.values[i] += v.values[0] * m.values[0][i];
+    result.values[i] += v.values[1] * m.values[1][i];
+    result.values[i] += v.values[2] * m.values[2][i];
+  }
+  return result;
+}
+
 func f32 DotVec2f(Vec2f a, Vec2f b)
 {
   return a.x*b.x + a.y*b.y;
+}
+
+func f32 DotVec3f(Vec3f a, Vec3f b)
+{
+  return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
 func f32 CrossVec2f(Vec2f a, Vec2f b)
@@ -105,6 +122,15 @@ func Vec2f NormalToVec2f(Vec2f v)
   return NormalizeVec2f(MakeVec2f(v.y, -v.x));
 }
 
+func Mat3x3f32 Make3x3f32(f32 diagonal_value)
+{
+  Mat3x3f32 result = {};
+  result.values[0][0] = diagonal_value;
+  result.values[1][1] = diagonal_value;
+  result.values[2][2] = diagonal_value;
+  return result;
+}
+
 func Mat4x4f32 Make4x4f32(f32 diagonal_value)
 {
   Mat4x4f32 result = {};
@@ -129,4 +155,51 @@ func Mat4x4f32 MakeOrthographic4x4f32(f32 left, f32 right, f32 bottom, f32 top, 
    result.values[3][2] = (near_z + far_z) / (near_z - far_z);
 
    return result;
+}
+
+func Mat3x3f32 Mul3x3f32(Mat3x3f32 a, Mat3x3f32 b)
+{
+  Mat3x3f32 c = {};
+  for (i32 i = 0; i < 3; i += 1)
+  {
+    for (i32 j = 0; j < 3; j += 1)
+    {
+      c.values[i][j] += a.values[0][j] * b.values[i][0];
+      c.values[i][j] += a.values[1][j] * b.values[i][1];
+      c.values[i][j] += a.values[2][j] * b.values[i][2];
+    }
+  }
+  return c;
+}
+
+func Mat3x3f32 Transpose3x3f32(Mat3x3f32 m)
+{
+  Mat3x3f32 result = {};
+  for (i32 i = 0; i < 3; i += 1)
+  {
+    for (i32 j = 0; j < 3; j += 1)
+    {
+      result.values[i][j] = m.values[j][i];
+    }
+  }
+  return result;
+}
+
+func Vec3f Solve3x3f32(Mat3x3f32 m, Vec3f v)
+{
+  Vec3f x = {};
+  i32   number_of_iteration = 5;
+  for (i32 alg_iteration = 0; alg_iteration < number_of_iteration; alg_iteration += 1)
+  {
+    for (i32 i = 0; i < 3; i += 1)
+    {
+      // if (m.values[i][i] != 0.0f)
+      if (fabsf(m.values[i][i]) > 0.000005)
+      {
+        Vec3f row = MakeVec3f(m.values[i][0], m.values[i][1], m.values[i][2]);
+        x.values[i] += (v.values[i] / m.values[i][i]) - (DotVec3f(row, x) / m.values[i][i]);
+      }
+    }
+  }
+  return x;
 }

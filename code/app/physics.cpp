@@ -25,7 +25,7 @@
 func void DrawBox(Arena* arena, PH_Shape* box, Vec3f color);
 func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle, Vec3f color);
 func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color);
-func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1);
+func void DrawLine(Arena* arena, Vec2f p0, Vec2f p1);
 
 i32 main()
 {
@@ -54,15 +54,23 @@ i32 main()
   Arena* shape_arena = AllocateArena(Megabytes(64));
 
   PH_ShapeList shape_list;
-  PH_Shape* box = PH_CreateBoxShape(shape_arena, MakeVec2f(640.0f, 250.0f), 100.0f, 100.0f, 0.0f);
-  box->angle = 2.5f;
-  PH_PushShapeList(&shape_list, box);
   PH_Shape* floor = PH_CreateBoxShape(shape_arena, MakeVec2f(640.0f, 700.0f), 20.0f, 1200.0f, 0.0f);
   PH_PushShapeList(&shape_list, floor);
   PH_Shape* right_wall = PH_CreateBoxShape(shape_arena, MakeVec2f(50.0f, 450.0f), 600.0f, 30.0f, 0.0f);
   PH_PushShapeList(&shape_list, right_wall);
   PH_Shape* left_wall = PH_CreateBoxShape(shape_arena, MakeVec2f(1240.0f, 450.0f), 600.0f, 30.0f, 0.0f);
   PH_PushShapeList(&shape_list, left_wall);
+
+  Vec2f ball_position = MakeVec2f(640.0f, 100.0f);
+  Vec2f ball_distance = MakeVec2f(30.0f, 70.0f);
+  PH_Shape* ball = PH_CreateCircleShape(shape_arena, ball_position, 25.0f, 0.0f);
+  PH_PushShapeList(&shape_list, ball);
+  PH_Shape* ball1 = PH_CreateCircleShape(shape_arena, AddVec2f(ball->position, ball_distance), 10.0f, 1.0f);
+  PH_PushShapeList(&shape_list, ball1);
+  PH_Shape* ball2 = PH_CreateCircleShape(shape_arena, AddVec2f(ball1->position, ball_distance), 10.0f, 1.0f);
+  PH_PushShapeList(&shape_list, ball2);
+  PH_Shape* ball3 = PH_CreateCircleShape(shape_arena, AddVec2f(ball2->position, ball_distance), 10.0f, 1.0f);
+  PH_PushShapeList(&shape_list, ball3);
 
   bool b_finished = false;
   while (!b_finished)
@@ -81,12 +89,34 @@ i32 main()
 
         case OS_EVENT_TYPE_KEYBOARD:
         {
+          switch (event->key)
+          {
+            case OS_KEY_ARROW_UP:
+            {
+              if (event->wasDown)
+              {
+                Vec2f position = OS_MousePosition(window);
+                PH_Shape* circle = PH_CreateCircleShape(shape_arena, position, 25.0f, 1.0f);
+                PH_PushShapeList(&shape_list, circle);
+              }
+            } break;
+
+            case OS_KEY_ARROW_DOWN:
+            {
+              if (event->wasDown)
+              {
+                Vec2f position = OS_MousePosition(window);
+                PH_Shape* box = PH_CreateBoxShape(shape_arena, position, 50.0f, 50.0f, 1.0f);
+                PH_PushShapeList(&shape_list, box);
+              }
+            } break;
+            
+            default: break;
+          }
         } break;
 
         case OS_EVENT_TYPE_MOUSE_RELEASE:
         {
-          PH_Shape* box = PH_CreateBoxShape(shape_arena, Vec2fFromVec2u(event->mouse_position), 50.0f, 50.0f, 75.0f);
-          PH_PushShapeList(&shape_list, box);
         }
 
         default: break;
@@ -103,14 +133,43 @@ i32 main()
     {
       Vec2f weight = PH_CalculateWeight(shape->mass, 9.8 * PIXELS_PER_METER);
       PH_ApplyForceToShape(shape, weight);
+    }
 
-      PH_IntegrateShape(shape, time_sec);
+    for (PH_Shape* shape = shape_list.first;
+         shape;
+         shape = shape->next)
+    {
+      PH_IntegrateForceShape(shape, time_sec);
+    }
+
+    Vec2f anchor_point = MakeVec2f(640.0f, 300.0f);
+    for (i32 i = 0; i < 230; i += 1)
+    {
+      PH_PointConstrain point_constrain = PH_CreatePointConstrain(ball, anchor_point);
+      // PH_SolvePointConstrain(&point_constrain);
+
+      PH_Constrain distance_constrain = PH_CreateDistanceConstrain(ball, ball1, ball->position);
+      PH_SolveConstrain(&distance_constrain);
+      PH_Constrain distance_constrain1 = PH_CreateDistanceConstrain(ball1, ball2, ball1->position);
+      PH_SolveConstrain(&distance_constrain1);
+      PH_Constrain distance_constrain2 = PH_CreateDistanceConstrain(ball2, ball3, ball2->position);
+      PH_SolveConstrain(&distance_constrain2);
+    }
+    DrawLine(frame_arena, ball->position, ball1->position);
+    DrawLine(frame_arena, ball1->position, ball2->position);
+    DrawLine(frame_arena, ball2->position, ball3->position);
+
+    for (PH_Shape* shape = shape_list.first;
+         shape;
+         shape = shape->next)
+    {
+      PH_IntegrateVelocityShape(shape, time_sec);
     }
 
     // --AlNov: Collision
     for (PH_Shape* shape_a = shape_list.first;
-         shape_a;
-         shape_a = shape_a->next)
+        shape_a;
+        shape_a = shape_a->next)
     {
       for (PH_Shape* shape_b = shape_a->next;
           shape_b;
@@ -119,18 +178,10 @@ i32 main()
         PH_CollisionInfo collision_info = {};
         if (PH_CheckCollision(&collision_info, shape_a, shape_b))
         {
-          Vec3f p0 = Vec3fFromVec2f(collision_info.start_point);
-          Vec3f p1 = Vec3fFromVec2f(AddVec2f(MulVec2f(collision_info.normal, 25.0f), collision_info.start_point));
-          DrawLine(frame_arena, p0, p1);
-
-          DrawCircle(frame_arena, collision_info.start_point, 5.0f, 0.0f, YELLOW_COLOR);
-          DrawCircle(frame_arena, collision_info.end_point, 5.0f, 0.0f, PINK_COLOR);
-
           PH_ResolveCollisionImpulse(&collision_info);
         }
       }
     }
-
     // --AlNov: Drawing
     for (PH_Shape* shape = shape_list.first;
          shape;
@@ -138,6 +189,7 @@ i32 main()
     {
       DrawPhysicsShape(frame_arena, shape, WHITE_COLOR);
     }
+
 
     R_DrawFrame();
 
@@ -149,6 +201,8 @@ i32 main()
     start_cycles      = end_cycles;
     time_sec          = (f32)cycles_delta / (f32)frequency;
 
+    // --AlNov: @TODO FPS Limitation doesn't work properly
+    /*
     const f32 fps           = 60.0f;
     const f32 ms_per_frame  = 1000.0f / fps; 
     f32 sleep_time          = ms_per_frame - (time_sec * 1000.0f);
@@ -162,6 +216,7 @@ i32 main()
     cycles_delta  = end_cycles - start_cycles;
     start_cycles  = end_cycles;
     time_sec      = (f32)cycles_delta / (f32)frequency;
+    */
 
     R_EndFrame();
     ResetArena(frame_arena);
@@ -233,9 +288,6 @@ func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle, Vec3f 
   }
 
   R_AddMeshToDrawList(mesh);
-
-  // Vec2f rotation_second_point = RotateVec2f(MakeVec2f(radius, 0.0f), angle);
-  // DrawLine(arena, MakeVec3f(position.x, position.y, 0.0f), MakeVec3f(position.x + rotation_second_point.x, position.y + rotation_second_point.y, 0));
 }
 
 func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color)
@@ -254,7 +306,7 @@ func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color)
   }
 }
 
-func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1)
+func void DrawLine(Arena* arena, Vec2f p0, Vec2f p1)
 {
   p0.x = (p0.x / 1280.0f) * 2 - 1;
   p0.y = (p0.y / 720.0f) * 2 - 1;
@@ -262,8 +314,8 @@ func void DrawLine(Arena* arena, Vec3f p0, Vec3f p1)
   p1.y = (p1.y / 720.0f) * 2 - 1;
 
   R_Line* line = (R_Line*)PushArena(arena, sizeof(R_Line));
-  line->vertecies[0].position = p0;
-  line->vertecies[1].position = p1;
+  line->vertecies[0].position = Vec3fFromVec2f(p0);
+  line->vertecies[1].position = Vec3fFromVec2f(p1);
 
   R_AddLineToDrawList(line);
 }
