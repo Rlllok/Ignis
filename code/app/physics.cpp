@@ -61,16 +61,26 @@ i32 main()
   PH_Shape* left_wall = PH_CreateBoxShape(shape_arena, MakeVec2f(1240.0f, 450.0f), 600.0f, 30.0f, 0.0f);
   PH_PushShapeList(&shape_list, left_wall);
 
-  Vec2f ball_position = MakeVec2f(640.0f, 100.0f);
-  Vec2f ball_distance = MakeVec2f(30.0f, 70.0f);
-  PH_Shape* ball = PH_CreateCircleShape(shape_arena, ball_position, 25.0f, 0.0f);
-  PH_PushShapeList(&shape_list, ball);
-  PH_Shape* ball1 = PH_CreateCircleShape(shape_arena, AddVec2f(ball->position, ball_distance), 10.0f, 1.0f);
-  PH_PushShapeList(&shape_list, ball1);
-  PH_Shape* ball2 = PH_CreateCircleShape(shape_arena, AddVec2f(ball1->position, ball_distance), 10.0f, 1.0f);
-  PH_PushShapeList(&shape_list, ball2);
-  PH_Shape* ball3 = PH_CreateCircleShape(shape_arena, AddVec2f(ball2->position, ball_distance), 10.0f, 1.0f);
-  PH_PushShapeList(&shape_list, ball3);
+  Vec2f box_position = MakeVec2f(640.0f, 100.0f);
+  Vec2f box_distance = MakeVec2f(30.0f, 70.0f);
+  PH_Shape* box = PH_CreateBoxShape(shape_arena, box_position, 25.0f, 25.0f, 0.0f);
+  PH_PushShapeList(&shape_list, box);
+  PH_Shape* box1 = PH_CreateBoxShape(shape_arena, AddVec2f(box->position, box_distance), 30.0f, 30.0f, 1.0f);
+  PH_PushShapeList(&shape_list, box1);
+  PH_Shape* box2 = PH_CreateBoxShape(shape_arena, AddVec2f(box1->position, box_distance), 30.0f, 30.0f, 1.0f);
+  PH_PushShapeList(&shape_list, box2);
+  PH_Shape* box3 = PH_CreateBoxShape(shape_arena, AddVec2f(box2->position, box_distance), 30.0f, 30.0f, 1.0f);
+  PH_PushShapeList(&shape_list, box3);
+
+  Arena*        constrain_arena     = AllocateArena(Megabytes(64));
+  PH_Constrain* distance_constrain  = PH_CreateDistanceConstrain(constrain_arena, box, box1, box->position);
+  PH_Constrain* distance_constrain1 = PH_CreateDistanceConstrain(constrain_arena, box1, box2, box1->position);
+  PH_Constrain* distance_constrain2 = PH_CreateDistanceConstrain(constrain_arena, box2, box3, box2->position);
+
+  PH_ConstrainList constrain_list = {};
+  PH_PushConstrainList(&constrain_list, distance_constrain);
+  PH_PushConstrainList(&constrain_list, distance_constrain1);
+  PH_PushConstrainList(&constrain_list, distance_constrain2);
 
   bool b_finished = false;
   while (!b_finished)
@@ -142,22 +152,25 @@ i32 main()
       PH_IntegrateForceShape(shape, time_sec);
     }
 
-    Vec2f anchor_point = MakeVec2f(640.0f, 300.0f);
-    for (i32 i = 0; i < 230; i += 1)
+    for (PH_Constrain* constrain = constrain_list.first;
+        constrain;
+        constrain = constrain->next)
     {
-      PH_PointConstrain point_constrain = PH_CreatePointConstrain(ball, anchor_point);
-      // PH_SolvePointConstrain(&point_constrain);
-
-      PH_Constrain distance_constrain = PH_CreateDistanceConstrain(ball, ball1, ball->position);
-      PH_SolveConstrain(&distance_constrain);
-      PH_Constrain distance_constrain1 = PH_CreateDistanceConstrain(ball1, ball2, ball1->position);
-      PH_SolveConstrain(&distance_constrain1);
-      PH_Constrain distance_constrain2 = PH_CreateDistanceConstrain(ball2, ball3, ball2->position);
-      PH_SolveConstrain(&distance_constrain2);
+      PH_PresolveConstrain(constrain, time_sec);
     }
-    DrawLine(frame_arena, ball->position, ball1->position);
-    DrawLine(frame_arena, ball1->position, ball2->position);
-    DrawLine(frame_arena, ball2->position, ball3->position);
+
+    for (i32 i = 0; i < 10; i += 1)
+    {
+      for (PH_Constrain* constrain = constrain_list.first;
+          constrain;
+          constrain = constrain->next)
+      {
+        PH_SolveConstrain(constrain);
+      }
+    }
+    DrawLine(frame_arena, box->position, box1->position);
+    DrawLine(frame_arena, box1->position, box2->position);
+    DrawLine(frame_arena, box2->position, box3->position);
 
     for (PH_Shape* shape = shape_list.first;
          shape;

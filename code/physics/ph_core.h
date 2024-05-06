@@ -149,15 +149,32 @@ func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index);
 // --AlNov: @TODO Not Working :(
 struct PH_Constrain
 {
+  PH_Constrain* next;
+
   PH_Shape* shape_a;
   PH_Shape* shape_b;
 
   Vec2f point_a_space;
   Vec2f point_b_space;
+
+  Vec2f ra;
+  Vec2f rb;
+  Vec2f n;
+  f32   effective_mass;
+  f32   cached_impulse_magnitude;
 };
 
-func PH_Constrain PH_CreateDistanceConstrain(PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location);
-func void PH_SolveConstrain(PH_Constrain* constrain);
+struct PH_ConstrainList
+{
+  PH_Constrain* first;
+  PH_Constrain* last;
+  u32           count;
+};
+
+func void          PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain);
+func PH_Constrain* PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location);
+func void          PH_PresolveConstrain(PH_Constrain* constrain, f32 dt);
+func void          PH_SolveConstrain(PH_Constrain* constrain);
 
 struct PH_PointConstrain
 {

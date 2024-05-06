@@ -520,39 +520,80 @@ func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
 
 // -------------------------------------------------------------------
 // --AlNov: Constrains -----------------------------------------------
-func PH_Constrain PH_CreateDistanceConstrain(PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location)
+func void PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain)
 {
-  PH_Constrain constrain  = {};
-  constrain.shape_a       = shape_a;
-  constrain.shape_b       = shape_b;
-  constrain.point_a_space = PH_LocalFromWorldSpace(shape_a, location);
-  constrain.point_b_space = PH_LocalFromWorldSpace(shape_b, location);
+  if (list->count == 0)
+  {
+    list->first =  constrain;
+    list->last  =  constrain;
+    list->count += 1;
+
+    constrain->next = 0;
+  }
+  else
+  {
+    constrain->next  =  0;
+    list->last->next =  constrain;
+    list->last       =  constrain;
+    list->count      += 1;
+  };
+}
+
+func PH_Constrain* PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location)
+{
+  PH_Constrain* constrain  = (PH_Constrain*)PushArena(arena, sizeof(PH_Constrain));
+  constrain->shape_a       = shape_a;
+  constrain->shape_b       = shape_b;
+  constrain->point_a_space = PH_LocalFromWorldSpace(shape_a, location);
+  constrain->point_b_space = PH_LocalFromWorldSpace(shape_b, location);
 
   return constrain;
+}
+
+func void PH_PresolveConstrain(PH_Constrain* constrain, f32 dt)
+{
+  PH_Shape* shape_a = constrain->shape_a;
+  PH_Shape* shape_b = constrain->shape_b;
+
+  Vec2f ra                 = RotateVec2f(constrain->point_a_space, shape_a->angle);
+  Vec2f rb                 = RotateVec2f(constrain->point_b_space, shape_b->angle);
+  Vec2f n                  = NormalizeVec2f(SubVec2f(AddVec2f(shape_a->position, ra), AddVec2f(shape_b->position, rb)));
+  f32   n_cross_ra_sqr     = CrossVec2f(n, ra) * CrossVec2f(n, ra);
+  f32   n_cross_rb_sqr     = CrossVec2f(n, rb) * CrossVec2f(n, rb);
+  f32   inv_effective_mass = shape_a->inv_mass + shape_b->inv_mass + shape_a->inv_moment_of_inertia*n_cross_ra_sqr + shape_b->inv_moment_of_inertia*n_cross_rb_sqr;
+  f32   effective_mass     = inv_effective_mass != 0.0f ? 1.0f / inv_effective_mass : 0.0f;
+  
+  Vec2f j = MulVec2f(n, constrain->cached_impulse_magnitude);
+  PH_ApplyLinearImpulseToShape(shape_a, MulVec2f(j, -1.0f));
+  PH_ApplyAngularImpulseToShape(shape_a, -CrossVec2f(ra, j));
+  PH_ApplyLinearImpulseToShape(shape_b, j);
+  PH_ApplyAngularImpulseToShape(shape_b, CrossVec2f(rb, j));
+
+  constrain->ra = ra;
+  constrain->rb = rb;
+  constrain->n = n;
+  constrain->effective_mass = effective_mass;
 }
 
 func void PH_SolveConstrain(PH_Constrain* constrain)
 {
   PH_Shape* shape_a = constrain->shape_a;
   PH_Shape* shape_b = constrain->shape_b;
+  Vec2f     ra      = constrain->ra;
+  Vec2f     rb      = constrain->rb;
 
-  Vec2f pa                 = PH_WorldFromLocalSpace(shape_a, constrain->point_a_space);
-  Vec2f pb                 = PH_WorldFromLocalSpace(shape_b, constrain->point_b_space);
-  Vec2f ra                 = SubVec2f(pa, shape_a->position);
-  Vec2f rb                 = SubVec2f(pb, shape_b->position);
-  Vec2f n                  = NormalizeVec2f(SubVec2f(rb, ra));
-  f32   n_cross_ra_sqr     = CrossVec2f(n, ra) * CrossVec2f(n, ra);
-  f32   n_cross_rb_sqr     = CrossVec2f(n, rb) * CrossVec2f(n, ra);
-  f32   inv_effective_mass = shape_a->inv_mass + shape_b->inv_mass + shape_a->inv_moment_of_inertia*n_cross_ra_sqr + shape_b->inv_moment_of_inertia*n_cross_rb_sqr;
-  f32   effective_mass     = inv_effective_mass != 0.0f ? 1.0f / inv_effective_mass : 0.0f;
-  Vec2f va                 = AddVec2f(shape_a->velocity, MulVec2f(MakeVec2f(-ra.y, ra.x), shape_a->angular_velocity));
-  Vec2f vb                 = AddVec2f(shape_b->velocity, MulVec2f(MakeVec2f(-rb.y, rb.x), shape_b->angular_velocity));
-  f32   cdot               = DotVec2f(n, SubVec2f(vb, va));
-  f32   j_magnitude        = -effective_mass * cdot;
-  Vec2f j                  = MulVec2f(n, j_magnitude);
+  Vec2f va          = AddVec2f(shape_a->velocity, MulVec2f(MakeVec2f(-ra.y, ra.x), shape_a->angular_velocity));
+  Vec2f vb          = AddVec2f(shape_b->velocity, MulVec2f(MakeVec2f(-rb.y, rb.x), shape_b->angular_velocity));
+  f32   cdot        = DotVec2f(constrain->n, SubVec2f(vb, va));
+  f32   j_magnitude = -constrain->effective_mass* cdot;
+  Vec2f j           = MulVec2f(constrain->n, j_magnitude);
 
   PH_ApplyLinearImpulseToShape(shape_a, MulVec2f(j, -1.0f));
+  PH_ApplyAngularImpulseToShape(shape_a, -CrossVec2f(ra, j));
   PH_ApplyLinearImpulseToShape(shape_b, j);
+  PH_ApplyAngularImpulseToShape(shape_b, CrossVec2f(rb, j));
+
+  constrain->cached_impulse_magnitude += j_magnitude;
 }
 
 func PH_PointConstrain PH_CreatePointConstrain(PH_Shape* shape, Vec2f anchor_point)
