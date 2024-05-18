@@ -1,60 +1,20 @@
 #include "base_math.h"
 
-Vec2u MakeVec2u(u32 x, u32 y)
+// -------------------------------------------------------------------
+// --AlNov: Vector Operations ----------------------------------------
+
+// --AlNov: Vec2
+func Vec2u MakeVec2u(u32 x, u32 y)
 {
-    return { {x, y} };
+  return { {x, y} };
 }
 
 Vec2f MakeVec2f(f32 x, f32 y)
 {
-    return { {x, y} };
+  return { {x, y} };
 }
 
-Vec3f MakeVec3f(f32 x, f32 y, f32 z)
-{
-    Vec3f result = { {x, y, z} };
-    return result;
-}
-
-func Vec3f TransformVec3f(Vec3f v, Mat3x3f32 m)
-{
-  Vec3f result = {};
-  for (i32 i = 0; i < 3; i += 1)
-  {
-    result.values[i] += v.values[0] * m.values[0][i];
-    result.values[i] += v.values[1] * m.values[1][i];
-    result.values[i] += v.values[2] * m.values[2][i];
-  }
-  return result;
-}
-
-func f32 DotVec2f(Vec2f a, Vec2f b)
-{
-  return a.x*b.x + a.y*b.y;
-}
-
-func f32 DotVec3f(Vec3f a, Vec3f b)
-{
-  return a.x*b.x + a.y*b.y + a.z*b.z;
-}
-
-func f32 CrossVec2f(Vec2f a, Vec2f b)
-{
-  return a.x*b.y - a.y*b.x;
-}
-
-Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
-{
-    Vec4f result = { {x, y, z, w} };
-    return result;
-}
-
-Vec3f Vec3fFromVec2f(Vec2f v)
-{
-  return MakeVec3f(v.x, v.y, 0.0f);
-}
-
-Vec2f AddVec2f(Vec2f a, Vec2f b)
+func Vec2f AddVec2f(Vec2f a, Vec2f b)
 {
     Vec2f result = {};
     result.x = a.x + b.x;
@@ -63,12 +23,15 @@ Vec2f AddVec2f(Vec2f a, Vec2f b)
     return result;
 }
 
-Vec2f SubVec2f(Vec2f a, Vec2f b)
+func Vec2f SubVec2f(Vec2f a, Vec2f b)
 {
-  return { {a.x - b.x, a.y - b.y} };
+  Vec2f result = {};
+  result.x = a.x - b.x;
+  result.y = a.y - b.y;
+  return result;
 }
 
-Vec2f MulVec2f(Vec2f a, f32 num)
+func Vec2f MulVec2f(Vec2f a, f32 num)
 {
     Vec2f result = a;
     result.x *= num;
@@ -77,15 +40,17 @@ Vec2f MulVec2f(Vec2f a, f32 num)
     return result;
 }
 
-Vec3f MulVec3f(Vec3f a, f32 num)
+func f32 DotVec2f(Vec2f a, Vec2f b)
 {
-  a.x *= num;
-  a.y *= num;
-  a.z *= num;
-  return a;
+  return a.x*b.x + a.y*b.y;
 }
 
-Vec2f RotateVec2f(Vec2f v, f32 radians)
+func f32 CrossVec2f(Vec2f a, Vec2f b)
+{
+  return a.x*b.y - a.y*b.x;
+}
+
+func Vec2f RotateVec2f(Vec2f v, f32 radians)
 {
   Vec2f result  = {};
   f32 cos_value = cos(radians);
@@ -96,17 +61,17 @@ Vec2f RotateVec2f(Vec2f v, f32 radians)
   return result;
 }
 
-f32 MagnitudeSquareVec2f(Vec2f v)
+func f32 MagnitudeSquareVec2f(Vec2f v)
 {
   return v.x * v.x + v.y * v.y;
 }
 
-f32 MagnitudeVec2f(Vec2f v)
+func f32 MagnitudeVec2f(Vec2f v)
 {
   return sqrt(v.x * v.x + v.y * v.y);
 }
 
-Vec2f NormalizeVec2f(Vec2f v)
+func Vec2f NormalizeVec2f(Vec2f v)
 {
   f32 magnitude = MagnitudeVec2f(v);
   if (magnitude == 0)
@@ -122,44 +87,61 @@ func Vec2f NormalToVec2f(Vec2f v)
   return NormalizeVec2f(MakeVec2f(v.y, -v.x));
 }
 
-func Mat3x3f32 Make3x3f32(f32 diagonal_value)
+// --AlNov: Vec3
+func Vec3f MakeVec3f(f32 x, f32 y, f32 z)
 {
-  Mat3x3f32 result = {};
+    Vec3f result = { {x, y, z} };
+    return result;
+}
+
+func Vec3f MulVec3f(Vec3f a, f32 num)
+{
+  a.x *= num;
+  a.y *= num;
+  a.z *= num;
+  return a;
+}
+
+func Vec3f TransformVec3f(Vec3f v, Mat3x3f m)
+{
+  Vec3f result = {};
+  for (i32 i = 0; i < 3; i += 1)
+  {
+    result.values[i] += v.values[0] * m.values[0][i];
+    result.values[i] += v.values[1] * m.values[1][i];
+    result.values[i] += v.values[2] * m.values[2][i];
+  }
+  return result;
+}
+
+func f32 DotVec3f(Vec3f a, Vec3f b)
+{
+  return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+
+// --AlNov: Vec3
+func Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
+{
+    Vec4f result = { {x, y, z, w} };
+    return result;
+}
+
+// -------------------------------------------------------------------
+// --AlNov: Matrix Operations ----------------------------------------
+
+// --AlNov: Mat3x3
+func Mat3x3f Make3x3f32(f32 diagonal_value)
+{
+  Mat3x3f result = {};
   result.values[0][0] = diagonal_value;
   result.values[1][1] = diagonal_value;
   result.values[2][2] = diagonal_value;
   return result;
 }
 
-func Mat4x4f32 Make4x4f32(f32 diagonal_value)
+func Mat3x3f Mul3x3f32(Mat3x3f a, Mat3x3f b)
 {
-  Mat4x4f32 result = {};
-  result.values[0][0] = diagonal_value;
-  result.values[1][1] = diagonal_value;
-  result.values[2][2] = diagonal_value;
-  result.values[3][3] = diagonal_value;
-  return result;
-}
-
-func Mat4x4f32 MakeOrthographic4x4f32(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z)
-{
-  Mat4x4f32 result = Make4x4f32(1.0f);
-  
-   result.values[0][0] = 2.0f / (right - left);
-   result.values[1][1] = 2.0f / (top - bottom);
-   result.values[2][2] = 2.0f / (far_z - near_z);
-   result.values[3][3] = 1.0f;
-   
-   result.values[3][0] = (left + right) / (left - right);
-   result.values[3][1] = (bottom + top) / (bottom - top);
-   result.values[3][2] = (near_z + far_z) / (near_z - far_z);
-
-   return result;
-}
-
-func Mat3x3f32 Mul3x3f32(Mat3x3f32 a, Mat3x3f32 b)
-{
-  Mat3x3f32 c = {};
+  Mat3x3f c = {};
   for (i32 i = 0; i < 3; i += 1)
   {
     for (i32 j = 0; j < 3; j += 1)
@@ -172,9 +154,9 @@ func Mat3x3f32 Mul3x3f32(Mat3x3f32 a, Mat3x3f32 b)
   return c;
 }
 
-func Mat3x3f32 Transpose3x3f32(Mat3x3f32 m)
+func Mat3x3f Transpose3x3f32(Mat3x3f m)
 {
-  Mat3x3f32 result = {};
+  Mat3x3f result = {};
   for (i32 i = 0; i < 3; i += 1)
   {
     for (i32 j = 0; j < 3; j += 1)
@@ -185,21 +167,29 @@ func Mat3x3f32 Transpose3x3f32(Mat3x3f32 m)
   return result;
 }
 
-func Vec3f Solve3x3f32(Mat3x3f32 m, Vec3f v)
+// --AlNov: Mat4x4
+func Mat4x4f Make4x4f32(f32 diagonal_value)
 {
-  Vec3f x = {};
-  i32   number_of_iteration = 5;
-  for (i32 alg_iteration = 0; alg_iteration < number_of_iteration; alg_iteration += 1)
-  {
-    for (i32 i = 0; i < 3; i += 1)
-    {
-      // if (m.values[i][i] != 0.0f)
-      if (fabsf(m.values[i][i]) > 0.000005)
-      {
-        Vec3f row = MakeVec3f(m.values[i][0], m.values[i][1], m.values[i][2]);
-        x.values[i] += (v.values[i] / m.values[i][i]) - (DotVec3f(row, x) / m.values[i][i]);
-      }
-    }
-  }
-  return x;
+  Mat4x4f result = {};
+  result.values[0][0] = diagonal_value;
+  result.values[1][1] = diagonal_value;
+  result.values[2][2] = diagonal_value;
+  result.values[3][3] = diagonal_value;
+  return result;
+}
+
+func Mat4x4f MakeOrthographic4x4f32(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z)
+{
+  Mat4x4f result = Make4x4f32(1.0f);
+  
+   result.values[0][0] = 2.0f / (right - left);
+   result.values[1][1] = 2.0f / (top - bottom);
+   result.values[2][2] = 2.0f / (far_z - near_z);
+   result.values[3][3] = 1.0f;
+   
+   result.values[3][0] = (left + right) / (left - right);
+   result.values[3][1] = (bottom + top) / (bottom - top);
+   result.values[3][2] = (near_z + far_z) / (near_z - far_z);
+
+   return result;
 }

@@ -13,12 +13,12 @@
 #include "../physics/ph_core.cpp"
 
 // --AlNov: TMP Globals ----------------------------------------------
-#define RED_COLOR    MakeRGB(1.0f, 0.0f, 0.0f)
-#define GREEN_COLOR  MakeRGB(0.0f, 1.0f, 0.0f)
-#define BLUE_COLOR   MakeRGB(0.0f, 0.0f, 1.0f)
-#define YELLOW_COLOR MakeRGB(1.0f, 1.0f, 0.0f)
-#define PINK_COLOR   MakeRGB(1.0f, 0.0f, 1.0f)
-#define WHITE_COLOR  MakeRGB(1.0f, 1.0f, 1.0f)
+#define RED_COLOR    MakeVec3f(1.0f, 0.0f, 0.0f)
+#define GREEN_COLOR  MakeVec3f(0.0f, 1.0f, 0.0f)
+#define BLUE_COLOR   MakeVec3f(0.0f, 0.0f, 1.0f)
+#define YELLOW_COLOR MakeVec3f(1.0f, 1.0f, 0.0f)
+#define PINK_COLOR   MakeVec3f(1.0f, 0.0f, 1.0f)
+#define WHITE_COLOR  MakeVec3f(1.0f, 1.0f, 1.0f)
 
 #define PIXELS_PER_METER 40.0f
 
@@ -247,10 +247,10 @@ func void DrawBox(Arena* arena, PH_Shape* box, Vec3f color)
   mesh->mvp.center_position.z = 0.0f;
   mesh->vertex_count          = 4;
   mesh->vertecies             = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
-  mesh->vertecies[0].position = Vec3fFromVec2f(BoxVertexWorldFromLocal(box, 0));
-  mesh->vertecies[1].position = Vec3fFromVec2f(BoxVertexWorldFromLocal(box, 1));
-  mesh->vertecies[2].position = Vec3fFromVec2f(BoxVertexWorldFromLocal(box, 2));
-  mesh->vertecies[3].position = Vec3fFromVec2f(BoxVertexWorldFromLocal(box, 3));
+  mesh->vertecies[0].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 0));
+  mesh->vertecies[1].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 1));
+  mesh->vertecies[2].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 2));
+  mesh->vertecies[3].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 3));
   mesh->index_count           = 6;
   mesh->indecies              = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
   mesh->indecies[0]           = 0;
@@ -327,8 +327,8 @@ func void DrawLine(Arena* arena, Vec2f p0, Vec2f p1)
   p1.y = (p1.y / 720.0f) * 2 - 1;
 
   R_Line* line = (R_Line*)PushArena(arena, sizeof(R_Line));
-  line->vertecies[0].position = Vec3fFromVec2f(p0);
-  line->vertecies[1].position = Vec3fFromVec2f(p1);
+  line->vertecies[0].position = Vec3fFromVec2(p0);
+  line->vertecies[1].position = Vec3fFromVec2(p1);
 
   R_AddLineToDrawList(line);
 }

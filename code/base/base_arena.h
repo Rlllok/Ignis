@@ -1,5 +1,7 @@
 #pragma once
 
+#include "base_core.h"
+
 // --AlNov: @TODO It is naive implementation of allocator to test is it works at all.
 // There is no implementation of alignment ( I should to read about alignment more).
 // There is no resize for arena.
@@ -11,10 +13,10 @@ struct Arena
     u64 size;
 };
 
-Arena* AllocateArena(u64 size);
+func Arena* AllocateArena(u64 size);
 
 // --AlNov: @TODO Initialize with zero
-void* PushArena(Arena* arena, u64 size);
+func void* PushArena(Arena* arena, u64 size);
 
-void ResetArena(Arena* arena);
-void FreeArena(Arena* arena);
+func void ResetArena(Arena* arena);
+func void FreeArena(Arena* arena);

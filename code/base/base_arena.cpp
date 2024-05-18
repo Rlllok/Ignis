@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-Arena* AllocateArena(u64 size)
+func Arena* AllocateArena(u64 size)
 {
     void* memoryBlock = malloc(size);
     Arena* arena = (Arena*)memoryBlock;
@@ -13,7 +13,7 @@ Arena* AllocateArena(u64 size)
     return arena;
 }
 
-void* PushArena(Arena* arena, u64 size)
+func void* PushArena(Arena* arena, u64 size)
 {
     void* result = nullptr;
 
@@ -24,19 +24,19 @@ void* PushArena(Arena* arena, u64 size)
     }
     else
     {
-        printf("Not enough space for size %llu. Current position: %llu\n", size, arena->position);
         // --AlNov: Error for now
+        printf("Not enough space for size %llu. Current position: %llu\n", size, arena->position);
     }
 
     return result;
 }
 
-void ResetArena(Arena* arena)
+func void ResetArena(Arena* arena)
 {
     arena->position = sizeof(Arena);
 }
 
-void FreeArena(Arena* arena)
+func void FreeArena(Arena* arena)
 {
     free(arena);
 }
