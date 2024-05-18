@@ -12,15 +12,14 @@
 #include "../render/vulkan/r_init_vk.cpp"
 #include "../physics/ph_core.cpp"
 
-// --AlNov: TMP Globals ----------------------------------------------
+#define PIXELS_PER_METER 40.0f
+
 #define RED_COLOR    MakeVec3f(1.0f, 0.0f, 0.0f)
 #define GREEN_COLOR  MakeVec3f(0.0f, 1.0f, 0.0f)
 #define BLUE_COLOR   MakeVec3f(0.0f, 0.0f, 1.0f)
 #define YELLOW_COLOR MakeVec3f(1.0f, 1.0f, 0.0f)
 #define PINK_COLOR   MakeVec3f(1.0f, 0.0f, 1.0f)
 #define WHITE_COLOR  MakeVec3f(1.0f, 1.0f, 1.0f)
-
-#define PIXELS_PER_METER 40.0f
 
 func void DrawBox(Arena* arena, PH_Shape* box, Vec3f color);
 func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle, Vec3f color);

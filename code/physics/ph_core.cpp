@@ -1,7 +1,36 @@
 #include "ph_core.h"
 
 // -------------------------------------------------------------------
-// -AlNov: Particles
+// --AlNov: Forces ---------------------------------------------------
+func Vec2f PH_CalculateWeight(f32 m, f32 g)
+{
+  return MakeVec2f(0.0f, m * g);
+}
+
+func Vec2f PH_CalculateDrag(Vec2f velocity, f32 k)
+{
+  Vec2f drag = NormalizeVec2f(velocity);
+  // f32 ro = 1.2f; // Air density at 30 C
+  // f32 K = 0.04f; // Drag coeff of "drop" like shape
+  // f32 A = 1;
+  // f32 drag_magnitude = 0.5f * ro * K * A * MagnitudeSquareVec2f(particle->velocity);
+  // drag = MulVec2f(drag-, drag_magnitude);
+  drag = MulVec2f(drag, -1 * MagnitudeSquareVec2f(velocity));
+  drag = MulVec2f(drag, k);
+  return drag;
+}
+
+func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k)
+{
+  Vec2f distance               = SubVec2f(blob_position, anchor_position);
+  Vec2f direction              = NormalizeVec2f(distance);
+  f32   spring_force_magnitude = (rest_length - MagnitudeVec2f(distance)) * k;
+  Vec2f spring_force           = MulVec2f(direction, spring_force_magnitude);
+  return spring_force;
+}
+
+// -------------------------------------------------------------------
+// --AlNov: Particle Operations --------------------------------------
 func PH_Particle* PH_CreateParticle(Arena* arena, Vec2f position, f32 mass)
 {
   PH_Particle* particle = (PH_Particle*)PushArena(arena, sizeof(PH_Particle));
@@ -52,7 +81,7 @@ func void PH_PushParticle(PH_ParticleList* list, PH_Particle* particle)
 }
 
 // -------------------------------------------------------------------
-// -AlNov: Shapes
+// -AlNov: Shape Operations ------------------------------------------
 func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f32 mass)
 {
   PH_Shape* shape = (PH_Shape*)PushArena(arena, sizeof(PH_Shape));
@@ -113,21 +142,6 @@ func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point)
   shape->angular_velocity += CrossVec2f(apply_point, j) * shape->inv_moment_of_inertia;
 }
 
-func Vec2f PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point)
-{
-  Vec2f result = world_point;
-  result = SubVec2f(world_point, shape->position);
-  result = RotateVec2f(result, -shape->angle);
-  return result;
-}
-
-func Vec2f PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point)
-{
-  Vec2f result = local_point;
-  result = RotateVec2f(local_point, shape->angle);
-  result = AddVec2f(result, shape->position);
-  return result;
-}
 
 func void PH_ApplyLinearImpulseToShape(PH_Shape* shape, Vec2f j)
 {
@@ -205,45 +219,35 @@ func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape)
   };
 }
 
-// -------------------------------------------------------------------
-// --AlNov: Forces ---------------------------------------------------
-func Vec2f PH_CalculateWeight(f32 m, f32 g)
-{
-  return MakeVec2f(0.0f, m * g);
-}
-
-func Vec2f PH_CalculateDrag(Vec2f velocity, f32 k)
-{
-  Vec2f drag = NormalizeVec2f(velocity);
-  // f32 ro = 1.2f; // Air density at 30 C
-  // f32 K = 0.04f; // Drag coeff of "drop" like shape
-  // f32 A = 1;
-  // f32 drag_magnitude = 0.5f * ro * K * A * MagnitudeSquareVec2f(particle->velocity);
-  // drag = MulVec2f(drag-, drag_magnitude);
-  drag = MulVec2f(drag, -1 * MagnitudeSquareVec2f(velocity));
-  drag = MulVec2f(drag, k);
-  return drag;
-}
-
-func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k)
-{
-  Vec2f distance               = SubVec2f(blob_position, anchor_position);
-  Vec2f direction              = NormalizeVec2f(distance);
-  f32   spring_force_magnitude = (rest_length - MagnitudeVec2f(distance)) * k;
-  Vec2f spring_force           = MulVec2f(direction, spring_force_magnitude);
-  return spring_force;
-}
-
-// -------------------------------------------------------------------
-// --AlNov: Helpers --------------------------------------------------
 func bool PH_IsStatic(PH_Shape* shape)
 {
   // --AlNov: @TODO This is float, so default comparison can be buggy.
   return shape->mass == 0.0f;
 }
 
+func Vec2f PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point)
+{
+  Vec2f result = world_point;
+  result = SubVec2f(world_point, shape->position);
+  result = RotateVec2f(result, -shape->angle);
+  return result;
+}
+
+func Vec2f PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point)
+{
+  Vec2f result = local_point;
+  result = RotateVec2f(local_point, shape->angle);
+  result = AddVec2f(result, shape->position);
+  return result;
+}
+
+func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index)
+{
+  return AddVec2f(box->position, RotateVec2f(box->box.vertecies[vertex_index], box->angle));
+}
+
 // -------------------------------------------------------------------
-// --AlNov: Collision ------------------------------------------------
+// --AlNov: Collision Operations -------------------------------------
 func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info)
 {
   // --AlNov: @TODO Not Working :(
@@ -303,12 +307,6 @@ func bool PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shap
   out_collision_info->depth       = MagnitudeVec2f(SubVec2f(out_collision_info->start_point, out_collision_info->end_point));
 
   return true;
-}
-
-// AlNov: @TODO Temporary helper function to transform box coordinates to world coordinates
-func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index)
-{
-  return AddVec2f(box->position, RotateVec2f(box->box.vertecies[vertex_index], box->angle));
 }
 
 struct SeparationResult
@@ -519,7 +517,7 @@ func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
 }
 
 // -------------------------------------------------------------------
-// --AlNov: Constrains -----------------------------------------------
+// --AlNov: Constrains Operations ------------------------------------
 func void PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain)
 {
   if (list->count == 0)
@@ -596,27 +594,3 @@ func void PH_SolveConstrain(PH_Constrain* constrain)
   constrain->cached_impulse_magnitude += j_magnitude;
 }
 
-func PH_PointConstrain PH_CreatePointConstrain(PH_Shape* shape, Vec2f anchor_point)
-{
-  PH_PointConstrain constrain = {};
-  constrain.shape = shape;
-  constrain.anchor_point = anchor_point;
-  constrain.local_point = PH_LocalFromWorldSpace(shape, anchor_point);
-  return constrain;
-}
-
-func void PH_SolvePointConstrain(PH_PointConstrain* constrain)
-{
-  PH_Shape* shape = constrain->shape;
-
-  Vec2f n                  = NormalizeVec2f(SubVec2f(constrain->anchor_point, shape->position));
-  Vec2f r                  = PH_WorldFromLocalSpace(shape, constrain->local_point);
-  f32   inv_effective_mass = shape->inv_mass + shape->inv_moment_of_inertia * CrossVec2f(n, r) * CrossVec2f(n, r);
-  f32   effective_mass     = inv_effective_mass != 0.0f ? 1.0f / inv_effective_mass : 0.0f;
-  Vec2f v                  = AddVec2f(shape->velocity, MulVec2f(MakeVec2f(-r.y, r.x), shape->angular_velocity));
-  f32   cdot               = DotVec2f(n, v);
-  f32   j_magnitude        = -effective_mass * cdot;
-  Vec2f j                  = MulVec2f(n, j_magnitude);
-
-  PH_ApplyLinearImpulseToShape(shape, j);
-}
