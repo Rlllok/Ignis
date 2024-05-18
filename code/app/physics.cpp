@@ -87,7 +87,7 @@ i32 main()
   {
     OS_EventList event_list = OS_GetEventList(frame_arena);
 
-    OS_Event* event = event_list.firstEvent;
+    OS_Event* event = event_list.first;
     while (event)
     {
       switch (event->type)
@@ -103,20 +103,20 @@ i32 main()
           {
             case OS_KEY_ARROW_UP:
             {
-              if (event->wasDown)
+              if (event->was_down)
               {
-                Vec2f position = OS_MousePosition(window);
-                PH_Shape* circle = PH_CreateCircleShape(shape_arena, position, 25.0f, 1.0f);
+                Vec2f     position = OS_MousePosition(window);
+                PH_Shape* circle   = PH_CreateCircleShape(shape_arena, position, 25.0f, 1.0f);
                 PH_PushShapeList(&shape_list, circle);
               }
             } break;
 
             case OS_KEY_ARROW_DOWN:
             {
-              if (event->wasDown)
+              if (event->was_down)
               {
-                Vec2f position = OS_MousePosition(window);
-                PH_Shape* box = PH_CreateBoxShape(shape_arena, position, 50.0f, 50.0f, 1.0f);
+                Vec2f     position = OS_MousePosition(window);
+                PH_Shape* box      = PH_CreateBoxShape(shape_arena, position, 50.0f, 50.0f, 1.0f);
                 PH_PushShapeList(&shape_list, box);
               }
             } break;

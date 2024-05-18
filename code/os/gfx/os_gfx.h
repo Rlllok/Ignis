@@ -30,41 +30,41 @@ enum OS_KeyCode
 
 struct OS_Event
 {
-    OS_Event* next;
-    OS_Event* previous;
-    OS_EventType type;
+    OS_Event*     next;
+    OS_Event*     previous;
+    OS_EventType  type;
 
-    Vec2u windowSize;
+    Vec2u window_size;
 
     Vec2u mouse_position;
-    bool wasDown;
-    bool isDown;
+    bool  was_down;
+    bool  is_down;
 
     OS_KeyCode key;
 };
 
 struct OS_EventList
 {
-    OS_Event* firstEvent;
-    OS_Event* lastEvent;
+    OS_Event* first;
+    OS_Event* last;
 
-    u32 eventCount;
+    u32 count;
 };
 
 
-OS_Window OS_CreateWindow(const char* title, Vec2u size);
-void OS_ShowWindow(OS_Window* window);
+func OS_Window OS_CreateWindow(const char* title, Vec2u size);
+func void      OS_ShowWindow(OS_Window* window);
 
-OS_EventList OS_GetEventList(Arena* arena);
-void OS_PushEvent(OS_EventList* eventList, OS_Event* event);
+func OS_EventList OS_GetEventList(Arena* arena);
+func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);
 
-f32 OS_GetMonitorHZ();
+func f32 OS_GetMonitorHZ();
 
 // --AlNov: @NOTE Convertion time getted from this function can be not as presice.
 // The reason that we delete small number to large inside (tick and frequency).
-f32 OS_CurrentTimeSeconds();
-Vec2f OS_MousePosition(OS_Window window);
+func f32   OS_CurrentTimeSeconds();
+func Vec2f OS_MousePosition(OS_Window window);
 
-// --AlNov: It is there because Vulkan neadds windows.h information
+// --AlNov: @TODO It is there because Vulkan neadds windows.h information
 // But it could be removed if above problem is fixed.
 #include "win32/os_gfx_win32.h"
