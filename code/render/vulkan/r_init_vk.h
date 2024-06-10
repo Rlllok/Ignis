@@ -31,9 +31,11 @@ struct R_Mesh
 
   R_MeshVertex* vertecies;
   u32 vertex_count;
+  VkDeviceSize vertex_offset;
   
   u32* indecies;
   u32 index_count;
+  VkDeviceSize index_offset;
 
   // --AlNov: @TODO Should not be here
   VkDescriptorSet mvp_set;
@@ -136,18 +138,28 @@ struct R_VK_IndexBuffer
   u32 size;
 };
 
+struct R_VK_Buffer
+{
+  VkBuffer        buffer;
+  VkDeviceMemory  memory;
+  void*           mapped_memory;
+  u32             current_position;
+  u32             size;
+};
+
 struct R_VK_State
 {
   Arena* arena;
 
-  VkInstance instance;
-  R_VK_Device device;
+  VkInstance           instance;
+  R_VK_Device          device;
   R_VK_WindowResources window_resources;
-  R_VK_CommandPool cmd_pool;
-  R_VK_DescriptorPool descriptor_pool;
-  R_VK_SyncTools sync_tools;
-  R_VK_VertexBuffer vertex_buffer;
-  R_VK_IndexBuffer index_buffer;
+  R_VK_CommandPool     cmd_pool;
+  R_VK_DescriptorPool  descriptor_pool;
+  R_VK_SyncTools       sync_tools;
+  R_VK_VertexBuffer    vertex_buffer;
+  R_VK_IndexBuffer     index_buffer;
+  R_VK_Buffer          big_buffer;
   
   VkRenderPass render_pass;
   R_VK_Pipeline mesh_pipeline;
@@ -193,6 +205,8 @@ func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags prop
 // --AlNov: @TODO Maybe Vertex and Index buffer can be replaced with one R_VK_Buffer structure
 func void R_VK_PushVertexBuffer(R_VK_VertexBuffer* buffer, void* data, u64 size);
 func void R_VK_PushIndexBuffer(R_VK_IndexBuffer* buffer, void* data, u64 size);
+func void R_VK_PushBuffer(R_VK_Buffer* buffer, void* data, u64 size);
+func void R_VK_PushMeshToBuffer(R_VK_Buffer* buffer, R_Mesh* mesh);
 // --AlNov: @TODO Is it needed - it mappes memory inside
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
 

@@ -81,6 +81,17 @@ func void R_VK_Init(OS_Window* window)
   R_VK_CreateSyncTools();
   R_VK_CreateVertexBuffer();
   R_VK_CreateIndexBuffer();
+
+  r_vk_state.big_buffer = {};
+  r_vk_state.big_buffer.size = Megabytes(128);
+  R_VK_CreateBuffer(
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    r_vk_state.big_buffer.size,
+    &r_vk_state.big_buffer.buffer,
+    &r_vk_state.big_buffer.memory
+  );
+  vkMapMemory(r_vk_state.device.logical, r_vk_state.big_buffer.memory, 0, r_vk_state.big_buffer.size, 0, &r_vk_state.big_buffer.mapped_memory);
 }
 
 func void R_VK_CreateInstance()
@@ -849,12 +860,7 @@ func void R_DrawFrame()
       // --AlNov: Draw Meshes
       for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
       {
-
-        VkDeviceSize vertex_buffer_offsets[] = { r_vk_state.vertex_buffer.current_position };
-        R_VK_PushVertexBuffer(&r_vk_state.vertex_buffer, mesh_to_draw->vertecies, mesh_to_draw->vertex_count * sizeof(R_MeshVertex));
-
-        u32 index_buffer_offset = r_vk_state.index_buffer.current_position;
-        R_VK_PushIndexBuffer(&r_vk_state.index_buffer, mesh_to_draw->indecies, mesh_to_draw->index_count * sizeof(u32));
+        R_VK_PushMeshToBuffer(&r_vk_state.big_buffer, mesh_to_draw);
 
         // MVP BUffer
         R_VK_CreateBuffer(
@@ -892,8 +898,8 @@ func void R_DrawFrame()
             0, 1, &mesh_to_draw->mvp_set, 0, 0
             );
 
-        vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &r_vk_state.vertex_buffer.buffer, vertex_buffer_offsets);
-        vkCmdBindIndexBuffer(cmd_buffer, r_vk_state.index_buffer.buffer, index_buffer_offset, VK_INDEX_TYPE_UINT32);
+        vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
+        vkCmdBindIndexBuffer(cmd_buffer, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
 
         vkCmdDrawIndexed(cmd_buffer, mesh_to_draw->index_count, 1, 0, 0, 0);
       }
@@ -959,6 +965,7 @@ func void R_EndFrame()
 {
   r_vk_state.vertex_buffer.current_position = 0;
   r_vk_state.index_buffer.current_position = 0;
+  r_vk_state.big_buffer.current_position = 0;
 
   for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
   {
@@ -979,7 +986,6 @@ func void R_EndFrame()
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
-
 func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory)
 {
   VkBufferCreateInfo buffer_info = {};
@@ -1026,6 +1032,25 @@ func void R_VK_PushIndexBuffer(R_VK_IndexBuffer* buffer, void* data, u64 size)
 {
   memcpy((u8*)buffer->mapped_memory + buffer->current_position, data, size);
   buffer->current_position += size;
+}
+
+func void R_VK_PushBuffer(R_VK_Buffer* buffer, void* data, u64 size)
+{
+  memcpy((u8*)buffer->mapped_memory + buffer->current_position, data, size);
+  buffer->current_position += size;
+}
+
+func void R_VK_PushMeshToBuffer(R_VK_Buffer* buffer, R_Mesh* mesh)
+{
+  // --AlNov: Add Vertecies information
+  mesh->vertex_offset = buffer->current_position;
+  memcpy((u8*)buffer->mapped_memory + buffer->current_position, mesh->vertecies, mesh->vertex_count * sizeof(R_MeshVertex));
+  buffer->current_position += mesh->vertex_count * sizeof(R_MeshVertex);
+
+  // --AlNov: Add Indecies information
+  mesh->index_offset = buffer->current_position;
+  memcpy((u8*)buffer->mapped_memory + buffer->current_position, mesh->indecies, mesh->index_count * sizeof(u32));
+  buffer->current_position += mesh->index_count * sizeof(u32);
 }
 
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
