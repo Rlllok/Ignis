@@ -2,8 +2,13 @@
 #include "../base/base_include.h"
 
 // -------------------------------------------------------------------
-// --AlNov: Types ----------------------------------------------------
+// --AlNov: World ----------------------------------------------------
+// --AlNov: @TODO Create World structure that contains all info/states
+// related to phycis simulations (gravity, particle_list, shape_list,
+// arena and so on)
 
+// -------------------------------------------------------------------
+// --AlNov: Types ----------------------------------------------------
 // --AlNov: Particle
 struct PH_Particle
 {

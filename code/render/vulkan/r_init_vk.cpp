@@ -776,9 +776,9 @@ func void R_VK_CreateVertexBuffer()
   r_vk_state.vertex_buffer = {};
   r_vk_state.vertex_buffer.size = Kilobytes(64);
   R_VK_CreateBuffer(
-    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-    r_vk_state.vertex_buffer.size, &r_vk_state.vertex_buffer.buffer, &r_vk_state.vertex_buffer.memory
-  );
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+      r_vk_state.vertex_buffer.size, &r_vk_state.vertex_buffer.buffer, &r_vk_state.vertex_buffer.memory
+      );
 
   vkMapMemory(r_vk_state.device.logical, r_vk_state.vertex_buffer.memory, 0, r_vk_state.vertex_buffer.size, 0, &r_vk_state.vertex_buffer.mapped_memory);  
 }
@@ -788,9 +788,9 @@ func void R_VK_CreateIndexBuffer()
   r_vk_state.index_buffer = {};
   r_vk_state.index_buffer.size = Kilobytes(64);
   R_VK_CreateBuffer(
-    VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-    r_vk_state.index_buffer.size, &r_vk_state.index_buffer.buffer, &r_vk_state.index_buffer.memory
-  );
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+      r_vk_state.index_buffer.size, &r_vk_state.index_buffer.buffer, &r_vk_state.index_buffer.memory
+      );
 
   vkMapMemory(r_vk_state.device.logical, r_vk_state.index_buffer.memory, 0, r_vk_state.index_buffer.size, 0, &r_vk_state.index_buffer.mapped_memory);
 }
@@ -806,10 +806,10 @@ func void R_DrawFrame()
   // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
   u32 image_index;
   VkResult image_acquire_result = vkAcquireNextImageKHR(
-    r_vk_state.device.logical, r_vk_state.window_resources.swapchain,
-    U64_MAX, r_vk_state.sync_tools.image_available_semaphores[current_frame],
-    0, &image_index
-  );
+      r_vk_state.device.logical, r_vk_state.window_resources.swapchain,
+      U64_MAX, r_vk_state.sync_tools.image_available_semaphores[current_frame],
+      0, &image_index
+      );
 
   vkResetFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[current_frame]);
 
@@ -858,9 +858,9 @@ func void R_DrawFrame()
 
         // MVP BUffer
         R_VK_CreateBuffer(
-          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-          sizeof(mesh_to_draw->mvp), &mesh_to_draw->mvp_buffer, &mesh_to_draw->mvp_memory
-        );
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            sizeof(mesh_to_draw->mvp), &mesh_to_draw->mvp_buffer, &mesh_to_draw->mvp_memory
+            );
         R_VK_MemCopy(mesh_to_draw->mvp_memory, &mesh_to_draw->mvp, sizeof(mesh_to_draw->mvp));
 
         VkDescriptorSetAllocateInfo set_info = {};
@@ -888,9 +888,9 @@ func void R_DrawFrame()
         vkUpdateDescriptorSets(r_vk_state.device.logical, 1, &write_set, 0, 0);
 
         vkCmdBindDescriptorSets(
-          cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.mesh_pipeline.layout,
-          0, 1, &mesh_to_draw->mvp_set, 0, 0
-        );
+            cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.mesh_pipeline.layout,
+            0, 1, &mesh_to_draw->mvp_set, 0, 0
+            );
 
         vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &r_vk_state.vertex_buffer.buffer, vertex_buffer_offsets);
         vkCmdBindIndexBuffer(cmd_buffer, r_vk_state.index_buffer.buffer, index_buffer_offset, VK_INDEX_TYPE_UINT32);
@@ -1044,20 +1044,20 @@ func void R_PushMesh(R_MeshList* list, R_Mesh* mesh)
 {
   if (list->count == 0)
   {
-      list->first = mesh;
-      list->last = mesh;
-      list->count += 1;
+    list->first = mesh;
+    list->last = mesh;
+    list->count += 1;
 
-      mesh->next = 0;
-      mesh->previous = 0;
+    mesh->next = 0;
+    mesh->previous = 0;
   }
   else
   {
-      mesh->previous = list->last;
-      mesh->next = 0;
-      list->last->next = mesh;
-      list->last = mesh;
-      list->count += 1;
+    mesh->previous = list->last;
+    mesh->next = 0;
+    list->last->next = mesh;
+    list->last = mesh;
+    list->count += 1;
   }
 }
 
@@ -1070,20 +1070,20 @@ func void R_PushLine(R_LineList* list, R_Line* line)
 {
   if (list->count == 0)
   {
-      list->first = line;
-      list->last = line;
-      list->count = 1;
+    list->first = line;
+    list->last = line;
+    list->count = 1;
 
-      line->next = 0;
-      line->previous = 0;
+    line->next = 0;
+    line->previous = 0;
   }
   else
   {
-      line->previous = list->last;
-      line->next = 0;
-      list->last->next = line;
-      list->last = line;
-      list->count += 1;
+    line->previous = list->last;
+    line->next = 0;
+    list->last->next = line;
+    list->last = line;
+    list->count += 1;
   }
 
 }

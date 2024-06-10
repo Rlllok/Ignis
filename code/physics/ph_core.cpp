@@ -593,4 +593,3 @@ func void PH_SolveConstrain(PH_Constrain* constrain)
 
   constrain->cached_impulse_magnitude += j_magnitude;
 }
-
