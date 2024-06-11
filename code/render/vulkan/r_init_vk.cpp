@@ -79,13 +79,11 @@ func void R_VK_Init(OS_Window* window)
   R_VK_CreateCommandPool();
   R_VK_AllocateCommandBuffers();
   R_VK_CreateSyncTools();
-  R_VK_CreateVertexBuffer();
-  R_VK_CreateIndexBuffer();
 
   r_vk_state.big_buffer = {};
   r_vk_state.big_buffer.size = Megabytes(128);
   R_VK_CreateBuffer(
-    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
     r_vk_state.big_buffer.size,
     &r_vk_state.big_buffer.buffer,
@@ -782,30 +780,6 @@ func void R_VK_CreateSyncTools()
   }
 }
 
-func void R_VK_CreateVertexBuffer()
-{
-  r_vk_state.vertex_buffer = {};
-  r_vk_state.vertex_buffer.size = Kilobytes(64);
-  R_VK_CreateBuffer(
-      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-      r_vk_state.vertex_buffer.size, &r_vk_state.vertex_buffer.buffer, &r_vk_state.vertex_buffer.memory
-      );
-
-  vkMapMemory(r_vk_state.device.logical, r_vk_state.vertex_buffer.memory, 0, r_vk_state.vertex_buffer.size, 0, &r_vk_state.vertex_buffer.mapped_memory);  
-}
-
-func void R_VK_CreateIndexBuffer()
-{
-  r_vk_state.index_buffer = {};
-  r_vk_state.index_buffer.size = Kilobytes(64);
-  R_VK_CreateBuffer(
-      VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-      r_vk_state.index_buffer.size, &r_vk_state.index_buffer.buffer, &r_vk_state.index_buffer.memory
-      );
-
-  vkMapMemory(r_vk_state.device.logical, r_vk_state.index_buffer.memory, 0, r_vk_state.index_buffer.size, 0, &r_vk_state.index_buffer.mapped_memory);
-}
-
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
 func void R_DrawFrame()
@@ -842,16 +816,16 @@ func void R_DrawFrame()
     VkClearValue color_clear_value = {};
     color_clear_value.color = { {0.05f, 0.05f, 0.05f, 1.0f} };
 
-    VkRenderPassBeginInfo render_pass_begin_info = {};
-    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_begin_info.renderPass = r_vk_state.render_pass;
-    render_pass_begin_info.framebuffer = r_vk_state.window_resources.framebuffers[image_index];
+    VkRenderPassBeginInfo render_pass_begin_info    = {};
+    render_pass_begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_begin_info.renderPass               = r_vk_state.render_pass;
+    render_pass_begin_info.framebuffer              = r_vk_state.window_resources.framebuffers[image_index];
     render_pass_begin_info.renderArea.extent.height = r_vk_state.window_resources.size.height;
-    render_pass_begin_info.renderArea.extent.width = r_vk_state.window_resources.size.width;
-    render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.renderArea.offset.y = 0;
-    render_pass_begin_info.clearValueCount = 1;
-    render_pass_begin_info.pClearValues = &color_clear_value;
+    render_pass_begin_info.renderArea.extent.width  = r_vk_state.window_resources.size.width;
+    render_pass_begin_info.renderArea.offset.y      = 0;
+    render_pass_begin_info.renderArea.offset.y      = 0;
+    render_pass_begin_info.clearValueCount          = 1;
+    render_pass_begin_info.pClearValues             = &color_clear_value;
 
     vkCmdBeginRenderPass(cmd_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     {
@@ -860,36 +834,29 @@ func void R_DrawFrame()
       // --AlNov: Draw Meshes
       for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
       {
-        R_VK_PushMeshToBuffer(&r_vk_state.big_buffer, mesh_to_draw);
-
-        // MVP BUffer
-        R_VK_CreateBuffer(
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT|VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            sizeof(mesh_to_draw->mvp), &mesh_to_draw->mvp_buffer, &mesh_to_draw->mvp_memory
-            );
-        R_VK_MemCopy(mesh_to_draw->mvp_memory, &mesh_to_draw->mvp, sizeof(mesh_to_draw->mvp));
+        R_VK_PushMeshToBuffer(mesh_to_draw);
 
         VkDescriptorSetAllocateInfo set_info = {};
-        set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
+        set_info.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        set_info.descriptorPool     = r_vk_state.descriptor_pool.pool;
         set_info.descriptorSetCount = 1;
-        set_info.pSetLayouts = &r_vk_state.mvp_layout;
+        set_info.pSetLayouts        = &r_vk_state.mvp_layout;
 
         vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set);
 
         VkDescriptorBufferInfo buffer_info = {};
-        buffer_info.buffer = mesh_to_draw->mvp_buffer;
-        buffer_info.offset = 0;
-        buffer_info.range = sizeof(mesh_to_draw->mvp);
+        buffer_info.buffer = r_vk_state.big_buffer.buffer;
+        buffer_info.offset = mesh_to_draw->mvp_offset;
+        buffer_info.range  = sizeof(R_VK_MVP);
 
         VkWriteDescriptorSet write_set = {};
-        write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write_set.dstSet = mesh_to_draw->mvp_set;
-        write_set.dstBinding = 0;
+        write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write_set.dstSet          = mesh_to_draw->mvp_set;
+        write_set.dstBinding      = 0;
         write_set.dstArrayElement = 0;
         write_set.descriptorCount = 1;
-        write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write_set.pBufferInfo = &buffer_info;
+        write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        write_set.pBufferInfo     = &buffer_info;
 
         vkUpdateDescriptorSets(r_vk_state.device.logical, 1, &write_set, 0, 0);
 
@@ -905,6 +872,7 @@ func void R_DrawFrame()
       }
 
       // --AlNov: Draw Lines
+      /*
       vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.line_pipeline.pipeline);
       for (R_Line* line = r_vk_state.line_list.first; line; line = line->next)
       {
@@ -915,6 +883,7 @@ func void R_DrawFrame()
 
         vkCmdDraw(cmd_buffer, 2, 1, 0, 0);
       }
+      */
     }
     vkCmdEndRenderPass(cmd_buffer);
   }
@@ -963,8 +932,6 @@ func void R_DrawFrame()
 
 func void R_EndFrame()
 {
-  r_vk_state.vertex_buffer.current_position = 0;
-  r_vk_state.index_buffer.current_position = 0;
   r_vk_state.big_buffer.current_position = 0;
 
   for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
@@ -972,10 +939,6 @@ func void R_EndFrame()
     // --AlNov: @NOTE It is bad to recreate and delete.
     // But it is how it is now
     vkDeviceWaitIdle(r_vk_state.device.logical);
-
-    vkDestroyBuffer(r_vk_state.device.logical, mesh_to_draw->mvp_buffer, 0);
-
-    vkFreeMemory(r_vk_state.device.logical, mesh_to_draw->mvp_memory, 0);
 
     vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
   }
@@ -1022,35 +985,26 @@ func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags prop
   vkBindBufferMemory(r_vk_state.device.logical, *out_buffer, *out_memory, 0);
 }
 
-func void R_VK_PushVertexBuffer(R_VK_VertexBuffer* buffer, void* data, u64 size)
-{
-  memcpy((u8*)buffer->mapped_memory + buffer->current_position, data, size);
-  buffer->current_position += size;
-}
-
-func void R_VK_PushIndexBuffer(R_VK_IndexBuffer* buffer, void* data, u64 size)
-{
-  memcpy((u8*)buffer->mapped_memory + buffer->current_position, data, size);
-  buffer->current_position += size;
-}
-
-func void R_VK_PushBuffer(R_VK_Buffer* buffer, void* data, u64 size)
-{
-  memcpy((u8*)buffer->mapped_memory + buffer->current_position, data, size);
-  buffer->current_position += size;
-}
-
-func void R_VK_PushMeshToBuffer(R_VK_Buffer* buffer, R_Mesh* mesh)
+func void R_VK_PushMeshToBuffer(R_Mesh* mesh)
 {
   // --AlNov: Add Vertecies information
-  mesh->vertex_offset = buffer->current_position;
-  memcpy((u8*)buffer->mapped_memory + buffer->current_position, mesh->vertecies, mesh->vertex_count * sizeof(R_MeshVertex));
-  buffer->current_position += mesh->vertex_count * sizeof(R_MeshVertex);
+  mesh->vertex_offset = r_vk_state.big_buffer.current_position;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, mesh->vertecies, mesh->vertex_count * sizeof(R_MeshVertex));
+  r_vk_state.big_buffer.current_position += mesh->vertex_count * sizeof(R_MeshVertex);
 
   // --AlNov: Add Indecies information
-  mesh->index_offset = buffer->current_position;
-  memcpy((u8*)buffer->mapped_memory + buffer->current_position, mesh->indecies, mesh->index_count * sizeof(u32));
-  buffer->current_position += mesh->index_count * sizeof(u32);
+  mesh->index_offset = r_vk_state.big_buffer.current_position;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, mesh->indecies, mesh->index_count * sizeof(u32));
+  r_vk_state.big_buffer.current_position += mesh->index_count * sizeof(u32);
+
+
+  // --AlNov: Add Uniform information
+  // --AlNov: (https://vulkan.lunarg.com/doc/view/1.3.268.0/windows/1.3-extensions/vkspec.html#VUID-VkWriteDescriptorSet-descriptorType-00327
+  u64 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
+  r_vk_state.big_buffer.current_position += alligment;
+  mesh->mvp_offset = r_vk_state.big_buffer.current_position;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, &mesh->mvp, sizeof(R_VK_MVP));
+  r_vk_state.big_buffer.current_position += sizeof(R_VK_MVP);
 }
 
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
