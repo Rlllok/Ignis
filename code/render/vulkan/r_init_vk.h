@@ -13,13 +13,15 @@
 struct R_VK_MVP
 {
   // --AlNov: @TDO Projection matrix should be stored somewhere else
-  alignas(16) Vec3f color;
-  alignas(16) Vec3f center_position;
+  alignas(16) Vec3f   color;
+  alignas(16) Vec3f   center_position;
+  alignas(16) Mat4x4f view;
 };
 
 struct R_MeshVertex
 {
   Vec3f position;
+  Vec3f normals;
 };
 
 struct R_Mesh
@@ -159,6 +161,7 @@ struct R_VK_State
   
   VkRenderPass render_pass;
   R_VK_Pipeline mesh_pipeline;
+  R_VK_Pipeline sphere_pipeline;
   R_VK_Pipeline line_pipeline;
 
   VkDescriptorSetLayout mvp_layout;
@@ -207,6 +210,7 @@ func void R_VK_CreateDescriptorPool();
 func void R_VK_CreateMvpSetLayout();
 func void R_VK_CreateRenderPass();
 func void R_VK_CreateMeshPipeline();
+func void R_VK_CreateSpherePipeline();
 func void R_VK_CreateLinePipeline();
 func void R_VK_CreateFramebuffers();
 func void R_VK_AllocateCommandBuffers();

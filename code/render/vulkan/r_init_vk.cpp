@@ -75,6 +75,7 @@ func void R_VK_Init(OS_Window* window)
   R_VK_CreateRenderPass();
   R_VK_CreateMeshPipeline();
   R_VK_CreateLinePipeline();
+  R_VK_CreateSpherePipeline();
   R_VK_CreateFramebuffers();
   R_VK_CreateCommandPool();
   R_VK_AllocateCommandBuffers();
@@ -375,13 +376,24 @@ func void R_VK_CreateRenderPass()
 
 func void R_VK_CreateMeshPipeline()
 {
-  // --AlNov: Vertex Shader
   Arena* tmp_arena = AllocateArena(Megabytes(8));
   {
     R_VK_ShaderStage vertex_shader_stage   = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default2DVS.spv", "main", R_VK_SHADER_TYPE_VERTEX);
     R_VK_ShaderStage fragment_shader_stage = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default2DFS.spv", "main", R_VK_SHADER_TYPE_FRAGMENT);
 
     r_vk_state.mesh_pipeline = R_VK_CreatePipeline(&vertex_shader_stage, &fragment_shader_stage);
+  }
+  FreeArena(tmp_arena);
+}
+
+func void R_VK_CreateSpherePipeline()
+{
+  Arena* tmp_arena = AllocateArena(Megabytes(8));
+  {
+    R_VK_ShaderStage vertex_shader_stage   = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default3DVS.spv", "main", R_VK_SHADER_TYPE_VERTEX);
+    R_VK_ShaderStage fragment_shader_stage = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default3DFS.spv", "main", R_VK_SHADER_TYPE_FRAGMENT);
+
+    r_vk_state.sphere_pipeline = R_VK_CreatePipeline(&vertex_shader_stage, &fragment_shader_stage);
   }
   FreeArena(tmp_arena);
 }
@@ -619,8 +631,8 @@ func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, co
 {
   // --AlNov: @TODO Remove Arena allocation
   R_VK_ShaderStage shader_stage = {};
-  shader_stage.enter_point = enter_point;
-  shader_stage.type        = type;
+  shader_stage.enter_point      = enter_point;
+  shader_stage.type             = type;
 
   FILE* file = 0;
 
@@ -632,7 +644,7 @@ func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, co
   }
 
   fseek(file, 0L, SEEK_END);
-  u32 file_size      = ftell(file);
+  u32 file_size     = ftell(file);
   shader_stage.code = (u8*)PushArena(arena, file_size * sizeof(u8));
   rewind(file);
   fread(shader_stage.code, file_size * sizeof(u8), 1, file);
@@ -665,21 +677,32 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
 
   VkVertexInputBindingDescription vertex_description = {};
   vertex_description.binding   = 0;
-  vertex_description.stride    = sizeof(Vec3f);
+  vertex_description.stride    = sizeof(R_MeshVertex);
   vertex_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-  VkVertexInputAttributeDescription vertex_attribute_description = {};
-  vertex_attribute_description.location = 0;
-  vertex_attribute_description.binding  = 0;
-  vertex_attribute_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
-  vertex_attribute_description.offset   = 0;
+  VkVertexInputAttributeDescription vertex_position_description = {};
+  vertex_position_description.location = 0;
+  vertex_position_description.binding  = 0;
+  vertex_position_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_position_description.offset   = 0;
+
+  VkVertexInputAttributeDescription vertex_normal_description = {};
+  vertex_normal_description.location = 1;
+  vertex_normal_description.binding  = 0;
+  vertex_normal_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_normal_description.offset   = 0;
+
+  VkVertexInputAttributeDescription vertex_attributes[2] = {
+    vertex_position_description,
+    vertex_normal_description
+  };
 
   VkPipelineVertexInputStateCreateInfo vertex_input_state_info = {};
   vertex_input_state_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_state_info.vertexBindingDescriptionCount   = 1;
   vertex_input_state_info.pVertexBindingDescriptions      = &vertex_description;
-  vertex_input_state_info.vertexAttributeDescriptionCount = 1;
-  vertex_input_state_info.pVertexAttributeDescriptions    = &vertex_attribute_description;
+  vertex_input_state_info.vertexAttributeDescriptionCount = 2;
+  vertex_input_state_info.pVertexAttributeDescriptions    = vertex_attributes;
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = {};
   input_assembly_state_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -713,7 +736,7 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
   rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
   rasterization_state_info.polygonMode             = VK_POLYGON_MODE_FILL;
   rasterization_state_info.cullMode                = VK_CULL_MODE_BACK_BIT;
-  rasterization_state_info.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+  rasterization_state_info.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterization_state_info.depthBiasEnable         = VK_FALSE;
   rasterization_state_info.lineWidth               = 1.0f;
 
@@ -823,7 +846,7 @@ func void R_DrawFrame()
 
     vkCmdBeginRenderPass(cmd_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     {
-      vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.mesh_pipeline.pipeline);
+      vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.pipeline);
 
       // --AlNov: Draw Meshes
       for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)

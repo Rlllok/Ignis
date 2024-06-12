@@ -12,10 +12,8 @@
 
 #define PI 3.141592654f
 
-func void DrawUVSphere(Arena* arena, Vec3f position, f32 radius)
+func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f position, f32 radius, u32 phi_count, f32 theta_count)
 {
-  const u32 phi_count    = 10;
-  const u32 theta_count  = 10;
   const f32 phi_step     = 2 * PI / phi_count;
   const f32 theta_step   = PI / theta_count;
   const u32 vertex_count = 2 + phi_count * (theta_count - 1);
@@ -24,6 +22,7 @@ func void DrawUVSphere(Arena* arena, Vec3f position, f32 radius)
   R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
   mesh->mvp.color           = MakeVec3f(1.0f, 0.0f, 0.0f);
   mesh->mvp.center_position = position;
+  mesh->mvp.view            = Make4x4f(1.0f);
   mesh->vertex_count        = vertex_count;
   mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
   mesh->index_count         = index_count;
@@ -33,6 +32,7 @@ func void DrawUVSphere(Arena* arena, Vec3f position, f32 radius)
   {
     u32 current_index = 0;
     mesh->vertecies[current_index].position = MakeVec3f(0.0f, radius, 0.0f);
+    mesh->vertecies[current_index].normals  = NormalizeVec3f(mesh->vertecies[current_index].position);
     current_index += 1;
 
     for (u32 i = 1; i < theta_count - 0; i += 1)
@@ -49,11 +49,13 @@ func void DrawUVSphere(Arena* arena, Vec3f position, f32 radius)
         position       = MulVec3f(position, radius);
 
         mesh->vertecies[current_index].position = position;
+        mesh->vertecies[current_index].normals  = NormalizeVec3f(position);
         current_index += 1;
       }
     }
 
-    mesh->vertecies[current_index].position = MakeVec3f(12.0f, -radius, 0.0f);
+    mesh->vertecies[current_index].position = MakeVec3f(0.0f, -radius, 0.0f);
+    mesh->vertecies[current_index].normals  = NormalizeVec3f(mesh->vertecies[current_index].position);
     current_index += 1;
   }
 
@@ -142,7 +144,7 @@ func void DrawUVSphere(Arena* arena, Vec3f position, f32 radius)
     current_index += 1;
   }
 
-  R_AddMeshToDrawList(mesh);
+  return mesh;
 }
 
 i32 main()
@@ -152,6 +154,8 @@ i32 main()
   Arena* arena = AllocateArena(Megabytes(128));
 
   OS_ShowWindow(&window);
+
+  R_Mesh* uv_sphere = GenerateUVSphere(arena, MakeVec3f(0.5f, 0.5f, -1.0f), 0.25f, 20, 20);
 
   bool is_window_closed = false;
   while(!is_window_closed)
@@ -174,7 +178,7 @@ i32 main()
       event = event->next;
     }
 
-    DrawUVSphere(arena, MakeVec3f(400.0f, 200.0f, 0.0f), 140.0f);
+    R_AddMeshToDrawList(uv_sphere);
 
     R_DrawFrame();
 

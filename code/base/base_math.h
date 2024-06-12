@@ -144,6 +144,8 @@ func Vec3f MakeVec3f(f32 x, f32 y, f32 z);
 func Vec3f MulVec3f(Vec3f a, f32 num);
 func Vec3f TransformVec3f(Vec3f v, Mat3x3f m);
 func f32   DotVec3f(Vec3f a, Vec3f b);
+func f32   MagnitudeVec3f(Vec3f v);
+func Vec3f NormalizeVec3f(Vec3f v);
 
 // --AlNov: Vec4
 func Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w);

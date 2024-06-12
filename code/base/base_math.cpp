@@ -119,7 +119,22 @@ func f32 DotVec3f(Vec3f a, Vec3f b)
   return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-// --AlNov: Vec3
+func f32 MagnitudeVec3f(Vec3f v)
+{
+  return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+func Vec3f NormalizeVec3f(Vec3f v)
+{
+  f32 magnitude = MagnitudeVec3f(v);
+  if (magnitude == 0)
+  {
+    return { {0.0f, 0.0f} };
+  }
+
+  return MulVec3f(v, 1.0f / magnitude);
+}
+
 func Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
 {
     Vec4f result = { {x, y, z, w} };
@@ -130,7 +145,7 @@ func Vec4f MakeVec4f(f32 x, f32 y, f32 z, f32 w)
 // --AlNov: Matrix Operations ----------------------------------------
 
 // --AlNov: Mat3x3
-func Mat3x3f Make3x3f32(f32 diagonal_value)
+func Mat3x3f Make3x3f(f32 diagonal_value)
 {
   Mat3x3f result = {};
   result.values[0][0] = diagonal_value;
@@ -139,7 +154,7 @@ func Mat3x3f Make3x3f32(f32 diagonal_value)
   return result;
 }
 
-func Mat3x3f Mul3x3f32(Mat3x3f a, Mat3x3f b)
+func Mat3x3f Mul3x3f(Mat3x3f a, Mat3x3f b)
 {
   Mat3x3f c = {};
   for (i32 i = 0; i < 3; i += 1)
@@ -154,7 +169,7 @@ func Mat3x3f Mul3x3f32(Mat3x3f a, Mat3x3f b)
   return c;
 }
 
-func Mat3x3f Transpose3x3f32(Mat3x3f m)
+func Mat3x3f Transpose3x3f(Mat3x3f m)
 {
   Mat3x3f result = {};
   for (i32 i = 0; i < 3; i += 1)
@@ -168,7 +183,7 @@ func Mat3x3f Transpose3x3f32(Mat3x3f m)
 }
 
 // --AlNov: Mat4x4
-func Mat4x4f Make4x4f32(f32 diagonal_value)
+func Mat4x4f Make4x4f(f32 diagonal_value)
 {
   Mat4x4f result = {};
   result.values[0][0] = diagonal_value;
@@ -178,9 +193,9 @@ func Mat4x4f Make4x4f32(f32 diagonal_value)
   return result;
 }
 
-func Mat4x4f MakeOrthographic4x4f32(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z)
+func Mat4x4f MakeOrthographic4x4f(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z)
 {
-  Mat4x4f result = Make4x4f32(1.0f);
+  Mat4x4f result = Make4x4f(1.0f);
   
    result.values[0][0] = 2.0f / (right - left);
    result.values[1][1] = 2.0f / (top - bottom);
