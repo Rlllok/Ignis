@@ -21,12 +21,13 @@ func void DrawUVSphere(Arena* arena, Vec3f position, f32 radius)
   const u32 vertex_count = 2 + phi_count * (theta_count - 1);
   const u32 index_count  = 2 * 3 * phi_count + 2 * 3 * phi_count * (theta_count - 2);
 
-  R_Mesh* mesh       = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color    = MakeVec3f(1.0f, 0.0f, 0.0f);
-  mesh->vertex_count = vertex_count;
-  mesh->vertecies    = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
-  mesh->index_count  = index_count;
-  mesh->indecies     = (u32*)PushArena(arena, sizeof(u32) * index_count);
+  R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+  mesh->mvp.color           = MakeVec3f(1.0f, 0.0f, 0.0f);
+  mesh->mvp.center_position = position;
+  mesh->vertex_count        = vertex_count;
+  mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
+  mesh->index_count         = index_count;
+  mesh->indecies            = (u32*)PushArena(arena, sizeof(u32) * index_count);
 
   // --AlNov: Generate UVSphere vertecies
   {

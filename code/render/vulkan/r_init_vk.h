@@ -168,6 +168,30 @@ struct R_VK_State
 };
 
 // -------------------------------------------------------------------
+// --AlNov: Pipeline -------------------------------------------------
+enum R_VK_ShaderType
+{
+  R_VK_SHADER_TYPE_NONE,
+  R_VK_SHADER_TYPE_VERTEX,
+  R_VK_SHADER_TYPE_FRAGMENT,
+
+  R_VK_SHADER_TYPE_COUNT
+};
+
+struct R_VK_ShaderStage
+{
+  R_VK_ShaderType type;
+  const char*     enter_point;
+  u32             code_size;
+  u8*             code;
+  
+  // --AlNov: Vulkan
+  VkShaderModule                  vk_handle;
+  VkPipelineShaderStageCreateInfo vk_info;
+};
+
+
+// -------------------------------------------------------------------
 // --AlNov: Globals --------------------------------------------------
 global R_VK_State r_vk_state;
 
@@ -189,6 +213,11 @@ func void R_VK_AllocateCommandBuffers();
 func void R_VK_CreateSyncTools();
 func void R_VK_CreateVertexBuffer();
 func void R_VK_CreateIndexBuffer();
+
+// -------------------------------------------------------------------
+// --AlNov: Pipeline Functions ---------------------------------------
+func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, const char* enter_point, R_VK_ShaderType type);
+func R_VK_Pipeline    R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_VK_ShaderStage* fragment_shader_stage);
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
