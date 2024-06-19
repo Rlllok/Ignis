@@ -1,6 +1,8 @@
 #include "r_init_vk.h"
-
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "../../third_party/stb_image.h"
 
 // --AlNov: Debug Layer Staff ----------------------------------------
 #include <stdio.h>
@@ -73,11 +75,12 @@ func void R_VK_Init(OS_Window* window)
   R_VK_CreateDescriptorPool();
   R_VK_CreateMvpSetLayout();
   R_VK_CreateRenderPass();
-  R_VK_CreateMeshPipeline();
-  R_VK_CreateLinePipeline();
+  // R_VK_CreateMeshPipeline();
+  // R_VK_CreateLinePipeline();
   R_VK_CreateSpherePipeline();
   R_VK_CreateFramebuffers();
   R_VK_CreateCommandPool();
+  r_vk_state.texture = R_VK_CreateTexture("data/uv_checker.png");
   R_VK_AllocateCommandBuffers();
   R_VK_CreateSyncTools();
 
@@ -299,30 +302,44 @@ func void R_VK_CreateDescriptorPool()
   u32 descriptor_count = 100;
 
   VkDescriptorPoolSize pool_size = {};
-  pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  pool_size.descriptorCount = descriptor_count;
+  pool_size.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  pool_size.descriptorCount = 50;
+
+  VkDescriptorPoolSize sampler_pool_size = {};
+  sampler_pool_size.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  sampler_pool_size.descriptorCount = 5;
+
+  VkDescriptorPoolSize pool_sizes[2] = { pool_size, sampler_pool_size };
 
   VkDescriptorPoolCreateInfo pool_info = {};
-  pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  pool_info.maxSets = descriptor_count;
-  pool_info.poolSizeCount = 1;
-  pool_info.pPoolSizes = &pool_size;
+  pool_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  pool_info.maxSets       = descriptor_count;
+  pool_info.poolSizeCount = 2;
+  pool_info.pPoolSizes    = pool_sizes;
 
   vkCreateDescriptorPool(r_vk_state.device.logical, &pool_info, 0, &r_vk_state.descriptor_pool.pool);
 }
 
 func void R_VK_CreateMvpSetLayout()
 {
-  VkDescriptorSetLayoutBinding binding_info = {};
-  binding_info.binding = 0;
-  binding_info.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  binding_info.descriptorCount = 1;
-  binding_info.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  VkDescriptorSetLayoutBinding mvp_binding_info = {};
+  mvp_binding_info.binding         = 0;
+  mvp_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  mvp_binding_info.descriptorCount = 1;
+  mvp_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutBinding sampler_binding_info = {};
+  sampler_binding_info.binding         = 1;
+  sampler_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  sampler_binding_info.descriptorCount = 1;
+  sampler_binding_info.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutBinding bindings[2] = { mvp_binding_info, sampler_binding_info };
 
   VkDescriptorSetLayoutCreateInfo layout_info = {};
-  layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layout_info.bindingCount = 1;
-  layout_info.pBindings = &binding_info;
+  layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layout_info.bindingCount = 2;
+  layout_info.pBindings    = bindings;
 
   vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.mvp_layout);
 }
@@ -684,24 +701,31 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
   vertex_position_description.location = 0;
   vertex_position_description.binding  = 0;
   vertex_position_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
-  vertex_position_description.offset   = 0;
+  vertex_position_description.offset   = offsetof(R_MeshVertex, position);
 
   VkVertexInputAttributeDescription vertex_normal_description = {};
   vertex_normal_description.location = 1;
   vertex_normal_description.binding  = 0;
   vertex_normal_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
-  vertex_normal_description.offset   = 0;
+  vertex_normal_description.offset   = offsetof(R_MeshVertex, normal);
 
-  VkVertexInputAttributeDescription vertex_attributes[2] = {
+  VkVertexInputAttributeDescription vertex_uv_description = {};
+  vertex_uv_description.location = 2;
+  vertex_uv_description.binding  = 0;
+  vertex_uv_description.format   = VK_FORMAT_R32G32_SFLOAT;
+  vertex_uv_description.offset   = offsetof(R_MeshVertex, uv);
+
+  VkVertexInputAttributeDescription vertex_attributes[3] = {
     vertex_position_description,
-    vertex_normal_description
+    vertex_normal_description,
+    vertex_uv_description
   };
 
   VkPipelineVertexInputStateCreateInfo vertex_input_state_info = {};
   vertex_input_state_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_state_info.vertexBindingDescriptionCount   = 1;
   vertex_input_state_info.pVertexBindingDescriptions      = &vertex_description;
-  vertex_input_state_info.vertexAttributeDescriptionCount = 2;
+  vertex_input_state_info.vertexAttributeDescriptionCount = 3;
   vertex_input_state_info.pVertexAttributeDescriptions    = vertex_attributes;
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = {};
@@ -866,21 +890,37 @@ func void R_DrawFrame()
         buffer_info.offset = mesh_to_draw->mvp_offset;
         buffer_info.range  = sizeof(R_VK_MVP);
 
-        VkWriteDescriptorSet write_set = {};
-        write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write_set.dstSet          = mesh_to_draw->mvp_set;
-        write_set.dstBinding      = 0;
-        write_set.dstArrayElement = 0;
-        write_set.descriptorCount = 1;
-        write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        write_set.pBufferInfo     = &buffer_info;
+        VkDescriptorImageInfo image_info = {};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_info.imageView   = r_vk_state.texture.vk_view;
+        image_info.sampler     = r_vk_state.sampler;
 
-        vkUpdateDescriptorSets(r_vk_state.device.logical, 1, &write_set, 0, 0);
+        VkWriteDescriptorSet buffer_write_set = {};
+        buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        buffer_write_set.dstSet          = mesh_to_draw->mvp_set;
+        buffer_write_set.dstBinding      = 0;
+        buffer_write_set.dstArrayElement = 0;
+        buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        buffer_write_set.descriptorCount = 1;
+        buffer_write_set.pBufferInfo     = &buffer_info;
+        
+        VkWriteDescriptorSet image_write_set = {};
+        image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        image_write_set.dstSet          = mesh_to_draw->mvp_set;
+        image_write_set.dstBinding      = 1;
+        image_write_set.dstArrayElement = 0;
+        image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        image_write_set.descriptorCount = 1;
+        image_write_set.pImageInfo      = &image_info;
+
+        VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
+
+        vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
 
         vkCmdBindDescriptorSets(
-            cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.mesh_pipeline.layout,
-            0, 1, &mesh_to_draw->mvp_set, 0, 0
-            );
+          cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+          0, 1, &mesh_to_draw->mvp_set, 0, 0
+        );
 
         vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
         vkCmdBindIndexBuffer(cmd_buffer, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
@@ -966,37 +1006,40 @@ func void R_EndFrame()
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
+func u32 R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags)
+{
+  VkPhysicalDeviceMemoryProperties mem_properties = {};
+  vkGetPhysicalDeviceMemoryProperties(r_vk_state.device.physical, &mem_properties);
+
+  for (u32 type_index = 0; type_index < mem_properties.memoryTypeCount; type_index += 1)
+  {
+    if (filter & (1 << type_index) && ((mem_properties.memoryTypes[type_index].propertyFlags & flags) == flags))
+    {
+      return type_index;
+      break;
+    }
+  }
+
+  printf("Cannot foind suitable memory type.\n");
+  return -1;
+}
+
 func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory)
 {
   VkBufferCreateInfo buffer_info = {};
-  buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  buffer_info.size = size;
-  buffer_info.usage = usage;
+  buffer_info.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  buffer_info.size        = size;
+  buffer_info.usage       = usage;
   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   vkCreateBuffer(r_vk_state.device.logical, &buffer_info, 0, out_buffer);
 
   VkMemoryRequirements memory_requirements = {};
   vkGetBufferMemoryRequirements(r_vk_state.device.logical, *out_buffer, &memory_requirements);
 
-  VkPhysicalDeviceMemoryProperties temp_properties = {};
-  vkGetPhysicalDeviceMemoryProperties(r_vk_state.device.physical, &temp_properties);
-
-  i32 memory_type_index = -1;
-  for (u32 type_index = 0; type_index < temp_properties.memoryTypeCount; type_index += 1)
-  {
-    if (memory_requirements.memoryTypeBits & (1 << type_index)
-        && ((temp_properties.memoryTypes[type_index].propertyFlags & property_flags) == property_flags)
-       )
-    {
-      memory_type_index = type_index;
-      break;
-    }
-  }
-
   VkMemoryAllocateInfo allocate_info = {};
-  allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocate_info.allocationSize = memory_requirements.size;
-  allocate_info.memoryTypeIndex = memory_type_index;
+  allocate_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocate_info.allocationSize  = memory_requirements.size;
+  allocate_info.memoryTypeIndex = R_VK_FindMemoryType(memory_requirements.memoryTypeBits, property_flags);
   vkAllocateMemory(r_vk_state.device.logical, &allocate_info, 0, out_memory);
 
   vkBindBufferMemory(r_vk_state.device.logical, *out_buffer, *out_memory, 0);
@@ -1032,6 +1075,125 @@ func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
     memcpy(mapped_memory, data, size);
   }
   vkUnmapMemory(r_vk_state.device.logical, memory);
+}
+
+func VkCommandBuffer R_VK_BeginSingleCommands()
+{
+  VkCommandBufferAllocateInfo allocate_info = {};
+  allocate_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocate_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocate_info.commandPool        = r_vk_state.cmd_pool.pool;
+  allocate_info.commandBufferCount = 1;
+
+  VkCommandBuffer command_buffer;
+  vkAllocateCommandBuffers(r_vk_state.device.logical, &allocate_info, &command_buffer);
+
+  VkCommandBufferBeginInfo begin_info = {};
+  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  vkBeginCommandBuffer(command_buffer, &begin_info);
+
+  return command_buffer;
+}
+
+func void R_VK_EndSingleCommands(VkCommandBuffer command_buffer)
+{
+  vkEndCommandBuffer(command_buffer);
+
+  VkSubmitInfo submit_info = {};
+  submit_info.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers    = &command_buffer;
+
+  VkQueue queue;
+  vkGetDeviceQueue(r_vk_state.device.logical, r_vk_state.device.queue_index, 0, &queue);
+
+  vkQueueSubmit(queue, 1, &submit_info, 0);
+  vkQueueWaitIdle(queue);
+
+  vkFreeCommandBuffers(r_vk_state.device.logical, r_vk_state.cmd_pool.pool, 1, &command_buffer);
+}
+
+func void R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
+{
+  VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
+  {
+    VkBufferCopy buffer_copy_region = {};
+    buffer_copy_region.srcOffset = 0;
+    buffer_copy_region.dstOffset = 0;
+    buffer_copy_region.size      = 0;
+
+    vkCmdCopyBuffer(command_buffer, src, dst, 1, &buffer_copy_region);
+  }
+  R_VK_EndSingleCommands(command_buffer);
+}
+
+func void R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions)
+{
+  VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
+  {
+    VkBufferImageCopy copy_info = {};
+    copy_info.bufferOffset                    = 0;
+    copy_info.bufferRowLength                 = 0;
+    copy_info.bufferImageHeight               = 0;
+    copy_info.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    copy_info.imageSubresource.mipLevel       = 0;
+    copy_info.imageSubresource.baseArrayLayer = 0;
+    copy_info.imageSubresource.layerCount     = 1;
+    copy_info.imageOffset                     = { 0, 0, 0 };
+    copy_info.imageExtent                     = { image_dimensions.x, image_dimensions.y, 1 };
+
+    vkCmdCopyBufferToImage(command_buffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
+  }
+  R_VK_EndSingleCommands(command_buffer);
+}
+
+func void R_VK_TransitImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
+{
+  VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
+  {
+    VkImageMemoryBarrier image_barrier = {};
+    image_barrier.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    image_barrier.image                           = image;
+    image_barrier.oldLayout                       = old_layout;
+    image_barrier.newLayout                       = new_layout;
+    image_barrier.srcQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    image_barrier.dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
+    image_barrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_barrier.subresourceRange.baseMipLevel   = 0;
+    image_barrier.subresourceRange.levelCount     = 1;
+    image_barrier.subresourceRange.baseArrayLayer = 0;
+    image_barrier.subresourceRange.layerCount     = 1;
+
+    VkPipelineStageFlags src_stage;
+    VkPipelineStageFlags dst_stage;
+
+    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+      image_barrier.srcAccessMask = 0;
+      image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+      src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+      dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+      image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+      src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+      dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
+      printf("Wrong image layout transition.\n");
+      return;
+    }
+
+    vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, &image_barrier);
+  }
+  R_VK_EndSingleCommands(command_buffer);
 }
 
 // -------------------------------------------------------------------
@@ -1087,4 +1249,117 @@ func void R_PushLine(R_LineList* list, R_Line* line)
 func void R_AddLineToDrawList(R_Line* line)
 {
   R_PushLine(&r_vk_state.line_list, line);
+}
+
+func R_Texture R_VK_CreateTexture(const char* path)
+{
+  R_Texture texture = {};
+
+  i32 tex_width;
+  i32 tex_height;
+  i32 tex_channels;
+
+  stbi_uc* tex_pixels = stbi_load(path, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+
+  texture.size = tex_width * tex_height * 4;
+
+  if (!tex_pixels)
+  {
+    printf("Cannot load texture %s\n", path);
+    return texture;
+  }
+
+  r_vk_state.staging_buffer = {};
+  r_vk_state.staging_buffer.size = texture.size;
+  R_VK_CreateBuffer(
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    r_vk_state.staging_buffer.size,
+    &r_vk_state.staging_buffer.buffer,
+    &r_vk_state.staging_buffer.memory
+  );
+
+  void* data;
+  vkMapMemory(r_vk_state.device.logical, r_vk_state.staging_buffer.memory, 0, texture.size, 0, &data);
+    memcpy(data, tex_pixels, texture.size);
+  vkUnmapMemory(r_vk_state.device.logical, r_vk_state.staging_buffer.memory);
+
+  stbi_image_free(tex_pixels);
+
+  VkImageCreateInfo image_info = {};
+  image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.imageType     = VK_IMAGE_TYPE_2D;
+  image_info.extent.width  = tex_width;
+  image_info.extent.height = tex_width;
+  image_info.extent.depth  = 1;
+  image_info.mipLevels     = 1;
+  image_info.arrayLayers   = 1;
+  image_info.format        = VK_FORMAT_R8G8B8A8_SRGB;
+  image_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_info.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+  image_info.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+  image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
+  if (vkCreateImage(r_vk_state.device.logical, &image_info, 0, &texture.vk_image) != VK_SUCCESS)
+  {
+    printf("Cannot create Image for Texture.\n");
+    return texture;
+  }
+
+  VkMemoryRequirements mem_requirements = {};
+  vkGetImageMemoryRequirements(r_vk_state.device.logical, texture.vk_image, &mem_requirements);
+
+  VkMemoryAllocateInfo mem_info = {};
+  mem_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  mem_info.allocationSize  = mem_requirements.size;
+  mem_info.memoryTypeIndex = R_VK_FindMemoryType(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  
+  vkAllocateMemory(r_vk_state.device.logical, &mem_info, 0, &texture.vk_memory);
+
+  vkBindImageMemory(r_vk_state.device.logical, texture.vk_image, texture.vk_memory, 0);
+
+  R_VK_TransitImageLayout(texture.vk_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  {
+    R_VK_CopyBufferToImage(r_vk_state.staging_buffer.buffer, texture.vk_image, MakeVec2u(tex_width, tex_height));
+  }
+  R_VK_TransitImageLayout(texture.vk_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  vkDestroyBuffer(r_vk_state.device.logical, r_vk_state.staging_buffer.buffer, 0);
+  vkFreeMemory(r_vk_state.device.logical, r_vk_state.staging_buffer.memory, 0);
+
+  // AlNov: Create Texture Image View
+  VkImageViewCreateInfo view_info = {};
+  view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image                           = texture.vk_image;
+  view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+  view_info.format                          = VK_FORMAT_R8G8B8A8_SRGB;
+  view_info.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+  view_info.subresourceRange.baseMipLevel   = 0;
+  view_info.subresourceRange.levelCount     = 1;
+  view_info.subresourceRange.baseArrayLayer = 0;
+  view_info.subresourceRange.layerCount     = 1;
+
+  vkCreateImageView(r_vk_state.device.logical, &view_info, 0, &texture.vk_view);
+
+  // AlNov: Create Texture Sampler
+  VkSamplerCreateInfo sampler_info = {};
+  sampler_info.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  sampler_info.magFilter               = VK_FILTER_LINEAR;
+  sampler_info.minFilter               = VK_FILTER_LINEAR;
+  sampler_info.addressModeU            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampler_info.addressModeV            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampler_info.addressModeW            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampler_info.anisotropyEnable        = VK_FALSE;
+  sampler_info.borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  sampler_info.unnormalizedCoordinates = VK_FALSE;
+  sampler_info.compareEnable           = VK_FALSE;
+  sampler_info.compareOp               = VK_COMPARE_OP_ALWAYS;
+  sampler_info.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampler_info.mipLodBias              = 0.0f;
+  sampler_info.minLod                  = 0.0f;
+  sampler_info.maxLod                  = 0.0f;
+
+  vkCreateSampler(r_vk_state.device.logical, &sampler_info, 0, &r_vk_state.sampler);
+
+  return texture;
 }

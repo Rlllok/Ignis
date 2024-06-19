@@ -3,6 +3,9 @@
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec3 fragPosition;
+layout(location = 3) in vec2 fragUV;
+
+layout(binding = 1) uniform sampler2D texture_sampler;
 
 layout(location = 0) out vec4 outColor;
 
@@ -15,7 +18,8 @@ void main()
   float diffuse         = max(dot(normal, light_direction), 0.0f);
   vec3  diffuse_color   = diffuse * light_color;
   vec3  ambient_color   = 0.1f * light_color;
-  vec3  final_color     = (diffuse_color + ambient_color) * fragColor;
+  vec3  texture_color   = texture(texture_sampler, fragUV).rgb;
+  vec3  final_color     = (diffuse_color + ambient_color) * texture_color;
 
   outColor = vec4(final_color, 1.0f);
 }

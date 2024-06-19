@@ -12,7 +12,7 @@
 
 #define PI 3.141592654f
 
-func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f position, f32 radius, u32 phi_count, f32 theta_count)
+func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
 {
   const f32 phi_step     = 2 * PI / phi_count;
   const f32 theta_step   = PI / theta_count;
@@ -21,7 +21,7 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f position, f32 radius, u32 phi_
 
   R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
   mesh->mvp.color           = MakeVec3f(1.0f, 0.0f, 0.0f);
-  mesh->mvp.center_position = position;
+  mesh->mvp.center_position = center_position;
   mesh->mvp.view            = Make4x4f(1.0f);
   mesh->vertex_count        = vertex_count;
   mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
@@ -32,7 +32,8 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f position, f32 radius, u32 phi_
   {
     u32 current_index = 0;
     mesh->vertecies[current_index].position = MakeVec3f(0.0f, radius, 0.0f);
-    mesh->vertecies[current_index].normals  = NormalizeVec3f(mesh->vertecies[current_index].position);
+    mesh->vertecies[current_index].normal   = NormalizeVec3f(mesh->vertecies[current_index].position);
+    mesh->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(mesh->vertecies[current_index].position.z, mesh->vertecies[current_index].position.x) / (2*PI), 0.5f + asinf(mesh->vertecies[current_index].position.y) / PI);
     current_index += 1;
 
     for (u32 i = 1; i < theta_count - 0; i += 1)
@@ -49,13 +50,15 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f position, f32 radius, u32 phi_
         position       = MulVec3f(position, radius);
 
         mesh->vertecies[current_index].position = position;
-        mesh->vertecies[current_index].normals  = NormalizeVec3f(position);
+        mesh->vertecies[current_index].normal   = NormalizeVec3f(position);
+        mesh->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(position.z, position.x) / (2*PI), 0.5f + asinf(position.y) / PI);
         current_index += 1;
       }
     }
 
     mesh->vertecies[current_index].position = MakeVec3f(0.0f, -radius, 0.0f);
-    mesh->vertecies[current_index].normals  = NormalizeVec3f(mesh->vertecies[current_index].position);
+    mesh->vertecies[current_index].normal   = NormalizeVec3f(mesh->vertecies[current_index].position);
+    mesh->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(mesh->vertecies[current_index].position.z, mesh->vertecies[current_index].position.x) / (2*PI), 0.5f + asinf(mesh->vertecies[current_index].position.y) / PI);
     current_index += 1;
   }
 
@@ -155,7 +158,7 @@ i32 main()
 
   OS_ShowWindow(&window);
 
-  R_Mesh* uv_sphere = GenerateUVSphere(arena, MakeVec3f(0.5f, 0.5f, -1.0f), 0.25f, 20, 20);
+  R_Mesh* uv_sphere = GenerateUVSphere(arena, MakeVec3f(0.0f, 0.0f, -0.5f), 1.0f, 30, 30);
 
   bool is_window_closed = false;
   while(!is_window_closed)

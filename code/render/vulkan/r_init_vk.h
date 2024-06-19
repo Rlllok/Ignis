@@ -21,7 +21,8 @@ struct R_VK_MVP
 struct R_MeshVertex
 {
   Vec3f position;
-  Vec3f normals;
+  Vec3f normal;
+  Vec2f uv;
 };
 
 struct R_Mesh
@@ -71,6 +72,16 @@ struct R_LineList
   R_Line* first;
   R_Line* last;
   u32 count;
+};
+
+// -------------------------------------------------------------------
+// --AlNov: Texture --------------------------------------------------
+struct R_Texture
+{
+  VkImage        vk_image;
+  VkImageView    vk_view;
+  VkDeviceMemory vk_memory;
+  VkDeviceSize   size;
 };
 
 // -------------------------------------------------------------------
@@ -147,29 +158,6 @@ struct R_VK_Buffer
   u32             size;
 };
 
-struct R_VK_State
-{
-  Arena* arena;
-
-  VkInstance           instance;
-  R_VK_Device          device;
-  R_VK_WindowResources window_resources;
-  R_VK_CommandPool     cmd_pool;
-  R_VK_DescriptorPool  descriptor_pool;
-  R_VK_SyncTools       sync_tools;
-  R_VK_Buffer          big_buffer;
-  
-  VkRenderPass render_pass;
-  R_VK_Pipeline mesh_pipeline;
-  R_VK_Pipeline sphere_pipeline;
-  R_VK_Pipeline line_pipeline;
-
-  VkDescriptorSetLayout mvp_layout;
-
-  R_MeshList mesh_list;
-  R_LineList line_list;
-};
-
 // -------------------------------------------------------------------
 // --AlNov: Pipeline -------------------------------------------------
 enum R_VK_ShaderType
@@ -196,6 +184,32 @@ struct R_VK_ShaderStage
 
 // -------------------------------------------------------------------
 // --AlNov: Globals --------------------------------------------------
+struct R_VK_State
+{
+  Arena* arena;
+
+  VkInstance           instance;
+  R_VK_Device          device;
+  R_VK_WindowResources window_resources;
+  R_VK_CommandPool     cmd_pool;
+  R_VK_DescriptorPool  descriptor_pool;
+  R_VK_SyncTools       sync_tools;
+  R_VK_Buffer          big_buffer;
+  R_VK_Buffer          staging_buffer;
+  
+  VkRenderPass render_pass;
+  R_VK_Pipeline mesh_pipeline;
+  R_VK_Pipeline sphere_pipeline;
+  R_VK_Pipeline line_pipeline;
+
+  VkDescriptorSetLayout mvp_layout;
+
+  R_MeshList mesh_list;
+  R_LineList line_list;
+
+  R_Texture texture;
+  VkSampler sampler;
+};
 global R_VK_State r_vk_state;
 
 // -------------------------------------------------------------------
@@ -215,8 +229,6 @@ func void R_VK_CreateLinePipeline();
 func void R_VK_CreateFramebuffers();
 func void R_VK_AllocateCommandBuffers();
 func void R_VK_CreateSyncTools();
-func void R_VK_CreateVertexBuffer();
-func void R_VK_CreateIndexBuffer();
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
@@ -230,10 +242,18 @@ func void R_EndFrame();
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
+func u32  R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags);
 func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
 func void R_VK_PushBuffer(R_VK_Buffer* buffer, void* data, u64 size);
 func void R_VK_PushMeshToBuffer(R_Mesh* mesh);
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
+
+// AlNov: From Vulkan Tutorial @TODO Maybe should be replaced
+func VkCommandBuffer R_VK_BeginSingleCommands();
+func void            R_VK_EndSingleCommands(VkCommandBuffer command_buffer);
+func void            R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
+func void            R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions);
+func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
 
 // -------------------------------------------------------------------
 // --AlNov: Mesh List Functions
@@ -244,3 +264,7 @@ func void R_AddMeshToDrawList(R_Mesh* mesh);
 // --AlNov: Line List Functions
 func void R_PushLine(R_LineList* list, R_Line* line);
 func void R_AddLineToDrawList(R_Line* line);
+
+// -------------------------------------------------------------------
+// --AlNov: Texture --------------------------------------------------
+func R_Texture R_VK_CreateTexture(const char* path);
