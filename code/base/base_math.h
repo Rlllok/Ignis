@@ -6,6 +6,9 @@
 #include "stdio.h"
 #include "math.h"
 
+// --AlNov: Constants
+#define PI 3.141592654f
+
 // -------------------------------------------------------------------
 // --AlNov: Vector Types ---------------------------------------------
 
@@ -161,3 +164,5 @@ func Mat3x3f Transpose3x3f(Mat3x3f m);
 // --AlNov: Mat4x4
 func Mat4x4f Make4x4f(f32 diagonal_value);
 func Mat4x4f MakeOrthographic4x4f(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z);
+func Mat4x4f MakePerspective4x4f(f32 fov, f32 aspect_ration, f32 near_z, f32 far_z);
+func Mat4x4f Transpose4x4f(Vec3f v);

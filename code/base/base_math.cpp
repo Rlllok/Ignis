@@ -208,3 +208,32 @@ func Mat4x4f MakeOrthographic4x4f(f32 left, f32 right, f32 bottom, f32 top, f32 
 
    return result;
 }
+
+func Mat4x4f MakePerspective4x4f(f32 fov, f32 aspect_ration, f32 near_z, f32 far_z)
+{
+  Mat4x4f result = Make4x4f(0.0f);
+
+  f32 fov_radians  = PI * fov / 180.0f;
+  f32 focal_length = 1.0f / tanf(fov_radians / 2.0f);
+
+  result.values[0][0] = focal_length / aspect_ration;
+  result.values[1][1] = focal_length;
+  result.values[2][2] = far_z / (far_z - near_z);
+  result.values[3][3] = 0.0f;
+
+  result.values[3][2] = -(near_z * far_z) / (far_z - near_z);
+  result.values[2][3] = 1.0f;
+
+  return result;
+}
+
+func Mat4x4f Transpose4x4f(Vec3f v)
+{
+  Mat4x4f result = Make4x4f(1.0f);
+
+  result.values[3][0] = v.x;
+  result.values[3][1] = v.y;
+  result.values[3][2] = v.z;
+
+  return result;
+}

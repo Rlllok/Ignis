@@ -10,8 +10,6 @@
 #include "../os/os_include.cpp"
 #include "../render/vulkan/r_init_vk.cpp"
 
-#define PI 3.141592654f
-
 func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
 {
   const f32 phi_step     = 2 * PI / phi_count;
@@ -21,8 +19,9 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
 
   R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
   mesh->mvp.color           = MakeVec3f(1.0f, 0.0f, 0.0f);
-  mesh->mvp.center_position = center_position;
-  mesh->mvp.view            = Make4x4f(1.0f);
+  mesh->mvp.view            = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+  // mesh->mvp.view            = Make4x4f(1.0f);
+  mesh->mvp.translation     = Transpose4x4f(center_position);
   mesh->vertex_count        = vertex_count;
   mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
   mesh->index_count         = index_count;
@@ -158,7 +157,18 @@ i32 main()
 
   OS_ShowWindow(&window);
 
-  R_Mesh* uv_sphere = GenerateUVSphere(arena, MakeVec3f(0.0f, 0.0f, -0.5f), 1.0f, 30, 30);
+  LARGE_INTEGER win32_freq;
+  QueryPerformanceFrequency(&win32_freq);
+  u64 frequency = win32_freq.QuadPart;
+
+  LARGE_INTEGER win32_cycles;
+  QueryPerformanceCounter(&win32_cycles);
+  u64 start_cycles = win32_cycles.QuadPart;
+
+  f32 time_sec = 0.0f;
+
+  Vec3f sphere_position = MakeVec3f(0.0f, 0.0f, 5.0f);
+  f32   sphere_speed    = 5.0f;
 
   bool is_window_closed = false;
   while(!is_window_closed)
@@ -175,18 +185,53 @@ i32 main()
           is_window_closed = true;
         } break;
 
+        case OS_EVENT_TYPE_KEYBOARD:
+        {
+          switch (event->key)
+          {
+            case OS_KEY_ARROW_UP:
+            {
+              if (event->is_down)
+              {
+                sphere_position.z += sphere_speed * time_sec;
+                printf("UP\n");
+              }
+            } break; 
+            case OS_KEY_ARROW_DOWN:
+            {
+              if (event->is_down)
+              {
+                sphere_position.z -= sphere_speed * time_sec;
+                printf("DOWN\n");
+              }
+            } break;
+
+            default: break;
+          }
+        }
+
         default: break;
       }
 
       event = event->next;
     }
 
+    R_Mesh* uv_sphere = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
+    R_Mesh* uv_sphere2 = GenerateUVSphere(arena, MakeVec3f(1.0f, 1.0f, 6.0f), 1.0f, 30, 30);
+
     R_AddMeshToDrawList(uv_sphere);
+    R_AddMeshToDrawList(uv_sphere2);
 
     R_DrawFrame();
 
     R_EndFrame();
     ResetArena(arena);
+
+    QueryPerformanceCounter(&win32_cycles);
+    u64 end_cycles    = win32_cycles.QuadPart;
+    u64 cycles_delta  = end_cycles - start_cycles;
+    start_cycles      = end_cycles;
+    time_sec          = (f32)cycles_delta / (f32)frequency;
   }
 
   return 0;

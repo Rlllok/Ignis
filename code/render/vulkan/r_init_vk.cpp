@@ -74,6 +74,7 @@ func void R_VK_Init(OS_Window* window)
   R_VK_CreateSwapchain();
   R_VK_CreateDescriptorPool();
   R_VK_CreateMvpSetLayout();
+  R_VK_CreateDepthImage();
   R_VK_CreateRenderPass();
   // R_VK_CreateMeshPipeline();
   // R_VK_CreateLinePipeline();
@@ -347,46 +348,62 @@ func void R_VK_CreateMvpSetLayout()
 func void R_VK_CreateRenderPass()
 {
   VkAttachmentDescription color_attachment = {};
-  color_attachment.format = r_vk_state.window_resources.surface_format.format;
-  color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  color_attachment.format         = r_vk_state.window_resources.surface_format.format;
+  color_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+  color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  color_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+  color_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  color_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+  color_attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
   VkAttachmentReference color_attachment_reference = {};
   color_attachment_reference.attachment = 0;
   color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+  VkAttachmentDescription depth_attachment = {};
+  depth_attachment.format         = VK_FORMAT_D32_SFLOAT;
+  depth_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+  depth_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depth_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depth_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depth_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+  depth_attachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  VkAttachmentReference depth_attachment_reference = {};
+  depth_attachment_reference.attachment = 1;
+  depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
   VkSubpassDescription subpass = {};
-  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.inputAttachmentCount = 0;
-  subpass.pInputAttachments = 0;
-  subpass.colorAttachmentCount = 1;
-  subpass.pColorAttachments = &color_attachment_reference;
-  subpass.pResolveAttachments = 0;
-  subpass.pDepthStencilAttachment = 0;
+  subpass.pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.inputAttachmentCount    = 0;
+  subpass.pInputAttachments       = 0;
+  subpass.colorAttachmentCount    = 1;
+  subpass.pColorAttachments       = &color_attachment_reference;
+  subpass.pResolveAttachments     = 0;
+  subpass.pDepthStencilAttachment = &depth_attachment_reference;
   subpass.preserveAttachmentCount = 0;
-  subpass.pPreserveAttachments = 0;
+  subpass.pPreserveAttachments    = 0;
 
   VkSubpassDependency subpass_dependency = {};
-  subpass_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-  subpass_dependency.dstSubpass = 0;
-  subpass_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  subpass_dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
+  subpass_dependency.dstSubpass    = 0;
+  subpass_dependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
   subpass_dependency.srcAccessMask = 0;
-  subpass_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-  subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  subpass_dependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+  subpass_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+  VkAttachmentDescription attachments[2] = { color_attachment, depth_attachment };
 
   VkRenderPassCreateInfo render_pass_info = {};
-  render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  render_pass_info.attachmentCount = 1;
-  render_pass_info.pAttachments = &color_attachment;
-  render_pass_info.subpassCount = 1;
-  render_pass_info.pSubpasses = &subpass;
+  render_pass_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  render_pass_info.attachmentCount = 2;
+  render_pass_info.pAttachments    = attachments;
+  render_pass_info.subpassCount    = 1;
+  render_pass_info.pSubpasses      = &subpass;
   render_pass_info.dependencyCount = 1;
-  render_pass_info.pDependencies = &subpass_dependency;
+  render_pass_info.pDependencies   = &subpass_dependency;
 
   vkCreateRenderPass(r_vk_state.device.logical, &render_pass_info, 0, &r_vk_state.render_pass);
 }
@@ -531,7 +548,8 @@ func void R_VK_CreateLinePipeline()
     rasterization_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterization_state_info.depthClampEnable = VK_FALSE;
     rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
-    rasterization_state_info.cullMode = VK_CULL_MODE_BACK_BIT;
+    // rasterization_state_info.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterization_state_info.cullMode = VK_CULL_MODE_NONE;
     rasterization_state_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterization_state_info.depthBiasEnable = VK_FALSE;
     rasterization_state_info.lineWidth = 1.0f;
@@ -600,11 +618,13 @@ func void R_VK_CreateFramebuffers()
 
   for (u32 i = 0; i < image_count; i += 1)
   {
+    VkImageView attachments[2] = { r_vk_state.window_resources.image_views[i], r_vk_state.depth_view };
+
     VkFramebufferCreateInfo framebuffer_info = {};
     framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     framebuffer_info.renderPass      = r_vk_state.render_pass;
-    framebuffer_info.attachmentCount = 1;
-    framebuffer_info.pAttachments    = &r_vk_state.window_resources.image_views[i];
+    framebuffer_info.attachmentCount = 2;
+    framebuffer_info.pAttachments    = attachments;
     framebuffer_info.width           = r_vk_state.window_resources.size.width;
     framebuffer_info.height          = r_vk_state.window_resources.size.height;
     framebuffer_info.layers          = 1;
@@ -640,6 +660,51 @@ func void R_VK_CreateSyncTools()
 
     vkCreateFence(r_vk_state.device.logical, &fence_info, 0, &r_vk_state.sync_tools.fences[i]);
   }
+}
+
+func void R_VK_CreateDepthImage()
+{
+  VkImageCreateInfo image_info = {};
+  image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.imageType     = VK_IMAGE_TYPE_2D;
+  image_info.extent.width  = r_vk_state.window_resources.size.x;
+  image_info.extent.height = r_vk_state.window_resources.size.y;
+  image_info.extent.depth  = 1;
+  image_info.mipLevels     = 1;
+  image_info.arrayLayers   = 1;
+  image_info.format        = VK_FORMAT_D32_SFLOAT;
+  image_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_info.usage         = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
+  image_info.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+
+  vkCreateImage(r_vk_state.device.logical, &image_info, 0, &r_vk_state.depth_image);
+
+  VkMemoryRequirements memory_requirements;
+  vkGetImageMemoryRequirements(r_vk_state.device.logical, r_vk_state.depth_image, &memory_requirements);
+
+  VkMemoryAllocateInfo allocate_info = {};
+  allocate_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocate_info.allocationSize  = memory_requirements.size;
+  allocate_info.memoryTypeIndex = R_VK_FindMemoryType(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  vkAllocateMemory(r_vk_state.device.logical, &allocate_info, 0, &r_vk_state.depth_memory);
+
+  vkBindImageMemory(r_vk_state.device.logical, r_vk_state.depth_image, r_vk_state.depth_memory, 0);
+
+  VkImageViewCreateInfo view_info = {};
+  view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image                           = r_vk_state.depth_image;
+  view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+  view_info.format                          = VK_FORMAT_D32_SFLOAT;
+  view_info.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_DEPTH_BIT;
+  view_info.subresourceRange.baseMipLevel   = 0;
+  view_info.subresourceRange.levelCount     = 1;
+  view_info.subresourceRange.baseArrayLayer = 0;
+  view_info.subresourceRange.layerCount     = 1;
+
+  vkCreateImageView(r_vk_state.device.logical, &view_info, 0, &r_vk_state.depth_view);
 }
 
 // -------------------------------------------------------------------
@@ -760,7 +825,7 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
   rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
   rasterization_state_info.polygonMode             = VK_POLYGON_MODE_FILL;
   rasterization_state_info.cullMode                = VK_CULL_MODE_BACK_BIT;
-  rasterization_state_info.frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+  rasterization_state_info.frontFace               = VK_FRONT_FACE_CLOCKWISE;
   rasterization_state_info.depthBiasEnable         = VK_FALSE;
   rasterization_state_info.lineWidth               = 1.0f;
 
@@ -775,8 +840,9 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
 
   VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info = {};
   depth_stencil_state_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depth_stencil_state_info.depthTestEnable       = VK_FALSE;
-  depth_stencil_state_info.depthWriteEnable      = VK_FALSE;
+  depth_stencil_state_info.depthTestEnable       = VK_TRUE;
+  depth_stencil_state_info.depthWriteEnable      = VK_TRUE;
+  depth_stencil_state_info.depthCompareOp        = VK_COMPARE_OP_LESS;
   depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
   depth_stencil_state_info.stencilTestEnable     = VK_FALSE;
 
@@ -857,6 +923,11 @@ func void R_DrawFrame()
     VkClearValue color_clear_value = {};
     color_clear_value.color = { {0.05f, 0.05f, 0.05f, 1.0f} };
 
+    VkClearValue depth_clear_value = {};
+    depth_clear_value.depthStencil = { 1.0f, 0 };
+
+    VkClearValue clear_values[2] = { color_clear_value, depth_clear_value };
+
     VkRenderPassBeginInfo render_pass_begin_info    = {};
     render_pass_begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     render_pass_begin_info.renderPass               = r_vk_state.render_pass;
@@ -865,8 +936,8 @@ func void R_DrawFrame()
     render_pass_begin_info.renderArea.extent.width  = r_vk_state.window_resources.size.width;
     render_pass_begin_info.renderArea.offset.y      = 0;
     render_pass_begin_info.renderArea.offset.y      = 0;
-    render_pass_begin_info.clearValueCount          = 1;
-    render_pass_begin_info.pClearValues             = &color_clear_value;
+    render_pass_begin_info.clearValueCount          = 2;
+    render_pass_begin_info.pClearValues             = clear_values;
 
     vkCmdBeginRenderPass(cmd_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
     {

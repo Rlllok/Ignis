@@ -7,8 +7,8 @@ layout(location = 2) in vec2 uv;
 layout(binding = 0) uniform MVP
 {
   vec3 color;
-  vec3 center_position;
   mat4 view;
+  mat4 translation;
 } mvp;
 
 layout(location = 0) out vec3 fragColor;
@@ -20,7 +20,8 @@ void main()
 {
   fragColor    = mvp.color;
   fragNormal   = normal;
-  fragPosition = position + mvp.center_position;
   fragUV       = uv;
-  gl_Position  = vec4(fragPosition, 1.0f);
+  // projection * view * model * vec4(position, 1.0f);
+  fragPosition = vec3(mvp.translation * vec4(position, 1.0f));
+  gl_Position  = mvp.view * mvp.translation * vec4(position, 1.0f);
 }

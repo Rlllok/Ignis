@@ -14,8 +14,8 @@ struct R_VK_MVP
 {
   // --AlNov: @TDO Projection matrix should be stored somewhere else
   alignas(16) Vec3f   color;
-  alignas(16) Vec3f   center_position;
   alignas(16) Mat4x4f view;
+  alignas(16) Mat4x4f translation;
 };
 
 struct R_MeshVertex
@@ -95,14 +95,14 @@ struct R_VK_Device
 
 struct R_VK_WindowResources
 {
-  VkSwapchainKHR swapchain;
-  VkSurfaceKHR surface;
+  VkSwapchainKHR     swapchain;
+  VkSurfaceKHR       surface;
   VkSurfaceFormatKHR surface_format;
-  Vec2u size;
-  u32 image_count;
-  VkImage* images;
-  VkImageView* image_views;
-  VkFramebuffer* framebuffers;
+  Vec2u              size;
+  u32                image_count;
+  VkImage*           images;
+  VkImageView*       image_views;
+  VkFramebuffer*     framebuffers;
 
   bool is_window_resized;
 };
@@ -209,6 +209,10 @@ struct R_VK_State
 
   R_Texture texture;
   VkSampler sampler;
+
+  VkImage        depth_image;
+  VkImageView    depth_view;
+  VkDeviceMemory depth_memory;
 };
 global R_VK_State r_vk_state;
 
@@ -229,6 +233,7 @@ func void R_VK_CreateLinePipeline();
 func void R_VK_CreateFramebuffers();
 func void R_VK_AllocateCommandBuffers();
 func void R_VK_CreateSyncTools();
+func void R_VK_CreateDepthImage();
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
