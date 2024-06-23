@@ -3,12 +3,12 @@
 // --AlNov: .h -------------------------------------------------------
 #include "../base/base_include.h"
 #include "../os/os_include.h"
-#include "../render/r_core.h"
+#include "../render/r_include.h"
 
 // --AlNov: .cpp -----------------------------------------------------
 #include "../base/base_include.cpp"
 #include "../os/os_include.cpp"
-#include "../render/r_core.cpp"
+#include "../render/r_include.cpp"
 
 func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
 {
