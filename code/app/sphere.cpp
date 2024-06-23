@@ -3,12 +3,12 @@
 // --AlNov: .h -------------------------------------------------------
 #include "../base/base_include.h"
 #include "../os/os_include.h"
-#include "../render/vulkan/r_init_vk.h"
+#include "../render/r_core.h"
 
 // --AlNov: .cpp -----------------------------------------------------
 #include "../base/base_include.cpp"
 #include "../os/os_include.cpp"
-#include "../render/vulkan/r_init_vk.cpp"
+#include "../render/r_core.cpp"
 
 func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
 {
@@ -17,15 +17,15 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
   const u32 vertex_count = 2 + phi_count * (theta_count - 1);
   const u32 index_count  = 2 * 3 * phi_count + 2 * 3 * phi_count * (theta_count - 2);
 
-  R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color           = MakeVec3f(1.0f, 0.0f, 0.0f);
-  mesh->mvp.view            = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
-  // mesh->mvp.view            = Make4x4f(1.0f);
-  mesh->mvp.translation     = Transpose4x4f(center_position);
-  mesh->vertex_count        = vertex_count;
-  mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
-  mesh->index_count         = index_count;
-  mesh->indecies            = (u32*)PushArena(arena, sizeof(u32) * index_count);
+  R_Mesh* mesh          = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
+  mesh->mvp.color       = MakeVec3f(1.0f, 0.0f, 0.0f);
+  mesh->mvp.view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+  // mesh->mvp.view     = Make4x4f(1.0f);
+  mesh->mvp.translation = Transpose4x4f(center_position);
+  mesh->vertex_count    = vertex_count;
+  mesh->vertecies       = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
+  mesh->index_count     = index_count;
+  mesh->indecies        = (u32*)PushArena(arena, sizeof(u32) * index_count);
 
   // --AlNov: Generate UVSphere vertecies
   {
@@ -152,7 +152,8 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
 i32 main()
 {
   OS_Window window = OS_CreateWindow("Sphere", MakeVec2u(1280, 720));
-  R_VK_Init(&window);
+  R_Init(&window);
+
   Arena* arena = AllocateArena(Megabytes(128));
 
   OS_ShowWindow(&window);
@@ -194,7 +195,6 @@ i32 main()
               if (event->is_down)
               {
                 sphere_position.z += sphere_speed * time_sec;
-                printf("UP\n");
               }
             } break; 
             case OS_KEY_ARROW_DOWN:
@@ -202,7 +202,6 @@ i32 main()
               if (event->is_down)
               {
                 sphere_position.z -= sphere_speed * time_sec;
-                printf("DOWN\n");
               }
             } break;
 
@@ -222,9 +221,10 @@ i32 main()
     R_AddMeshToDrawList(uv_sphere);
     R_AddMeshToDrawList(uv_sphere2);
 
-    R_DrawFrame();
+    R_FrameInfo frame_info = {};
+    frame_info.delta_time = time_sec;
+    R_DrawFrame(&frame_info);
 
-    R_EndFrame();
     ResetArena(arena);
 
     QueryPerformanceCounter(&win32_cycles);

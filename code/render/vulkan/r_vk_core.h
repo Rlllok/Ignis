@@ -51,6 +51,18 @@ struct R_MeshList
     u32 count;
 };
 
+struct R_View
+{
+  Vec2f   size;
+  Vec3f   position;
+  f32     fov;
+
+  struct
+  {
+    alignas(16) Mat4x4f projection;
+  } uniform;
+};
+
 // -------------------------------------------------------------------
 // --AlNov: Line Info ------------------------------------------------
 // @TODO TO MOVE
@@ -202,6 +214,8 @@ struct R_VK_State
   R_VK_Pipeline sphere_pipeline;
   R_VK_Pipeline line_pipeline;
 
+  R_View view;
+
   VkDescriptorSetLayout mvp_layout;
 
   R_MeshList mesh_list;
@@ -218,7 +232,7 @@ global R_VK_State r_vk_state;
 
 // -------------------------------------------------------------------
 // --AlNov: Init Stuff -----------------------------------------------
-func void R_VK_Init(OS_Window* window);
+func b8   R_VK_Init(OS_Window* window);
 func void R_VK_CreateInstance();
 func void R_VK_CreateDevice();
 func void R_VK_CreateSurface(OS_Window* window);
@@ -242,8 +256,8 @@ func R_VK_Pipeline    R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage,
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
-func void R_DrawFrame();
-func void R_EndFrame();
+func b8 R_VK_DrawFrame();
+func b8 R_VK_EndFrame();
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
@@ -273,3 +287,8 @@ func void R_AddLineToDrawList(R_Line* line);
 // -------------------------------------------------------------------
 // --AlNov: Texture --------------------------------------------------
 func R_Texture R_VK_CreateTexture(const char* path);
+
+// -------------------------------------------------------------------
+// --AlNov: View -----------------------------------------------------
+func R_View R_CreateView(Vec3f position, f32 fov, Vec2f size);
+func void   R_VK_BindView(R_View view);

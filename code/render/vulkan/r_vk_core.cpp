@@ -1,4 +1,4 @@
-#include "r_init_vk.h"
+#include "r_vk_core.h"
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -63,7 +63,7 @@ VkResult createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* deb
 }
 // End Debug Layer Staff ---------------------------------------------
 
-func void R_VK_Init(OS_Window* window)
+func b8 R_VK_Init(OS_Window* window)
 {
   r_vk_state = {};
   r_vk_state.arena = AllocateArena(Megabytes(128));
@@ -95,6 +95,8 @@ func void R_VK_Init(OS_Window* window)
     &r_vk_state.big_buffer.memory
   );
   vkMapMemory(r_vk_state.device.logical, r_vk_state.big_buffer.memory, 0, r_vk_state.big_buffer.size, 0, &r_vk_state.big_buffer.mapped_memory);
+
+  return true;
 }
 
 func void R_VK_CreateInstance()
@@ -889,7 +891,7 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
-func void R_DrawFrame()
+func b8 R_VK_DrawFrame()
 {
   local_persist u32 current_frame = 0;
 
@@ -1056,9 +1058,11 @@ func void R_DrawFrame()
   // }
 
   current_frame = (current_frame + 1) % NUM_FRAMES_IN_FLIGHT;
+
+  return true;
 }
 
-func void R_EndFrame()
+func b8 R_VK_EndFrame()
 {
   r_vk_state.big_buffer.current_position = 0;
 
@@ -1073,6 +1077,8 @@ func void R_EndFrame()
 
   r_vk_state.mesh_list = {};
   r_vk_state.line_list = {};
+
+  return true;
 }
 
 // -------------------------------------------------------------------
@@ -1433,4 +1439,22 @@ func R_Texture R_VK_CreateTexture(const char* path)
   vkCreateSampler(r_vk_state.device.logical, &sampler_info, 0, &r_vk_state.sampler);
 
   return texture;
+}
+
+// -------------------------------------------------------------------
+// --AlNov: View -----------------------------------------------------
+func R_View R_CreateView(Vec3f position, f32 fov, Vec2f size)
+{
+  R_View view = {};
+  view.size               = size;
+  view.position           = position;
+  view.fov                = fov;
+  view.uniform.projection = MakePerspective4x4f(fov, size.x / size.y, 0.1f, 100.0f);
+
+  return view;
+}
+
+func void R_VK_BindView(R_View view)
+{
+  r_vk_state.view = view;
 }
