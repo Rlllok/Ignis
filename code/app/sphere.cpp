@@ -151,12 +151,14 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
 
 i32 main()
 {
+  ASSERT(1 == 0);
   OS_Window window = OS_CreateWindow("Sphere", MakeVec2u(1280, 720));
   R_Init(&window);
 
   Arena* arena = AllocateArena(Megabytes(128));
 
   OS_ShowWindow(&window);
+  LOG_INFO("Window showed.\n");
 
   LARGE_INTEGER win32_freq;
   QueryPerformanceFrequency(&win32_freq);
