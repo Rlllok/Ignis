@@ -82,9 +82,17 @@ func b8 R_VK_Init(OS_Window* window)
   // R_VK_CreateLinePipeline();
   R_VK_CreateSpherePipeline();
   R_VK_CreateFramebuffers();
-  R_VK_CreateCommandPool();
+  R_VK_CreateCommandPool(&r_vk_state);
+  // --AlNov: Create Command Buffers
+  {
+    r_vk_state.command_buffers = (R_VK_CommandBuffer*)PushArena(r_vk_state.arena, NUM_FRAMES_IN_FLIGHT);
+
+    for (u32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
+    {
+      R_VK_AllocateCommandBuffer(&r_vk_state, r_vk_state.command_pool, &r_vk_state.command_buffers[i]);
+    }
+  }
   r_vk_state.texture = R_VK_CreateTexture("data/uv_checker.png");
-  R_VK_AllocateCommandBuffers();
   R_VK_CreateSyncTools();
 
   r_vk_state.big_buffer = {};
@@ -290,16 +298,6 @@ func void R_VK_CreateSwapchain()
 
     VK_CHECK(vkCreateImageView(r_vk_state.device.logical, &image_view_info, 0, &r_vk_state.window_resources.image_views[i]));
   }
-}
-
-func void R_VK_CreateCommandPool()
-{
-  VkCommandPoolCreateInfo pool_info = {};
-  pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  pool_info.queueFamilyIndex = r_vk_state.device.queue_index;
-
-  VK_CHECK(vkCreateCommandPool(r_vk_state.device.logical, &pool_info, 0, &r_vk_state.cmd_pool.pool));
 }
 
 func void R_VK_CreateDescriptorPool()
@@ -574,17 +572,6 @@ func void R_VK_CreateFramebuffers()
   }
 }
 
-func void R_VK_AllocateCommandBuffers()
-{
-  VkCommandBufferAllocateInfo cmd_buffer_info = {};
-  cmd_buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  cmd_buffer_info.commandPool = r_vk_state.cmd_pool.pool;
-  cmd_buffer_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  cmd_buffer_info.commandBufferCount = CountArrayElements(r_vk_state.cmd_pool.buffers);
-
-  VK_CHECK(vkAllocateCommandBuffers(r_vk_state.device.logical, &cmd_buffer_info, r_vk_state.cmd_pool.buffers));
-}
-
 func void R_VK_CreateSyncTools()
 {
   for (i32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
@@ -731,7 +718,7 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
   render_pass->handle = 0;
 }
 
-func void R_VK_BeginRenderPass(VkCommandBuffer* command_buffer, R_VK_RenderPass* render_pass, VkFramebuffer framebuffer)
+func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, VkFramebuffer framebuffer)
 {
   VkRenderPassBeginInfo begin_info = {};
   begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -757,13 +744,100 @@ func void R_VK_BeginRenderPass(VkCommandBuffer* command_buffer, R_VK_RenderPass*
   begin_info.clearValueCount = CountArrayElements(clear_values);
   begin_info.pClearValues    = clear_values;
 
-  vkCmdBeginRenderPass(*command_buffer, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-func void R_VK_EndRenderPass(VkCommandBuffer* command_buffer, R_VK_RenderPass* render_pass)
+func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass)
 {
-  vkCmdEndRenderPass(*command_buffer);
+  vkCmdEndRenderPass(command_buffer->handle);
 }
+
+// -------------------------------------------------------------------
+// --AlNov: Command Buffer -------------------------------------------
+func void R_VK_CreateCommandPool(R_VK_State* vk_state)
+{
+  VkCommandPoolCreateInfo pool_info = {};
+  pool_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  pool_info.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  pool_info.queueFamilyIndex = vk_state->device.queue_index;
+
+  VK_CHECK(vkCreateCommandPool(vk_state->device.logical, &pool_info, 0, &vk_state->command_pool));
+}
+
+func void R_VK_AllocateCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer)
+{
+  VkCommandBufferAllocateInfo command_buffer_info = {};
+  command_buffer_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  command_buffer_info.commandPool        = pool;
+  command_buffer_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  command_buffer_info.commandBufferCount = 1;
+
+  out_command_buffer->state = R_VK_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
+  VK_CHECK(vkAllocateCommandBuffers(vk_state->device.logical, &command_buffer_info, &out_command_buffer->handle));
+  out_command_buffer->state = R_VK_COMMAND_BUFFER_STATE_READY;
+}
+
+func void R_VK_FreeCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer)
+{
+  vkFreeCommandBuffers(vk_state->device.logical, pool, 1, &command_buffer->handle);
+
+  command_buffer->handle = 0;
+  command_buffer->state  = R_VK_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
+}
+
+func void R_VK_BeginCommandBuffer(R_VK_CommandBuffer* command_buffer)
+{
+  VkCommandBufferBeginInfo begin_info = {};
+  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+  VK_CHECK(vkBeginCommandBuffer(command_buffer->handle, &begin_info));
+  command_buffer->state = R_VK_COMMAND_BUFFER_STATE_RECORDING;
+}
+
+func void R_VK_EndCommandBuffer(R_VK_CommandBuffer* command_buffer)
+{
+  VK_CHECK(vkEndCommandBuffer(command_buffer->handle));
+  command_buffer->state = R_VK_COMMAND_BUFFER_STATE_RECORDING_ENDED;
+}
+
+func void R_VK_SubmitComandBuffer(R_VK_CommandBuffer* command_buffer)
+{
+  command_buffer->state = R_VK_COMMAND_BUFFER_STATE_SUBMITTED;
+}
+
+func void R_VK_ResetCommandBuffer(R_VK_CommandBuffer* command_buffer)
+{
+  command_buffer->state= R_VK_COMMAND_BUFFER_STATE_READY;
+}
+
+func void R_VK_BeginSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer)
+{
+  R_VK_AllocateCommandBuffer(vk_state, pool, out_command_buffer);
+
+  VkCommandBufferBeginInfo begin_info = {};
+  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  VK_CHECK(vkBeginCommandBuffer(out_command_buffer->handle, &begin_info));
+  out_command_buffer->state = R_VK_COMMAND_BUFFER_STATE_RECORDING;
+}
+
+func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer, VkQueue queue)
+{
+  R_VK_EndCommandBuffer(command_buffer);
+
+  VkSubmitInfo submit_info = {};
+  submit_info.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers    = &command_buffer->handle;
+
+  VK_CHECK(vkQueueSubmit(queue, 1, &submit_info, 0));
+
+  VK_CHECK(vkQueueWaitIdle(queue));
+
+  R_VK_FreeCommandBuffer(vk_state, pool, command_buffer);
+}
+// --AlNov: Command Buffer @END --------------------------------------
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
@@ -970,17 +1044,14 @@ func b8 R_VK_DrawFrame()
   //   return;
   // }
 
-  VkCommandBuffer cmd_buffer = r_vk_state.cmd_pool.buffers[current_frame];
-  vkResetCommandBuffer(cmd_buffer, 0);
+  R_VK_CommandBuffer* command_buffer = &r_vk_state.command_buffers[current_frame];
+  vkResetCommandBuffer(command_buffer->handle, 0);
 
-  VkCommandBufferBeginInfo cmd_begin_info = {};
-  cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-  vkBeginCommandBuffer(cmd_buffer, &cmd_begin_info);
+  R_VK_BeginCommandBuffer(command_buffer);
   {
-    R_VK_BeginRenderPass(&cmd_buffer, &r_vk_state.render_pass, r_vk_state.window_resources.framebuffers[image_index]);
+    R_VK_BeginRenderPass(command_buffer, &r_vk_state.render_pass, r_vk_state.window_resources.framebuffers[image_index]);
     {
-      vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.pipeline);
+      vkCmdBindPipeline(command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.pipeline);
 
       // --AlNov: Draw Meshes
       for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
@@ -1028,14 +1099,14 @@ func b8 R_VK_DrawFrame()
         vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
 
         vkCmdBindDescriptorSets(
-          cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+          command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
           0, 1, &mesh_to_draw->mvp_set, 0, 0
         );
 
-        vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
-        vkCmdBindIndexBuffer(cmd_buffer, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
+        vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
+        vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
 
-        vkCmdDrawIndexed(cmd_buffer, mesh_to_draw->index_count, 1, 0, 0, 0);
+        vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
       }
 
       // --AlNov: Draw Lines
@@ -1052,23 +1123,23 @@ func b8 R_VK_DrawFrame()
       }
       */
     }
-    R_VK_EndRenderPass(&cmd_buffer, &r_vk_state.render_pass);
+    R_VK_EndRenderPass(command_buffer, &r_vk_state.render_pass);
   }
-  vkEndCommandBuffer(cmd_buffer);
+  R_VK_EndCommandBuffer(command_buffer);
 
   VkPipelineStageFlags wait_stage = {
     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
   };
 
   VkSubmitInfo submit_info = {};
-  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit_info.waitSemaphoreCount = 1;
-  submit_info.pWaitSemaphores = &r_vk_state.sync_tools.image_available_semaphores[image_index];
-  submit_info.pWaitDstStageMask = &wait_stage;
-  submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &r_vk_state.cmd_pool.buffers[current_frame];
+  submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.waitSemaphoreCount   = 1;
+  submit_info.pWaitSemaphores      = &r_vk_state.sync_tools.image_available_semaphores[image_index];
+  submit_info.pWaitDstStageMask    = &wait_stage;
+  submit_info.commandBufferCount   = 1;
+  submit_info.pCommandBuffers      = &r_vk_state.command_buffers[current_frame].handle;
   submit_info.signalSemaphoreCount = 1;
-  submit_info.pSignalSemaphores = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
+  submit_info.pSignalSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
 
   VkQueue queue;
   vkGetDeviceQueue(r_vk_state.device.logical, r_vk_state.device.queue_index, 0, &queue);
@@ -1076,13 +1147,13 @@ func b8 R_VK_DrawFrame()
   vkQueueSubmit(queue, 1, &submit_info, r_vk_state.sync_tools.fences[current_frame]);
 
   VkPresentInfoKHR present_info = {};
-  present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  present_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   present_info.waitSemaphoreCount = 1;
-  present_info.pWaitSemaphores = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
-  present_info.swapchainCount = 1;
-  present_info.pSwapchains = &r_vk_state.window_resources.swapchain;
-  present_info.pImageIndices = &image_index;
-  present_info.pResults = 0;
+  present_info.pWaitSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
+  present_info.swapchainCount     = 1;
+  present_info.pSwapchains        = &r_vk_state.window_resources.swapchain;
+  present_info.pImageIndices      = &image_index;
+  present_info.pResults           = 0;
 
   VkResult present_result = vkQueuePresentKHR(queue, &present_info);
 
@@ -1196,7 +1267,7 @@ func VkCommandBuffer R_VK_BeginSingleCommands()
   VkCommandBufferAllocateInfo allocate_info = {};
   allocate_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocate_info.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocate_info.commandPool        = r_vk_state.cmd_pool.pool;
+  allocate_info.commandPool        = r_vk_state.command_pool;
   allocate_info.commandBufferCount = 1;
 
   VkCommandBuffer command_buffer;
@@ -1226,7 +1297,7 @@ func void R_VK_EndSingleCommands(VkCommandBuffer command_buffer)
   VK_CHECK(vkQueueSubmit(queue, 1, &submit_info, 0));
   VK_CHECK(vkQueueWaitIdle(queue));
 
-  vkFreeCommandBuffers(r_vk_state.device.logical, r_vk_state.cmd_pool.pool, 1, &command_buffer);
+  vkFreeCommandBuffers(r_vk_state.device.logical, r_vk_state.command_pool, 1, &command_buffer);
 }
 
 func void R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)

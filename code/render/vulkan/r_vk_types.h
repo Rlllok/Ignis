@@ -39,8 +39,8 @@ enum R_VK_CommandBufferState
   R_VK_COMMAND_BUFFER_STATE_RECORDING,
   R_VK_COMMAND_BUFFER_STATE_IN_RENDER_PASS,
   R_VK_COMMAND_BUFFER_STATE_RECORDING_ENDED,
-  R_VK_COMMAND_BUFFER_SUBMITTED,
-  R_VK_COMMAND_BUFFER_NOT_ALLOCATED,
+  R_VK_COMMAND_BUFFER_STATE_SUBMITTED,
+  R_VK_COMMAND_BUFFER_STATE_NOT_ALLOCATED,
 
   R_VK_COMMAND_BUFFER_STATE_COUNT
 };
@@ -247,7 +247,8 @@ struct R_VK_State
   VkInstance           instance;
   R_VK_Device          device;
   R_VK_WindowResources window_resources;
-  R_VK_CommandPool     cmd_pool;
+  VkCommandPool        command_pool;
+  R_VK_CommandBuffer*  command_buffers;
   R_VK_DescriptorPool  descriptor_pool;
   R_VK_SyncTools       sync_tools;
   R_VK_Buffer          big_buffer;
