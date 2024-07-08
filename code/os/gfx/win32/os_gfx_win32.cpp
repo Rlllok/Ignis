@@ -1,13 +1,11 @@
 #include "os_gfx_win32.h"
 
-#include <stdio.h>
-
 #pragma comment(lib, "user32.lib")
 
 #define OS_WIN32_WindowClassName L"AppWindowClass"
 
-global Arena* os_event_arena;
-global OS_EventList* os_event_list;
+global Arena*          os_event_arena;
+global OS_EventList*   os_event_list;
 global WINDOWPLACEMENT previous_window_params = { sizeof(previous_window_params) };
 
 func void OS_WIN32_InitGfx()
@@ -26,25 +24,16 @@ func OS_Window OS_CreateWindow(const char* title, Vec2u size)
   window_class.lpszClassName = OS_WIN32_WindowClassName;
   window_class.hCursor       = LoadCursor(0, IDC_ARROW);
 
-  if (RegisterClassW(&window_class) == 0)
-  {
-    printf("Cannot create window class./n");
-    window = {};
-    return window;
-  }
+  ASSERT(RegisterClassW(&window_class) == 0);
 
   HWND handle = {};
 
-  handle = CreateWindowW(OS_WIN32_WindowClassName, L"TestApp", WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, CW_USEDEFAULT, size.width, size.height, 0, 0, window.instance, 0
-      );
+  handle = CreateWindowW(
+    OS_WIN32_WindowClassName, L"TestApp", WS_OVERLAPPEDWINDOW,
+    CW_USEDEFAULT, CW_USEDEFAULT, size.width, size.height, 0, 0, window.instance, 0
+  );
 
-  if (handle == 0)
-  {
-    printf("Cannot create window. Error: %lu\n", GetLastError());
-    window = {};
-    return window;
-  }
+  ASSERT_MESSAGE(handle == 0, "Cannot create window.");
 
   window.handle        = handle;
   window.width         = size.width;

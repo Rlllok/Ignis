@@ -59,10 +59,9 @@ struct Data
   u64 d19;
 };
 
-
 struct StructOfArrays
 {
-  u64* d0;
+  u64* d0; 
   u64* d1;
   u64* d2;
   u64* d3;
@@ -121,10 +120,12 @@ i32 main()
     LARGE_INTEGER win32_cycles;
     QueryPerformanceCounter(&win32_cycles);
     u64 start_cycles = win32_cycles.QuadPart;
+
     for (i32 i = 0; i < data_size; i += 1)
     {
       u64 d0 = DevideDataCopy(datas[i]);
     }
+
     QueryPerformanceCounter(&win32_cycles);
     u64 end_cycles    = win32_cycles.QuadPart;
     u64 cycles_delta  = end_cycles - start_cycles;

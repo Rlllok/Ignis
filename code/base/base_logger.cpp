@@ -17,7 +17,7 @@ func void LogOutput(LogMessageType message_type, const char* message, ...)
   va_end(arg_ptr);
 
   char final_message[output_message_size];
-  sprintf(final_message, "%s%s\n", type_strings[message_type], output_message);
+  sprintf(final_message, "%s%s", type_strings[message_type], output_message);
 
   printf("%s", final_message);
 }

@@ -40,8 +40,7 @@ func void AssertionFail(const char* expression, const char* message, const char*
 
   #define ASSERT(expression)                                \
     {                                                       \
-      if (expression) {}                                    \
-      else                                                  \
+      if (expression)                                       \
       {                                                     \
         AssertionFail(#expression, "", __FILE__, __LINE__); \
         debugBreak();                                       \
@@ -50,8 +49,7 @@ func void AssertionFail(const char* expression, const char* message, const char*
 
   #define ASSERT_MESSAGE(expression, message)                    \
     {                                                            \
-      if (expression) {}                                         \
-      else                                                       \
+      if (expression)                                            \
       {                                                          \
         AssertionFail(#expression, message, __FILE__, __LINE__); \
         debugBreak();                                            \

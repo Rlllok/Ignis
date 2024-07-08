@@ -151,7 +151,6 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
 
 i32 main()
 {
-  ASSERT(1 == 0);
   OS_Window window = OS_CreateWindow("Sphere", MakeVec2u(1280, 720));
   R_Init(&window);
 
