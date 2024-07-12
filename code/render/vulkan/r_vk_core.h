@@ -4,6 +4,7 @@
 #include "../../third_party/vulkan/include/vulkan_win32.h"
 
 #include "../../base/base_include.h"
+#include "../../os/os_include.h"
 
 #define VK_CHECK(expression) ASSERT(expression != VK_SUCCESS);
 
@@ -18,14 +19,9 @@ global R_VK_State r_vk_state;
 func b8   R_VK_Init(OS_Window* window);
 func void R_VK_CreateInstance();
 func void R_VK_CreateDevice();
-func void R_VK_CreateSurface(OS_Window* window);
+func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain);
 func void R_VK_CreateSwapchain();
 func void R_VK_CreateDescriptorPool();
-func void R_VK_CreateMvpSetLayout();
-func void R_VK_CreateMeshPipeline();
-func void R_VK_CreateSpherePipeline();
-func void R_VK_CreateLinePipeline();
-func void R_VK_CreateFramebuffers();
 func void R_VK_AllocateCommandBuffers();
 func void R_VK_CreateSyncTools();
 func void R_VK_CreateDepthImage();
@@ -36,7 +32,7 @@ func void R_VK_CreateCommandBuffers(R_VK_State* _vk_state);
 // --AlNov: Render Pass ----------------------------------------------
 func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area, Vec4f clear_color, f32 clear_depth, u32 clear_stencil);
 func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass);
-func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, VkFramebuffer framebuffer);
+func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer);
 func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass);
 
 // -------------------------------------------------------------------
@@ -52,9 +48,19 @@ func void R_VK_BeginSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool p
 func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer, VkQueue queue);
 
 // -------------------------------------------------------------------
-// --AlNov: Pipeline Functions ---------------------------------------
+// --AlNov: Framebuffer ----------------------------------------------
+func void R_VK_CreateFramebuffer(R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size, u32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer);
+func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer);
+
+// -------------------------------------------------------------------
+// --AlNov: Shader ---------------------------------------------------
 func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, const char* enter_point, R_VK_ShaderType type);
-func R_VK_Pipeline    R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_VK_ShaderStage* fragment_shader_stage);
+func void             R_VK_CreateShaderProgram(R_VK_State* vk_state, const char* vertex_path, const char* fragment_path, R_VK_ShaderProgram* out_program);
+func void             R_VK_BindShaderProgram(R_VK_ShaderProgram* program);
+
+// -------------------------------------------------------------------
+// --AlNov: Pipeline Functions ---------------------------------------
+func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderProgram* program);
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------

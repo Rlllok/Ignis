@@ -1,4 +1,5 @@
 #include "r_vk_core.h"
+#include "r_vk_types.h"
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -67,21 +68,34 @@ func b8 R_VK_Init(OS_Window* window)
 
   R_VK_CreateInstance();
   R_VK_CreateDevice();
-  R_VK_CreateSurface(window);
+  R_VK_CreateSurface(&r_vk_state, window, &r_vk_state.swapchain);
   R_VK_CreateSwapchain();
   R_VK_CreateDescriptorPool();
-  R_VK_CreateMvpSetLayout();
   R_VK_CreateDepthImage();
   Rect2f render_area = {};
   render_area.x0 = 0.0f;
   render_area.y0 = 0.0f;
-  render_area.x1 = r_vk_state.window_resources.size.width;
-  render_area.y1 = r_vk_state.window_resources.size.height;
+  render_area.x1 = r_vk_state.swapchain.size.width;
+  render_area.y1 = r_vk_state.swapchain.size.height;
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area, MakeVec4f(0.05f, 0.05f, 0.05f, 1.0f), 1.0f, 0);
   // R_VK_CreateMeshPipeline();
   // R_VK_CreateLinePipeline();
-  R_VK_CreateSpherePipeline();
-  R_VK_CreateFramebuffers();
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVS.spv", "data/shaders/default3DFS.spv", &r_vk_state.sphere_program);
+  // --AlNov: Create Framebuffers
+  {
+    u32 image_count = r_vk_state.swapchain.image_count;
+    r_vk_state.swapchain.framebuffers = (R_VK_Framebuffer*)PushArena(r_vk_state.arena, image_count * sizeof(R_VK_Framebuffer));
+
+    for (u32 i = 0; i < image_count; i += 1)
+    {
+      VkImageView attachments[2] = { r_vk_state.swapchain.image_views[i], r_vk_state.depth_view };
+
+      R_VK_CreateFramebuffer(
+        &r_vk_state, &r_vk_state.render_pass, r_vk_state.swapchain.size,
+        CountArrayElements(attachments), attachments, &r_vk_state.swapchain.framebuffers[i]
+      );
+    }
+  }
   R_VK_CreateCommandPool(&r_vk_state);
   // --AlNov: Create Command Buffers
   {
@@ -210,39 +224,39 @@ func void R_VK_CreateDevice()
   FreeArena(tmp_arena);
 }
 
-func void R_VK_CreateSurface(OS_Window* window)
+func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain)
 {
   VkWin32SurfaceCreateInfoKHR surface_info = {};
-  surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+  surface_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
   surface_info.hinstance = window->instance;
-  surface_info.hwnd = window->handle;
+  surface_info.hwnd      = window->handle;
 
-  VK_CHECK(vkCreateWin32SurfaceKHR(r_vk_state.instance, &surface_info, 0, &r_vk_state.window_resources.surface));
+  VK_CHECK(vkCreateWin32SurfaceKHR(vk_state->instance, &surface_info, 0, &vk_state->swapchain.surface));
 
   // Get Surface Capabilities
   VkSurfaceCapabilitiesKHR capabilities;
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(r_vk_state.device.physical, r_vk_state.window_resources.surface, &capabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_state->device.physical, vk_state->swapchain.surface, &capabilities);
 
-  r_vk_state.window_resources.size.width = capabilities.currentExtent.width;
-  r_vk_state.window_resources.size.height = capabilities.currentExtent.height;
+  vk_state->swapchain.size.width = capabilities.currentExtent.width;
+  vk_state->swapchain.size.height = capabilities.currentExtent.height;
 
-  r_vk_state.window_resources.image_count = capabilities.minImageCount + 1;
-  if (capabilities.maxImageCount > 0 && r_vk_state.window_resources.image_count > capabilities.maxImageCount) {
-    r_vk_state.window_resources.image_count= capabilities.maxImageCount;
+  vk_state->swapchain.image_count = capabilities.minImageCount + 1;
+  if (capabilities.maxImageCount > 0 && vk_state->swapchain.image_count > capabilities.maxImageCount) {
+    vk_state->swapchain.image_count= capabilities.maxImageCount;
   }
 
   // Get Surface Format
   Arena* tmp_arena = AllocateArena(Kilobytes(64));
   {
     u32 format_count = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(r_vk_state.device.physical, r_vk_state.window_resources.surface, &format_count, 0);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vk_state->device.physical, vk_state->swapchain.surface, &format_count, 0);
     VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(tmp_arena, format_count * sizeof(VkSurfaceFormatKHR));
-    vkGetPhysicalDeviceSurfaceFormatsKHR(r_vk_state.device.physical, r_vk_state.window_resources.surface, &format_count, formats);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vk_state->device.physical, vk_state->swapchain.surface, &format_count, formats);
 
     for (u32 i = 0; i < format_count; i += 1)
     {
       if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
-        r_vk_state.window_resources.surface_format = formats[i];
+        vk_state->swapchain.surface_format = formats[i];
       }
     }
   }
@@ -252,51 +266,50 @@ func void R_VK_CreateSurface(OS_Window* window)
 func void R_VK_CreateSwapchain()
 {
   VkSwapchainCreateInfoKHR swapchain_info = {};
-  swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  swapchain_info.surface = r_vk_state.window_resources.surface;
-  swapchain_info.minImageCount = r_vk_state.window_resources.image_count;
-  swapchain_info.imageFormat = r_vk_state.window_resources.surface_format.format;
-  swapchain_info.imageColorSpace = r_vk_state.window_resources.surface_format.colorSpace;
-  swapchain_info.imageExtent.width = r_vk_state.window_resources.size.width;
-  swapchain_info.imageExtent.height = r_vk_state.window_resources.size.height;
-  swapchain_info.imageArrayLayers = 1;
-  swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-  swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  swapchain_info.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+  swapchain_info.surface               = r_vk_state.swapchain.surface;
+  swapchain_info.minImageCount         = r_vk_state.swapchain.image_count;
+  swapchain_info.imageFormat           = r_vk_state.swapchain.surface_format.format;
+  swapchain_info.imageColorSpace       = r_vk_state.swapchain.surface_format.colorSpace;
+  swapchain_info.imageExtent.width     = r_vk_state.swapchain.size.width;
+  swapchain_info.imageExtent.height    = r_vk_state.swapchain.size.height;
+  swapchain_info.imageArrayLayers      = 1;
+  swapchain_info.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  swapchain_info.imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE;
   swapchain_info.queueFamilyIndexCount = 0;
-  swapchain_info.pQueueFamilyIndices = 0;
-  swapchain_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-  swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  swapchain_info.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-  swapchain_info.clipped = VK_TRUE;
-  // --AlNov: @TODO add oldSwapchain
-  swapchain_info.oldSwapchain = VK_NULL_HANDLE;
+  swapchain_info.pQueueFamilyIndices   = 0;
+  swapchain_info.preTransform          = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+  swapchain_info.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+  swapchain_info.presentMode           = VK_PRESENT_MODE_IMMEDIATE_KHR;
+  swapchain_info.clipped               = VK_TRUE;
+  swapchain_info.oldSwapchain          = VK_NULL_HANDLE;
 
-  VK_CHECK(vkCreateSwapchainKHR(r_vk_state.device.logical, &swapchain_info, 0, &r_vk_state.window_resources.swapchain));
+  VK_CHECK(vkCreateSwapchainKHR(r_vk_state.device.logical, &swapchain_info, 0, &r_vk_state.swapchain.handle));
 
-  vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.window_resources.swapchain, &r_vk_state.window_resources.image_count, 0);
+  vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.swapchain.handle, &r_vk_state.swapchain.image_count, 0);
   // --AlNov: @TODO Images doesnt deleted on swapchain recreation
-  r_vk_state.window_resources.images = (VkImage*)PushArena(r_vk_state.arena, r_vk_state.window_resources.image_count * sizeof(VkImage));
-  vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.window_resources.swapchain, &r_vk_state.window_resources.image_count, r_vk_state.window_resources.images);
+  r_vk_state.swapchain.images = (VkImage*)PushArena(r_vk_state.arena, r_vk_state.swapchain.image_count * sizeof(VkImage));
+  vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.swapchain.handle, &r_vk_state.swapchain.image_count, r_vk_state.swapchain.images);
 
-  r_vk_state.window_resources.image_views = (VkImageView*)PushArena(r_vk_state.arena, r_vk_state.window_resources.image_count * sizeof(VkImageView));
-  for (u32 i = 0; i < r_vk_state.window_resources.image_count; i += 1)
+  r_vk_state.swapchain.image_views = (VkImageView*)PushArena(r_vk_state.arena, r_vk_state.swapchain.image_count * sizeof(VkImageView));
+  for (u32 i = 0; i < r_vk_state.swapchain.image_count; i += 1)
   {
     VkImageViewCreateInfo image_view_info = {};
-    image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    image_view_info.image = r_vk_state.window_resources.images[i];
-    image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    image_view_info.format = r_vk_state.window_resources.surface_format.format;
-    image_view_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    image_view_info.subresourceRange.baseMipLevel = 0;
-    image_view_info.subresourceRange.levelCount = 1;
+    image_view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    image_view_info.image                           = r_vk_state.swapchain.images[i];
+    image_view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+    image_view_info.format                          = r_vk_state.swapchain.surface_format.format;
+    image_view_info.components.r                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.components.g                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.components.b                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.components.a                    = VK_COMPONENT_SWIZZLE_IDENTITY;
+    image_view_info.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_view_info.subresourceRange.baseMipLevel   = 0;
+    image_view_info.subresourceRange.levelCount     = 1;
     image_view_info.subresourceRange.baseArrayLayer = 0;
-    image_view_info.subresourceRange.layerCount = 1;
+    image_view_info.subresourceRange.layerCount     = 1;
 
-    VK_CHECK(vkCreateImageView(r_vk_state.device.logical, &image_view_info, 0, &r_vk_state.window_resources.image_views[i]));
+    VK_CHECK(vkCreateImageView(r_vk_state.device.logical, &image_view_info, 0, &r_vk_state.swapchain.image_views[i]));
   }
 }
 
@@ -323,255 +336,6 @@ func void R_VK_CreateDescriptorPool()
   VK_CHECK(vkCreateDescriptorPool(r_vk_state.device.logical, &pool_info, 0, &r_vk_state.descriptor_pool.pool));
 }
 
-func void R_VK_CreateMvpSetLayout()
-{
-  VkDescriptorSetLayoutBinding mvp_binding_info = {};
-  mvp_binding_info.binding         = 0;
-  mvp_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  mvp_binding_info.descriptorCount = 1;
-  mvp_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
-
-  VkDescriptorSetLayoutBinding sampler_binding_info = {};
-  sampler_binding_info.binding         = 1;
-  sampler_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  sampler_binding_info.descriptorCount = 1;
-  sampler_binding_info.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-  VkDescriptorSetLayoutBinding bindings[2] = { mvp_binding_info, sampler_binding_info };
-
-  VkDescriptorSetLayoutCreateInfo layout_info = {};
-  layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layout_info.bindingCount = 2;
-  layout_info.pBindings    = bindings;
-
-  VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.mvp_layout));
-}
-
-func void R_VK_CreateMeshPipeline()
-{
-  Arena* tmp_arena = AllocateArena(Megabytes(8));
-  {
-    R_VK_ShaderStage vertex_shader_stage   = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default2DVS.spv", "main", R_VK_SHADER_TYPE_VERTEX);
-    R_VK_ShaderStage fragment_shader_stage = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default2DFS.spv", "main", R_VK_SHADER_TYPE_FRAGMENT);
-
-    r_vk_state.mesh_pipeline = R_VK_CreatePipeline(&vertex_shader_stage, &fragment_shader_stage);
-  }
-  FreeArena(tmp_arena);
-}
-
-func void R_VK_CreateSpherePipeline()
-{
-  Arena* tmp_arena = AllocateArena(Megabytes(8));
-  {
-    R_VK_ShaderStage vertex_shader_stage   = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default3DVS.spv", "main", R_VK_SHADER_TYPE_VERTEX);
-    R_VK_ShaderStage fragment_shader_stage = R_VK_CreateShaderModule(tmp_arena, "data/shaders/default3DFS.spv", "main", R_VK_SHADER_TYPE_FRAGMENT);
-
-    r_vk_state.sphere_pipeline = R_VK_CreatePipeline(&vertex_shader_stage, &fragment_shader_stage);
-  }
-  FreeArena(tmp_arena);
-}
-
-func void R_VK_CreateLinePipeline()
-{
-  // --AlNov: Vertex Shader
-  Arena* tmp_arena = AllocateArena(Kilobytes(4000));
-  {
-    const char* vs_path = "data/shaders/lineVS.spv";
-    FILE* vs_file = 0;
-    vs_file = fopen(vs_path, "rb");
-    if (!vs_file)
-    {
-      LOG_ERROR("Cannot open file %s\n", vs_path);
-      return;
-    }
-    fseek(vs_file, 0L, SEEK_END);
-    u32 vs_file_size = ftell(vs_file);
-    u8* vs_code = (u8*)PushArena(tmp_arena, vs_file_size * sizeof(u8));
-    rewind(vs_file);
-    fread(vs_code, vs_file_size * sizeof(u8), 1, vs_file);
-    fclose(vs_file);
-
-    VkShaderModuleCreateInfo vs_module_info = {};
-    vs_module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    vs_module_info.codeSize = vs_file_size;
-    vs_module_info.pCode = (u32*)vs_code;
-
-    VkShaderModule vs_module = {};
-    vkCreateShaderModule(r_vk_state.device.logical, &vs_module_info, 0, &vs_module);
-
-    // --AlNov: Fragment Shader
-    const char* fs_path = "data/shaders/lineFS.spv";
-    FILE* fs_file = fopen(fs_path, "rb");
-    if (!fs_file)
-    {
-      LOG_ERROR("Cannot open file %s\n", fs_path);
-      return;
-    }
-    fseek(fs_file, 0L, SEEK_END);
-    u32 fs_file_size = ftell(fs_file);
-    u8* fs_code = (u8*)PushArena(tmp_arena, fs_file_size * sizeof(u8));
-    rewind(fs_file);
-    fread(fs_code, fs_file_size * sizeof(u8), 1, fs_file);
-    fclose(fs_file);
-
-    VkShaderModuleCreateInfo fs_module_info = {};
-    fs_module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    fs_module_info.codeSize = fs_file_size;
-    fs_module_info.pCode = (u32*)fs_code;
-
-    VkShaderModule fs_module = {};
-    vkCreateShaderModule(r_vk_state.device.logical, &fs_module_info, 0, &fs_module);
-
-    VkPipelineShaderStageCreateInfo vertex_shader_info = {};
-    vertex_shader_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertex_shader_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertex_shader_info.module = vs_module;
-    vertex_shader_info.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragment_shader_info = {};
-    fragment_shader_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragment_shader_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragment_shader_info.module = fs_module;
-    fragment_shader_info.pName = "main";
-
-    VkPipelineShaderStageCreateInfo stages[] = {
-      vertex_shader_info,
-      fragment_shader_info,
-    };
-
-    VkVertexInputBindingDescription vertex_description = {};
-    vertex_description.binding = 0;
-    vertex_description.stride = sizeof(Vec3f);
-    vertex_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    VkVertexInputAttributeDescription vertex_attribute_description = {};
-    vertex_attribute_description.location = 0;
-    vertex_attribute_description.binding = 0;
-    vertex_attribute_description.format = VK_FORMAT_R32G32B32_SFLOAT;
-    vertex_attribute_description.offset = 0;
-
-    VkPipelineVertexInputStateCreateInfo vertex_input_state_info = {};
-    vertex_input_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_state_info.vertexBindingDescriptionCount = 1;
-    vertex_input_state_info.pVertexBindingDescriptions = &vertex_description;
-    vertex_input_state_info.vertexAttributeDescriptionCount = 1;
-    vertex_input_state_info.pVertexAttributeDescriptions = &vertex_attribute_description;
-
-    VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = {};
-    input_assembly_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    input_assembly_state_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-    input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
-
-    // --AlNov: Viewport State
-    VkViewport viewport = {};
-    viewport.x = 0;
-    viewport.y = 0;
-    viewport.height = r_vk_state.window_resources.size.height;
-    viewport.width = r_vk_state.window_resources.size.width;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-
-    VkRect2D scissor = {};
-    scissor.offset = {0, 0};
-    scissor.extent.height = r_vk_state.window_resources.size.height;
-    scissor.extent.width = r_vk_state.window_resources.size.width;
-
-    VkPipelineViewportStateCreateInfo viewport_state_info = {};
-    viewport_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewport_state_info.viewportCount = 1;
-    viewport_state_info.pViewports = &viewport;
-    viewport_state_info.scissorCount = 1;
-    viewport_state_info.pScissors = &scissor;
-
-    VkPipelineRasterizationStateCreateInfo rasterization_state_info = {};
-    rasterization_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterization_state_info.depthClampEnable = VK_FALSE;
-    rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
-    // rasterization_state_info.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterization_state_info.cullMode = VK_CULL_MODE_NONE;
-    rasterization_state_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterization_state_info.depthBiasEnable = VK_FALSE;
-    rasterization_state_info.lineWidth = 1.0f;
-
-    VkPipelineMultisampleStateCreateInfo multisample_state_info = {};
-    multisample_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisample_state_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisample_state_info.sampleShadingEnable = VK_FALSE;
-    multisample_state_info.minSampleShading = 0.0f;
-    multisample_state_info.pSampleMask = nullptr;
-    multisample_state_info.alphaToCoverageEnable = VK_FALSE;
-    multisample_state_info.alphaToOneEnable = VK_FALSE;
-
-    VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info = {};
-    depth_stencil_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depth_stencil_state_info.depthTestEnable = VK_FALSE;
-    depth_stencil_state_info.depthWriteEnable = VK_FALSE;
-    depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil_state_info.stencilTestEnable = VK_FALSE;
-
-    VkPipelineColorBlendAttachmentState color_blend_attachment = {};
-    color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT| VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
-      | VK_COLOR_COMPONENT_A_BIT;
-    color_blend_attachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo color_blend_state_info = {};
-    color_blend_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    color_blend_state_info.logicOpEnable = VK_FALSE;
-    color_blend_state_info.attachmentCount = 1;
-    color_blend_state_info.pAttachments = &color_blend_attachment;
-
-    VkPipelineLayoutCreateInfo layout_info = {};
-    layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layout_info.setLayoutCount = 0;
-    layout_info.pSetLayouts = 0;
-    layout_info.pushConstantRangeCount = 0;
-    layout_info.pPushConstantRanges = 0;
-
-    vkCreatePipelineLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.line_pipeline.layout);
-
-    VkGraphicsPipelineCreateInfo pipeline_info = {};
-    pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeline_info.stageCount = 2;
-    pipeline_info.pStages = stages;
-    pipeline_info.pVertexInputState = &vertex_input_state_info;
-    pipeline_info.pInputAssemblyState = &input_assembly_state_info;
-    pipeline_info.pViewportState = &viewport_state_info;
-    pipeline_info.pRasterizationState = &rasterization_state_info;
-    pipeline_info.pMultisampleState = &multisample_state_info;
-    pipeline_info.pDepthStencilState = &depth_stencil_state_info;
-    pipeline_info.pColorBlendState = &color_blend_state_info;
-    pipeline_info.pDynamicState = 0;
-    pipeline_info.layout = r_vk_state.mesh_pipeline.layout;
-    pipeline_info.renderPass = r_vk_state.render_pass.handle;
-    pipeline_info.subpass = 0;
-
-    vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, 0, &r_vk_state.line_pipeline.pipeline);
-  }
-  FreeArena(tmp_arena);
-}
-
-func void R_VK_CreateFramebuffers()
-{
-  u32 image_count = r_vk_state.window_resources.image_count;
-  r_vk_state.window_resources.framebuffers = (VkFramebuffer*)PushArena(r_vk_state.arena, image_count * sizeof(VkFramebuffer));
-
-  for (u32 i = 0; i < image_count; i += 1)
-  {
-    VkImageView attachments[2] = { r_vk_state.window_resources.image_views[i], r_vk_state.depth_view };
-
-    VkFramebufferCreateInfo framebuffer_info = {};
-    framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebuffer_info.renderPass      = r_vk_state.render_pass.handle;
-    framebuffer_info.attachmentCount = 2;
-    framebuffer_info.pAttachments    = attachments;
-    framebuffer_info.width           = r_vk_state.window_resources.size.width;
-    framebuffer_info.height          = r_vk_state.window_resources.size.height;
-    framebuffer_info.layers          = 1;
-
-    VK_CHECK(vkCreateFramebuffer(r_vk_state.device.logical, &framebuffer_info, 0, &r_vk_state.window_resources.framebuffers[i]));
-  }
-}
-
 func void R_VK_CreateSyncTools()
 {
   for (i32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
@@ -595,8 +359,8 @@ func void R_VK_CreateDepthImage()
   VkImageCreateInfo image_info = {};
   image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_info.imageType     = VK_IMAGE_TYPE_2D;
-  image_info.extent.width  = r_vk_state.window_resources.size.x;
-  image_info.extent.height = r_vk_state.window_resources.size.y;
+  image_info.extent.width  = r_vk_state.swapchain.size.x;
+  image_info.extent.height = r_vk_state.swapchain.size.y;
   image_info.extent.depth  = 1;
   image_info.mipLevels     = 1;
   image_info.arrayLayers   = 1;
@@ -644,7 +408,7 @@ func void R_VK_CreateRenderPass(
 )
 {
   VkAttachmentDescription color_attachment = {};
-  color_attachment.format         = vk_state->window_resources.surface_format.format;
+  color_attachment.format         = vk_state->swapchain.surface_format.format;
   color_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
   color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
   color_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
@@ -718,12 +482,12 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
   render_pass->handle = 0;
 }
 
-func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, VkFramebuffer framebuffer)
+func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer)
 {
   VkRenderPassBeginInfo begin_info = {};
   begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   begin_info.renderPass               = render_pass->handle;
-  begin_info.framebuffer              = framebuffer;
+  begin_info.framebuffer              = framebuffer->handle;
   begin_info.renderArea.offset.x      = render_pass->render_area.x0;
   begin_info.renderArea.offset.y      = render_pass->render_area.y0;
   begin_info.renderArea.extent.width  = render_pass->render_area.x1 - render_pass->render_area.x0;
@@ -840,7 +604,43 @@ func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool poo
 // --AlNov: Command Buffer @END --------------------------------------
 
 // -------------------------------------------------------------------
-// --AlNov: Pipeline Functions ---------------------------------------
+// --AlNov: Framebuffer ----------------------------------------------
+func void R_VK_CreateFramebuffer(
+  R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size,
+  u32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer
+)
+{
+  out_framebuffer->attachments = (VkImageView*)PushArena(vk_state->arena, sizeof(VkImageView) * attachment_count);
+  for (u32 i = 0; i < attachment_count; i += 1)
+  {
+    out_framebuffer->attachments[i] = attachments[i];
+  }
+  out_framebuffer->render_pass      = render_pass;
+  out_framebuffer->attachment_count = attachment_count;
+
+  VkFramebufferCreateInfo framebuffer_info = {};
+  framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+  framebuffer_info.renderPass      = r_vk_state.render_pass.handle;
+  framebuffer_info.attachmentCount = attachment_count;
+  framebuffer_info.pAttachments    = out_framebuffer->attachments;
+  framebuffer_info.width           = size.width;
+  framebuffer_info.height          = size.height;
+  framebuffer_info.layers          = 1;
+
+  VK_CHECK(vkCreateFramebuffer(vk_state->device.logical, &framebuffer_info, 0, &out_framebuffer->handle));
+}
+
+func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer)
+{
+  vkDestroyFramebuffer(vk_state->device.logical, framebuffer->handle, 0);
+  
+  // --AlNov: @TODO @EROR There is memory leak. Don't free attachments
+  *framebuffer = {};
+}
+// --AlNov: Framebuffer @END -----------------------------------------
+
+// -------------------------------------------------------------------
+// --AlNov: Shader ---------------------------------------------------
 func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, const char* enter_point, R_VK_ShaderType type)
 {
   // --AlNov: @TODO Remove Arena allocation
@@ -880,13 +680,54 @@ func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, co
   return shader_stage;
 }
 
-func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_VK_ShaderStage* fragment_shader_stage)
+func void R_VK_CreateShaderProgram(R_VK_State* vk_state, const char* vertex_path, const char* fragment_path, R_VK_ShaderProgram* out_program)
+{
+  Arena* tmp_arena = AllocateArena(Megabytes(8));
+  {
+    out_program->shader_stages[R_VK_SHADER_TYPE_VERTEX] = R_VK_CreateShaderModule(tmp_arena, vertex_path, "main", R_VK_SHADER_TYPE_VERTEX);
+    out_program->shader_stages[R_VK_SHADER_TYPE_FRAGMENT] = R_VK_CreateShaderModule(tmp_arena, fragment_path, "main", R_VK_SHADER_TYPE_FRAGMENT);
+
+    VkDescriptorSetLayoutBinding mvp_binding_info = {};
+    mvp_binding_info.binding         = 0;
+    mvp_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    mvp_binding_info.descriptorCount = 1;
+    mvp_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutBinding sampler_binding_info = {};
+    sampler_binding_info.binding         = 1;
+    sampler_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sampler_binding_info.descriptorCount = 1;
+    sampler_binding_info.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutBinding bindings[2] = { mvp_binding_info, sampler_binding_info };
+
+    VkDescriptorSetLayoutCreateInfo layout_info = {};
+    layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = 2;
+    layout_info.pBindings    = bindings;
+
+    VK_CHECK(vkCreateDescriptorSetLayout(vk_state->device.logical, &layout_info, 0, &out_program->set_layout));
+
+    out_program->pipeline = R_VK_CreatePipeline(out_program);
+  }
+  FreeArena(tmp_arena);
+}
+
+func void R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program)
+{
+  vkCmdBindPipeline(command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline.handle);
+}
+// --AlNov: Shader @END ----------------------------------------------
+
+// -------------------------------------------------------------------
+// --AlNov: Pipeline -------------------------------------------------
+func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderProgram* program)
 {
   R_VK_Pipeline result = {};
 
   VkPipelineShaderStageCreateInfo stages[] = {
-    vertex_shader_stage->vk_info,
-    fragment_shader_stage->vk_info,
+    program->shader_stages[R_VK_SHADER_TYPE_VERTEX].vk_info,
+    program->shader_stages[R_VK_SHADER_TYPE_FRAGMENT].vk_info,
   };
 
   VkVertexInputBindingDescription vertex_description = {};
@@ -934,15 +775,15 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
   VkViewport viewport = {};
   viewport.x        = 0;
   viewport.y        = 0;
-  viewport.height   = r_vk_state.window_resources.size.height;
-  viewport.width    = r_vk_state.window_resources.size.width;
+  viewport.height   = r_vk_state.swapchain.size.height;
+  viewport.width    = r_vk_state.swapchain.size.width;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
 
   VkRect2D scissor = {};
   scissor.offset        = {0, 0};
-  scissor.extent.height = r_vk_state.window_resources.size.height;
-  scissor.extent.width  = r_vk_state.window_resources.size.width;
+  scissor.extent.height = r_vk_state.swapchain.size.height;
+  scissor.extent.width  = r_vk_state.swapchain.size.width;
 
   VkPipelineViewportStateCreateInfo viewport_state_info = {};
   viewport_state_info.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -992,7 +833,7 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
   VkPipelineLayoutCreateInfo layout_info = {};
   layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   layout_info.setLayoutCount         = 1;
-  layout_info.pSetLayouts            = &r_vk_state.mvp_layout;
+  layout_info.pSetLayouts            = &program->set_layout;
   layout_info.pushConstantRangeCount = 0;
   layout_info.pPushConstantRanges    = 0;
 
@@ -1014,10 +855,11 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderStage* vertex_shader_stage, R_
   pipeline_info.renderPass          = r_vk_state.render_pass.handle;
   pipeline_info.subpass             = 0;
 
-  VK_CHECK(vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, nullptr, &result.pipeline));
+  VK_CHECK(vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, nullptr, &result.handle));
 
   return result;
 }
+// --AlNov: Pipeline @END --------------------------------------------
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
@@ -1030,28 +872,21 @@ func b8 R_VK_DrawFrame()
   // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
   u32 image_index;
   VkResult image_acquire_result = vkAcquireNextImageKHR(
-      r_vk_state.device.logical, r_vk_state.window_resources.swapchain,
+      r_vk_state.device.logical, r_vk_state.swapchain.handle,
       U64_MAX, r_vk_state.sync_tools.image_available_semaphores[current_frame],
       0, &image_index
       );
 
   vkResetFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[current_frame]);
 
-  // --AlNov: @TODO Return resize. Maybe event fix it
-  // if (image_require_result == VK_ERROR_OUT_OF_DATE_KHR)
-  // {
-  //   R_VK_HandleWindowResize();
-  //   return;
-  // }
-
   R_VK_CommandBuffer* command_buffer = &r_vk_state.command_buffers[current_frame];
   vkResetCommandBuffer(command_buffer->handle, 0);
 
   R_VK_BeginCommandBuffer(command_buffer);
   {
-    R_VK_BeginRenderPass(command_buffer, &r_vk_state.render_pass, r_vk_state.window_resources.framebuffers[image_index]);
+    R_VK_BeginRenderPass(command_buffer, &r_vk_state.render_pass, &r_vk_state.swapchain.framebuffers[image_index]);
     {
-      vkCmdBindPipeline(command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.pipeline);
+      R_VK_BindShaderProgram(command_buffer, &r_vk_state.sphere_program);
 
       // --AlNov: Draw Meshes
       for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
@@ -1062,7 +897,7 @@ func b8 R_VK_DrawFrame()
         set_info.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         set_info.descriptorPool     = r_vk_state.descriptor_pool.pool;
         set_info.descriptorSetCount = 1;
-        set_info.pSetLayouts        = &r_vk_state.mvp_layout;
+        set_info.pSetLayouts        = &r_vk_state.sphere_program.set_layout;
 
         VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
 
@@ -1099,7 +934,7 @@ func b8 R_VK_DrawFrame()
         vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
 
         vkCmdBindDescriptorSets(
-          command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+          command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_program.pipeline.layout,
           0, 1, &mesh_to_draw->mvp_set, 0, 0
         );
 
@@ -1108,20 +943,6 @@ func b8 R_VK_DrawFrame()
 
         vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
       }
-
-      // --AlNov: Draw Lines
-      /*
-      vkCmdBindPipeline(cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.line_pipeline.pipeline);
-      for (R_Line* line = r_vk_state.line_list.first; line; line = line->next)
-      {
-        VkDeviceSize vertex_buffer_offsets[] = { r_vk_state.vertex_buffer.current_position };
-        R_VK_PushVertexBuffer(&r_vk_state.vertex_buffer, line->vertecies, 2 * sizeof(R_LineVertex));
-
-        vkCmdBindVertexBuffers(cmd_buffer, 0, 1, &r_vk_state.vertex_buffer.buffer, vertex_buffer_offsets);
-
-        vkCmdDraw(cmd_buffer, 2, 1, 0, 0);
-      }
-      */
     }
     R_VK_EndRenderPass(command_buffer, &r_vk_state.render_pass);
   }
@@ -1151,7 +972,7 @@ func b8 R_VK_DrawFrame()
   present_info.waitSemaphoreCount = 1;
   present_info.pWaitSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
   present_info.swapchainCount     = 1;
-  present_info.pSwapchains        = &r_vk_state.window_resources.swapchain;
+  present_info.pSwapchains        = &r_vk_state.swapchain.handle;
   present_info.pImageIndices      = &image_index;
   present_info.pResults           = 0;
 

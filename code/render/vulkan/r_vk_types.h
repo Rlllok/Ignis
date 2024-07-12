@@ -1,9 +1,17 @@
 #pragma once
-
 #include "../../third_party/vulkan/include/vulkan.h"
 #include "../../third_party/vulkan/include/vulkan_win32.h"
 
 #include "../../base/base_include.h"
+
+// -------------------------------------------------------------------
+// AlNov: Device -----------------------------------------------------
+struct R_VK_Device
+{
+  VkDevice logical;
+  VkPhysicalDevice physical;
+  u32 queue_index;
+};
 
 // -------------------------------------------------------------------
 // --AlNov: Render Pass ----------------------------------------------
@@ -56,6 +64,67 @@ struct R_VK_CommandPool
 {
   VkCommandPool pool;
   VkCommandBuffer buffers[NUM_FRAMES_IN_FLIGHT];
+};
+
+// -------------------------------------------------------------------
+// --AlNov: Framebuffer ----------------------------------------------
+struct R_VK_Framebuffer
+{
+  VkFramebuffer    handle;
+  u32              attachment_count;
+  VkImageView*     attachments;
+  R_VK_RenderPass* render_pass;
+};
+
+// -------------------------------------------------------------------
+// --AlNov: Swapchain ------------------------------------------------
+struct R_VK_Swapchain
+{
+  VkSwapchainKHR     handle;
+  VkSurfaceKHR       surface;
+  VkSurfaceFormatKHR surface_format;
+  Vec2u              size;
+  u32                image_count;
+  VkImage*           images;
+  VkImageView*       image_views;
+  R_VK_Framebuffer*  framebuffers;
+};
+
+// -------------------------------------------------------------------
+// --AlNov: Pipeline -------------------------------------------------
+struct R_VK_Pipeline
+{
+  VkPipeline       handle;
+  VkPipelineLayout layout;
+};
+
+// -------------------------------------------------------------------
+// --AlNov: Shader ---------------------------------------------------
+enum R_VK_ShaderType
+{
+  R_VK_SHADER_TYPE_NONE,
+  R_VK_SHADER_TYPE_VERTEX,
+  R_VK_SHADER_TYPE_FRAGMENT,
+
+  R_VK_SHADER_TYPE_COUNT
+};
+
+struct R_VK_ShaderStage
+{
+  R_VK_ShaderType type;
+  const char*     enter_point;
+  u32             code_size;
+  u8*             code;
+  
+  VkShaderModule                  vk_handle;
+  VkPipelineShaderStageCreateInfo vk_info;
+};
+
+struct R_VK_ShaderProgram
+{
+  R_VK_ShaderStage      shader_stages[R_VK_SHADER_TYPE_COUNT];
+  R_VK_Pipeline         pipeline;
+  VkDescriptorSetLayout set_layout;
 };
 
 // -------------------------------------------------------------------
@@ -149,36 +218,10 @@ struct R_Texture
 
 // -------------------------------------------------------------------
 // --AlNov: Main States ----------------------------------------------
-struct R_VK_Device
-{
-  VkDevice logical;
-  VkPhysicalDevice physical;
-  u32 queue_index;
-};
-
-struct R_VK_WindowResources
-{
-  VkSwapchainKHR     swapchain;
-  VkSurfaceKHR       surface;
-  VkSurfaceFormatKHR surface_format;
-  Vec2u              size;
-  u32                image_count;
-  VkImage*           images;
-  VkImageView*       image_views;
-  VkFramebuffer*     framebuffers;
-
-  bool is_window_resized;
-};
 
 struct R_VK_DescriptorPool
 {
   VkDescriptorPool pool;
-};
-
-struct R_VK_Pipeline
-{
-  VkPipeline pipeline;
-  VkPipelineLayout layout;
 };
 
 struct R_VK_SyncTools
@@ -216,29 +259,6 @@ struct R_VK_Buffer
 };
 
 // -------------------------------------------------------------------
-// --AlNov: Pipeline -------------------------------------------------
-enum R_VK_ShaderType
-{
-  R_VK_SHADER_TYPE_NONE,
-  R_VK_SHADER_TYPE_VERTEX,
-  R_VK_SHADER_TYPE_FRAGMENT,
-
-  R_VK_SHADER_TYPE_COUNT
-};
-
-struct R_VK_ShaderStage
-{
-  R_VK_ShaderType type;
-  const char*     enter_point;
-  u32             code_size;
-  u8*             code;
-  
-  // --AlNov: Vulkan
-  VkShaderModule                  vk_handle;
-  VkPipelineShaderStageCreateInfo vk_info;
-};
-
-// -------------------------------------------------------------------
 // --AlNov: State ----------------------------------------------------
 struct R_VK_State
 {
@@ -246,7 +266,7 @@ struct R_VK_State
 
   VkInstance           instance;
   R_VK_Device          device;
-  R_VK_WindowResources window_resources;
+  R_VK_Swapchain       swapchain;
   VkCommandPool        command_pool;
   R_VK_CommandBuffer*  command_buffers;
   R_VK_DescriptorPool  descriptor_pool;
@@ -255,13 +275,12 @@ struct R_VK_State
   R_VK_Buffer          staging_buffer;
   
   R_VK_RenderPass render_pass;
-  R_VK_Pipeline   mesh_pipeline;
-  R_VK_Pipeline   sphere_pipeline;
-  R_VK_Pipeline   line_pipeline;
+
+  R_VK_ShaderProgram mesh_program;
+  R_VK_ShaderProgram sphere_program;
+  R_VK_ShaderProgram line_program;
 
   R_View view;
-
-  VkDescriptorSetLayout mvp_layout;
 
   R_MeshList mesh_list;
   R_LineList line_list;
