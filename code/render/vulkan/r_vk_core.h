@@ -22,11 +22,8 @@ func void R_VK_CreateDevice();
 func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain);
 func void R_VK_CreateSwapchain();
 func void R_VK_CreateDescriptorPool();
-func void R_VK_AllocateCommandBuffers();
 func void R_VK_CreateSyncTools();
 func void R_VK_CreateDepthImage();
-
-func void R_VK_CreateCommandBuffers(R_VK_State* _vk_state);
 
 // -------------------------------------------------------------------
 // --AlNov: Render Pass ----------------------------------------------
@@ -56,7 +53,7 @@ func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* frameb
 // --AlNov: Shader ---------------------------------------------------
 func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, const char* enter_point, R_VK_ShaderType type);
 func void             R_VK_CreateShaderProgram(R_VK_State* vk_state, const char* vertex_path, const char* fragment_path, R_VK_ShaderProgram* out_program);
-func void             R_VK_BindShaderProgram(R_VK_ShaderProgram* program);
+func void             R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program);
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------

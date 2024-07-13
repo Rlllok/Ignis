@@ -78,9 +78,8 @@ func b8 R_VK_Init(OS_Window* window)
   render_area.x1 = r_vk_state.swapchain.size.width;
   render_area.y1 = r_vk_state.swapchain.size.height;
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area, MakeVec4f(0.05f, 0.05f, 0.05f, 1.0f), 1.0f, 0);
-  // R_VK_CreateMeshPipeline();
-  // R_VK_CreateLinePipeline();
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVS.spv", "data/shaders/default3DFS.spv", &r_vk_state.sphere_program);
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVStest.spv", "data/shaders/default3DFStest.spv", &r_vk_state.sphere_program);
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/defaultFullscreenVS.spv", "data/shaders/defaultFullscreenFS.spv", &r_vk_state.fullscreen_program);
   // --AlNov: Create Framebuffers
   {
     u32 image_count = r_vk_state.swapchain.image_count;
@@ -889,59 +888,89 @@ func b8 R_VK_DrawFrame()
       R_VK_BindShaderProgram(command_buffer, &r_vk_state.sphere_program);
 
       // --AlNov: Draw Meshes
-      for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
+      for (R_Mesh *mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
       {
         R_VK_PushMeshToBuffer(mesh_to_draw);
 
         VkDescriptorSetAllocateInfo set_info = {};
-        set_info.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        set_info.descriptorPool     = r_vk_state.descriptor_pool.pool;
+        set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
         set_info.descriptorSetCount = 1;
-        set_info.pSetLayouts        = &r_vk_state.sphere_program.set_layout;
+        set_info.pSetLayouts = &r_vk_state.sphere_program.set_layout;
 
         VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
 
         VkDescriptorBufferInfo buffer_info = {};
         buffer_info.buffer = r_vk_state.big_buffer.buffer;
         buffer_info.offset = mesh_to_draw->mvp_offset;
-        buffer_info.range  = sizeof(R_VK_MVP);
+        buffer_info.range = sizeof(R_VK_MVP);
 
         VkDescriptorImageInfo image_info = {};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView   = r_vk_state.texture.vk_view;
-        image_info.sampler     = r_vk_state.sampler;
+        image_info.imageView = r_vk_state.texture.vk_view;
+        image_info.sampler = r_vk_state.sampler;
 
         VkWriteDescriptorSet buffer_write_set = {};
-        buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        buffer_write_set.dstSet          = mesh_to_draw->mvp_set;
-        buffer_write_set.dstBinding      = 0;
+        buffer_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        buffer_write_set.dstSet = mesh_to_draw->mvp_set;
+        buffer_write_set.dstBinding = 0;
         buffer_write_set.dstArrayElement = 0;
-        buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        buffer_write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         buffer_write_set.descriptorCount = 1;
-        buffer_write_set.pBufferInfo     = &buffer_info;
-        
-        VkWriteDescriptorSet image_write_set = {};
-        image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        image_write_set.dstSet          = mesh_to_draw->mvp_set;
-        image_write_set.dstBinding      = 1;
-        image_write_set.dstArrayElement = 0;
-        image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        image_write_set.descriptorCount = 1;
-        image_write_set.pImageInfo      = &image_info;
+        buffer_write_set.pBufferInfo = &buffer_info;
 
-        VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
+        VkWriteDescriptorSet image_write_set = {};
+        image_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        image_write_set.dstSet = mesh_to_draw->mvp_set;
+        image_write_set.dstBinding = 1;
+        image_write_set.dstArrayElement = 0;
+        image_write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        image_write_set.descriptorCount = 1;
+        image_write_set.pImageInfo = &image_info;
+
+        VkWriteDescriptorSet write_sets[2] = {buffer_write_set, image_write_set};
 
         vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
 
         vkCmdBindDescriptorSets(
-          command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_program.pipeline.layout,
-          0, 1, &mesh_to_draw->mvp_set, 0, 0
-        );
+            command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_program.pipeline.layout,
+            0, 1, &mesh_to_draw->mvp_set, 0, 0);
 
         vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
         vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
 
         vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
+      }
+
+      R_VK_BindShaderProgram(command_buffer, &r_vk_state.fullscreen_program);
+      {
+        Arena *arena = AllocateArena(Megabytes(2));
+        R_Mesh mesh = {};
+        mesh.mvp = {};
+        mesh.vertex_count = 4;
+        mesh.vertecies = (R_MeshVertex *)PushArena(arena, sizeof(R_MeshVertex) * mesh.vertex_count);
+        mesh.vertecies[0].position = MakeVec3f(-1.0f, -1.0f, 0.0f);
+        mesh.vertecies[1].position = MakeVec3f(1.0f, -1.0f, 0.0f);
+        mesh.vertecies[2].position = MakeVec3f(1.0f, 1.0f, 0.0f);
+        mesh.vertecies[3].position = MakeVec3f(-1.0f, 1.0f, 0.0f);
+        mesh.vertecies[0].uv = MakeVec2f(0.0f, 1.0f);
+        mesh.vertecies[1].uv = MakeVec2f(1.0f, 1.0f);
+        mesh.vertecies[2].uv = MakeVec2f(1.0f, 0.0f);
+        mesh.vertecies[3].uv = MakeVec2f(0.0f, 0.0f);
+        mesh.index_count = 6;
+        mesh.indecies = (u32 *)PushArena(arena, sizeof(R_MeshVertex) * mesh.index_count);
+        mesh.indecies[0] = 0;
+        mesh.indecies[1] = 1;
+        mesh.indecies[2] = 2;
+        mesh.indecies[3] = 2;
+        mesh.indecies[4] = 3;
+        mesh.indecies[5] = 0;
+
+        R_VK_PushMeshToBuffer(&mesh);
+        vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh.vertex_offset);
+        vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh.index_offset, VK_INDEX_TYPE_UINT32);
+
+        vkCmdDrawIndexed(command_buffer->handle, mesh.index_count, 1, 0, 0, 0);
       }
     }
     R_VK_EndRenderPass(command_buffer, &r_vk_state.render_pass);

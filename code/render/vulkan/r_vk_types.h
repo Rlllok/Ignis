@@ -279,6 +279,7 @@ struct R_VK_State
   R_VK_ShaderProgram mesh_program;
   R_VK_ShaderProgram sphere_program;
   R_VK_ShaderProgram line_program;
+  R_VK_ShaderProgram fullscreen_program;
 
   R_View view;
 
