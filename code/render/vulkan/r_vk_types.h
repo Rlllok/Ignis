@@ -216,6 +216,26 @@ struct R_Texture
   VkDeviceSize   size;
 };
 
+enum R_CubeMapSideType
+{
+  R_CUBE_MAP_SIDE_TYPE_RIGHT,
+  R_CUBE_MAP_SIDE_TYPE_LEFT,
+  R_CUBE_MAP_SIDE_TYPE_TOP,
+  R_CUBE_MAP_SIDE_TYPE_BOTTOM,
+  R_CUBE_MAP_SIDE_TYPE_BACK,
+  R_CUBE_MAP_SIDE_TYPE_FRONT,
+
+  R_CUBE_MAP_SIDE_TYPE_COUNT
+};
+
+struct R_VK_CubeMap
+{
+  VkImage        image;
+  VkImageView    view;
+  VkDeviceMemory memory;
+  VkDeviceSize   size;
+};
+
 // -------------------------------------------------------------------
 // --AlNov: Main States ----------------------------------------------
 
@@ -276,10 +296,12 @@ struct R_VK_State
   
   R_VK_RenderPass render_pass;
 
+  R_VK_ShaderProgram skybox_program;
   R_VK_ShaderProgram mesh_program;
   R_VK_ShaderProgram sphere_program;
   R_VK_ShaderProgram line_program;
   R_VK_ShaderProgram fullscreen_program;
+  R_VK_ShaderProgram SDF_program;
 
   R_View view;
 
@@ -287,6 +309,7 @@ struct R_VK_State
   R_LineList line_list;
 
   R_Texture texture;
+  R_VK_CubeMap cubemap;
   VkSampler sampler;
 
   VkImage        depth_image;

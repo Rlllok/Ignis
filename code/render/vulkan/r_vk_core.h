@@ -77,7 +77,7 @@ func VkCommandBuffer R_VK_BeginSingleCommands();
 func void            R_VK_EndSingleCommands(VkCommandBuffer command_buffer);
 func void            R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
 func void            R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions);
-func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout);
 
 // -------------------------------------------------------------------
 // --AlNov: Mesh List Functions
@@ -91,7 +91,10 @@ func void R_AddLineToDrawList(R_Line* line);
 
 // -------------------------------------------------------------------
 // --AlNov: Texture --------------------------------------------------
+func bool LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels);
+
 func R_Texture R_VK_CreateTexture(const char* path);
+func void      R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap);
 
 // -------------------------------------------------------------------
 // --AlNov: View -----------------------------------------------------

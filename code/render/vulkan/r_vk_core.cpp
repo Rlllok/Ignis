@@ -78,8 +78,10 @@ func b8 R_VK_Init(OS_Window* window)
   render_area.x1 = r_vk_state.swapchain.size.width;
   render_area.y1 = r_vk_state.swapchain.size.height;
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area, MakeVec4f(0.05f, 0.05f, 0.05f, 1.0f), 1.0f, 0);
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVStest.spv", "data/shaders/default3DFStest.spv", &r_vk_state.sphere_program);
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/skyboxVS.spv", "data/shaders/skyboxFS.spv", &r_vk_state.skybox_program);
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVS.spv", "data/shaders/default3DFS.spv", &r_vk_state.sphere_program);
   R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/defaultFullscreenVS.spv", "data/shaders/defaultFullscreenFS.spv", &r_vk_state.fullscreen_program);
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/SDFVS.spv", "data/shaders/SDFFS.spv", &r_vk_state.SDF_program);
   // --AlNov: Create Framebuffers
   {
     u32 image_count = r_vk_state.swapchain.image_count;
@@ -106,6 +108,8 @@ func b8 R_VK_Init(OS_Window* window)
     }
   }
   r_vk_state.texture = R_VK_CreateTexture("data/uv_checker.png");
+  R_VK_CreateCubeMap("", &r_vk_state.cubemap);
+
   R_VK_CreateSyncTools();
 
   r_vk_state.big_buffer = {};
@@ -650,11 +654,8 @@ func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, co
   FILE* file = 0;
 
   file = fopen(path, "rb");
-  if (!file)
-  {
-    LOG_ERROR("Cannot open file %s\n", path);
-    return shader_stage;
-  }
+
+  ASSERT(!file);
 
   fseek(file, 0L, SEEK_END);
   u32 file_size     = ftell(file);
@@ -885,6 +886,11 @@ func b8 R_VK_DrawFrame()
   {
     R_VK_BeginRenderPass(command_buffer, &r_vk_state.render_pass, &r_vk_state.swapchain.framebuffers[image_index]);
     {
+      // R_VK_BindShaderProgram(command_buffer, &r_vk_state.skybox_program);
+      {
+        // vkCmdDraw(command_buffer->handle, 36, 1, 0, 0);
+      }
+
       R_VK_BindShaderProgram(command_buffer, &r_vk_state.sphere_program);
 
       // --AlNov: Draw Meshes
@@ -942,7 +948,7 @@ func b8 R_VK_DrawFrame()
         vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
       }
 
-      R_VK_BindShaderProgram(command_buffer, &r_vk_state.fullscreen_program);
+      R_VK_BindShaderProgram(command_buffer, &r_vk_state.SDF_program);
       {
         Arena *arena = AllocateArena(Megabytes(2));
         R_Mesh mesh = {};
@@ -1184,7 +1190,7 @@ func void R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dim
   R_VK_EndSingleCommands(command_buffer);
 }
 
-func void R_VK_TransitImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
+func void R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout)
 {
   VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
   {
@@ -1199,7 +1205,7 @@ func void R_VK_TransitImageLayout(VkImage image, VkFormat format, VkImageLayout 
     image_barrier.subresourceRange.baseMipLevel   = 0;
     image_barrier.subresourceRange.levelCount     = 1;
     image_barrier.subresourceRange.baseArrayLayer = 0;
-    image_barrier.subresourceRange.layerCount     = 1;
+    image_barrier.subresourceRange.layerCount     = layer_count;
 
     VkPipelineStageFlags src_stage;
     VkPipelineStageFlags dst_stage;
@@ -1286,23 +1292,30 @@ func void R_AddLineToDrawList(R_Line* line)
   R_PushLine(&r_vk_state.line_list, line);
 }
 
+func bool LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels)
+{
+  *out_data = stbi_load(path, out_width, out_height, out_channels, STBI_rgb_alpha);
+
+  if (!out_data)
+  {
+    LOG_ERROR("Cannot load texture %s\n", path);
+    return false;
+  }
+
+  return true;
+}
+
 func R_Texture R_VK_CreateTexture(const char* path)
 {
   R_Texture texture = {};
 
-  i32 tex_width;
-  i32 tex_height;
-  i32 tex_channels;
-
-  stbi_uc* tex_pixels = stbi_load(path, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+  i32 tex_width    = 0;
+  i32 tex_height   = 0;
+  i32 tex_channels = 0;
+  u8* tex_pixels   = 0;
+  LoadTexture(path, &tex_pixels, &tex_width, &tex_height, &tex_channels);
 
   texture.size = tex_width * tex_height * 4;
-
-  if (!tex_pixels)
-  {
-    LOG_ERROR("Cannot load texture %s\n", path);
-    return texture;
-  }
 
   r_vk_state.staging_buffer = {};
   r_vk_state.staging_buffer.size = texture.size;
@@ -1323,6 +1336,7 @@ func R_Texture R_VK_CreateTexture(const char* path)
 
   VkImageCreateInfo image_info = {};
   image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
   image_info.imageType     = VK_IMAGE_TYPE_2D;
   image_info.extent.width  = tex_width;
   image_info.extent.height = tex_width;
@@ -1348,16 +1362,16 @@ func R_Texture R_VK_CreateTexture(const char* path)
   mem_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   mem_info.allocationSize  = mem_requirements.size;
   mem_info.memoryTypeIndex = R_VK_FindMemoryType(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-  
+
   VK_CHECK(vkAllocateMemory(r_vk_state.device.logical, &mem_info, 0, &texture.vk_memory));
 
   VK_CHECK(vkBindImageMemory(r_vk_state.device.logical, texture.vk_image, texture.vk_memory, 0));
 
-  R_VK_TransitImageLayout(texture.vk_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  R_VK_TransitImageLayout(texture.vk_image, VK_FORMAT_R8G8B8A8_SRGB, 1, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   {
     R_VK_CopyBufferToImage(r_vk_state.staging_buffer.buffer, texture.vk_image, MakeVec2u(tex_width, tex_height));
   }
-  R_VK_TransitImageLayout(texture.vk_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  R_VK_TransitImageLayout(texture.vk_image, VK_FORMAT_R8G8B8A8_SRGB, 1, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
   vkDestroyBuffer(r_vk_state.device.logical, r_vk_state.staging_buffer.buffer, 0);
   vkFreeMemory(r_vk_state.device.logical, r_vk_state.staging_buffer.memory, 0);
@@ -1397,6 +1411,99 @@ func R_Texture R_VK_CreateTexture(const char* path)
   VK_CHECK(vkCreateSampler(r_vk_state.device.logical, &sampler_info, 0, &r_vk_state.sampler));
 
   return texture;
+}
+
+func void R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
+{
+  i32 width = 0;
+  i32 height = 0;
+  i32 channels = 0;
+  u8* datas[R_CUBE_MAP_SIDE_TYPE_COUNT] = {};
+  LoadTexture("E:/Programming/Ignis/data/skybox/front.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_FRONT], &width, &height, &channels);
+  LoadTexture("E:/Programming/Ignis/data/skybox/back.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_BACK], &width, &height, &channels);
+  LoadTexture("E:/Programming/Ignis/data/skybox/right.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_RIGHT], &width, &height, &channels);
+  LoadTexture("E:/Programming/Ignis/data/skybox/left.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_LEFT], &width, &height, &channels);
+  LoadTexture("E:/Programming/Ignis/data/skybox/top.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_TOP], &width, &height, &channels);
+  LoadTexture("E:/Programming/Ignis/data/skybox/bottom.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_BOTTOM], &width, &height, &channels);
+
+  VkDeviceSize image_layer_size = width * height * 4;
+  VkDeviceSize image_size       = image_layer_size * 6;
+
+  R_VK_Buffer staging_buffer = {};
+  staging_buffer.size = image_size;
+  R_VK_CreateBuffer(
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    staging_buffer.size,
+    &staging_buffer.buffer,
+    &staging_buffer.memory
+  );
+
+  VkImageCreateInfo image_info = {};
+  image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
+  image_info.imageType     = VK_IMAGE_TYPE_2D;
+  image_info.extent.width  = width;
+  image_info.extent.height = height;
+  image_info.extent.depth  = 1;
+  image_info.mipLevels     = 1;
+  image_info.arrayLayers   = 6;
+  image_info.format        = VK_FORMAT_R8G8B8A8_SRGB;
+  image_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_info.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+  image_info.flags         = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+  VK_CHECK(vkCreateImage(r_vk_state.device.logical, &image_info, 0, &out_cubemap->image));
+
+  VkMemoryRequirements mem_requirements = {};
+  vkGetImageMemoryRequirements(r_vk_state.device.logical, out_cubemap->image, &mem_requirements);
+
+  VkMemoryAllocateInfo memory_info = {};
+  memory_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  memory_info.allocationSize = mem_requirements.size;
+  memory_info.memoryTypeIndex = R_VK_FindMemoryType(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  VK_CHECK(vkAllocateMemory(r_vk_state.device.logical, &memory_info, 0, &out_cubemap->memory));
+  
+  VK_CHECK(vkBindImageMemory(r_vk_state.device.logical, out_cubemap->image, out_cubemap->memory, 0));
+
+  R_VK_TransitImageLayout(out_cubemap->image, VK_FORMAT_R8G8B8A8_SRGB, 6, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  {
+    for (u32 i = 0; i < R_CUBE_MAP_SIDE_TYPE_COUNT; i += 1)
+    {
+      VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
+      {
+        VkBufferImageCopy copy_info = {};
+        copy_info.bufferOffset = image_layer_size * i;
+        copy_info.bufferRowLength = 0;
+        copy_info.bufferImageHeight = 0;
+        copy_info.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copy_info.imageSubresource.mipLevel = 0;
+        copy_info.imageSubresource.baseArrayLayer = i;
+        copy_info.imageSubresource.layerCount = 1;
+        copy_info.imageOffset = { 0, 0, 0 };
+        copy_info.imageExtent = { (u32)width, (u32)height, 1 };
+
+        vkCmdCopyBufferToImage(command_buffer, staging_buffer.buffer, out_cubemap->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
+      }
+      R_VK_EndSingleCommands(command_buffer);
+    }
+  }
+  R_VK_TransitImageLayout(out_cubemap->image, VK_FORMAT_R8G8B8A8_SRGB, 6, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+  vkDestroyBuffer(r_vk_state.device.logical, staging_buffer.buffer, 0);
+  vkFreeMemory(r_vk_state.device.logical, staging_buffer.memory, 0);
+
+  VkImageViewCreateInfo view_info = {};
+  view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image                           = out_cubemap->image;
+  view_info.viewType                        = VK_IMAGE_VIEW_TYPE_CUBE;
+  view_info.format                          = VK_FORMAT_R8G8B8A8_SRGB;
+  view_info.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+  view_info.subresourceRange.baseMipLevel   = 0;
+  view_info.subresourceRange.levelCount     = 1;
+  view_info.subresourceRange.baseArrayLayer = 0;
+  view_info.subresourceRange.layerCount     = 6;
+  VK_CHECK(vkCreateImageView(r_vk_state.device.logical, &view_info, 0, &out_cubemap->view));
 }
 
 // -------------------------------------------------------------------
