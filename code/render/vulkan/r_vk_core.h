@@ -68,7 +68,6 @@ func b8 R_VK_EndFrame();
 // --AlNov: Helpers --------------------------------------------------
 func u32  R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags);
 func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
-func void R_VK_PushBuffer(R_VK_Buffer* buffer, void* data, u64 size);
 func void R_VK_PushMeshToBuffer(R_Mesh* mesh);
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
 

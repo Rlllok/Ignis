@@ -17,7 +17,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBits
 void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messengerInfo)
 {
   messengerInfo = {};
-  messengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+
+  messengerInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   messengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -25,7 +26,7 @@ void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messen
     | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT;
   messengerInfo.pfnUserCallback = debugCallback;
-  messengerInfo.pUserData = nullptr;
+  messengerInfo.pUserData       = nullptr;
 }
 
 VkResult createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
@@ -82,6 +83,7 @@ func b8 R_VK_Init(OS_Window* window)
   R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVS.spv", "data/shaders/default3DFS.spv", &r_vk_state.sphere_program);
   R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/defaultFullscreenVS.spv", "data/shaders/defaultFullscreenFS.spv", &r_vk_state.fullscreen_program);
   R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/SDFVS.spv", "data/shaders/SDFFS.spv", &r_vk_state.SDF_program);
+  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/noiseVS.spv", "data/shaders/noiseFS.spv", &r_vk_state.noise_program);
   // --AlNov: Create Framebuffers
   {
     u32 image_count = r_vk_state.swapchain.image_count;
@@ -948,7 +950,7 @@ func b8 R_VK_DrawFrame()
         vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
       }
 
-      R_VK_BindShaderProgram(command_buffer, &r_vk_state.SDF_program);
+      R_VK_BindShaderProgram(command_buffer, &r_vk_state.noise_program);
       {
         Arena *arena = AllocateArena(Megabytes(2));
         R_Mesh mesh = {};
@@ -976,7 +978,7 @@ func b8 R_VK_DrawFrame()
         vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh.vertex_offset);
         vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh.index_offset, VK_INDEX_TYPE_UINT32);
 
-        vkCmdDrawIndexed(command_buffer->handle, mesh.index_count, 1, 0, 0, 0);
+        // vkCmdDrawIndexed(command_buffer->handle, mesh.index_count, 1, 0, 0, 0);
       }
     }
     R_VK_EndRenderPass(command_buffer, &r_vk_state.render_pass);

@@ -19,6 +19,9 @@ rem --- Compile Shaders ---
 "C:\VulkanSDK\1.3.268.0\Bin\glslc.exe" SDF.vert -o SDFVS.spv
 "C:\VulkanSDK\1.3.268.0\Bin\glslc.exe" SDF.frag -o SDFFS.spv
 
+"C:\VulkanSDK\1.3.268.0\Bin\glslc.exe" noise.vert -o noiseVS.spv
+"C:\VulkanSDK\1.3.268.0\Bin\glslc.exe" noise.frag -o noiseFS.spv
+
 "C:\VulkanSDK\1.3.268.0\Bin\glslc.exe" skybox.vert -o skyboxVS.spv
 "C:\VulkanSDK\1.3.268.0\Bin\glslc.exe" skybox.frag -o skyboxFS.spv
 

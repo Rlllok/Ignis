@@ -102,7 +102,6 @@ struct R_VK_Pipeline
 // --AlNov: Shader ---------------------------------------------------
 enum R_VK_ShaderType
 {
-  R_VK_SHADER_TYPE_NONE,
   R_VK_SHADER_TYPE_VERTEX,
   R_VK_SHADER_TYPE_FRAGMENT,
 
@@ -302,6 +301,7 @@ struct R_VK_State
   R_VK_ShaderProgram line_program;
   R_VK_ShaderProgram fullscreen_program;
   R_VK_ShaderProgram SDF_program;
+  R_VK_ShaderProgram noise_program;
 
   R_View view;
 

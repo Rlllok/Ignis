@@ -31,8 +31,6 @@ func b8 R_DestroyBackend()
 
 func b8 R_DrawFrame(R_FrameInfo* frame_info)
 {
-  // if (!r_render_state.backend) { return false; }
-
   r_render_state.backend.DrawFrame();
   r_render_state.backend.EndFrame();
 
