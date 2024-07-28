@@ -859,10 +859,11 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderProgram* program)
   return result;
 }
 
-func b8 R_VK_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader)
+func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
 {
   // --AlNov: Vertex Shader
   VkShaderModule vertex_shader_module;
+  R_Shader* vertex_shader = &pipeline->shaders[R_SHADER_TYPE_VERTEX];
   {
     VkShaderModuleCreateInfo module_info = {};
     module_info.sType     = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -878,6 +879,7 @@ func b8 R_VK_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader)
 
   // --AlNov: Fragment Shader
   VkShaderModule fragment_shader_module;
+  R_Shader* fragment_shader = &pipeline->shaders[R_SHADER_TYPE_FRAGMENT];
   {
     VkShaderModuleCreateInfo module_info = {};
     module_info.sType     = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -917,40 +919,30 @@ func b8 R_VK_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader)
 
   VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.sphere_set_layout));
 
+  // --AlNov: @TODO Get rid of hardcoded size of array
+  VkVertexInputAttributeDescription vertex_attributes[3] = {};
+
+  u32 offset = 0;
+  for (u32 i = 0; i < 3; i++)
+  {
+    vertex_attributes[i].location = i;
+    vertex_attributes[i].binding  = 0;
+    vertex_attributes[i].format   = R_VK_VkFormatFromAttributeFormat(pipeline->attributes[i]);
+    vertex_attributes[i].offset   = offset;
+
+    offset += R_H_OffsetFromAttributeFormat(pipeline->attributes[i]);
+  }
+
   VkVertexInputBindingDescription vertex_description = {};
   vertex_description.binding   = 0;
-  vertex_description.stride    = sizeof(R_MeshVertex);
+  vertex_description.stride    = offset;
   vertex_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-  VkVertexInputAttributeDescription vertex_position_description = {};
-  vertex_position_description.location = 0;
-  vertex_position_description.binding  = 0;
-  vertex_position_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
-  vertex_position_description.offset   = offsetof(R_MeshVertex, position);
-
-  VkVertexInputAttributeDescription vertex_normal_description = {};
-  vertex_normal_description.location = 1;
-  vertex_normal_description.binding  = 0;
-  vertex_normal_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
-  vertex_normal_description.offset   = offsetof(R_MeshVertex, normal);
-
-  VkVertexInputAttributeDescription vertex_uv_description = {};
-  vertex_uv_description.location = 2;
-  vertex_uv_description.binding  = 0;
-  vertex_uv_description.format   = VK_FORMAT_R32G32_SFLOAT;
-  vertex_uv_description.offset   = offsetof(R_MeshVertex, uv);
-
-  VkVertexInputAttributeDescription vertex_attributes[3] = {
-    vertex_position_description,
-    vertex_normal_description,
-    vertex_uv_description
-  };
 
   VkPipelineVertexInputStateCreateInfo vertex_input_state_info = {};
   vertex_input_state_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_state_info.vertexBindingDescriptionCount   = 1;
   vertex_input_state_info.pVertexBindingDescriptions      = &vertex_description;
-  vertex_input_state_info.vertexAttributeDescriptionCount = 3;
+  vertex_input_state_info.vertexAttributeDescriptionCount = CountArrayElements(vertex_attributes);
   vertex_input_state_info.pVertexAttributeDescriptions    = vertex_attributes;
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = {};
@@ -1279,6 +1271,17 @@ func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type)
     case R_SHADER_TYPE_FRAGMENT : return VK_SHADER_STAGE_FRAGMENT_BIT;
 
     default: ASSERT(1); return VK_SHADER_STAGE_FRAGMENT_BIT; // --AlNov: type is not supported by Vulkan Layer
+  }
+}
+
+func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
+{
+  switch (format)
+  {
+    case R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT: return VK_FORMAT_R32G32B32_SFLOAT;
+    case R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT: return VK_FORMAT_R32G32_SFLOAT;
+
+    default: ASSERT(1); return VK_FORMAT_R32_SFLOAT; // --AlNov: format is not supported by Vulkan Layer
   }
 }
 

@@ -13,7 +13,7 @@ struct R_Backend
   b8 (*Init)            (OS_Window* window);
   b8 (*DrawFrame)       ();
   b8 (*EndFrame)        ();
-  b8 (*CreatePipeline)  (R_Shader* vertex_shader, R_Shader* fragment_shader);
+  b8 (*CreatePipeline)  (R_Pipeline* pipeline);
 };
 
 struct R_RendererState
@@ -28,4 +28,4 @@ func b8 R_DestroyBackend();
 
 func b8 R_DrawFrame(R_FrameInfo* frame_info);
 
-func b8 R_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader);
+func b8 R_CreatePipeline(R_Pipeline* pipeline);

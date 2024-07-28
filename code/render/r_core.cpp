@@ -39,9 +39,9 @@ func b8 R_DrawFrame(R_FrameInfo* frame_info)
   return true;
 }
 
-func b8 R_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader)
+func b8 R_CreatePipeline(R_Pipeline* pipeline)
 {
-  r_render_state.backend.CreatePipeline(vertex_shader, fragment_shader);
+  r_render_state.backend.CreatePipeline(pipeline);
 
   return true;
 }

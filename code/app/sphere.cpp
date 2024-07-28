@@ -156,12 +156,14 @@ i32 main()
 
   Arena* arena = AllocateArena(Megabytes(128));
 
-  R_Shader vertex_shader = {};
-  R_H_LoadShader(arena, "data/shaders/default3DVS.spv", "main", R_SHADER_TYPE_VERTEX, &vertex_shader);
-  R_Shader fragment_shader = {};
-  R_H_LoadShader(arena, "data/shaders/default3DFS.spv", "main", R_SHADER_TYPE_FRAGMENT, &fragment_shader);
+  R_Pipeline pipeline = {};
+  R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+  R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+  R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
 
-  R_CreatePipeline(&vertex_shader, &fragment_shader);
+  R_H_LoadShader(arena, "data/shaders/default3DVS.spv", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+  R_H_LoadShader(arena, "data/shaders/default3DFS.spv", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+  R_CreatePipeline(&pipeline);
 
   OS_ShowWindow(&window);
   LOG_INFO("Window showed.\n");
