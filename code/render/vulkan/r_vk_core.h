@@ -58,6 +58,7 @@ func void             R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer,
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
 func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderProgram* program);
+func b8 R_VK_CreatePipeline(struct R_Shader* vertex_shader, struct R_Shader* fragment_shader);
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
@@ -70,6 +71,7 @@ func u32  R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags);
 func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
 func void R_VK_PushMeshToBuffer(R_Mesh* mesh);
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
+func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type);
 
 // AlNov: From Vulkan Tutorial @TODO Maybe should be replaced
 func VkCommandBuffer R_VK_BeginSingleCommands();

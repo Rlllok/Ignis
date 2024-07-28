@@ -295,13 +295,8 @@ struct R_VK_State
   
   R_VK_RenderPass render_pass;
 
-  R_VK_ShaderProgram skybox_program;
-  R_VK_ShaderProgram mesh_program;
-  R_VK_ShaderProgram sphere_program;
-  R_VK_ShaderProgram line_program;
-  R_VK_ShaderProgram fullscreen_program;
-  R_VK_ShaderProgram SDF_program;
-  R_VK_ShaderProgram noise_program;
+  R_VK_Pipeline         sphere_pipeline;
+  VkDescriptorSetLayout sphere_set_layout;
 
   R_View view;
 

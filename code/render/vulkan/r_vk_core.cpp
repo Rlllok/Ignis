@@ -5,6 +5,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../../third_party/stb_image.h"
 
+#include "../r_pipeline.h"
+
 global VkDebugUtilsMessengerEXT R_VK_DebugMessenger;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -79,11 +81,6 @@ func b8 R_VK_Init(OS_Window* window)
   render_area.x1 = r_vk_state.swapchain.size.width;
   render_area.y1 = r_vk_state.swapchain.size.height;
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area, MakeVec4f(0.05f, 0.05f, 0.05f, 1.0f), 1.0f, 0);
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/skyboxVS.spv", "data/shaders/skyboxFS.spv", &r_vk_state.skybox_program);
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/default3DVS.spv", "data/shaders/default3DFS.spv", &r_vk_state.sphere_program);
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/defaultFullscreenVS.spv", "data/shaders/defaultFullscreenFS.spv", &r_vk_state.fullscreen_program);
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/SDFVS.spv", "data/shaders/SDFFS.spv", &r_vk_state.SDF_program);
-  R_VK_CreateShaderProgram(&r_vk_state, "data/shaders/noiseVS.spv", "data/shaders/noiseFS.spv", &r_vk_state.noise_program);
   // --AlNov: Create Framebuffers
   {
     u32 image_count = r_vk_state.swapchain.image_count;
@@ -861,6 +858,196 @@ func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderProgram* program)
 
   return result;
 }
+
+func b8 R_VK_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader)
+{
+  // --AlNov: Vertex Shader
+  VkShaderModule vertex_shader_module;
+  {
+    VkShaderModuleCreateInfo module_info = {};
+    module_info.sType     = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    module_info.codeSize  = vertex_shader->code_size;
+    module_info.pCode     = (u32*)vertex_shader->code;
+    VK_CHECK(vkCreateShaderModule(r_vk_state.device.logical, &module_info, 0, &vertex_shader_module));
+  }
+  VkPipelineShaderStageCreateInfo vertex_shader_stage = {};
+  vertex_shader_stage.sType   = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  vertex_shader_stage.stage   = R_VK_ShaderStageFromShaderType(vertex_shader->type);
+  vertex_shader_stage.module  = vertex_shader_module;
+  vertex_shader_stage.pName   = vertex_shader->entry_point;
+
+  // --AlNov: Fragment Shader
+  VkShaderModule fragment_shader_module;
+  {
+    VkShaderModuleCreateInfo module_info = {};
+    module_info.sType     = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    module_info.codeSize  = fragment_shader->code_size;
+    module_info.pCode     = (u32*)fragment_shader->code;
+    VK_CHECK(vkCreateShaderModule(r_vk_state.device.logical, &module_info, 0, &fragment_shader_module));
+  }
+  VkPipelineShaderStageCreateInfo fragment_shader_stage = {};
+  fragment_shader_stage.sType   = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  fragment_shader_stage.stage   = R_VK_ShaderStageFromShaderType(fragment_shader->type);
+  fragment_shader_stage.module  = fragment_shader_module;
+  fragment_shader_stage.pName   = fragment_shader->entry_point;
+
+  VkPipelineShaderStageCreateInfo stages[] = {
+    vertex_shader_stage,
+    fragment_shader_stage
+  };
+
+  VkDescriptorSetLayoutBinding mvp_binding_info = {};
+  mvp_binding_info.binding         = 0;
+  mvp_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  mvp_binding_info.descriptorCount = 1;
+  mvp_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutBinding sampler_binding_info = {};
+  sampler_binding_info.binding         = 1;
+  sampler_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  sampler_binding_info.descriptorCount = 1;
+  sampler_binding_info.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutBinding bindings[2] = { mvp_binding_info, sampler_binding_info };
+
+  VkDescriptorSetLayoutCreateInfo layout_info = {};
+  layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layout_info.bindingCount = 2;
+  layout_info.pBindings    = bindings;
+
+  VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.sphere_set_layout));
+
+  VkVertexInputBindingDescription vertex_description = {};
+  vertex_description.binding   = 0;
+  vertex_description.stride    = sizeof(R_MeshVertex);
+  vertex_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+  VkVertexInputAttributeDescription vertex_position_description = {};
+  vertex_position_description.location = 0;
+  vertex_position_description.binding  = 0;
+  vertex_position_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_position_description.offset   = offsetof(R_MeshVertex, position);
+
+  VkVertexInputAttributeDescription vertex_normal_description = {};
+  vertex_normal_description.location = 1;
+  vertex_normal_description.binding  = 0;
+  vertex_normal_description.format   = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_normal_description.offset   = offsetof(R_MeshVertex, normal);
+
+  VkVertexInputAttributeDescription vertex_uv_description = {};
+  vertex_uv_description.location = 2;
+  vertex_uv_description.binding  = 0;
+  vertex_uv_description.format   = VK_FORMAT_R32G32_SFLOAT;
+  vertex_uv_description.offset   = offsetof(R_MeshVertex, uv);
+
+  VkVertexInputAttributeDescription vertex_attributes[3] = {
+    vertex_position_description,
+    vertex_normal_description,
+    vertex_uv_description
+  };
+
+  VkPipelineVertexInputStateCreateInfo vertex_input_state_info = {};
+  vertex_input_state_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+  vertex_input_state_info.vertexBindingDescriptionCount   = 1;
+  vertex_input_state_info.pVertexBindingDescriptions      = &vertex_description;
+  vertex_input_state_info.vertexAttributeDescriptionCount = 3;
+  vertex_input_state_info.pVertexAttributeDescriptions    = vertex_attributes;
+
+  VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = {};
+  input_assembly_state_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+  input_assembly_state_info.topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  input_assembly_state_info.primitiveRestartEnable = VK_FALSE;
+
+  // --AlNov: Viewport State
+  VkViewport viewport = {};
+  viewport.x        = 0;
+  viewport.y        = 0;
+  viewport.height   = r_vk_state.swapchain.size.height;
+  viewport.width    = r_vk_state.swapchain.size.width;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  VkRect2D scissor = {};
+  scissor.offset        = {0, 0};
+  scissor.extent.height = r_vk_state.swapchain.size.height;
+  scissor.extent.width  = r_vk_state.swapchain.size.width;
+
+  VkPipelineViewportStateCreateInfo viewport_state_info = {};
+  viewport_state_info.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+  viewport_state_info.viewportCount = 1;
+  viewport_state_info.pViewports    = &viewport;
+  viewport_state_info.scissorCount  = 1;
+  viewport_state_info.pScissors     = &scissor;
+
+  VkPipelineRasterizationStateCreateInfo rasterization_state_info = {};
+  rasterization_state_info.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+  rasterization_state_info.depthClampEnable        = VK_FALSE;
+  rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
+  rasterization_state_info.polygonMode             = VK_POLYGON_MODE_FILL;
+  rasterization_state_info.cullMode                = VK_CULL_MODE_BACK_BIT;
+  rasterization_state_info.frontFace               = VK_FRONT_FACE_CLOCKWISE;
+  rasterization_state_info.depthBiasEnable         = VK_FALSE;
+  rasterization_state_info.lineWidth               = 1.0f;
+
+  VkPipelineMultisampleStateCreateInfo multisample_state_info = {};
+  multisample_state_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+  multisample_state_info.rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT;
+  multisample_state_info.sampleShadingEnable   = VK_FALSE;
+  multisample_state_info.minSampleShading      = 0.0f;
+  multisample_state_info.pSampleMask           = nullptr;
+  multisample_state_info.alphaToCoverageEnable = VK_FALSE;
+  multisample_state_info.alphaToOneEnable      = VK_FALSE;
+
+  VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info = {};
+  depth_stencil_state_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+  depth_stencil_state_info.depthTestEnable       = VK_TRUE;
+  depth_stencil_state_info.depthWriteEnable      = VK_TRUE;
+  depth_stencil_state_info.depthCompareOp        = VK_COMPARE_OP_LESS;
+  depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
+  depth_stencil_state_info.stencilTestEnable     = VK_FALSE;
+
+  VkPipelineColorBlendAttachmentState color_blend_attachment = {};
+  color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT| VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT
+    | VK_COLOR_COMPONENT_A_BIT;
+  color_blend_attachment.blendEnable    = VK_FALSE;
+
+  VkPipelineColorBlendStateCreateInfo color_blend_state_info = {};
+  color_blend_state_info.sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+  color_blend_state_info.logicOpEnable   = VK_FALSE;
+  color_blend_state_info.attachmentCount = 1;
+  color_blend_state_info.pAttachments    = &color_blend_attachment;
+
+  {
+    VkPipelineLayoutCreateInfo layout_info = {};
+    layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layout_info.setLayoutCount         = 1;
+    layout_info.pSetLayouts            = &r_vk_state.sphere_set_layout;
+    layout_info.pushConstantRangeCount = 0;
+    layout_info.pPushConstantRanges    = 0;
+
+    VK_CHECK(vkCreatePipelineLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.sphere_pipeline.layout));
+  }
+
+  VkGraphicsPipelineCreateInfo pipeline_info = {};
+  pipeline_info.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipeline_info.stageCount          = 2;
+  pipeline_info.pStages             = stages;
+  pipeline_info.pVertexInputState   = &vertex_input_state_info;
+  pipeline_info.pInputAssemblyState = &input_assembly_state_info;
+  pipeline_info.pViewportState      = &viewport_state_info;
+  pipeline_info.pRasterizationState = &rasterization_state_info;
+  pipeline_info.pMultisampleState   = &multisample_state_info;
+  pipeline_info.pDepthStencilState  = &depth_stencil_state_info;
+  pipeline_info.pColorBlendState    = &color_blend_state_info;
+  pipeline_info.pDynamicState       = 0;
+  pipeline_info.layout              = r_vk_state.sphere_pipeline.layout;
+  pipeline_info.renderPass          = r_vk_state.render_pass.handle;
+  pipeline_info.subpass             = 0;
+
+  VK_CHECK(vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, nullptr, &r_vk_state.sphere_pipeline.handle));
+
+  return true;
+}
 // --AlNov: Pipeline @END --------------------------------------------
 
 // -------------------------------------------------------------------
@@ -888,12 +1075,7 @@ func b8 R_VK_DrawFrame()
   {
     R_VK_BeginRenderPass(command_buffer, &r_vk_state.render_pass, &r_vk_state.swapchain.framebuffers[image_index]);
     {
-      // R_VK_BindShaderProgram(command_buffer, &r_vk_state.skybox_program);
-      {
-        // vkCmdDraw(command_buffer->handle, 36, 1, 0, 0);
-      }
-
-      R_VK_BindShaderProgram(command_buffer, &r_vk_state.sphere_program);
+      vkCmdBindPipeline(command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
 
       // --AlNov: Draw Meshes
       for (R_Mesh *mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
@@ -904,7 +1086,7 @@ func b8 R_VK_DrawFrame()
         set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
         set_info.descriptorSetCount = 1;
-        set_info.pSetLayouts = &r_vk_state.sphere_program.set_layout;
+        set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
 
         VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
 
@@ -941,44 +1123,13 @@ func b8 R_VK_DrawFrame()
         vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
 
         vkCmdBindDescriptorSets(
-            command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_program.pipeline.layout,
+            command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
             0, 1, &mesh_to_draw->mvp_set, 0, 0);
 
         vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
         vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
 
         vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
-      }
-
-      R_VK_BindShaderProgram(command_buffer, &r_vk_state.noise_program);
-      {
-        Arena *arena = AllocateArena(Megabytes(2));
-        R_Mesh mesh = {};
-        mesh.mvp = {};
-        mesh.vertex_count = 4;
-        mesh.vertecies = (R_MeshVertex *)PushArena(arena, sizeof(R_MeshVertex) * mesh.vertex_count);
-        mesh.vertecies[0].position = MakeVec3f(-1.0f, -1.0f, 0.0f);
-        mesh.vertecies[1].position = MakeVec3f(1.0f, -1.0f, 0.0f);
-        mesh.vertecies[2].position = MakeVec3f(1.0f, 1.0f, 0.0f);
-        mesh.vertecies[3].position = MakeVec3f(-1.0f, 1.0f, 0.0f);
-        mesh.vertecies[0].uv = MakeVec2f(0.0f, 1.0f);
-        mesh.vertecies[1].uv = MakeVec2f(1.0f, 1.0f);
-        mesh.vertecies[2].uv = MakeVec2f(1.0f, 0.0f);
-        mesh.vertecies[3].uv = MakeVec2f(0.0f, 0.0f);
-        mesh.index_count = 6;
-        mesh.indecies = (u32 *)PushArena(arena, sizeof(R_MeshVertex) * mesh.index_count);
-        mesh.indecies[0] = 0;
-        mesh.indecies[1] = 1;
-        mesh.indecies[2] = 2;
-        mesh.indecies[3] = 2;
-        mesh.indecies[4] = 3;
-        mesh.indecies[5] = 0;
-
-        R_VK_PushMeshToBuffer(&mesh);
-        vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh.vertex_offset);
-        vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh.index_offset, VK_INDEX_TYPE_UINT32);
-
-        // vkCmdDrawIndexed(command_buffer->handle, mesh.index_count, 1, 0, 0, 0);
       }
     }
     R_VK_EndRenderPass(command_buffer, &r_vk_state.render_pass);
@@ -1118,6 +1269,17 @@ func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
     memcpy(mapped_memory, data, size);
   }
   vkUnmapMemory(r_vk_state.device.logical, memory);
+}
+
+func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type)
+{
+  switch (type)
+  {
+    case R_SHADER_TYPE_VERTEX   : return VK_SHADER_STAGE_VERTEX_BIT;
+    case R_SHADER_TYPE_FRAGMENT : return VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    default: ASSERT(1); return VK_SHADER_STAGE_FRAGMENT_BIT; // --AlNov: type is not supported by Vulkan Layer
+  }
 }
 
 func VkCommandBuffer R_VK_BeginSingleCommands()

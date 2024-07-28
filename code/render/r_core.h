@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../base/base_include.h"
-#include "vulkan/r_vk_core.h"
+#include "r_pipeline.h"
 
 struct R_FrameInfo
 {
@@ -10,9 +10,10 @@ struct R_FrameInfo
 
 struct R_Backend
 {
-  b8 (*Init)      (OS_Window*);
-  b8 (*DrawFrame) ();
-  b8 (*EndFrame)  ();
+  b8 (*Init)            (OS_Window* window);
+  b8 (*DrawFrame)       ();
+  b8 (*EndFrame)        ();
+  b8 (*CreatePipeline)  (R_Shader* vertex_shader, R_Shader* fragment_shader);
 };
 
 struct R_RendererState
@@ -26,3 +27,5 @@ func b8 R_CreateBackend();
 func b8 R_DestroyBackend();
 
 func b8 R_DrawFrame(R_FrameInfo* frame_info);
+
+func b8 R_CreatePipeline(R_Shader* vertex_shader, R_Shader* fragment_shader);
