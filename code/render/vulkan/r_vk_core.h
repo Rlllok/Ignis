@@ -51,13 +51,10 @@ func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* frameb
 
 // -------------------------------------------------------------------
 // --AlNov: Shader ---------------------------------------------------
-func R_VK_ShaderStage R_VK_CreateShaderModule(Arena* arena, const char* path, const char* enter_point, R_VK_ShaderType type);
-func void             R_VK_CreateShaderProgram(R_VK_State* vk_state, const char* vertex_path, const char* fragment_path, R_VK_ShaderProgram* out_program);
 func void             R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program);
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
-func R_VK_Pipeline R_VK_CreatePipeline(R_VK_ShaderProgram* program);
 func b8 R_VK_CreatePipeline(R_Pipeline* pipeline);
 
 // -------------------------------------------------------------------
