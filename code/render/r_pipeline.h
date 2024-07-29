@@ -34,6 +34,23 @@ enum R_VertexAttributeFormat
   R_VERTEX_ATTRIBUTE_FORMAT_COUNT
 };
 
+enum R_UniformType
+{
+  R_UNIFORM_TYPE_VEC3F,
+  R_UNIFORM_TYPE_MAT4x4F,
+  
+  R_UNIFORM_TYPE_COUNT
+};
+
+#define MAX_UNIFORMS 3
+struct R_Uniforms
+{
+  R_UniformType types[MAX_UNIFORMS];
+  // u32           offsets[MAX_UNIFORMS];
+  u32           size;
+  u32           count;
+};
+
 #define MAX_ATTRIBUTES 10
 struct R_Pipeline
 {
@@ -41,11 +58,13 @@ struct R_Pipeline
   R_Shader                shaders[R_SHADER_TYPE_COUNT];
   R_VertexAttributeFormat attributes[MAX_ATTRIBUTES];
   u32                     attributes_count;
+  R_Uniforms              uniforms;
 };
 
 func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 
-func void R_PipelineAddAttribute(R_Pipeline* pipeline, R_VertexAttributeFormat);
+func void R_PipelineAddAttribute(R_Pipeline* pipeline, R_VertexAttributeFormat format);
+func void R_PipelineAddUniform(R_Pipeline* pipeline, R_UniformType type);
 
 // --AlNov: @TODO Is it really needed or there is another way to get offset between attributes
 func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format);

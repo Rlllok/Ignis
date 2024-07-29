@@ -161,6 +161,10 @@ i32 main()
   R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
   R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
 
+  R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_VEC3F);
+  R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
+  R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
+
   R_H_LoadShader(arena, "data/shaders/default3DVS.spv", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
   R_H_LoadShader(arena, "data/shaders/default3DFS.spv", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
   R_CreatePipeline(&pipeline);

@@ -691,11 +691,11 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
     fragment_shader_stage
   };
 
-  VkDescriptorSetLayoutBinding mvp_binding_info = {};
-  mvp_binding_info.binding         = 0;
-  mvp_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  mvp_binding_info.descriptorCount = 1;
-  mvp_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+  VkDescriptorSetLayoutBinding uniforms_binding_info = {};
+  uniforms_binding_info.binding         = 0;
+  uniforms_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uniforms_binding_info.descriptorCount = 1;
+  uniforms_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
 
   VkDescriptorSetLayoutBinding sampler_binding_info = {};
   sampler_binding_info.binding         = 1;
@@ -703,7 +703,7 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   sampler_binding_info.descriptorCount = 1;
   sampler_binding_info.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  VkDescriptorSetLayoutBinding bindings[2] = { mvp_binding_info, sampler_binding_info };
+  VkDescriptorSetLayoutBinding bindings[2] = { uniforms_binding_info, sampler_binding_info };
 
   VkDescriptorSetLayoutCreateInfo layout_info = {};
   layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -831,6 +831,8 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
 
   VK_CHECK(vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, nullptr, &r_vk_state.sphere_pipeline.handle));
 
+  r_vk_state.sphere_pipeline.r_pipeline = pipeline;
+
   return true;
 }
 // --AlNov: Pipeline @END --------------------------------------------
@@ -878,30 +880,30 @@ func b8 R_VK_DrawFrame()
         VkDescriptorBufferInfo buffer_info = {};
         buffer_info.buffer = r_vk_state.big_buffer.buffer;
         buffer_info.offset = mesh_to_draw->mvp_offset;
-        buffer_info.range = sizeof(R_VK_MVP);
+        buffer_info.range  = r_vk_state.sphere_pipeline.r_pipeline->uniforms.size;
 
         VkDescriptorImageInfo image_info = {};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView = r_vk_state.texture.vk_view;
-        image_info.sampler = r_vk_state.sampler;
+        image_info.imageView   = r_vk_state.texture.vk_view;
+        image_info.sampler     = r_vk_state.sampler;
 
         VkWriteDescriptorSet buffer_write_set = {};
-        buffer_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        buffer_write_set.dstSet = mesh_to_draw->mvp_set;
-        buffer_write_set.dstBinding = 0;
+        buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        buffer_write_set.dstSet          = mesh_to_draw->mvp_set;
+        buffer_write_set.dstBinding      = 0;
         buffer_write_set.dstArrayElement = 0;
-        buffer_write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         buffer_write_set.descriptorCount = 1;
-        buffer_write_set.pBufferInfo = &buffer_info;
+        buffer_write_set.pBufferInfo     = &buffer_info;
 
         VkWriteDescriptorSet image_write_set = {};
-        image_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        image_write_set.dstSet = mesh_to_draw->mvp_set;
-        image_write_set.dstBinding = 1;
+        image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        image_write_set.dstSet          = mesh_to_draw->mvp_set;
+        image_write_set.dstBinding      = 1;
         image_write_set.dstArrayElement = 0;
-        image_write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         image_write_set.descriptorCount = 1;
-        image_write_set.pImageInfo = &image_info;
+        image_write_set.pImageInfo      = &image_info;
 
         VkWriteDescriptorSet write_sets[2] = {buffer_write_set, image_write_set};
 

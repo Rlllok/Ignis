@@ -94,6 +94,8 @@ struct R_VK_Swapchain
 // --AlNov: Pipeline -------------------------------------------------
 struct R_VK_Pipeline
 {
+  R_Pipeline* r_pipeline;
+
   VkPipeline       handle;
   VkPipelineLayout layout;
 };
