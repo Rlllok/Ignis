@@ -518,6 +518,141 @@ func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass
   vkCmdEndRenderPass(command_buffer->handle);
 }
 
+func void TMP_BeginFrame()
+{
+  r_vk_state.current_frame %= NUM_FRAMES_IN_FLIGHT;
+
+  vkWaitForFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[r_vk_state.current_frame], VK_TRUE, U64_MAX);
+
+  // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
+  u32 image_index;
+  VkResult image_acquire_result = vkAcquireNextImageKHR(
+      r_vk_state.device.logical, r_vk_state.swapchain.handle,
+      U64_MAX, r_vk_state.sync_tools.image_available_semaphores[r_vk_state.current_frame],
+      0, &image_index
+      );
+
+  vkResetFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[r_vk_state.current_frame]);
+
+  R_VK_CommandBuffer* command_buffer = &r_vk_state.command_buffers[r_vk_state.current_frame];
+  vkResetCommandBuffer(command_buffer->handle, 0);
+
+  r_vk_state.current_command_buffer = command_buffer;
+  r_vk_state.current_image_index    = image_index;
+  r_vk_state.current_framebuffer    = &r_vk_state.swapchain.framebuffers[image_index];
+
+  R_VK_BeginCommandBuffer(r_vk_state.current_command_buffer);
+}
+
+func void TMP_EndFrame()
+{
+  R_VK_EndCommandBuffer(r_vk_state.current_command_buffer);
+
+  VkPipelineStageFlags wait_stage = {
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+  };
+
+  VkSubmitInfo submit_info = {};
+  submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.waitSemaphoreCount   = 1;
+  submit_info.pWaitSemaphores      = &r_vk_state.sync_tools.image_available_semaphores[r_vk_state.current_image_index];
+  submit_info.pWaitDstStageMask    = &wait_stage;
+  submit_info.commandBufferCount   = 1;
+  submit_info.pCommandBuffers      = &r_vk_state.command_buffers[r_vk_state.current_frame].handle;
+  submit_info.signalSemaphoreCount = 1;
+  submit_info.pSignalSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[r_vk_state.current_frame];
+
+  VkQueue queue;
+  vkGetDeviceQueue(r_vk_state.device.logical, r_vk_state.device.queue_index, 0, &queue);
+
+  vkQueueSubmit(queue, 1, &submit_info, r_vk_state.sync_tools.fences[r_vk_state.current_frame]);
+
+  VkPresentInfoKHR present_info = {};
+  present_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  present_info.waitSemaphoreCount = 1;
+  present_info.pWaitSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[r_vk_state.current_frame];
+  present_info.swapchainCount     = 1;
+  present_info.pSwapchains        = &r_vk_state.swapchain.handle;
+  present_info.pImageIndices      = &r_vk_state.current_image_index;
+  present_info.pResults           = 0;
+
+  VkResult present_result = vkQueuePresentKHR(queue, &present_info);
+
+  r_vk_state.current_frame += 1;
+
+  R_VK_EndFrame();
+}
+
+func void TMP_BeginRenderPass()
+{
+  R_VK_BeginRenderPass(r_vk_state.current_command_buffer, &r_vk_state.render_pass, r_vk_state.current_framebuffer); 
+}
+
+func void TMP_EndRenderPass()
+{
+  R_VK_EndRenderPass(r_vk_state.current_command_buffer, &r_vk_state.render_pass);
+}
+
+func void TMP_DrawMeshes()
+{
+  vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
+
+  // --AlNov: Draw Meshes
+  for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
+  {
+    R_VK_PushMeshToBuffer(mesh_to_draw);
+
+    VkDescriptorSetAllocateInfo set_info = {};
+    set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
+    set_info.descriptorSetCount = 1;
+    set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
+
+    VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
+
+    VkDescriptorBufferInfo buffer_info = {};
+    buffer_info.buffer = r_vk_state.big_buffer.buffer;
+    buffer_info.offset = mesh_to_draw->mvp_offset;
+    buffer_info.range = r_vk_state.sphere_pipeline.r_pipeline->uniforms.size;
+
+    VkDescriptorImageInfo image_info = {};
+    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    image_info.imageView = r_vk_state.texture.vk_view;
+    image_info.sampler = r_vk_state.sampler;
+
+    VkWriteDescriptorSet buffer_write_set = {};
+    buffer_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    buffer_write_set.dstSet = mesh_to_draw->mvp_set;
+    buffer_write_set.dstBinding = 0;
+    buffer_write_set.dstArrayElement = 0;
+    buffer_write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    buffer_write_set.descriptorCount = 1;
+    buffer_write_set.pBufferInfo = &buffer_info;
+
+    VkWriteDescriptorSet image_write_set = {};
+    image_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    image_write_set.dstSet = mesh_to_draw->mvp_set;
+    image_write_set.dstBinding = 1;
+    image_write_set.dstArrayElement = 0;
+    image_write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    image_write_set.descriptorCount = 1;
+    image_write_set.pImageInfo = &image_info;
+
+    VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
+
+    vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
+
+    vkCmdBindDescriptorSets(
+      r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+      0, 1, &mesh_to_draw->mvp_set, 0, 0);
+
+    vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
+    vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
+
+    vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
+  }
+}
+
 // -------------------------------------------------------------------
 // --AlNov: Command Buffer -------------------------------------------
 func void R_VK_CreateCommandPool(R_VK_State* vk_state)
@@ -839,133 +974,6 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
-func b8 R_VK_DrawFrame()
-{
-  local_persist u32 current_frame = 0;
-
-  vkWaitForFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[current_frame], VK_TRUE, U64_MAX);
-
-  // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
-  u32 image_index;
-  VkResult image_acquire_result = vkAcquireNextImageKHR(
-      r_vk_state.device.logical, r_vk_state.swapchain.handle,
-      U64_MAX, r_vk_state.sync_tools.image_available_semaphores[current_frame],
-      0, &image_index
-      );
-
-  vkResetFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[current_frame]);
-
-  R_VK_CommandBuffer* command_buffer = &r_vk_state.command_buffers[current_frame];
-  vkResetCommandBuffer(command_buffer->handle, 0);
-
-  R_VK_BeginCommandBuffer(command_buffer);
-  {
-    R_VK_BeginRenderPass(command_buffer, &r_vk_state.render_pass, &r_vk_state.swapchain.framebuffers[image_index]);
-    {
-      vkCmdBindPipeline(command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
-
-      // --AlNov: Draw Meshes
-      for (R_Mesh *mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
-      {
-        R_VK_PushMeshToBuffer(mesh_to_draw);
-
-        VkDescriptorSetAllocateInfo set_info = {};
-        set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
-        set_info.descriptorSetCount = 1;
-        set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
-
-        VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
-
-        VkDescriptorBufferInfo buffer_info = {};
-        buffer_info.buffer = r_vk_state.big_buffer.buffer;
-        buffer_info.offset = mesh_to_draw->mvp_offset;
-        buffer_info.range  = r_vk_state.sphere_pipeline.r_pipeline->uniforms.size;
-
-        VkDescriptorImageInfo image_info = {};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView   = r_vk_state.texture.vk_view;
-        image_info.sampler     = r_vk_state.sampler;
-
-        VkWriteDescriptorSet buffer_write_set = {};
-        buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        buffer_write_set.dstSet          = mesh_to_draw->mvp_set;
-        buffer_write_set.dstBinding      = 0;
-        buffer_write_set.dstArrayElement = 0;
-        buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        buffer_write_set.descriptorCount = 1;
-        buffer_write_set.pBufferInfo     = &buffer_info;
-
-        VkWriteDescriptorSet image_write_set = {};
-        image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        image_write_set.dstSet          = mesh_to_draw->mvp_set;
-        image_write_set.dstBinding      = 1;
-        image_write_set.dstArrayElement = 0;
-        image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        image_write_set.descriptorCount = 1;
-        image_write_set.pImageInfo      = &image_info;
-
-        VkWriteDescriptorSet write_sets[2] = {buffer_write_set, image_write_set};
-
-        vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
-
-        vkCmdBindDescriptorSets(
-            command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
-            0, 1, &mesh_to_draw->mvp_set, 0, 0);
-
-        vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
-        vkCmdBindIndexBuffer(command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
-
-        vkCmdDrawIndexed(command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
-      }
-    }
-    R_VK_EndRenderPass(command_buffer, &r_vk_state.render_pass);
-  }
-  R_VK_EndCommandBuffer(command_buffer);
-
-  VkPipelineStageFlags wait_stage = {
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-  };
-
-  VkSubmitInfo submit_info = {};
-  submit_info.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit_info.waitSemaphoreCount   = 1;
-  submit_info.pWaitSemaphores      = &r_vk_state.sync_tools.image_available_semaphores[image_index];
-  submit_info.pWaitDstStageMask    = &wait_stage;
-  submit_info.commandBufferCount   = 1;
-  submit_info.pCommandBuffers      = &r_vk_state.command_buffers[current_frame].handle;
-  submit_info.signalSemaphoreCount = 1;
-  submit_info.pSignalSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
-
-  VkQueue queue;
-  vkGetDeviceQueue(r_vk_state.device.logical, r_vk_state.device.queue_index, 0, &queue);
-
-  vkQueueSubmit(queue, 1, &submit_info, r_vk_state.sync_tools.fences[current_frame]);
-
-  VkPresentInfoKHR present_info = {};
-  present_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  present_info.waitSemaphoreCount = 1;
-  present_info.pWaitSemaphores    = &r_vk_state.sync_tools.image_ready_semaphores[current_frame];
-  present_info.swapchainCount     = 1;
-  present_info.pSwapchains        = &r_vk_state.swapchain.handle;
-  present_info.pImageIndices      = &image_index;
-  present_info.pResults           = 0;
-
-  VkResult present_result = vkQueuePresentKHR(queue, &present_info);
-
-  // --AlNov: @TODO Handle resize
-  // if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || R_WindowResources.bIsWindowResized)
-  // {
-  //   R_VK_HandleWindowResize();
-  //   R_WindowResources.bIsWindowResized = false;
-  //   return;
-  // }
-
-  current_frame = (current_frame + 1) % NUM_FRAMES_IN_FLIGHT;
-
-  return true;
-}
-
 func b8 R_VK_EndFrame()
 {
   r_vk_state.big_buffer.current_position = 0;
@@ -1037,7 +1045,6 @@ func void R_VK_PushMeshToBuffer(R_Mesh* mesh)
   mesh->index_offset = r_vk_state.big_buffer.current_position;
   memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, mesh->indecies, mesh->index_count * sizeof(u32));
   r_vk_state.big_buffer.current_position += mesh->index_count * sizeof(u32);
-
 
   // --AlNov: Add Uniform information
   // --AlNov: (https://vulkan.lunarg.com/doc/view/1.3.268.0/windows/1.3-extensions/vkspec.html#VUID-VkWriteDescriptorSet-descriptorType-00327

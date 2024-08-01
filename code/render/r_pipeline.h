@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../base/base_include.h"
+#include "base/base_include.h"
 
 enum R_ShaderType
 {

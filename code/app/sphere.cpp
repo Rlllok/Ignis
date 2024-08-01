@@ -216,19 +216,6 @@ i32 main()
               if (event->is_down)
               {
                 sphere_position.z -= sphere_speed * time_sec;
-
-      R_Pipeline pipeline = {};
-      R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-      R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-      R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
-
-      R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_VEC3F);
-      R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
-      R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
-
-      R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-      R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-      R_CreatePipeline(&pipeline);
               }
             } break;
 
@@ -242,15 +229,24 @@ i32 main()
       event = event->next;
     }
 
-    R_Mesh* uv_sphere = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
-    R_Mesh* uv_sphere2 = GenerateUVSphere(arena, MakeVec3f(1.0f, 1.0f, 6.0f), 1.0f, 30, 30);
+    R_Mesh* uv_sphere   = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
+    R_Mesh* uv_sphere2  = GenerateUVSphere(arena, MakeVec3f(1.0f, 1.0f, 6.0f), 1.0f, 30, 30);
 
     R_AddMeshToDrawList(uv_sphere);
     R_AddMeshToDrawList(uv_sphere2);
 
     R_FrameInfo frame_info = {};
     frame_info.delta_time = time_sec;
-    R_DrawFrame(&frame_info);
+
+    R_BeginFrame();
+    {
+      R_BeginRenderPass();
+      {
+        R_DrawMeshes();
+      }
+      R_EndRenderPass();
+    }
+    R_EndFrame();
 
     ResetArena(arena);
 

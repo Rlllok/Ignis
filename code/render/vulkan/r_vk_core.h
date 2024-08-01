@@ -32,6 +32,12 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
 func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer);
 func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass);
 
+func void TMP_BeginFrame();
+func void TMP_EndFrame();
+func void TMP_BeginRenderPass();
+func void TMP_EndRenderPass();
+func void TMP_DrawMeshes();
+
 // -------------------------------------------------------------------
 // --AlNov: Command Buffer -------------------------------------------
 func void R_VK_CreateCommandPool(R_VK_State* vk_state);

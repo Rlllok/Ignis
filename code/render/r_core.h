@@ -10,10 +10,14 @@ struct R_FrameInfo
 
 struct R_Backend
 {
-  b8 (*Init)            (OS_Window* window);
-  b8 (*DrawFrame)       ();
-  b8 (*EndFrame)        ();
-  b8 (*CreatePipeline)  (R_Pipeline* pipeline);
+  b8    (*Init)            (OS_Window* window);
+  b8    (*DrawFrame)       ();
+  b8    (*CreatePipeline)  (R_Pipeline* pipeline);
+  void  (*BeginFrame)      ();
+  void  (*EndFrame)        ();
+  void  (*BeginRenderPass) ();
+  void  (*EndRenderPass)   ();
+  void  (*DrawMeshes)      ();
 };
 
 struct R_RendererState
@@ -26,6 +30,10 @@ func b8 R_Init(OS_Window* window);
 func b8 R_CreateBackend();
 func b8 R_DestroyBackend();
 
-func b8 R_DrawFrame(R_FrameInfo* frame_info);
-
 func b8 R_CreatePipeline(R_Pipeline* pipeline);
+
+func void R_BeginFrame();
+func void R_EndFrame();
+func void R_BeginRenderPass();
+func void R_EndRenderPass();
+func void R_DrawMeshes();

@@ -300,6 +300,12 @@ struct R_VK_State
   R_VK_Pipeline         sphere_pipeline;
   VkDescriptorSetLayout sphere_set_layout;
 
+  R_VK_CommandBuffer* current_command_buffer;
+  R_VK_Framebuffer*   current_framebuffer;
+
+  u32 current_frame;
+  u32 current_image_index;
+
   R_View view;
 
   R_MeshList mesh_list;
