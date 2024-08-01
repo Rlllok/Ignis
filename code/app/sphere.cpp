@@ -154,7 +154,7 @@ i32 main()
   OS_Window window = OS_CreateWindow("Sphere", MakeVec2u(1280, 720));
   R_Init(&window);
 
-  Arena* arena = AllocateArena(Megabytes(128));
+  Arena* arena = AllocateArena(Megabytes(256));
 
   R_Pipeline pipeline = {};
   R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
@@ -165,8 +165,8 @@ i32 main()
   R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
   R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
 
-  R_H_LoadShader(arena, "data/shaders/default3DVS.spv", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-  R_H_LoadShader(arena, "data/shaders/default3DFS.spv", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+  R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+  R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
   R_CreatePipeline(&pipeline);
 
   OS_ShowWindow(&window);
@@ -216,6 +216,19 @@ i32 main()
               if (event->is_down)
               {
                 sphere_position.z -= sphere_speed * time_sec;
+
+      R_Pipeline pipeline = {};
+      R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+      R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+      R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
+
+      R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_VEC3F);
+      R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
+      R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
+
+      R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+      R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+      R_CreatePipeline(&pipeline);
               }
             } break;
 

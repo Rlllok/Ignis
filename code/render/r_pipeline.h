@@ -68,3 +68,4 @@ func void R_PipelineAddUniform(R_Pipeline* pipeline, R_UniformType type);
 
 // --AlNov: @TODO Is it really needed or there is another way to get offset between attributes
 func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format);
+func u32 R_H_GlslangStageFromShaderType(R_ShaderType type);
