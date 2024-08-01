@@ -62,6 +62,7 @@ struct R_Pipeline
 };
 
 func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
+func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 
 func void R_PipelineAddAttribute(R_Pipeline* pipeline, R_VertexAttributeFormat format);
 func void R_PipelineAddUniform(R_Pipeline* pipeline, R_UniformType type);
