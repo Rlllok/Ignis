@@ -3,11 +3,6 @@
 rem --- Unpack Arguments ---
 for %%a in (%*) do set "%%a=1"
 
-rem --- Compile Shaders ---
-pushd data\shaders
-    CALL compileGLSL.bat
-popd
-
 rem --- Prepare Build Directory ---
 if not exist build mkdir build
 @echo Copy data.
