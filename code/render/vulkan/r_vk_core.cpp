@@ -591,71 +591,8 @@ func void TMP_EndRenderPass()
   R_VK_EndRenderPass(r_vk_state.current_command_buffer, &r_vk_state.render_pass);
 }
 
-func void TMP_DrawMeshes()
-{
-  // vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
-
-  // // --AlNov: Draw Meshes
-  // for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
-  // {
-  //   R_VK_PushMeshToBuffer(mesh_to_draw);
-
-  //   VkDescriptorSetAllocateInfo set_info = {};
-  //   set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  //   set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
-  //   set_info.descriptorSetCount = 1;
-  //   set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
-
-  //   VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
-
-  //   VkDescriptorBufferInfo buffer_info = {};
-  //   buffer_info.buffer = r_vk_state.big_buffer.buffer;
-  //   buffer_info.offset = mesh_to_draw->mvp_offset;
-  //   buffer_info.range  = r_vk_state.sphere_pipeline.r_pipeline->binding_layout.size;
-
-  //   VkDescriptorImageInfo image_info = {};
-  //   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  //   image_info.imageView   = r_vk_state.texture.vk_view;
-  //   image_info.sampler     = r_vk_state.sampler;
-
-  //   VkWriteDescriptorSet buffer_write_set = {};
-  //   buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //   buffer_write_set.dstSet          = mesh_to_draw->mvp_set;
-  //   buffer_write_set.dstBinding      = 0;
-  //   buffer_write_set.dstArrayElement = 0;
-  //   buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //   buffer_write_set.descriptorCount = 1;
-  //   buffer_write_set.pBufferInfo     = &buffer_info;
-
-  //   VkWriteDescriptorSet image_write_set = {};
-  //   image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //   image_write_set.dstSet          = mesh_to_draw->mvp_set;
-  //   image_write_set.dstBinding      = 1;
-  //   image_write_set.dstArrayElement = 0;
-  //   image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  //   image_write_set.descriptorCount = 1;
-  //   image_write_set.pImageInfo      = &image_info;
-
-  //   VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
-
-  //   vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
-
-  //   vkCmdBindDescriptorSets(
-  //     r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
-  //     0, 1, &mesh_to_draw->mvp_set, 0, 0
-  //   );
-
-  //   vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
-  //   vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
-
-  //   vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
-  // }
-}
-
 func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 data_size)
 {
-  vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
-
   VkDeviceSize vertex_offset = r_vk_state.big_buffer.current_position;
   memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, object->vertecies, object->vertex_count * sizeof(R_SceneObject::R_SceneObjectVertex));
   r_vk_state.big_buffer.current_position += object->vertex_count * sizeof(R_SceneObject::R_SceneObjectVertex);
@@ -668,13 +605,13 @@ func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 dat
   r_vk_state.big_buffer.current_position += alligment;
   VkDeviceSize set_offset = r_vk_state.big_buffer.current_position;
   memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, uniform_data, data_size);
-  r_vk_state.big_buffer.current_position += sizeof(data_size);
+  r_vk_state.big_buffer.current_position += data_size;
 
   VkDescriptorSetAllocateInfo set_info = {};
   set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
   set_info.descriptorSetCount = 1;
-  set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
+  set_info.pSetLayouts = &r_vk_state.pipelines[r_vk_state.active_pipeline_index].set_layout;
 
   VkDescriptorSet current_set;
   VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &current_set));
@@ -689,30 +626,25 @@ func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 dat
   image_info.imageView   = r_vk_state.texture.vk_view;
   image_info.sampler     = r_vk_state.sampler;
 
-  VkWriteDescriptorSet buffer_write_set = {};
-  buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  buffer_write_set.dstSet          = current_set;
-  buffer_write_set.dstBinding      = 0;
-  buffer_write_set.dstArrayElement = 0;
-  buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  buffer_write_set.descriptorCount = 1;
-  buffer_write_set.pBufferInfo     = &buffer_info;
+  R_BindingLayout binding_layout = r_vk_state.pipelines[r_vk_state.active_pipeline_index].r_pipeline->binding_layout;
 
-  VkWriteDescriptorSet image_write_set = {};
-  image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  image_write_set.dstSet          = current_set;
-  image_write_set.dstBinding      = 1;
-  image_write_set.dstArrayElement = 0;
-  image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  image_write_set.descriptorCount = 1;
-  image_write_set.pImageInfo      = &image_info;
+  VkWriteDescriptorSet write_sets[5] = {};
+  for (u32 i = 0; i < binding_layout.count; i += 1)
+  {
+    write_sets[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[i].dstSet          = current_set;
+    write_sets[i].dstBinding      = i;
+    write_sets[i].dstArrayElement = 0;
+    write_sets[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(binding_layout.binding_types[i]);
+    write_sets[i].descriptorCount = 1;
+    write_sets[i].pBufferInfo     = &buffer_info;
+    write_sets[i].pImageInfo      = &image_info;
+  }
 
-  VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
-
-  vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
+  vkUpdateDescriptorSets(r_vk_state.device.logical, binding_layout.count, write_sets, 0, 0);
 
   vkCmdBindDescriptorSets(
-    r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+    r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.pipelines[r_vk_state.active_pipeline_index].layout,
     0, 1, &current_set, 0, 0
   );
 
@@ -910,7 +842,7 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   layout_info.bindingCount = pipeline->binding_layout.count;
   layout_info.pBindings    = bindings;
 
-  VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.sphere_set_layout));
+  VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.pipelines[r_vk_state.pipelines_count].set_layout));
 
   // --AlNov: @TODO Get rid of hardcoded size of array
   VkVertexInputAttributeDescription vertex_attributes[3] = {};
@@ -1006,11 +938,11 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
     VkPipelineLayoutCreateInfo layout_info = {};
     layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layout_info.setLayoutCount         = 1;
-    layout_info.pSetLayouts            = &r_vk_state.sphere_set_layout;
+    layout_info.pSetLayouts            = &r_vk_state.pipelines[r_vk_state.pipelines_count].set_layout;
     layout_info.pushConstantRangeCount = 0;
     layout_info.pPushConstantRanges    = 0;
 
-    VK_CHECK(vkCreatePipelineLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.sphere_pipeline.layout));
+    VK_CHECK(vkCreatePipelineLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.pipelines[r_vk_state.pipelines_count].layout));
   }
 
   VkGraphicsPipelineCreateInfo pipeline_info = {};
@@ -1025,15 +957,24 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   pipeline_info.pDepthStencilState  = &depth_stencil_state_info;
   pipeline_info.pColorBlendState    = &color_blend_state_info;
   pipeline_info.pDynamicState       = 0;
-  pipeline_info.layout              = r_vk_state.sphere_pipeline.layout;
+  pipeline_info.layout              = r_vk_state.pipelines[r_vk_state.pipelines_count].layout;
   pipeline_info.renderPass          = r_vk_state.render_pass.handle;
   pipeline_info.subpass             = 0;
 
-  VK_CHECK(vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, nullptr, &r_vk_state.sphere_pipeline.handle));
+  VK_CHECK(vkCreateGraphicsPipelines(r_vk_state.device.logical, 0, 1, &pipeline_info, nullptr, &r_vk_state.pipelines[r_vk_state.pipelines_count].handle));
 
-  r_vk_state.sphere_pipeline.r_pipeline = pipeline;
+  pipeline->backend_handle = r_vk_state.pipelines_count;
+  r_vk_state.pipelines[r_vk_state.pipelines_count].r_pipeline = pipeline;
+
+  r_vk_state.pipelines_count += 1;
 
   return true;
+}
+
+func void R_VK_BindPipeline(R_Pipeline* pipeline)
+{
+  r_vk_state.active_pipeline_index = pipeline->backend_handle;
+  vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.pipelines[r_vk_state.active_pipeline_index].handle);
 }
 // --AlNov: Pipeline @END --------------------------------------------
 

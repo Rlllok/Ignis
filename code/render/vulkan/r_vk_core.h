@@ -63,7 +63,8 @@ func void             R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer,
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
-func b8 R_VK_CreatePipeline(R_Pipeline* pipeline);
+func b8   R_VK_CreatePipeline(R_Pipeline* pipeline);
+func void R_VK_BindPipeline(R_Pipeline* pipeline);
 
 // -------------------------------------------------------------------
 // --AlNov: Draw Functions -------------------------------------------
@@ -84,16 +85,6 @@ func void            R_VK_EndSingleCommands(VkCommandBuffer command_buffer);
 func void            R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
 func void            R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions);
 func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout);
-
-// -------------------------------------------------------------------
-// --AlNov: Mesh List Functions
-// func void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
-// func void R_AddMeshToDrawList(R_Mesh* mesh);
-
-// -------------------------------------------------------------------
-// --AlNov: Line List Functions
-func void R_PushLine(R_LineList* list, R_Line* line);
-func void R_AddLineToDrawList(R_Line* line);
 
 // -------------------------------------------------------------------
 // --AlNov: Texture --------------------------------------------------

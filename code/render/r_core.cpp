@@ -23,6 +23,7 @@ func b8 R_CreateBackend()
   backend.BeginRenderPass = TMP_BeginRenderPass;
   backend.EndRenderPass   = TMP_EndRenderPass;
   backend.DrawSceneObject = TMP_DrawSceneObject;
+  backend.BindPipeline    = R_VK_BindPipeline;
 
   r_render_state.backend = backend;
   
@@ -41,3 +42,4 @@ func void R_EndFrame()                            { r_render_state.backend.EndFr
 func void R_BeginRenderPass()                     { r_render_state.backend.BeginRenderPass(); }
 func void R_EndRenderPass()                       { r_render_state.backend.EndRenderPass(); }
 func void R_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 uniform_size) { r_render_state.backend.DrawSceneObject(object, uniform_data, uniform_size); }
+func void R_BindPipeline(R_Pipeline* pipeline)    { r_render_state.backend.BindPipeline(pipeline); }

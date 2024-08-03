@@ -97,8 +97,9 @@ struct R_VK_Pipeline
 {
   R_Pipeline* r_pipeline;
 
-  VkPipeline       handle;
-  VkPipelineLayout layout;
+  VkPipeline            handle;
+  VkPipelineLayout      layout;
+  VkDescriptorSetLayout set_layout;
 };
 
 // -------------------------------------------------------------------
@@ -129,52 +130,6 @@ struct R_VK_ShaderProgram
   VkDescriptorSetLayout set_layout;
 };
 
-// -------------------------------------------------------------------
-// --AlNov: Mesh Info ------------------------------------------------
-// @TODO TO MOVE
-/*
-struct R_VK_MVP
-{
-  // --AlNov: @TDO Projection matrix should be stored somewhere else
-  alignas(16) Vec3f   color;
-  alignas(16) Mat4x4f view;
-  alignas(16) Mat4x4f translation;
-};
-
-struct R_MeshVertex
-{
-  Vec3f position;
-  Vec3f normal;
-  Vec2f uv;
-};
-
-struct R_Mesh
-{
-  R_VK_MVP mvp;
-
-  R_Mesh* next;
-  R_Mesh* previous;
-
-  R_MeshVertex* vertecies;
-  u32           vertex_count;
-  VkDeviceSize  vertex_offset;
-  
-  u32*         indecies;
-  u32          index_count;
-  VkDeviceSize index_offset;
-
-  VkDescriptorSet mvp_set;
-  VkDeviceSize mvp_offset;
-};
-
-struct R_MeshList
-{
-    R_Mesh* first;
-    R_Mesh* last;
-    u32 count;
-};
-*/
-
 struct R_View
 {
   Vec2f   size;
@@ -185,29 +140,6 @@ struct R_View
   {
     alignas(16) Mat4x4f projection;
   } uniform;
-};
-
-// -------------------------------------------------------------------
-// --AlNov: Line Info ------------------------------------------------
-// @TODO TO MOVE
-struct R_LineVertex
-{
-  Vec3f position;
-};
-
-struct R_Line
-{
-  R_Line* next;
-  R_Line* previous;
-  
-  R_LineVertex vertecies[2];
-};
-
-struct R_LineList
-{
-  R_Line* first;
-  R_Line* last;
-  u32 count;
 };
 
 // -------------------------------------------------------------------
@@ -242,7 +174,6 @@ struct R_VK_CubeMap
 
 // -------------------------------------------------------------------
 // --AlNov: Main States ----------------------------------------------
-
 struct R_VK_DescriptorPool
 {
   VkDescriptorPool pool;
@@ -300,8 +231,10 @@ struct R_VK_State
   
   R_VK_RenderPass render_pass;
 
-  R_VK_Pipeline         sphere_pipeline;
-  VkDescriptorSetLayout sphere_set_layout;
+  R_VK_Pipeline         pipelines[2];
+  u32                   pipelines_count;
+
+  u32 active_pipeline_index;
 
   R_VK_CommandBuffer* current_command_buffer;
   R_VK_Framebuffer*   current_framebuffer;

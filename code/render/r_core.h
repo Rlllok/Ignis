@@ -28,14 +28,15 @@ struct R_FrameInfo
 
 struct R_Backend
 {
-  b8    (*Init)            (OS_Window* window);
-  b8    (*DrawFrame)       ();
-  b8    (*CreatePipeline)  (R_Pipeline* pipeline);
-  void  (*BeginFrame)      ();
-  void  (*EndFrame)        ();
-  void  (*BeginRenderPass) ();
-  void  (*EndRenderPass)   ();
-  void  (*DrawSceneObject) (R_SceneObject* object, void* uniform_data, u32 uniform_size);
+  b8    (*Init)             (OS_Window* window);
+  b8    (*DrawFrame)        ();
+  b8    (*CreatePipeline)   (R_Pipeline* pipeline);
+  void  (*BeginFrame)       ();
+  void  (*EndFrame)         ();
+  void  (*BeginRenderPass)  ();
+  void  (*EndRenderPass)    ();
+  void  (*DrawSceneObject)  (R_SceneObject* object, void* uniform_data, u32 uniform_size);
+  void  (*BindPipeline)     (R_Pipeline* pipeline);
 };
 
 struct R_RendererState
@@ -55,3 +56,4 @@ func void R_EndFrame();
 func void R_BeginRenderPass();
 func void R_EndRenderPass();
 func void R_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 uniform_size);
+func void R_BindPipeline(R_Pipeline* pipeline);

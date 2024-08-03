@@ -10,12 +10,6 @@
 #include "../os/os_include.cpp"
 #include "../render/r_include.cpp"
 
-struct MVP
-{
-  alignas(16) Vec3f   color       = MakeVec3f(1.0f, 1.0f, 0.0f);
-  alignas(16) Mat4x4f view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
-  alignas(16) Mat4x4f translation = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 5.0f));
-};
 
 func R_SceneObject* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
 {
@@ -159,17 +153,28 @@ i32 main()
 
   Arena* arena = AllocateArena(Megabytes(256));
 
-  R_Pipeline pipeline = {};
-  R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-  R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-  R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
+  R_Pipeline default_pipeline = {};
+  R_PipelineAddAttribute(&default_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+  R_PipelineAddAttribute(&default_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+  R_PipelineAddAttribute(&default_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
 
-  R_BindingLayoutAdd(&pipeline.binding_layout, R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX);
-  R_BindingLayoutAdd(&pipeline.binding_layout, R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT);
+  R_BindingLayoutAdd(&default_pipeline.binding_layout, R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX);
+  R_BindingLayoutAdd(&default_pipeline.binding_layout, R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT);
 
-  R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-  R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-  R_CreatePipeline(&pipeline);
+  R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &default_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+  R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &default_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+  R_CreatePipeline(&default_pipeline);
+
+  R_Pipeline pink_pipeline = {};
+  R_PipelineAddAttribute(&pink_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+  R_PipelineAddAttribute(&pink_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+
+  R_BindingLayoutAdd(&pink_pipeline.binding_layout, R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX);
+
+  R_H_LoadShader(arena, "data/shaders/pink3D.vert", "main", R_SHADER_TYPE_VERTEX, &pink_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+  R_H_LoadShader(arena, "data/shaders/pink3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pink_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+  
+  R_CreatePipeline(&pink_pipeline);
 
   OS_ShowWindow(&window);
   LOG_INFO("Window showed.\n");
@@ -240,8 +245,31 @@ i32 main()
     {
       R_BeginRenderPass();
       {
-        MVP mvp;
-        R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
+        struct MVP
+        {
+          alignas(16) Vec3f   color = MakeVec3f(1.0f, 1.0f, 0.0f);
+          alignas(16) Mat4x4f view = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+          alignas(16) Mat4x4f translation = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 8.0f));
+        };
+
+        R_BindPipeline(&default_pipeline);
+        {
+          MVP mvp;
+
+          mvp.color       = MakeVec3f(1.0f, 1.0f, 0.0f);
+          mvp.translation = Transpose4x4f(MakeVec3f(-1.0f, 0.0f, 8.0f));
+          R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
+        }
+
+        R_BindPipeline(&pink_pipeline);
+        {
+          MVP mvp;
+
+          mvp.color       = MakeVec3f(0.87f, 0.57f, 0.81f);
+          mvp.translation = Transpose4x4f(MakeVec3f(1.5f, 1.0f, 8.0f));
+          R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
+        }
+
       }
       R_EndRenderPass();
     }
