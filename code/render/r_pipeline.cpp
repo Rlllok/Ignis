@@ -129,33 +129,11 @@ func void R_PipelineAddAttribute(R_Pipeline* pipeline, R_VertexAttributeFormat f
   pipeline->attributes_count += 1;
 }
 
-func void R_PipelineAddUniform(R_Pipeline* pipeline, R_UniformType type)
+func void R_BindingLayoutAdd(R_BindingLayout* layout, R_BindingType type, R_ShaderType stage)
 {
-  ASSERT(pipeline->uniforms.count == MAX_UNIFORMS);
-
-  pipeline->uniforms.types[pipeline->uniforms.count] = type;
-
-  u32 size = 0;
-  switch(type)
-  {
-    case R_UNIFORM_TYPE_VEC3F:
-    {
-      size                  = sizeof(Vec3f);
-      u32 allignment_amount = 16 - size % 16; // --AlNov: Allignment as VK specification suggest
-      size                  += allignment_amount;
-    } break;
-    case R_UNIFORM_TYPE_MAT4x4F:
-    {
-      size                  = sizeof(Mat4x4f);
-      u32 allignment_amount = 16 - size % 16;
-      size                  += allignment_amount;
-    } break;
-
-    default: ASSERT(1);
-  }
-
-  pipeline->uniforms.size += size;
-  pipeline->uniforms.count += 1;
+  layout->binding_types[layout->count]  = type;
+  layout->binding_stages[layout->count] = stage;
+  layout->count                         += 1;
 }
 
 func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)

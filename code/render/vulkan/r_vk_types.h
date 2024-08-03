@@ -2,7 +2,8 @@
 #include "../../third_party/vulkan/include/vulkan.h"
 #include "../../third_party/vulkan/include/vulkan_win32.h"
 
-#include "../../base/base_include.h"
+#include "base/base_include.h"
+#include "render/r_include.h"
 
 // -------------------------------------------------------------------
 // AlNov: Device -----------------------------------------------------
@@ -131,6 +132,7 @@ struct R_VK_ShaderProgram
 // -------------------------------------------------------------------
 // --AlNov: Mesh Info ------------------------------------------------
 // @TODO TO MOVE
+/*
 struct R_VK_MVP
 {
   // --AlNov: @TDO Projection matrix should be stored somewhere else
@@ -171,6 +173,7 @@ struct R_MeshList
     R_Mesh* last;
     u32 count;
 };
+*/
 
 struct R_View
 {
@@ -308,8 +311,7 @@ struct R_VK_State
 
   R_View view;
 
-  R_MeshList mesh_list;
-  R_LineList line_list;
+  R_SceneObject scene_object;
 
   R_Texture texture;
   R_VK_CubeMap cubemap;

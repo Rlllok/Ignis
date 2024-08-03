@@ -10,29 +10,32 @@
 #include "../os/os_include.cpp"
 #include "../render/r_include.cpp"
 
-func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
+struct MVP
+{
+  alignas(16) Vec3f   color       = MakeVec3f(1.0f, 1.0f, 0.0f);
+  alignas(16) Mat4x4f view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+  alignas(16) Mat4x4f translation = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 5.0f));
+};
+
+func R_SceneObject* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u32 phi_count, f32 theta_count)
 {
   const f32 phi_step     = 2 * PI / phi_count;
   const f32 theta_step   = PI / theta_count;
   const u32 vertex_count = 2 + phi_count * (theta_count - 1);
   const u32 index_count  = 2 * 3 * phi_count + 2 * 3 * phi_count * (theta_count - 2);
 
-  R_Mesh* mesh          = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color       = MakeVec3f(1.0f, 0.0f, 0.0f);
-  mesh->mvp.view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
-  // mesh->mvp.view     = Make4x4f(1.0f);
-  mesh->mvp.translation = Transpose4x4f(center_position);
-  mesh->vertex_count    = vertex_count;
-  mesh->vertecies       = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * vertex_count);
-  mesh->index_count     = index_count;
-  mesh->indecies        = (u32*)PushArena(arena, sizeof(u32) * index_count);
+  R_SceneObject* object   = (R_SceneObject*)PushArena(arena, sizeof(R_SceneObject));
+  object->vertex_count    = vertex_count;
+  object->vertecies       = (R_SceneObject::R_SceneObjectVertex*)PushArena(arena, sizeof(R_SceneObject::R_SceneObjectVertex) * vertex_count);
+  object->index_count     = index_count;
+  object->indecies        = (u32*)PushArena(arena, sizeof(u32) * index_count);
 
   // --AlNov: Generate UVSphere vertecies
   {
     u32 current_index = 0;
-    mesh->vertecies[current_index].position = MakeVec3f(0.0f, radius, 0.0f);
-    mesh->vertecies[current_index].normal   = NormalizeVec3f(mesh->vertecies[current_index].position);
-    mesh->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(mesh->vertecies[current_index].position.z, mesh->vertecies[current_index].position.x) / (2*PI), 0.5f + asinf(mesh->vertecies[current_index].position.y) / PI);
+    object->vertecies[current_index].position = MakeVec3f(0.0f, radius, 0.0f);
+    object->vertecies[current_index].normal   = NormalizeVec3f(object->vertecies[current_index].position);
+    object->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(object->vertecies[current_index].position.z, object->vertecies[current_index].position.x) / (2*PI), 0.5f + asinf(object->vertecies[current_index].position.y) / PI);
     current_index += 1;
 
     for (u32 i = 1; i < theta_count - 0; i += 1)
@@ -48,16 +51,16 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
         position.z     = sinf(theta) * sinf(phi);
         position       = MulVec3f(position, radius);
 
-        mesh->vertecies[current_index].position = position;
-        mesh->vertecies[current_index].normal   = NormalizeVec3f(position);
-        mesh->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(position.z, position.x) / (2*PI), 0.5f + asinf(position.y) / PI);
+        object->vertecies[current_index].position = position;
+        object->vertecies[current_index].normal   = NormalizeVec3f(position);
+        object->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(position.z, position.x) / (2*PI), 0.5f + asinf(position.y) / PI);
         current_index += 1;
       }
     }
 
-    mesh->vertecies[current_index].position = MakeVec3f(0.0f, -radius, 0.0f);
-    mesh->vertecies[current_index].normal   = NormalizeVec3f(mesh->vertecies[current_index].position);
-    mesh->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(mesh->vertecies[current_index].position.z, mesh->vertecies[current_index].position.x) / (2*PI), 0.5f + asinf(mesh->vertecies[current_index].position.y) / PI);
+    object->vertecies[current_index].position = MakeVec3f(0.0f, -radius, 0.0f);
+    object->vertecies[current_index].normal   = NormalizeVec3f(object->vertecies[current_index].position);
+    object->vertecies[current_index].uv       = MakeVec2f(0.5f + atan2f(object->vertecies[current_index].position.z, object->vertecies[current_index].position.x) / (2*PI), 0.5f + asinf(object->vertecies[current_index].position.y) / PI);
     current_index += 1;
   }
 
@@ -66,19 +69,19 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
     u32 current_index = 0;
     for (u32 i = 0; i < phi_count - 1; i += 1)
     {
-      mesh->indecies[current_index] = 0;
+      object->indecies[current_index] = 0;
       current_index += 1;
-      mesh->indecies[current_index] = i + 1;
+      object->indecies[current_index] = i + 1;
       current_index += 1;
-      mesh->indecies[current_index] = i + 2;
+      object->indecies[current_index] = i + 2;
       current_index += 1;
     }
 
-    mesh->indecies[current_index] = 0;
+    object->indecies[current_index] = 0;
     current_index += 1;
-    mesh->indecies[current_index] = phi_count;
+    object->indecies[current_index] = phi_count;
     current_index += 1;
-    mesh->indecies[current_index] = 1;
+    object->indecies[current_index] = 1;
     current_index += 1;
 
     for (u32 i = 0; i < (theta_count - 2); i += 1)
@@ -92,17 +95,17 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
           1 + (j + 1) + i * phi_count,
         };
 
-        mesh->indecies[current_index] = QuadIndecies[0];
+        object->indecies[current_index] = QuadIndecies[0];
         current_index += 1;
-        mesh->indecies[current_index] = QuadIndecies[1];
+        object->indecies[current_index] = QuadIndecies[1];
         current_index += 1;
-        mesh->indecies[current_index] = QuadIndecies[2];
+        object->indecies[current_index] = QuadIndecies[2];
         current_index += 1;
-        mesh->indecies[current_index] = QuadIndecies[0];
+        object->indecies[current_index] = QuadIndecies[0];
         current_index += 1;
-        mesh->indecies[current_index] = QuadIndecies[2];
+        object->indecies[current_index] = QuadIndecies[2];
         current_index += 1;
-        mesh->indecies[current_index] = QuadIndecies[3];
+        object->indecies[current_index] = QuadIndecies[3];
         current_index += 1;
       }
 
@@ -113,40 +116,40 @@ func R_Mesh* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 radius, u
         1 + i * phi_count,
       };
 
-      mesh->indecies[current_index] = QuadIndecies[0];
+      object->indecies[current_index] = QuadIndecies[0];
       current_index += 1;
-      mesh->indecies[current_index] = QuadIndecies[1];
+      object->indecies[current_index] = QuadIndecies[1];
       current_index += 1;
-      mesh->indecies[current_index] = QuadIndecies[2];
+      object->indecies[current_index] = QuadIndecies[2];
       current_index += 1;
-      mesh->indecies[current_index] = QuadIndecies[0];
+      object->indecies[current_index] = QuadIndecies[0];
       current_index += 1;
-      mesh->indecies[current_index] = QuadIndecies[2];
+      object->indecies[current_index] = QuadIndecies[2];
       current_index += 1;
-      mesh->indecies[current_index] = QuadIndecies[3];
+      object->indecies[current_index] = QuadIndecies[3];
       current_index += 1;
     }
 
     const u32 south_index = vertex_count - 1;
     for (u32 i = 0; i < phi_count - 1; i += 1)
     {
-      mesh->indecies[current_index] = south_index;
+      object->indecies[current_index] = south_index;
       current_index += 1;
-      mesh->indecies[current_index] = south_index - phi_count + i + 1;
+      object->indecies[current_index] = south_index - phi_count + i + 1;
       current_index += 1;
-      mesh->indecies[current_index] = south_index - phi_count + i;
+      object->indecies[current_index] = south_index - phi_count + i;
       current_index += 1;
     }
 
-    mesh->indecies[current_index] = south_index;
+    object->indecies[current_index] = south_index;
     current_index += 1;
-    mesh->indecies[current_index] = south_index - phi_count;
+    object->indecies[current_index] = south_index - phi_count;
     current_index += 1;
-    mesh->indecies[current_index] = south_index - 1;
+    object->indecies[current_index] = south_index - 1;
     current_index += 1;
   }
 
-  return mesh;
+  return object;
 }
 
 i32 main()
@@ -161,9 +164,8 @@ i32 main()
   R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
   R_PipelineAddAttribute(&pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
 
-  R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_VEC3F);
-  R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
-  R_PipelineAddUniform(&pipeline, R_UNIFORM_TYPE_MAT4x4F);
+  R_BindingLayoutAdd(&pipeline.binding_layout, R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX);
+  R_BindingLayoutAdd(&pipeline.binding_layout, R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT);
 
   R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
   R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
@@ -229,11 +231,7 @@ i32 main()
       event = event->next;
     }
 
-    R_Mesh* uv_sphere   = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
-    R_Mesh* uv_sphere2  = GenerateUVSphere(arena, MakeVec3f(1.0f, 1.0f, 6.0f), 1.0f, 30, 30);
-
-    R_AddMeshToDrawList(uv_sphere);
-    R_AddMeshToDrawList(uv_sphere2);
+    R_SceneObject* uv_sphere = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
 
     R_FrameInfo frame_info = {};
     frame_info.delta_time = time_sec;
@@ -242,7 +240,8 @@ i32 main()
     {
       R_BeginRenderPass();
       {
-        R_DrawMeshes();
+        MVP mvp;
+        R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
       }
       R_EndRenderPass();
     }

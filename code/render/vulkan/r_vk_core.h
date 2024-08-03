@@ -3,8 +3,9 @@
 #include "../../third_party/vulkan/include/vulkan.h"
 #include "../../third_party/vulkan/include/vulkan_win32.h"
 
-#include "../../base/base_include.h"
-#include "../../os/os_include.h"
+#include "base/base_include.h"
+#include "os/os_include.h"
+#include "render/r_include.h"
 
 #define VK_CHECK(expression) ASSERT(expression != VK_SUCCESS);
 
@@ -37,6 +38,7 @@ func void TMP_EndFrame();
 func void TMP_BeginRenderPass();
 func void TMP_EndRenderPass();
 func void TMP_DrawMeshes();
+func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 data_size);
 
 // -------------------------------------------------------------------
 // --AlNov: Command Buffer -------------------------------------------
@@ -71,12 +73,12 @@ func b8 R_VK_EndFrame();
 // --AlNov: Helpers --------------------------------------------------
 func u32  R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags);
 func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
-func void R_VK_PushMeshToBuffer(R_Mesh* mesh);
+// func void R_VK_PushMeshToBuffer(R_Mesh* mesh);
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
 func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type);
 func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format);
+func VkDescriptorType R_VK_DescriptorTypeFromBindingType(R_BindingType type);
 
-// AlNov: From Vulkan Tutorial @TODO Maybe should be replaced
 func VkCommandBuffer R_VK_BeginSingleCommands();
 func void            R_VK_EndSingleCommands(VkCommandBuffer command_buffer);
 func void            R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
@@ -85,8 +87,8 @@ func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, u32
 
 // -------------------------------------------------------------------
 // --AlNov: Mesh List Functions
-func void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
-func void R_AddMeshToDrawList(R_Mesh* mesh);
+// func void R_PushMesh(R_MeshList* list, R_Mesh* mesh);
+// func void R_AddMeshToDrawList(R_Mesh* mesh);
 
 // -------------------------------------------------------------------
 // --AlNov: Line List Functions

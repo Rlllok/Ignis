@@ -21,7 +21,7 @@ void main()
   fragColor    = mvp.color;
   fragNormal   = normal;
   fragUV       = uv;
-  // projection * view * model * vec4(position, 1.0f);
   fragPosition = vec3(mvp.translation * vec4(position, 1.0f));
   gl_Position  = mvp.view * mvp.translation * vec4(position, 1.0f);
+  // gl_Position  = vec4(position, 1.0f) + vec4(0.0f, 0.0f, 1.0f, 0.0f);
 }

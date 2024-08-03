@@ -5,8 +5,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../../third_party/stb_image.h"
 
-#include "../r_pipeline.h"
-
 global VkDebugUtilsMessengerEXT R_VK_DebugMessenger;
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
@@ -321,11 +319,11 @@ func void R_VK_CreateDescriptorPool()
 
   VkDescriptorPoolSize pool_size = {};
   pool_size.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  pool_size.descriptorCount = 50;
+  pool_size.descriptorCount = 1024;
 
   VkDescriptorPoolSize sampler_pool_size = {};
   sampler_pool_size.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  sampler_pool_size.descriptorCount = 5;
+  sampler_pool_size.descriptorCount = 1024;
 
   VkDescriptorPoolSize pool_sizes[2] = { pool_size, sampler_pool_size };
 
@@ -595,62 +593,133 @@ func void TMP_EndRenderPass()
 
 func void TMP_DrawMeshes()
 {
+  // vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
+
+  // // --AlNov: Draw Meshes
+  // for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
+  // {
+  //   R_VK_PushMeshToBuffer(mesh_to_draw);
+
+  //   VkDescriptorSetAllocateInfo set_info = {};
+  //   set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  //   set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
+  //   set_info.descriptorSetCount = 1;
+  //   set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
+
+  //   VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
+
+  //   VkDescriptorBufferInfo buffer_info = {};
+  //   buffer_info.buffer = r_vk_state.big_buffer.buffer;
+  //   buffer_info.offset = mesh_to_draw->mvp_offset;
+  //   buffer_info.range  = r_vk_state.sphere_pipeline.r_pipeline->binding_layout.size;
+
+  //   VkDescriptorImageInfo image_info = {};
+  //   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  //   image_info.imageView   = r_vk_state.texture.vk_view;
+  //   image_info.sampler     = r_vk_state.sampler;
+
+  //   VkWriteDescriptorSet buffer_write_set = {};
+  //   buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  //   buffer_write_set.dstSet          = mesh_to_draw->mvp_set;
+  //   buffer_write_set.dstBinding      = 0;
+  //   buffer_write_set.dstArrayElement = 0;
+  //   buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  //   buffer_write_set.descriptorCount = 1;
+  //   buffer_write_set.pBufferInfo     = &buffer_info;
+
+  //   VkWriteDescriptorSet image_write_set = {};
+  //   image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  //   image_write_set.dstSet          = mesh_to_draw->mvp_set;
+  //   image_write_set.dstBinding      = 1;
+  //   image_write_set.dstArrayElement = 0;
+  //   image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  //   image_write_set.descriptorCount = 1;
+  //   image_write_set.pImageInfo      = &image_info;
+
+  //   VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
+
+  //   vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
+
+  //   vkCmdBindDescriptorSets(
+  //     r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+  //     0, 1, &mesh_to_draw->mvp_set, 0, 0
+  //   );
+
+  //   vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
+  //   vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
+
+  //   vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
+  // }
+}
+
+func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 data_size)
+{
   vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.handle);
 
-  // --AlNov: Draw Meshes
-  for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
-  {
-    R_VK_PushMeshToBuffer(mesh_to_draw);
+  VkDeviceSize vertex_offset = r_vk_state.big_buffer.current_position;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, object->vertecies, object->vertex_count * sizeof(R_SceneObject::R_SceneObjectVertex));
+  r_vk_state.big_buffer.current_position += object->vertex_count * sizeof(R_SceneObject::R_SceneObjectVertex);
 
-    VkDescriptorSetAllocateInfo set_info = {};
-    set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
-    set_info.descriptorSetCount = 1;
-    set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
+  VkDeviceSize index_offset = r_vk_state.big_buffer.current_position;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, object->indecies, object->index_count * sizeof(u32));
+  r_vk_state.big_buffer.current_position += object->index_count * sizeof(u32);
 
-    VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &mesh_to_draw->mvp_set));
+  u32 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
+  r_vk_state.big_buffer.current_position += alligment;
+  VkDeviceSize set_offset = r_vk_state.big_buffer.current_position;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, uniform_data, data_size);
+  r_vk_state.big_buffer.current_position += sizeof(data_size);
 
-    VkDescriptorBufferInfo buffer_info = {};
-    buffer_info.buffer = r_vk_state.big_buffer.buffer;
-    buffer_info.offset = mesh_to_draw->mvp_offset;
-    buffer_info.range = r_vk_state.sphere_pipeline.r_pipeline->uniforms.size;
+  VkDescriptorSetAllocateInfo set_info = {};
+  set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  set_info.descriptorPool = r_vk_state.descriptor_pool.pool;
+  set_info.descriptorSetCount = 1;
+  set_info.pSetLayouts = &r_vk_state.sphere_set_layout;
 
-    VkDescriptorImageInfo image_info = {};
-    image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    image_info.imageView = r_vk_state.texture.vk_view;
-    image_info.sampler = r_vk_state.sampler;
+  VkDescriptorSet current_set;
+  VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &set_info, &current_set));
 
-    VkWriteDescriptorSet buffer_write_set = {};
-    buffer_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    buffer_write_set.dstSet = mesh_to_draw->mvp_set;
-    buffer_write_set.dstBinding = 0;
-    buffer_write_set.dstArrayElement = 0;
-    buffer_write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    buffer_write_set.descriptorCount = 1;
-    buffer_write_set.pBufferInfo = &buffer_info;
+  VkDescriptorBufferInfo buffer_info = {};
+  buffer_info.buffer = r_vk_state.big_buffer.buffer;
+  buffer_info.offset = set_offset;
+  buffer_info.range  = data_size;
 
-    VkWriteDescriptorSet image_write_set = {};
-    image_write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    image_write_set.dstSet = mesh_to_draw->mvp_set;
-    image_write_set.dstBinding = 1;
-    image_write_set.dstArrayElement = 0;
-    image_write_set.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    image_write_set.descriptorCount = 1;
-    image_write_set.pImageInfo = &image_info;
+  VkDescriptorImageInfo image_info = {};
+  image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  image_info.imageView   = r_vk_state.texture.vk_view;
+  image_info.sampler     = r_vk_state.sampler;
 
-    VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
+  VkWriteDescriptorSet buffer_write_set = {};
+  buffer_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  buffer_write_set.dstSet          = current_set;
+  buffer_write_set.dstBinding      = 0;
+  buffer_write_set.dstArrayElement = 0;
+  buffer_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  buffer_write_set.descriptorCount = 1;
+  buffer_write_set.pBufferInfo     = &buffer_info;
 
-    vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
+  VkWriteDescriptorSet image_write_set = {};
+  image_write_set.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  image_write_set.dstSet          = current_set;
+  image_write_set.dstBinding      = 1;
+  image_write_set.dstArrayElement = 0;
+  image_write_set.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  image_write_set.descriptorCount = 1;
+  image_write_set.pImageInfo      = &image_info;
 
-    vkCmdBindDescriptorSets(
-      r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
-      0, 1, &mesh_to_draw->mvp_set, 0, 0);
+  VkWriteDescriptorSet write_sets[2] = { buffer_write_set, image_write_set };
 
-    vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &mesh_to_draw->vertex_offset);
-    vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, mesh_to_draw->index_offset, VK_INDEX_TYPE_UINT32);
+  vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_sets, 0, 0);
 
-    vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, mesh_to_draw->index_count, 1, 0, 0, 0);
-  }
+  vkCmdBindDescriptorSets(
+    r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.sphere_pipeline.layout,
+    0, 1, &current_set, 0, 0
+  );
+
+  vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &vertex_offset);
+  vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, index_offset, VK_INDEX_TYPE_UINT32);
+
+  vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, object->index_count, 1, 0, 0, 0);
 }
 
 // -------------------------------------------------------------------
@@ -826,23 +895,19 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
     fragment_shader_stage
   };
 
-  VkDescriptorSetLayoutBinding uniforms_binding_info = {};
-  uniforms_binding_info.binding         = 0;
-  uniforms_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uniforms_binding_info.descriptorCount = 1;
-  uniforms_binding_info.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+  VkDescriptorSetLayoutBinding bindings[10] = {};
 
-  VkDescriptorSetLayoutBinding sampler_binding_info = {};
-  sampler_binding_info.binding         = 1;
-  sampler_binding_info.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  sampler_binding_info.descriptorCount = 1;
-  sampler_binding_info.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-  VkDescriptorSetLayoutBinding bindings[2] = { uniforms_binding_info, sampler_binding_info };
+  for (u32 i = 0; i < pipeline->binding_layout.count; i += 1)
+  {
+    bindings[i].binding         = i;
+    bindings[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(pipeline->binding_layout.binding_types[i]);
+    bindings[i].descriptorCount = 1;
+    bindings[i].stageFlags      = R_VK_ShaderStageFromShaderType(pipeline->binding_layout.binding_stages[i]);
+  }
 
   VkDescriptorSetLayoutCreateInfo layout_info = {};
   layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layout_info.bindingCount = 2;
+  layout_info.bindingCount = pipeline->binding_layout.count;
   layout_info.pBindings    = bindings;
 
   VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.sphere_set_layout));
@@ -978,17 +1043,8 @@ func b8 R_VK_EndFrame()
 {
   r_vk_state.big_buffer.current_position = 0;
 
-  for (R_Mesh* mesh_to_draw = r_vk_state.mesh_list.first; mesh_to_draw; mesh_to_draw = mesh_to_draw->next)
-  {
-    // --AlNov: @NOTE It is bad to recreate and delete.
-    // But it is how it is now
-    vkDeviceWaitIdle(r_vk_state.device.logical);
-
-    vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
-  }
-
-  r_vk_state.mesh_list = {};
-  r_vk_state.line_list = {};
+  vkDeviceWaitIdle(r_vk_state.device.logical);
+  vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
 
   return true;
 }
@@ -1034,27 +1090,6 @@ func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags prop
   VK_CHECK(vkBindBufferMemory(r_vk_state.device.logical, *out_buffer, *out_memory, 0));
 }
 
-func void R_VK_PushMeshToBuffer(R_Mesh* mesh)
-{
-  // --AlNov: Add Vertecies information
-  mesh->vertex_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, mesh->vertecies, mesh->vertex_count * sizeof(R_MeshVertex));
-  r_vk_state.big_buffer.current_position += mesh->vertex_count * sizeof(R_MeshVertex);
-
-  // --AlNov: Add Indecies information
-  mesh->index_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, mesh->indecies, mesh->index_count * sizeof(u32));
-  r_vk_state.big_buffer.current_position += mesh->index_count * sizeof(u32);
-
-  // --AlNov: Add Uniform information
-  // --AlNov: (https://vulkan.lunarg.com/doc/view/1.3.268.0/windows/1.3-extensions/vkspec.html#VUID-VkWriteDescriptorSet-descriptorType-00327
-  u64 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
-  r_vk_state.big_buffer.current_position += alligment;
-  mesh->mvp_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, &mesh->mvp, sizeof(R_VK_MVP));
-  r_vk_state.big_buffer.current_position += sizeof(R_VK_MVP);
-}
-
 func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
 {
   void* mapped_memory;
@@ -1084,6 +1119,17 @@ func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
     case R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT: return VK_FORMAT_R32G32_SFLOAT;
 
     default: ASSERT(1); return VK_FORMAT_R32_SFLOAT; // --AlNov: format is not supported by Vulkan Layer
+  }
+}
+
+func VkDescriptorType R_VK_DescriptorTypeFromBindingType(R_BindingType type)
+{
+  switch (type)
+  {
+    case R_BINDING_TYPE_UNIFORM_BUFFER: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    case R_BINDING_TYPE_TEXTURE_2D:     return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+    default: ASSERT(1); return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // --AlNov: Binding type not supported by Vulkan Layer
   }
 }
 
@@ -1204,61 +1250,6 @@ func void R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_coun
     vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, &image_barrier);
   }
   R_VK_EndSingleCommands(command_buffer);
-}
-
-// -------------------------------------------------------------------
-// --AlNov: Mesh List Functions
-func void R_PushMesh(R_MeshList* list, R_Mesh* mesh)
-{
-  if (list->count == 0)
-  {
-    list->first = mesh;
-    list->last = mesh;
-    list->count += 1;
-
-    mesh->next = 0;
-    mesh->previous = 0;
-  }
-  else
-  {
-    mesh->previous = list->last;
-    mesh->next = 0;
-    list->last->next = mesh;
-    list->last = mesh;
-    list->count += 1;
-  }
-}
-
-func void R_AddMeshToDrawList(R_Mesh* mesh)
-{
-  R_PushMesh(&r_vk_state.mesh_list, mesh);
-}
-
-func void R_PushLine(R_LineList* list, R_Line* line)
-{
-  if (list->count == 0)
-  {
-    list->first = line;
-    list->last = line;
-    list->count = 1;
-
-    line->next = 0;
-    line->previous = 0;
-  }
-  else
-  {
-    line->previous = list->last;
-    line->next = 0;
-    list->last->next = line;
-    list->last = line;
-    list->count += 1;
-  }
-
-}
-
-func void R_AddLineToDrawList(R_Line* line)
-{
-  R_PushLine(&r_vk_state.line_list, line);
 }
 
 func bool LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels)

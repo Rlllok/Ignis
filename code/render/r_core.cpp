@@ -22,7 +22,7 @@ func b8 R_CreateBackend()
   backend.EndFrame        = TMP_EndFrame;
   backend.BeginRenderPass = TMP_BeginRenderPass;
   backend.EndRenderPass   = TMP_EndRenderPass;
-  backend.DrawMeshes      = TMP_DrawMeshes;
+  backend.DrawSceneObject = TMP_DrawSceneObject;
 
   r_render_state.backend = backend;
   
@@ -40,4 +40,4 @@ func void R_BeginFrame()                          { r_render_state.backend.Begin
 func void R_EndFrame()                            { r_render_state.backend.EndFrame(); }
 func void R_BeginRenderPass()                     { r_render_state.backend.BeginRenderPass(); }
 func void R_EndRenderPass()                       { r_render_state.backend.EndRenderPass(); }
-func void R_DrawMeshes()                          { r_render_state.backend.DrawMeshes(); }
+func void R_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 uniform_size) { r_render_state.backend.DrawSceneObject(object, uniform_data, uniform_size); }
