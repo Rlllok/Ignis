@@ -33,12 +33,12 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
 func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer);
 func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass);
 
-func void TMP_BeginFrame();
-func void TMP_EndFrame();
-func void TMP_BeginRenderPass();
-func void TMP_EndRenderPass();
-func void TMP_DrawMeshes();
-func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 data_size);
+func void R_VK_BeginFrame();
+func void R_VK_EndFrame();
+func void R_VK_EndFrame();
+func void R_VK_BeginRenderPass();
+func void R_VK_EndRenderPass();
+func void R_VK_Draw(R_DrawInfo* info);
 
 // -------------------------------------------------------------------
 // --AlNov: Command Buffer -------------------------------------------
@@ -59,16 +59,12 @@ func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* frameb
 
 // -------------------------------------------------------------------
 // --AlNov: Shader ---------------------------------------------------
-func void             R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program);
+func void R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program);
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
 func b8   R_VK_CreatePipeline(R_Pipeline* pipeline);
 func void R_VK_BindPipeline(R_Pipeline* pipeline);
-
-// -------------------------------------------------------------------
-// --AlNov: Draw Functions -------------------------------------------
-func b8 R_VK_EndFrame();
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------

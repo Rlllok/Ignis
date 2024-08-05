@@ -484,31 +484,6 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
 
 func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer)
 {
-  VkRenderPassBeginInfo begin_info = {};
-  begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  begin_info.renderPass               = render_pass->handle;
-  begin_info.framebuffer              = framebuffer->handle;
-  begin_info.renderArea.offset.x      = render_pass->render_area.x0;
-  begin_info.renderArea.offset.y      = render_pass->render_area.y0;
-  begin_info.renderArea.extent.width  = render_pass->render_area.x1 - render_pass->render_area.x0;
-  begin_info.renderArea.extent.height = render_pass->render_area.y1 - render_pass->render_area.y0;
-
-  VkClearValue color_clear_value = {};
-  color_clear_value.color.float32[0] = render_pass->clear_color.r;
-  color_clear_value.color.float32[1] = render_pass->clear_color.g;
-  color_clear_value.color.float32[2] = render_pass->clear_color.b;
-  color_clear_value.color.float32[3] = render_pass->clear_color.a;
-
-  VkClearValue depth_stencil_clear_value = {};
-  depth_stencil_clear_value.depthStencil.depth   = render_pass->clear_depth;
-  depth_stencil_clear_value.depthStencil.stencil = render_pass->clear_stencil;
-
-  VkClearValue clear_values[2] = { color_clear_value, depth_stencil_clear_value };
-
-  begin_info.clearValueCount = CountArrayElements(clear_values);
-  begin_info.pClearValues    = clear_values;
-
-  vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass)
@@ -516,7 +491,7 @@ func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass
   vkCmdEndRenderPass(command_buffer->handle);
 }
 
-func void TMP_BeginFrame()
+func void R_VK_BeginFrame()
 {
   r_vk_state.current_frame %= NUM_FRAMES_IN_FLIGHT;
 
@@ -542,7 +517,7 @@ func void TMP_BeginFrame()
   R_VK_BeginCommandBuffer(r_vk_state.current_command_buffer);
 }
 
-func void TMP_EndFrame()
+func void R_VK_EndFrame()
 {
   R_VK_EndCommandBuffer(r_vk_state.current_command_buffer);
 
@@ -578,34 +553,67 @@ func void TMP_EndFrame()
 
   r_vk_state.current_frame += 1;
 
-  R_VK_EndFrame();
+  r_vk_state.big_buffer.current_position = 0;
+
+  vkDeviceWaitIdle(r_vk_state.device.logical);
+  vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
 }
 
-func void TMP_BeginRenderPass()
+func void R_VK_BeginRenderPass()
 {
-  R_VK_BeginRenderPass(r_vk_state.current_command_buffer, &r_vk_state.render_pass, r_vk_state.current_framebuffer); 
+  R_VK_CommandBuffer* command_buffer  = r_vk_state.current_command_buffer;
+  R_VK_Framebuffer*   framebuffer     = r_vk_state.current_framebuffer;
+  R_VK_RenderPass*    render_pass     = &r_vk_state.render_pass;
+
+  VkRenderPassBeginInfo begin_info = {};
+  begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  begin_info.renderPass               = render_pass->handle;
+  begin_info.framebuffer              = framebuffer->handle;
+  begin_info.renderArea.offset.x      = render_pass->render_area.x0;
+  begin_info.renderArea.offset.y      = render_pass->render_area.y0;
+  begin_info.renderArea.extent.width  = render_pass->render_area.x1 - render_pass->render_area.x0;
+  begin_info.renderArea.extent.height = render_pass->render_area.y1 - render_pass->render_area.y0;
+
+  VkClearValue color_clear_value = {};
+  color_clear_value.color.float32[0] = render_pass->clear_color.r;
+  color_clear_value.color.float32[1] = render_pass->clear_color.g;
+  color_clear_value.color.float32[2] = render_pass->clear_color.b;
+  color_clear_value.color.float32[3] = render_pass->clear_color.a;
+
+  VkClearValue depth_stencil_clear_value = {};
+  depth_stencil_clear_value.depthStencil.depth   = render_pass->clear_depth;
+  depth_stencil_clear_value.depthStencil.stencil = render_pass->clear_stencil;
+
+  VkClearValue clear_values[2] = { color_clear_value, depth_stencil_clear_value };
+
+  begin_info.clearValueCount = CountArrayElements(clear_values);
+  begin_info.pClearValues    = clear_values;
+
+  vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-func void TMP_EndRenderPass()
+func void R_VK_EndRenderPass()
 {
-  R_VK_EndRenderPass(r_vk_state.current_command_buffer, &r_vk_state.render_pass);
+  vkCmdEndRenderPass(r_vk_state.current_command_buffer->handle);
 }
 
-func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 data_size)
+func void R_VK_Draw(R_DrawInfo* info)
 {
+  R_VK_BindPipeline(info->pipeline);
+
   VkDeviceSize vertex_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, object->vertecies, object->vertex_count * sizeof(R_SceneObject::R_SceneObjectVertex));
-  r_vk_state.big_buffer.current_position += object->vertex_count * sizeof(R_SceneObject::R_SceneObjectVertex);
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->vertecies, info->vertex_count * info->vertex_size);
+  r_vk_state.big_buffer.current_position += info->vertex_count * info->vertex_size;
 
   VkDeviceSize index_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, object->indecies, object->index_count * sizeof(u32));
-  r_vk_state.big_buffer.current_position += object->index_count * sizeof(u32);
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->indecies, info->index_count * info->index_size);
+  r_vk_state.big_buffer.current_position += info->index_count * info->index_size;
 
   u32 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
   r_vk_state.big_buffer.current_position += alligment;
   VkDeviceSize set_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, uniform_data, data_size);
-  r_vk_state.big_buffer.current_position += data_size;
+  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->uniform_data, info->uniform_data_size);
+  r_vk_state.big_buffer.current_position += info->uniform_data_size;
 
   VkDescriptorSetAllocateInfo set_info = {};
   set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -619,7 +627,7 @@ func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 dat
   VkDescriptorBufferInfo buffer_info = {};
   buffer_info.buffer = r_vk_state.big_buffer.buffer;
   buffer_info.offset = set_offset;
-  buffer_info.range  = data_size;
+  buffer_info.range  = info->uniform_data_size;
 
   VkDescriptorImageInfo image_info = {};
   image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -651,7 +659,7 @@ func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 dat
   vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &vertex_offset);
   vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, index_offset, VK_INDEX_TYPE_UINT32);
 
-  vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, object->index_count, 1, 0, 0, 0);
+  vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, info->index_count, 1, 0, 0, 0);
 }
 
 // -------------------------------------------------------------------
@@ -845,10 +853,10 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.pipelines[r_vk_state.pipelines_count].set_layout));
 
   // --AlNov: @TODO Get rid of hardcoded size of array
-  VkVertexInputAttributeDescription vertex_attributes[3] = {};
+  VkVertexInputAttributeDescription vertex_attributes[10] = {};
 
   u32 offset = 0;
-  for (u32 i = 0; i < 3; i++)
+  for (u32 i = 0; i < pipeline->attributes_count; i++)
   {
     vertex_attributes[i].location = i;
     vertex_attributes[i].binding  = 0;
@@ -867,7 +875,7 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   vertex_input_state_info.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertex_input_state_info.vertexBindingDescriptionCount   = 1;
   vertex_input_state_info.pVertexBindingDescriptions      = &vertex_description;
-  vertex_input_state_info.vertexAttributeDescriptionCount = CountArrayElements(vertex_attributes);
+  vertex_input_state_info.vertexAttributeDescriptionCount = pipeline->attributes_count;
   vertex_input_state_info.pVertexAttributeDescriptions    = vertex_attributes;
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly_state_info = {};
@@ -977,18 +985,6 @@ func void R_VK_BindPipeline(R_Pipeline* pipeline)
   vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.pipelines[r_vk_state.active_pipeline_index].handle);
 }
 // --AlNov: Pipeline @END --------------------------------------------
-
-// -------------------------------------------------------------------
-// --AlNov: Draw Functions -------------------------------------------
-func b8 R_VK_EndFrame()
-{
-  r_vk_state.big_buffer.current_position = 0;
-
-  vkDeviceWaitIdle(r_vk_state.device.logical);
-  vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
-
-  return true;
-}
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------

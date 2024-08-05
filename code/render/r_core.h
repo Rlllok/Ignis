@@ -5,7 +5,7 @@
 
 struct R_SceneObject
 {
-  struct R_SceneObjectVertex
+  struct Vertex
   {
     Vec3f position;
     Vec3f normal;
@@ -15,16 +15,33 @@ struct R_SceneObject
   R_SceneObject* next;
   R_SceneObject* previous;
 
-  R_SceneObjectVertex*  vertecies;
-  u32                   vertex_count;
-  u32*                  indecies;
-  u32                   index_count;
+  Vertex* vertecies;
+  u32     vertex_count;
+  u32*    indecies;
+  u32     index_count;
 };
 
 struct R_FrameInfo
 {
   f32 delta_time;
 };
+
+struct R_DrawInfo
+{
+  R_Pipeline* pipeline;
+
+  u32   vertex_count;
+  u32   vertex_size;
+  void* vertecies;
+
+  u32   index_count;
+  u32   index_size;
+  void* indecies;
+
+  void* uniform_data;
+  u32   uniform_data_size;
+};
+
 
 struct R_Backend
 {
@@ -35,7 +52,7 @@ struct R_Backend
   void  (*EndFrame)         ();
   void  (*BeginRenderPass)  ();
   void  (*EndRenderPass)    ();
-  void  (*DrawSceneObject)  (R_SceneObject* object, void* uniform_data, u32 uniform_size);
+  void  (*Draw)             (R_DrawInfo* info);
   void  (*BindPipeline)     (R_Pipeline* pipeline);
 };
 
@@ -55,5 +72,5 @@ func void R_BeginFrame();
 func void R_EndFrame();
 func void R_BeginRenderPass();
 func void R_EndRenderPass();
-func void R_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 uniform_size);
+func void R_Draw(R_DrawInfo* info);
 func void R_BindPipeline(R_Pipeline* pipeline);

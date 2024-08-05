@@ -20,7 +20,7 @@ func R_SceneObject* GenerateUVSphere(Arena* arena, Vec3f center_position, f32 ra
 
   R_SceneObject* object   = (R_SceneObject*)PushArena(arena, sizeof(R_SceneObject));
   object->vertex_count    = vertex_count;
-  object->vertecies       = (R_SceneObject::R_SceneObjectVertex*)PushArena(arena, sizeof(R_SceneObject::R_SceneObjectVertex) * vertex_count);
+  object->vertecies       = (R_SceneObject::Vertex*)PushArena(arena, sizeof(R_SceneObject::Vertex) * vertex_count);
   object->index_count     = index_count;
   object->indecies        = (u32*)PushArena(arena, sizeof(u32) * index_count);
 
@@ -178,7 +178,8 @@ i32 main()
   {
     R_VertexAttributeFormat attributes[] = {
       R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
     };
     R_PipelineAssignAttributes(&pink_pipeline, attributes, CountArrayElements(attributes));
 
@@ -270,22 +271,43 @@ i32 main()
           alignas(16) Mat4x4f translation = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 8.0f));
         };
 
-        R_BindPipeline(&default_pipeline);
+        {
+          MVP mvp;
+          mvp.color       = MakeVec3f(0.87f, 0.57f, 0.81f);
+          mvp.translation = Transpose4x4f(MakeVec3f(1.5f, 1.0f, 8.0f));
+
+          R_DrawInfo draw_info = {};
+          draw_info.pipeline          = &pink_pipeline;
+          draw_info.vertecies         = uv_sphere->vertecies;
+          draw_info.vertex_size       = sizeof(R_SceneObject::Vertex);
+          draw_info.vertex_count      = uv_sphere->vertex_count;
+          draw_info.indecies          = uv_sphere->indecies;
+          draw_info.index_size        = sizeof(u32);
+          draw_info.index_count       = uv_sphere->index_count;
+          draw_info.uniform_data      = &mvp;
+          draw_info.uniform_data_size = sizeof(mvp);
+
+          R_DrawSceneObject(&draw_info);
+        }
+
         {
           MVP mvp;
 
           mvp.color       = MakeVec3f(1.0f, 1.0f, 0.0f);
           mvp.translation = Transpose4x4f(MakeVec3f(-1.0f, 0.0f, 8.0f));
-          R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
-        }
 
-        R_BindPipeline(&pink_pipeline);
-        {
-          MVP mvp;
+          R_DrawInfo draw_info = {};
+          draw_info.pipeline          = &default_pipeline;
+          draw_info.vertecies         = uv_sphere->vertecies;
+          draw_info.vertex_size       = sizeof(R_SceneObject::Vertex);
+          draw_info.vertex_count      = uv_sphere->vertex_count;
+          draw_info.indecies          = uv_sphere->indecies;
+          draw_info.index_size        = sizeof(u32);
+          draw_info.index_count       = uv_sphere->index_count;
+          draw_info.uniform_data      = &mvp;
+          draw_info.uniform_data_size = sizeof(mvp);
 
-          mvp.color       = MakeVec3f(0.87f, 0.57f, 0.81f);
-          mvp.translation = Transpose4x4f(MakeVec3f(1.5f, 1.0f, 8.0f));
-          R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
+          R_DrawSceneObject(&draw_info);
         }
       }
       R_EndRenderPass();
