@@ -154,27 +154,45 @@ i32 main()
   Arena* arena = AllocateArena(Megabytes(256));
 
   R_Pipeline default_pipeline = {};
-  R_PipelineAddAttribute(&default_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-  R_PipelineAddAttribute(&default_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-  R_PipelineAddAttribute(&default_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT);
+  {
+    R_VertexAttributeFormat attributes[] = {
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+    };
+    R_PipelineAssignAttributes(&default_pipeline, attributes, CountArrayElements(attributes));
 
-  R_BindingLayoutAdd(&default_pipeline.binding_layout, R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX);
-  R_BindingLayoutAdd(&default_pipeline.binding_layout, R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT);
+    R_BindingInfo bindings[] =
+    {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+      {R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT}
+    };
+    R_PipelineAssignBindingLayout(&default_pipeline, bindings, CountArrayElements(bindings));
 
-  R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &default_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-  R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &default_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-  R_CreatePipeline(&default_pipeline);
+    R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &default_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &default_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+    R_CreatePipeline(&default_pipeline);
+  }
 
   R_Pipeline pink_pipeline = {};
-  R_PipelineAddAttribute(&pink_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
-  R_PipelineAddAttribute(&pink_pipeline, R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT);
+  {
+    R_VertexAttributeFormat attributes[] = {
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F
+    };
+    R_PipelineAssignAttributes(&pink_pipeline, attributes, CountArrayElements(attributes));
 
-  R_BindingLayoutAdd(&pink_pipeline.binding_layout, R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX);
+    R_BindingInfo bindings[] =
+    {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
+    };
+    R_PipelineAssignBindingLayout(&pink_pipeline, bindings, CountArrayElements(bindings));
 
-  R_H_LoadShader(arena, "data/shaders/pink3D.vert", "main", R_SHADER_TYPE_VERTEX, &pink_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-  R_H_LoadShader(arena, "data/shaders/pink3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pink_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-  
-  R_CreatePipeline(&pink_pipeline);
+    R_H_LoadShader(arena, "data/shaders/pink3D.vert", "main", R_SHADER_TYPE_VERTEX, &pink_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(arena, "data/shaders/pink3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &pink_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+    
+    R_CreatePipeline(&pink_pipeline);
+  }
 
   OS_ShowWindow(&window);
   LOG_INFO("Window showed.\n");
@@ -269,7 +287,6 @@ i32 main()
           mvp.translation = Transpose4x4f(MakeVec3f(1.5f, 1.0f, 8.0f));
           R_DrawSceneObject(uv_sphere, &mvp, sizeof(mvp));
         }
-
       }
       R_EndRenderPass();
     }

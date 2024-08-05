@@ -28,8 +28,8 @@ struct R_Shader
 
 enum R_VertexAttributeFormat
 {
-  R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT,
-  R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT,
+  R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+  R_VERTEX_ATTRIBUTE_FORMAT_VEC2F,
 
   R_VERTEX_ATTRIBUTE_FORMAT_COUNT
 };
@@ -43,11 +43,10 @@ enum R_BindingType
 };
 
 #define MAX_BINDINGS 10
-struct R_BindingLayout
+struct R_BindingInfo
 {
-  R_BindingType   binding_types[MAX_BINDINGS];
-  R_ShaderType    binding_stages[MAX_BINDINGS];
-  u32             count;
+  R_BindingType type;
+  R_ShaderType  shader_type;
 };
 
 #define MAX_ATTRIBUTES 10
@@ -57,14 +56,15 @@ struct R_Pipeline
   R_Shader                shaders[R_SHADER_TYPE_COUNT];
   R_VertexAttributeFormat attributes[MAX_ATTRIBUTES];
   u32                     attributes_count;
-  R_BindingLayout         binding_layout;
+  R_BindingInfo           bindings[MAX_BINDINGS];
+  u32                     bindings_count;
 };
 
 func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 
-func void R_PipelineAddAttribute(R_Pipeline* pipeline, R_VertexAttributeFormat format);
-func void R_BindingLayoutAdd(R_BindingLayout* layout, R_BindingType type, R_ShaderType stage);
+func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, u32 count);
+func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, u32 count);
 
 // --AlNov: @TODO Is it really needed or there is another way to get offset between attributes
 func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format);

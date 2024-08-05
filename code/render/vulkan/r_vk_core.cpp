@@ -626,22 +626,22 @@ func void TMP_DrawSceneObject(R_SceneObject* object, void* uniform_data, u32 dat
   image_info.imageView   = r_vk_state.texture.vk_view;
   image_info.sampler     = r_vk_state.sampler;
 
-  R_BindingLayout binding_layout = r_vk_state.pipelines[r_vk_state.active_pipeline_index].r_pipeline->binding_layout;
+  R_Pipeline* active_pipeline = r_vk_state.pipelines[r_vk_state.active_pipeline_index].r_pipeline;
 
   VkWriteDescriptorSet write_sets[5] = {};
-  for (u32 i = 0; i < binding_layout.count; i += 1)
+  for (u32 i = 0; i < active_pipeline->bindings_count; i += 1)
   {
     write_sets[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     write_sets[i].dstSet          = current_set;
     write_sets[i].dstBinding      = i;
     write_sets[i].dstArrayElement = 0;
-    write_sets[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(binding_layout.binding_types[i]);
+    write_sets[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(active_pipeline->bindings[i].type);
     write_sets[i].descriptorCount = 1;
     write_sets[i].pBufferInfo     = &buffer_info;
     write_sets[i].pImageInfo      = &image_info;
   }
 
-  vkUpdateDescriptorSets(r_vk_state.device.logical, binding_layout.count, write_sets, 0, 0);
+  vkUpdateDescriptorSets(r_vk_state.device.logical, active_pipeline->bindings_count, write_sets, 0, 0);
 
   vkCmdBindDescriptorSets(
     r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.pipelines[r_vk_state.active_pipeline_index].layout,
@@ -829,17 +829,17 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
 
   VkDescriptorSetLayoutBinding bindings[10] = {};
 
-  for (u32 i = 0; i < pipeline->binding_layout.count; i += 1)
+  for (u32 i = 0; i < pipeline->bindings_count; i += 1)
   {
     bindings[i].binding         = i;
-    bindings[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(pipeline->binding_layout.binding_types[i]);
+    bindings[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(pipeline->bindings[i].type);
     bindings[i].descriptorCount = 1;
-    bindings[i].stageFlags      = R_VK_ShaderStageFromShaderType(pipeline->binding_layout.binding_stages[i]);
+    bindings[i].stageFlags      = R_VK_ShaderStageFromShaderType(pipeline->bindings[i].shader_type);
   }
 
   VkDescriptorSetLayoutCreateInfo layout_info = {};
   layout_info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layout_info.bindingCount = pipeline->binding_layout.count;
+  layout_info.bindingCount = pipeline->bindings_count;
   layout_info.pBindings    = bindings;
 
   VK_CHECK(vkCreateDescriptorSetLayout(r_vk_state.device.logical, &layout_info, 0, &r_vk_state.pipelines[r_vk_state.pipelines_count].set_layout));
@@ -1056,8 +1056,8 @@ func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
 {
   switch (format)
   {
-    case R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT: return VK_FORMAT_R32G32B32_SFLOAT;
-    case R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT: return VK_FORMAT_R32G32_SFLOAT;
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F  : return VK_FORMAT_R32G32B32_SFLOAT;
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F  : return VK_FORMAT_R32G32_SFLOAT;
 
     default: ASSERT(1); return VK_FORMAT_R32_SFLOAT; // --AlNov: format is not supported by Vulkan Layer
   }

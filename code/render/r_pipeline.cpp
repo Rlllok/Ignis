@@ -121,27 +121,28 @@ func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_
   fclose(file);
 }
 
-func void R_PipelineAddAttribute(R_Pipeline* pipeline, R_VertexAttributeFormat format)
+func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, u32 count)
 {
-  ASSERT(pipeline->attributes_count == MAX_ATTRIBUTES);
+  ASSERT(count > MAX_ATTRIBUTES);
 
-  pipeline->attributes[pipeline->attributes_count] = format;
-  pipeline->attributes_count += 1;
+  memcpy(pipeline->attributes, formats, count * sizeof(R_VertexAttributeFormat));
+  pipeline->attributes_count = count;
 }
 
-func void R_BindingLayoutAdd(R_BindingLayout* layout, R_BindingType type, R_ShaderType stage)
+func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, u32 count)
 {
-  layout->binding_types[layout->count]  = type;
-  layout->binding_stages[layout->count] = stage;
-  layout->count                         += 1;
+  ASSERT(count > MAX_BINDINGS);
+
+  memcpy(pipeline->bindings, bindings, count * sizeof(R_BindingInfo));
+  pipeline->bindings_count = count;
 }
 
 func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
 {
   switch (format)
   {
-    case R_VERTEX_ATTRIBUTE_FORMAT_R32G32_SFLOAT    : return sizeof(Vec2f);
-    case R_VERTEX_ATTRIBUTE_FORMAT_R32G32B32_SFLOAT : return sizeof(Vec3f);
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F  : return sizeof(Vec3f);
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F  : return sizeof(Vec2f);
     
     default: ASSERT(1); return 0;
   }
