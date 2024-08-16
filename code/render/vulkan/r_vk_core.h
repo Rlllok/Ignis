@@ -28,10 +28,8 @@ func void R_VK_CreateDepthImage();
 
 // -------------------------------------------------------------------
 // --AlNov: Render Pass ----------------------------------------------
-func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area, Vec4f clear_color, f32 clear_depth, u32 clear_stencil);
+func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area);
 func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass);
-func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer);
-func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass);
 
 func void R_VK_BeginFrame();
 func void R_VK_EndFrame();

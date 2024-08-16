@@ -33,9 +33,6 @@ struct R_VK_RenderPass
 {
   VkRenderPass         handle;
   Rect2f               render_area;
-  Vec4f                clear_color;
-  f32                  clear_depth;
-  u32                  clear_stencil;
   R_VK_RenderPassState state;
 };
 

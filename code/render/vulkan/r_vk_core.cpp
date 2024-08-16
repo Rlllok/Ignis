@@ -78,7 +78,7 @@ func b8 R_VK_Init(OS_Window* window)
   render_area.y0 = 0.0f;
   render_area.x1 = r_vk_state.swapchain.size.width;
   render_area.y1 = r_vk_state.swapchain.size.height;
-  R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area, MakeVec4f(0.05f, 0.05f, 0.05f, 1.0f), 1.0f, 0);
+  R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area);
   // --AlNov: Create Framebuffers
   {
     u32 image_count = r_vk_state.swapchain.image_count;
@@ -401,11 +401,7 @@ func void R_VK_CreateDepthImage()
 
 // -------------------------------------------------------------------
 // --AlNov: Render Pass ----------------------------------------------
-func void R_VK_CreateRenderPass(
-  R_VK_State* vk_state, R_VK_RenderPass* out_render_pass,
-  Rect2f render_area, Vec4f clear_color,
-  f32 clear_depth, u32 clear_stencil
-)
+func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area)
 {
   VkAttachmentDescription color_attachment = {};
   color_attachment.format         = vk_state->swapchain.surface_format.format;
@@ -467,10 +463,7 @@ func void R_VK_CreateRenderPass(
 
   VK_CHECK(vkCreateRenderPass(vk_state->device.logical, &render_pass_info, 0, &out_render_pass->handle));
 
-  out_render_pass->render_area   = render_area;
-  out_render_pass->clear_color   = clear_color;
-  out_render_pass->clear_depth   = clear_depth;
-  out_render_pass->clear_stencil = clear_stencil;
+  out_render_pass->render_area = render_area;
 }
 
 func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass)
@@ -480,15 +473,6 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
   vkDestroyRenderPass(vk_state->device.logical, render_pass->handle, 0);
   
   render_pass->handle = 0;
-}
-
-func void R_VK_BeginRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass, R_VK_Framebuffer* framebuffer)
-{
-}
-
-func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass* render_pass)
-{
-  vkCmdEndRenderPass(command_buffer->handle);
 }
 
 func void R_VK_BeginFrame()
@@ -581,8 +565,8 @@ func void R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_ste
   color_clear_value.color.float32[3] = clear_color.a;
 
   VkClearValue depth_stencil_clear_value = {};
-  depth_stencil_clear_value.depthStencil.depth   = render_pass->clear_depth;
-  depth_stencil_clear_value.depthStencil.stencil = render_pass->clear_stencil;
+  depth_stencil_clear_value.depthStencil.depth   = clear_depth;
+  depth_stencil_clear_value.depthStencil.stencil = clear_stencil;
 
   VkClearValue clear_values[2] = { color_clear_value, depth_stencil_clear_value };
 
