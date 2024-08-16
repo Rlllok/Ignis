@@ -38,7 +38,8 @@ func void      OS_Win32_ToggleFullscreen(const OS_Window* window);
 func OS_EventList OS_GetEventList(Arena* arena);
 func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);
 
-func f32   OS_CurrentTimeSeconds();
-func Vec2f OS_MousePosition(OS_Window window);
+func f32    OS_CurrentTimeSeconds();
+func void   OS_Wait(f32 wait_seconds);
+func Vec2f  OS_MousePosition(OS_Window window);
 
 func LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);

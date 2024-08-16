@@ -151,6 +151,8 @@ i32 main()
   OS_Window window = OS_CreateWindow("Sphere", MakeVec2u(1280, 720));
   R_Init(&window);
 
+  f32 delta_time = 1.0f / 60.0f;
+
   Arena* arena = AllocateArena(Megabytes(256));
 
   R_Pipeline default_pipeline = {};
@@ -198,22 +200,14 @@ i32 main()
   OS_ShowWindow(&window);
   LOG_INFO("Window showed.\n");
 
-  LARGE_INTEGER win32_freq;
-  QueryPerformanceFrequency(&win32_freq);
-  u64 frequency = win32_freq.QuadPart;
-
-  LARGE_INTEGER win32_cycles;
-  QueryPerformanceCounter(&win32_cycles);
-  u64 start_cycles = win32_cycles.QuadPart;
-
-  f32 time_sec = 0.0f;
-
   Vec3f sphere_position = MakeVec3f(0.0f, 0.0f, 5.0f);
   f32   sphere_speed    = 5.0f;
 
   bool is_window_closed = false;
   while(!is_window_closed)
   {
+    f32 begin_time = OS_CurrentTimeSeconds();
+
     OS_EventList event_list = OS_GetEventList(arena);
 
     OS_Event* event = event_list.first;
@@ -234,14 +228,14 @@ i32 main()
             {
               if (event->is_down)
               {
-                sphere_position.z += sphere_speed * time_sec;
+                sphere_position.z += sphere_speed * delta_time;
               }
             } break; 
             case OS_KEY_ARROW_DOWN:
             {
               if (event->is_down)
               {
-                sphere_position.z -= sphere_speed * time_sec;
+                sphere_position.z -= sphere_speed * delta_time;
               }
             } break;
 
@@ -258,7 +252,7 @@ i32 main()
     R_SceneObject* uv_sphere = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
 
     R_FrameInfo frame_info = {};
-    frame_info.delta_time = time_sec;
+    frame_info.delta_time = delta_time;
 
     R_BeginFrame();
     {
@@ -294,7 +288,7 @@ i32 main()
           MVP mvp;
 
           mvp.color       = MakeVec3f(1.0f, 1.0f, 0.0f);
-          mvp.translation = Transpose4x4f(MakeVec3f(-1.0f, 0.0f, 8.0f));
+          mvp.translation = Transpose4x4f(sphere_position);
 
           R_DrawInfo draw_info = {};
           draw_info.pipeline          = &default_pipeline;
@@ -316,11 +310,10 @@ i32 main()
 
     ResetArena(arena);
 
-    QueryPerformanceCounter(&win32_cycles);
-    u64 end_cycles    = win32_cycles.QuadPart;
-    u64 cycles_delta  = end_cycles - start_cycles;
-    start_cycles      = end_cycles;
-    time_sec          = (f32)cycles_delta / (f32)frequency;
+    f32 end_time = OS_CurrentTimeSeconds();
+    f32 wait_time = delta_time - (end_time - begin_time);
+    OS_Wait(wait_time);
+    // LOG_INFO("Wait seconds: %f\n", wait_time);
   }
 
   return 0;

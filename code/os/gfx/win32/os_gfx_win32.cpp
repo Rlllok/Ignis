@@ -109,7 +109,17 @@ func f32 OS_CurrentTimeSeconds()
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
 
-  return (1000.f * (f32)counter.QuadPart) / (f32)frequency.QuadPart;
+  return ((f64)counter.QuadPart) / ((f64)frequency.QuadPart);
+}
+
+func void OS_Wait(f32 wait_seconds)
+{
+  f32 begin_time = OS_CurrentTimeSeconds();
+  f32 end_time = begin_time + wait_seconds;
+
+  Sleep(wait_seconds * 500);
+
+  while (OS_CurrentTimeSeconds() < end_time) {}
 }
 
 func Vec2f OS_MousePosition(OS_Window window)
