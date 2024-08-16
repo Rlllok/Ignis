@@ -35,8 +35,7 @@ func void R_VK_EndRenderPass(R_VK_CommandBuffer* command_buffer, R_VK_RenderPass
 
 func void R_VK_BeginFrame();
 func void R_VK_EndFrame();
-func void R_VK_EndFrame();
-func void R_VK_BeginRenderPass();
+func void R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil);
 func void R_VK_EndRenderPass();
 func void R_VK_Draw(R_DrawInfo* info);
 

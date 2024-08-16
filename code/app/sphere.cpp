@@ -262,12 +262,12 @@ i32 main()
 
     R_BeginFrame();
     {
-      R_BeginRenderPass();
+      R_BeginRenderPass(MakeVec4f(1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 0.0f);
       {
         struct MVP
         {
-          alignas(16) Vec3f   color = MakeVec3f(1.0f, 1.0f, 0.0f);
-          alignas(16) Mat4x4f view = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+          alignas(16) Vec3f   color       = MakeVec3f(1.0f, 1.0f, 0.0f);
+          alignas(16) Mat4x4f view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
           alignas(16) Mat4x4f translation = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 8.0f));
         };
 

@@ -50,7 +50,7 @@ struct R_Backend
   b8    (*CreatePipeline)   (R_Pipeline* pipeline);
   void  (*BeginFrame)       ();
   void  (*EndFrame)         ();
-  void  (*BeginRenderPass)  ();
+  void  (*BeginRenderPass)  (Vec4f clear_color, f32 clear_depth, f32 clear_stencil);
   void  (*EndRenderPass)    ();
   void  (*Draw)             (R_DrawInfo* info);
   void  (*BindPipeline)     (R_Pipeline* pipeline);
@@ -70,7 +70,7 @@ func b8 R_DestroyBackend();
 func b8   R_CreatePipeline(R_Pipeline* pipeline);
 func void R_BeginFrame();
 func void R_EndFrame();
-func void R_BeginRenderPass();
+func void R_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil);
 func void R_EndRenderPass();
-func void R_Draw(R_DrawInfo* info);
+func void R_DrawSceneObject(R_DrawInfo* info);
 func void R_BindPipeline(R_Pipeline* pipeline);

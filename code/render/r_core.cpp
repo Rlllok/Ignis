@@ -36,10 +36,10 @@ func b8 R_DestroyBackend()
 }
 
 // --AlNov: Bind backend functions -----------------------------------
-func b8   R_CreatePipeline(R_Pipeline* pipeline)  { return r_render_state.backend.CreatePipeline(pipeline); }
-func void R_BeginFrame()                          { r_render_state.backend.BeginFrame(); }
-func void R_EndFrame()                            { r_render_state.backend.EndFrame(); }
-func void R_BeginRenderPass()                     { r_render_state.backend.BeginRenderPass(); }
-func void R_EndRenderPass()                       { r_render_state.backend.EndRenderPass(); }
-func void R_DrawSceneObject(R_DrawInfo* info)     { r_render_state.backend.Draw(info); }
-func void R_BindPipeline(R_Pipeline* pipeline)    { r_render_state.backend.BindPipeline(pipeline); }
+func b8   R_CreatePipeline(R_Pipeline* pipeline)                                    { return r_render_state.backend.CreatePipeline(pipeline); }
+func void R_BeginFrame()                                                            { r_render_state.backend.BeginFrame(); }
+func void R_EndFrame()                                                              { r_render_state.backend.EndFrame(); }
+func void R_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil)  { r_render_state.backend.BeginRenderPass(clear_color, clear_depth, clear_stencil); }
+func void R_EndRenderPass()                                                         { r_render_state.backend.EndRenderPass(); }
+func void R_DrawSceneObject(R_DrawInfo* info)                                       { r_render_state.backend.Draw(info); }
+func void R_BindPipeline(R_Pipeline* pipeline)                                      { r_render_state.backend.BindPipeline(pipeline); }

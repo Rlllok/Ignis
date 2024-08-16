@@ -559,7 +559,7 @@ func void R_VK_EndFrame()
   vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
 }
 
-func void R_VK_BeginRenderPass()
+func void R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil)
 {
   R_VK_CommandBuffer* command_buffer  = r_vk_state.current_command_buffer;
   R_VK_Framebuffer*   framebuffer     = r_vk_state.current_framebuffer;
@@ -575,10 +575,10 @@ func void R_VK_BeginRenderPass()
   begin_info.renderArea.extent.height = render_pass->render_area.y1 - render_pass->render_area.y0;
 
   VkClearValue color_clear_value = {};
-  color_clear_value.color.float32[0] = render_pass->clear_color.r;
-  color_clear_value.color.float32[1] = render_pass->clear_color.g;
-  color_clear_value.color.float32[2] = render_pass->clear_color.b;
-  color_clear_value.color.float32[3] = render_pass->clear_color.a;
+  color_clear_value.color.float32[0] = clear_color.r;
+  color_clear_value.color.float32[1] = clear_color.g;
+  color_clear_value.color.float32[2] = clear_color.b;
+  color_clear_value.color.float32[3] = clear_color.a;
 
   VkClearValue depth_stencil_clear_value = {};
   depth_stencil_clear_value.depthStencil.depth   = render_pass->clear_depth;
