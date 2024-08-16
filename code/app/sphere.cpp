@@ -262,7 +262,7 @@ i32 main()
 
     R_BeginFrame();
     {
-      R_BeginRenderPass(MakeVec4f(1.0f, 1.0f, 1.0f, 1.0f), 0.0f, 0.0f);
+      R_BeginRenderPass(MakeVec4f(1.0f, 1.0f, 1.0f, 1.0f), 1.0f, 0.0f);
       {
         struct MVP
         {
