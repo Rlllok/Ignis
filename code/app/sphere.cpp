@@ -200,7 +200,7 @@ i32 main()
   OS_ShowWindow(&window);
   LOG_INFO("Window showed.\n");
 
-  Vec3f sphere_position = MakeVec3f(0.0f, 0.0f, 5.0f);
+  Vec3f sphere_position = MakeVec3f(-1.0f, 0.0f, 5.0f);
   f32   sphere_speed    = 5.0f;
 
   bool is_window_closed = false;
@@ -312,7 +312,7 @@ i32 main()
 
     f32 end_time = OS_CurrentTimeSeconds();
     f32 wait_time = delta_time - (end_time - begin_time);
-    OS_Wait(wait_time);
+    if (wait_time > 0) { OS_Wait(wait_time); };
     // LOG_INFO("Wait seconds: %f\n", wait_time);
   }
 
