@@ -26,6 +26,7 @@ pushd build
     if "%physics%"    == "1" %compiler% %clang_flags% ..\code\app\physics.cpp -o physics.exe
     if "%sphere%"     == "1" %compiler% %clang_flags% ..\code\app\sphere.cpp -o sphere.exe
     if "%soa_test%"   == "1" %compiler% %clang_flags% -O0 ..\code\app\soa_test.cpp -o soa_test.exe
+    if "%fullquad%"     == "1" %compiler% %clang_flags% ..\code\app\fullquad.cpp -o fullquad.exe
 popd
 
 @echo.

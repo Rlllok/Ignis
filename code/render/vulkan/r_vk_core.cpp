@@ -255,7 +255,7 @@ func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapc
 
     for (u32 i = 0; i < format_count; i += 1)
     {
-      if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
+      if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
         vk_state->swapchain.surface_format = formats[i];
       }
     }
@@ -893,7 +893,7 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   rasterization_state_info.depthClampEnable        = VK_FALSE;
   rasterization_state_info.rasterizerDiscardEnable = VK_FALSE;
   rasterization_state_info.polygonMode             = VK_POLYGON_MODE_FILL;
-  rasterization_state_info.cullMode                = VK_CULL_MODE_BACK_BIT;
+  rasterization_state_info.cullMode                = VK_CULL_MODE_NONE;
   rasterization_state_info.frontFace               = VK_FRONT_FACE_CLOCKWISE;
   rasterization_state_info.depthBiasEnable         = VK_FALSE;
   rasterization_state_info.lineWidth               = 1.0f;

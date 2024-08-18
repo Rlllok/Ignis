@@ -267,11 +267,9 @@ i32 main()
 
         {
           MVP mvp;
-          mvp.color       = MakeVec3f(0.87f, 0.57f, 0.81f);
-          mvp.translation = Transpose4x4f(MakeVec3f(1.5f, 1.0f, 8.0f));
 
           R_DrawInfo draw_info = {};
-          draw_info.pipeline          = &pink_pipeline;
+          draw_info.pipeline          = &default_pipeline;
           draw_info.vertecies         = uv_sphere->vertecies;
           draw_info.vertex_size       = sizeof(R_SceneObject::Vertex);
           draw_info.vertex_count      = uv_sphere->vertex_count;
@@ -285,21 +283,30 @@ i32 main()
         }
 
         {
-          MVP mvp;
+          struct UniformBuffer
+          {
+            alignas(16) Vec3f   color;
+            alignas(16) Mat4x4f view;
+            alignas(16) Mat4x4f translation;
+            alignas(4)  f32     time;
+          };
 
-          mvp.color       = MakeVec3f(1.0f, 1.0f, 0.0f);
-          mvp.translation = Transpose4x4f(sphere_position);
+          UniformBuffer uniform_buffer = {};
+          uniform_buffer.color       = MakeVec3f(0.87f, 0.57f, 0.81f);
+          uniform_buffer.view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+          uniform_buffer.translation = Transpose4x4f(sphere_position);
+          uniform_buffer.time        = begin_time;
 
           R_DrawInfo draw_info = {};
-          draw_info.pipeline          = &default_pipeline;
+          draw_info.pipeline          = &pink_pipeline;
           draw_info.vertecies         = uv_sphere->vertecies;
           draw_info.vertex_size       = sizeof(R_SceneObject::Vertex);
           draw_info.vertex_count      = uv_sphere->vertex_count;
           draw_info.indecies          = uv_sphere->indecies;
           draw_info.index_size        = sizeof(u32);
           draw_info.index_count       = uv_sphere->index_count;
-          draw_info.uniform_data      = &mvp;
-          draw_info.uniform_data_size = sizeof(mvp);
+          draw_info.uniform_data      = &uniform_buffer;
+          draw_info.uniform_data_size = sizeof(uniform_buffer);
 
           R_DrawSceneObject(&draw_info);
         }
