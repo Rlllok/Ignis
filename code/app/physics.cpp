@@ -201,12 +201,12 @@ i32 main()
 
     // --AlNov: Collision
     for (PH_Shape* shape_a = shape_list.first;
-        shape_a;
-        shape_a = shape_a->next)
+      shape_a;
+      shape_a = shape_a->next)
     {
       for (PH_Shape* shape_b = shape_a->next;
-          shape_b;
-          shape_b = shape_b->next)
+        shape_b;
+        shape_b = shape_b->next)
       {
         PH_CollisionInfo collision_info = {};
         if (PH_CheckCollision(&collision_info, shape_a, shape_b))
@@ -227,9 +227,6 @@ i32 main()
         {
           DrawPhysicsShape(frame_arena, shape, WHITE_COLOR);
         }
-
-        // DrawCircle(MakeVec2f(250.0f, 250.0f), 50.0f);
-        // DrawBox(MakeVec2f(550.0f, 250.0f), MakeVec2f(75.0f, 50.0f));
       }
       R_EndRenderPass();
     }
@@ -271,19 +268,19 @@ func void DrawBox(Vec2f position, Vec2f size)
   struct UBO
   {
     alignas(16) Mat4x4f projection;
-    alignas(8)  Vec2f   resolution;
     alignas(8)  Vec2f   position;
     alignas(8)  Vec2f   size;
+    alignas(16) Vec3f   color;
     alignas(4)  f32     is_box;
   };
 
   Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
 
   UBO ubo = {};
-  ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, -1.0f, 2.0f);
-  ubo.resolution  = resolution;
+  ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, 0.0f, 1.0f);
   ubo.position    = position;
   ubo.size        = size;
+  ubo.color       = MakeVec3f(0.65f, 0.23f, 0.12f);
   ubo.is_box      = 1.0f;
 
   R_DrawInfo draw_info = {};
@@ -305,19 +302,19 @@ func void DrawCircle(Vec2f position, f32 radius)
   struct UBO
   {
     alignas(16) Mat4x4f projection;
-    alignas(8)  Vec2f   resolution;
     alignas(8)  Vec2f   position;
     alignas(8)  Vec2f   size;
+    alignas(16) Vec3f   color;
     alignas(4)  f32     is_box;
   };
 
   Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
 
   UBO ubo = {};
-  ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, -1.0f, 2.0f);
-  ubo.resolution  = resolution;
+  ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, 0.0f, 1.0f);
   ubo.position    = position;
   ubo.size        = MakeVec2f(radius, radius);
+  ubo.color       = MakeVec3f(0.65f, 0.23f, 0.12f);
   ubo.is_box      = 0.0f;
 
   R_DrawInfo draw_info = {};
@@ -344,7 +341,7 @@ func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color)
     } break;
     case PH_SHAPE_TYPE_BOX:
     {
-      DrawBox(shape->position, MakeVec2f(shape->box.width, shape->box.height));
+      DrawBox(shape->position, MakeVec2f(shape->box.width / 2.0f, shape->box.height / 2.0f));
     } break;
     default: break;
   }
