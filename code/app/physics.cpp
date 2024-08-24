@@ -1,15 +1,14 @@
 #pragma comment(lib, "Winmm.lib")
-
 // --AlNov: .h -------------------------------------------------------
 #include "../base/base_include.h"
 #include "../os/os_include.h"
-#include "../render/vulkan/r_init_vk.h"
+#include "../render/r_include.h"
 #include "../physics/ph_core.h"
 
 // --AlNov: .cpp -----------------------------------------------------
 #include "../base/base_include.cpp"
 #include "../os/os_include.cpp"
-#include "../render/vulkan/r_init_vk.cpp"
+#include "../render/r_include.cpp"
 #include "../physics/ph_core.cpp"
 
 #define PIXELS_PER_METER 40.0f
@@ -21,20 +20,19 @@
 #define PINK_COLOR   MakeVec3f(1.0f, 0.0f, 1.0f)
 #define WHITE_COLOR  MakeVec3f(1.0f, 1.0f, 1.0f)
 
-func void DrawBox(Arena* arena, PH_Shape* box, Vec3f color);
-func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle, Vec3f color);
+func R_SceneObject* GenerateQuad(Arena* arena);
+
+global R_SceneObject* QUAD;
+global R_Pipeline    PIPELINE;
+
+func void DrawBox(Vec2f position, Vec2f size);
+func void DrawCircle(Vec2f position, f32 radius);
 func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color);
-func void DrawLine(Arena* arena, Vec2f p0, Vec2f p1);
 
 i32 main()
 {
   OS_Window window = OS_CreateWindow("Physics", MakeVec2u(1280, 720));
-  R_VK_Init(&window);
-
-  // --AlNov: change Windows schedular granuality
-  // Should be added to win32 layer
-  u32 desired_schedular_ms = 1;
-  timeBeginPeriod(desired_schedular_ms);
+  R_Init(&window);
 
   OS_ShowWindow(&window);
 
@@ -48,11 +46,35 @@ i32 main()
 
   Arena* frame_arena = AllocateArena(Megabytes(256));
 
-  f32 time_sec = 0.0f;
+  f32 time_sec = 1.0f / 60.0f;
 
-  Arena* shape_arena = AllocateArena(Megabytes(64));
+  Arena* shape_arena = AllocateArena(Megabytes(128));
 
-  PH_ShapeList shape_list;
+  {
+    // --AlNov: @TODO
+    // R_VertexAttributeFormat attributes[] = { R_VERTEX_ATTRIBUTE_FORMAT_VEC3F };
+    R_VertexAttributeFormat attributes[] = {
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+    };
+
+    R_PipelineAssignAttributes(&PIPELINE, attributes, CountArrayElements(attributes));
+
+    R_BindingInfo bindings[] =
+    {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+    };
+    R_PipelineAssignBindingLayout(&PIPELINE, bindings, CountArrayElements(bindings));
+
+    R_H_LoadShader(shape_arena, "data/shaders/sdf2D.vert", "main", R_SHADER_TYPE_VERTEX, &PIPELINE.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(shape_arena, "data/shaders/sdf2D.frag", "main", R_SHADER_TYPE_FRAGMENT, &PIPELINE.shaders[R_SHADER_TYPE_FRAGMENT]);
+    R_CreatePipeline(&PIPELINE);
+  }
+
+  QUAD = GenerateQuad(shape_arena);
+
+  PH_ShapeList shape_list = {};
   PH_Shape* floor = PH_CreateBoxShape(shape_arena, MakeVec2f(640.0f, 700.0f), 20.0f, 1200.0f, 0.0f);
   PH_PushShapeList(&shape_list, floor);
   PH_Shape* right_wall = PH_CreateBoxShape(shape_arena, MakeVec2f(50.0f, 450.0f), 600.0f, 30.0f, 0.0f);
@@ -84,6 +106,8 @@ i32 main()
   bool b_finished = false;
   while (!b_finished)
   {
+    f32 begin_time = OS_CurrentTimeSeconds();
+
     OS_EventList event_list = OS_GetEventList(frame_arena);
 
     OS_Event* event = event_list.first;
@@ -167,9 +191,6 @@ i32 main()
         PH_SolveConstrain(constrain);
       }
     }
-    DrawLine(frame_arena, box->position, box1->position);
-    DrawLine(frame_arena, box1->position, box2->position);
-    DrawLine(frame_arena, box2->position, box3->position);
 
     for (PH_Shape* shape = shape_list.first;
          shape;
@@ -194,112 +215,123 @@ i32 main()
         }
       }
     }
+
     // --AlNov: Drawing
-    for (PH_Shape* shape = shape_list.first;
-         shape;
-         shape = shape->next)
+    R_BeginFrame();
     {
-      DrawPhysicsShape(frame_arena, shape, WHITE_COLOR);
+      R_BeginRenderPass(MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f), 1.0f, 0.0f);
+      {
+        for (PH_Shape* shape = shape_list.first;
+          shape;
+          shape = shape->next)
+        {
+          DrawPhysicsShape(frame_arena, shape, WHITE_COLOR);
+        }
+
+        // DrawCircle(MakeVec2f(250.0f, 250.0f), 50.0f);
+        // DrawBox(MakeVec2f(550.0f, 250.0f), MakeVec2f(75.0f, 50.0f));
+      }
+      R_EndRenderPass();
     }
-
-
-    R_DrawFrame();
-
-    // --AlNov: @TODO Not really understand how fixed fps works.
-    // Because of this, it is looks ugly as ...
-    QueryPerformanceCounter(&win32_cycles);
-    u64 end_cycles    = win32_cycles.QuadPart;
-    u64 cycles_delta  = end_cycles - start_cycles;
-    start_cycles      = end_cycles;
-    time_sec          = (f32)cycles_delta / (f32)frequency;
-
-    // --AlNov: @TODO FPS Limitation doesn't work properly
-    /*
-    const f32 fps           = 60.0f;
-    const f32 ms_per_frame  = 1000.0f / fps; 
-    f32 sleep_time          = ms_per_frame - (time_sec * 1000.0f);
-    if (sleep_time > 0)
-    {
-      Sleep(sleep_time);
-    }
-
-    QueryPerformanceCounter(&win32_cycles);
-    end_cycles    = win32_cycles.QuadPart;
-    cycles_delta  = end_cycles - start_cycles;
-    start_cycles  = end_cycles;
-    time_sec      = (f32)cycles_delta / (f32)frequency;
-    */
-
     R_EndFrame();
+
     ResetArena(frame_arena);
+
+    f32 end_time = OS_CurrentTimeSeconds();
+    f32 wait_time = time_sec - (end_time - begin_time);
+    if (wait_time > 0) { OS_Wait(wait_time); };
   }
 
   return 0;
 }
 
-func void DrawBox(Arena* arena, PH_Shape* box, Vec3f color)
+func R_SceneObject* GenerateQuad(Arena* arena)
 {
-  R_Mesh* mesh = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color             = color;
-  mesh->mvp.center_position.x = box->position.x;
-  mesh->mvp.center_position.y = box->position.y;
-  mesh->mvp.center_position.z = 0.0f;
-  mesh->vertex_count          = 4;
-  mesh->vertecies             = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
-  mesh->vertecies[0].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 0));
-  mesh->vertecies[1].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 1));
-  mesh->vertecies[2].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 2));
-  mesh->vertecies[3].position = Vec3fFromVec2(BoxVertexWorldFromLocal(box, 3));
-  mesh->index_count           = 6;
-  mesh->indecies              = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
-  mesh->indecies[0]           = 0;
-  mesh->indecies[1]           = 1;
-  mesh->indecies[2]           = 2;
-  mesh->indecies[3]           = 2;
-  mesh->indecies[4]           = 3;
-  mesh->indecies[5]           = 0;
-  R_AddMeshToDrawList(mesh);
+  R_SceneObject* quad = (R_SceneObject*)PushArena(arena, sizeof(R_SceneObject));
+  quad->vertex_count          = 4;
+  quad->vertecies             = (R_SceneObject::Vertex*)PushArena(arena, sizeof(R_SceneObject::Vertex) * quad->vertex_count);
+  quad->vertecies[0].position = MakeVec3f(-1.0f, -1.0f, 0.0f);
+  quad->vertecies[1].position = MakeVec3f(1.0f, -1.0f, 0.0f);
+  quad->vertecies[2].position = MakeVec3f(1.0f, 1.0f, 0.0f);
+  quad->vertecies[3].position = MakeVec3f(-1.0f, 1.0f, 0.0f);
+  quad->index_count           = 6;
+  quad->indecies              = (u32*)PushArena(arena, sizeof(u32) * quad->index_count);
+  quad->indecies[0]           = 0;
+  quad->indecies[1]           = 1;
+  quad->indecies[2]           = 2;
+  quad->indecies[3]           = 2;
+  quad->indecies[4]           = 3;
+  quad->indecies[5]           = 0;
+
+  return quad;
+}
+
+func void DrawBox(Vec2f position, Vec2f size)
+{
+  struct UBO
+  {
+    alignas(16) Mat4x4f projection;
+    alignas(8)  Vec2f   resolution;
+    alignas(8)  Vec2f   position;
+    alignas(8)  Vec2f   size;
+    alignas(4)  f32     is_box;
+  };
+
+  Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
+
+  UBO ubo = {};
+  ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, -1.0f, 2.0f);
+  ubo.resolution  = resolution;
+  ubo.position    = position;
+  ubo.size        = size;
+  ubo.is_box      = 1.0f;
+
+  R_DrawInfo draw_info = {};
+  draw_info.pipeline          = &PIPELINE;
+  draw_info.vertecies         = QUAD->vertecies;
+  draw_info.vertex_size       = sizeof(QUAD->vertecies[0]);
+  draw_info.vertex_count      = QUAD->vertex_count;
+  draw_info.indecies          = QUAD->indecies;
+  draw_info.index_size        = sizeof(QUAD->indecies[0]);
+  draw_info.index_count       = QUAD->index_count;
+  draw_info.uniform_data      = &ubo;
+  draw_info.uniform_data_size = sizeof(ubo);
+
+  R_DrawSceneObject(&draw_info);
 } 
 
-func void DrawCircle(Arena* arena, Vec2f position, f32 radius, f32 angle, Vec3f color)
+func void DrawCircle(Vec2f position, f32 radius)
 {
-  const u32 points_number   = 40;
-  f32 angle_step            = 2.0f * 3.141592654f / (f32)points_number;
-
-  R_Mesh* mesh              = (R_Mesh*)PushArena(arena, sizeof(R_Mesh));
-  mesh->mvp.color           = color;
-  mesh->mvp.center_position = MakeVec3f(position.x, position.y, 0.0f);
-  mesh->vertex_count        = points_number;
-  mesh->vertecies           = (R_MeshVertex*)PushArena(arena, sizeof(R_MeshVertex) * mesh->vertex_count);
-  mesh->index_count         = (points_number - 2) * 3;
-  mesh->indecies            = (u32*)PushArena(arena, sizeof(R_MeshVertex) * mesh->index_count);
-
-  for (u32 i = 0; i < points_number; i += 1)
+  struct UBO
   {
-    f32 current_angle = angle_step * i;
-    Vec3f point_position = MakeVec3f(    
-      radius * cos(current_angle), 
-      radius * sin(current_angle),
-      0.0f
-    );
+    alignas(16) Mat4x4f projection;
+    alignas(8)  Vec2f   resolution;
+    alignas(8)  Vec2f   position;
+    alignas(8)  Vec2f   size;
+    alignas(4)  f32     is_box;
+  };
 
-    mesh->vertecies[i].position = point_position;
+  Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
 
-    mesh->vertecies[i].position.x += position.x;
-    mesh->vertecies[i].position.y += position.y;
-  }
+  UBO ubo = {};
+  ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, -1.0f, 2.0f);
+  ubo.resolution  = resolution;
+  ubo.position    = position;
+  ubo.size        = MakeVec2f(radius, radius);
+  ubo.is_box      = 0.0f;
 
-  u32 vertex_index = 0;
-  for (u32 i = 0; i < mesh->index_count; i += 3)
-  {
-    mesh->indecies[i]     = 0;
-    mesh->indecies[i + 1] = vertex_index + 1;
-    mesh->indecies[i + 2] = vertex_index + 2;
+  R_DrawInfo draw_info = {};
+  draw_info.pipeline          = &PIPELINE;
+  draw_info.vertecies         = QUAD->vertecies;
+  draw_info.vertex_size       = sizeof(QUAD->vertecies[0]);
+  draw_info.vertex_count      = QUAD->vertex_count;
+  draw_info.indecies          = QUAD->indecies;
+  draw_info.index_size        = sizeof(QUAD->indecies[0]);
+  draw_info.index_count       = QUAD->index_count;
+  draw_info.uniform_data      = &ubo;
+  draw_info.uniform_data_size = sizeof(ubo);
 
-    vertex_index += 1;
-  }
-
-  R_AddMeshToDrawList(mesh);
+  R_DrawSceneObject(&draw_info);
 }
 
 func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color)
@@ -308,26 +340,12 @@ func void DrawPhysicsShape(Arena* arena, PH_Shape* shape, Vec3f color)
   {
     case PH_SHAPE_TYPE_CIRCLE:
     {
-      DrawCircle(arena, shape->position, shape->circle.radius, shape->angle, color);
+      DrawCircle(shape->position, shape->circle.radius);
     } break;
     case PH_SHAPE_TYPE_BOX:
     {
-      DrawBox(arena, shape, color);
+      DrawBox(shape->position, MakeVec2f(shape->box.width, shape->box.height));
     } break;
     default: break;
   }
-}
-
-func void DrawLine(Arena* arena, Vec2f p0, Vec2f p1)
-{
-  p0.x = (p0.x / 1280.0f) * 2 - 1;
-  p0.y = (p0.y / 720.0f) * 2 - 1;
-  p1.x = (p1.x / 1280.0f) * 2 - 1;
-  p1.y = (p1.y / 720.0f) * 2 - 1;
-
-  R_Line* line = (R_Line*)PushArena(arena, sizeof(R_Line));
-  line->vertecies[0].position = Vec3fFromVec2(p0);
-  line->vertecies[1].position = Vec3fFromVec2(p1);
-
-  R_AddLineToDrawList(line);
 }

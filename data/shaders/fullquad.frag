@@ -5,6 +5,7 @@
 layout(location = 0) in vec2   frag_coordinates;
 layout(location = 1) in float  frag_time;
 layout(location = 2) in vec2   resolution;
+layout(location = 3) in vec2   mouse_position;
 
 layout(location = 0) out vec4 out_color;
 
@@ -25,12 +26,16 @@ vec3 IG_RgbFromHsv(vec3 hsv)
   return hsv.z * mix(K.xxx, clamp(p - K.xxx, 0.0f, 1.0f), hsv.y);
 }
 
-float IG_Circle(vec2 position, vec2 center, float radius)
+float IG_SDF_Circle(vec2 in_position, float radius)
 {
-  vec2 dist = position - center;
-  float smoothness = 0.01f;
+  return length(in_position) - radius;
+}
 
-  return 1.0f - smoothstep(radius - (radius * smoothness), radius + (radius * smoothness), dot(dist, dist) * 4.0f);
+float IG_SDF_Box(vec2 in_position, vec2 size)
+{
+  vec2 d = abs(in_position) - size;
+
+  return length(max(d, 0.0f)) + min(max(d.x, d.y), 0.0f);
 }
 
 void main()
@@ -42,7 +47,20 @@ void main()
   vec2 uv = frag_coordinates / resolution;
   vec3 final_color = white_color;
 
-  final_color = IG_RgbFromHsv(vec3(300.0f / 360.0f, 0.93f, 0.41f));
+  // final_color = IG_RgbFromHsv(vec3(300.0f / 360.0f, 0.93f, 0.41f));
+
+  float border_width = abs(sin(frag_time)) * 0.1f + 0.05f;
+  float f = step(border_width, uv.x) * step(border_width, uv.y) * step(border_width, 1.0f - uv.x) * step(border_width, 1.0f - uv.y);
+  final_color = vec3(f);
+
+  f = step(0.05f, uv.x) * step(0.05f, uv.y) * step(0.6f, 1.0f - uv.x) * step(0.6f, 1.0f - uv.y);
+  final_color = mix(final_color, red_color, f);
+  
+  // float d = IG_SDF_Circle(frag_coordinates - mouse_position, 75.0f);
+  float d = IG_SDF_Box(frag_coordinates - mouse_position, vec2(50.0f, 50.0f));
+  final_color = (d > 0.0f) ? white_color : blue_color;
+  final_color *= 1.0f + 0.5f * cos(d);
+  final_color = mix(final_color, red_color, 1.0f - smoothstep(0.0f, 3.0f, abs(d)));
 
   out_color = vec4(final_color, 1.0f);
 }

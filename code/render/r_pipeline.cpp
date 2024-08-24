@@ -62,7 +62,7 @@ func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point
     LOG_ERROR("GLSL parsing failed");
     LOG_ERROR("%s", glslang_shader_get_info_log(shader));
     LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
-    LOG_ERROR("%s", glslang_shader_get_preprocessed_code(shader));
+    // LOG_ERROR("%s", glslang_shader_get_preprocessed_code(shader));
     glslang_shader_delete(shader);
     ASSERT(true);
   }

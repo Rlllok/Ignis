@@ -84,12 +84,14 @@ i32 main()
           alignas(4)  f32     time;
           alignas(8)  Vec2f   resolution;
           alignas(16) Mat4x4f ortho;
+          alignas(8)  Vec2f   mouse_position;
         };
 
         UBO ubo = {};
-        ubo.time        = begin_time;
-        ubo.resolution  = MakeVec2f(window.width, window.height);
-        ubo.ortho       = MakeOrthographic4x4f(0.0f, window.width, window.height, 0.0f, -1.0f, 2.0f);
+        ubo.time            = begin_time;
+        ubo.resolution      = MakeVec2f(window.width, window.height);
+        ubo.ortho           = MakeOrthographic4x4f(0.0f, window.width, window.height, 0.0f, -1.0f, 2.0f);
+        ubo.mouse_position  = OS_MousePosition(window);
 
         R_DrawInfo draw_info = {};
         draw_info.pipeline          = &fullquad_pipeline;
