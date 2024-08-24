@@ -58,6 +58,8 @@ struct R_Pipeline
   u32                     attributes_count;
   R_BindingInfo           bindings[MAX_BINDINGS];
   u32                     bindings_count;
+
+  b8 is_depth_test_enabled;
 };
 
 func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);

@@ -69,6 +69,9 @@ i32 main()
 
     R_H_LoadShader(shape_arena, "data/shaders/sdf2D.vert", "main", R_SHADER_TYPE_VERTEX, &PIPELINE.shaders[R_SHADER_TYPE_VERTEX]);
     R_H_LoadShader(shape_arena, "data/shaders/sdf2D.frag", "main", R_SHADER_TYPE_FRAGMENT, &PIPELINE.shaders[R_SHADER_TYPE_FRAGMENT]);
+
+    PIPELINE.is_depth_test_enabled = false;
+
     R_CreatePipeline(&PIPELINE);
   }
 

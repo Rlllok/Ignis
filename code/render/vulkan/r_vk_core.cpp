@@ -909,8 +909,8 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
 
   VkPipelineDepthStencilStateCreateInfo depth_stencil_state_info = {};
   depth_stencil_state_info.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depth_stencil_state_info.depthTestEnable       = VK_TRUE;
-  depth_stencil_state_info.depthWriteEnable      = VK_TRUE;
+  depth_stencil_state_info.depthTestEnable       = pipeline->is_depth_test_enabled ? VK_TRUE : VK_FALSE;
+  depth_stencil_state_info.depthWriteEnable      = pipeline->is_depth_test_enabled ? VK_TRUE : VK_FALSE;
   depth_stencil_state_info.depthCompareOp        = VK_COMPARE_OP_LESS;
   depth_stencil_state_info.depthBoundsTestEnable = VK_FALSE;
   depth_stencil_state_info.stencilTestEnable     = VK_FALSE;
