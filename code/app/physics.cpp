@@ -23,7 +23,8 @@
 func R_SceneObject* GenerateQuad(Arena* arena);
 
 global R_SceneObject* QUAD;
-global R_Pipeline    PIPELINE;
+global R_Pipeline     CIRCLE_PIPELINE;
+global R_Pipeline     BOX_PIPELINE;
 
 func void DrawBox(Vec2f position, Vec2f size);
 func void DrawCircle(Vec2f position, f32 radius);
@@ -50,29 +51,52 @@ i32 main()
 
   Arena* shape_arena = AllocateArena(Megabytes(128));
 
+  // --AlNov: Pipeline to draw SDF Circle
   {
-    // --AlNov: @TODO
-    // R_VertexAttributeFormat attributes[] = { R_VERTEX_ATTRIBUTE_FORMAT_VEC3F };
     R_VertexAttributeFormat attributes[] = {
       R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
       R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
       R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
     };
 
-    R_PipelineAssignAttributes(&PIPELINE, attributes, CountArrayElements(attributes));
+    R_PipelineAssignAttributes(&CIRCLE_PIPELINE, attributes, CountArrayElements(attributes));
 
     R_BindingInfo bindings[] =
     {
       {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
     };
-    R_PipelineAssignBindingLayout(&PIPELINE, bindings, CountArrayElements(bindings));
+    R_PipelineAssignBindingLayout(&CIRCLE_PIPELINE, bindings, CountArrayElements(bindings));
 
-    R_H_LoadShader(shape_arena, "data/shaders/sdf2D.vert", "main", R_SHADER_TYPE_VERTEX, &PIPELINE.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(shape_arena, "data/shaders/sdf2D.frag", "main", R_SHADER_TYPE_FRAGMENT, &PIPELINE.shaders[R_SHADER_TYPE_FRAGMENT]);
+    R_H_LoadShader(shape_arena, "data/shaders/sdf/sdf_circle.vert", "main", R_SHADER_TYPE_VERTEX, &CIRCLE_PIPELINE.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(shape_arena, "data/shaders/sdf/sdf_circle.frag", "main", R_SHADER_TYPE_FRAGMENT, &CIRCLE_PIPELINE.shaders[R_SHADER_TYPE_FRAGMENT]);
 
-    PIPELINE.is_depth_test_enabled = false;
+    CIRCLE_PIPELINE.is_depth_test_enabled = false;
 
-    R_CreatePipeline(&PIPELINE);
+    R_CreatePipeline(&CIRCLE_PIPELINE);
+  }
+
+  // --AlNov: Pipeline to draw SDF Box
+  {
+    R_VertexAttributeFormat attributes[] = {
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+    };
+
+    R_PipelineAssignAttributes(&BOX_PIPELINE, attributes, CountArrayElements(attributes));
+
+    R_BindingInfo bindings[] =
+    {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+    };
+    R_PipelineAssignBindingLayout(&BOX_PIPELINE, bindings, CountArrayElements(bindings));
+
+    R_H_LoadShader(shape_arena, "data/shaders/sdf/sdf_box.vert", "main", R_SHADER_TYPE_VERTEX, &BOX_PIPELINE.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(shape_arena, "data/shaders/sdf/sdf_box.frag", "main", R_SHADER_TYPE_FRAGMENT, &BOX_PIPELINE.shaders[R_SHADER_TYPE_FRAGMENT]);
+
+    BOX_PIPELINE.is_depth_test_enabled = false;
+
+    R_CreatePipeline(&BOX_PIPELINE);
   }
 
   QUAD = GenerateQuad(shape_arena);
@@ -230,6 +254,8 @@ i32 main()
         {
           DrawPhysicsShape(frame_arena, shape, WHITE_COLOR);
         }
+
+        DrawCircle(MakeVec2f(100.0f, 100.0f), 50.0f);
       }
       R_EndRenderPass();
     }
@@ -274,7 +300,6 @@ func void DrawBox(Vec2f position, Vec2f size)
     alignas(8)  Vec2f   position;
     alignas(8)  Vec2f   size;
     alignas(16) Vec3f   color;
-    alignas(4)  f32     is_box;
   };
 
   Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
@@ -284,10 +309,9 @@ func void DrawBox(Vec2f position, Vec2f size)
   ubo.position    = position;
   ubo.size        = size;
   ubo.color       = MakeVec3f(0.65f, 0.23f, 0.12f);
-  ubo.is_box      = 1.0f;
 
   R_DrawInfo draw_info = {};
-  draw_info.pipeline          = &PIPELINE;
+  draw_info.pipeline          = &BOX_PIPELINE;
   draw_info.vertecies         = QUAD->vertecies;
   draw_info.vertex_size       = sizeof(QUAD->vertecies[0]);
   draw_info.vertex_count      = QUAD->vertex_count;
@@ -306,9 +330,8 @@ func void DrawCircle(Vec2f position, f32 radius)
   {
     alignas(16) Mat4x4f projection;
     alignas(8)  Vec2f   position;
-    alignas(8)  Vec2f   size;
+    alignas(8)  f32     radius;
     alignas(16) Vec3f   color;
-    alignas(4)  f32     is_box;
   };
 
   Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
@@ -316,12 +339,11 @@ func void DrawCircle(Vec2f position, f32 radius)
   UBO ubo = {};
   ubo.projection  = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, 0.0f, 1.0f);
   ubo.position    = position;
-  ubo.size        = MakeVec2f(radius, radius);
+  ubo.radius      = radius;
   ubo.color       = MakeVec3f(0.65f, 0.23f, 0.12f);
-  ubo.is_box      = 0.0f;
 
   R_DrawInfo draw_info = {};
-  draw_info.pipeline          = &PIPELINE;
+  draw_info.pipeline          = &CIRCLE_PIPELINE;
   draw_info.vertecies         = QUAD->vertecies;
   draw_info.vertex_size       = sizeof(QUAD->vertecies[0]);
   draw_info.vertex_count      = QUAD->vertex_count;

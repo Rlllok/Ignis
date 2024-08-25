@@ -9,22 +9,17 @@ layout(binding = 0) uniform UBO
   vec2    position;
   vec2    size;
   vec3    color;
-  float   is_box;
 } ubo;
 
 layout(location = 0) out vec2   uv;
-layout(location = 1) out vec2   size;
-layout(location = 2) out vec3   color;
-layout(location = 3) out float  is_box;
+layout(location = 1) out vec3   color;
 
 void main()
 {
-  uv              = a_position.xy;
-  size            = ubo.size;
-  color           = ubo.color;
-  is_box          = ubo.is_box;
+  uv    = a_position.xy;
+  color = ubo.color;
 
-  vec3 vertex_position = a_position * vec3(size, 0.0f) + vec3(ubo.position, 0.0f);
+  vec3 vertex_position = a_position * vec3(ubo.size, 0.0f) + vec3(ubo.position, 0.0f);
   gl_Position = ubo.projection * vec4(vertex_position, 1.0f);
   gl_Position.z = 0.0f;
 }
