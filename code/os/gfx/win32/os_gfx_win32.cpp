@@ -29,7 +29,7 @@ func OS_Window OS_CreateWindow(const char* title, Vec2u size)
   HWND handle = {};
 
   handle = CreateWindowW(
-    OS_WIN32_WindowClassName, L"TestApp", WS_OVERLAPPEDWINDOW,
+    OS_WIN32_WindowClassName, L"TEST", WS_OVERLAPPEDWINDOW,
     CW_USEDEFAULT, CW_USEDEFAULT, size.width, size.height, 0, 0, window.instance, 0
   );
 
