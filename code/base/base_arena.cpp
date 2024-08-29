@@ -25,7 +25,7 @@ func void* PushArena(Arena* arena, u64 size)
     else
     {
         // --AlNov: Error for now
-        printf("Not enough space for size %llu. Current position: %llu\n", size, arena->position);
+        LOG_ERROR("Not enough space for size %llu. Current position: %llu\n", size, arena->position);
     }
 
     return result;
