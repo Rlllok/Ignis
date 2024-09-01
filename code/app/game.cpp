@@ -16,7 +16,6 @@
 // * PH Box and draw box have different sizes
 // * After some time there is a crash (First idea - Vulkan memory) - Fixed by itself for now
 // * Player brick goes out of window (Only left side)
-// * Key event only on release
 
 enum EntetyType
 {
@@ -54,8 +53,24 @@ struct Entety
   PH_Shape* collision_shape;
 };
 
-#define MAX_ENTETY_COUNT 256
+#define INVALID_ID        U32_MAX
+#define MAX_ENTETY_COUNT  256
 
+struct ComponentArray
+{
+  void* array;
+  u32   type_size;
+  u32   count;
+};
+
+#define InitComponentArray(arena, type, component_array)                          \
+{                                                                                 \
+  component_array.array     = PushArena(arena, sizeof(type) * MAX_ENTETY_COUNT);  \
+  component_array.type_size = sizeof(type);                                       \
+  component_array.count     = 0;                                                  \
+}                                                                                 \
+
+#define GetComponentFromArray(type, component_array, entety_id) ((type*)component_array.array + entety_id)
 global struct GameState
 {
   Arena* arena;
@@ -70,13 +85,15 @@ global struct GameState
   b8 throw_ball;
 
   u32                 enteties[MAX_ENTETY_COUNT];
-  CircleComponent     circle_components[MAX_ENTETY_COUNT];
-  BoxComponent        box_component[MAX_ENTETY_COUNT];
-  PhysicsComponent    physic_components[MAX_ENTETY_COUNT];
   u32                 entety_count;
+  ComponentArray      circle_components;
+  ComponentArray      box_components;
+  ComponentArray      physics_components;
 
   u32 player_id;
   u32 ball_id;
+
+  u32 bricks_ids[MAX_ENTETY_COUNT];
 } game_state;
 
 func void InitGameState(GameState* game_state);
@@ -91,6 +108,8 @@ func u32  CreateEntety(GameState* game_state);
 func void CreateCircleComponent(GameState* game_state, u32 entety_id, f32 radius, Vec3f color);
 func void CreateBoxComponent(GameState* game_state, u32 entety_id, Vec2f radius, Vec3f color);
 func void CreatePhysicsComponent(GameState* game_state, u32 entety_id, PH_Shape* shape);
+
+func void RemoveEntety(GameState* game_state, u32 entety_id);
 
 int main()
 {
@@ -119,8 +138,12 @@ func void InitGameState(GameState* game_state)
   R_Init(&game_state->window);
   OS_ShowWindow(&game_state->window);
 
-  game_state->arena       = AllocateArena(Megabytes(64));
+  game_state->arena       = AllocateArena(Megabytes(128));
   game_state->frame_arena = AllocateArena(Megabytes(128));
+
+  InitComponentArray(game_state->arena, CircleComponent, game_state->circle_components);
+  InitComponentArray(game_state->arena, BoxComponent, game_state->box_components);
+  InitComponentArray(game_state->arena, PhysicsComponent, game_state->physics_components);
 
   InitPipelines(game_state);
 
@@ -147,7 +170,7 @@ func void InitGameState(GameState* game_state)
   // --AlNov: Add ball
   {
     f32   radius   = 15.0f;
-    Vec2f position = AddVec2f(game_state->physic_components[game_state->player_id].collision_shape->position, MakeVec2f(0.0f, -20.0f));
+    Vec2f position = AddVec2f(GetComponentFromArray(PhysicsComponent, game_state->physics_components, game_state->player_id)->collision_shape->position, MakeVec2f(0.0f, -20.0f));
     Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
 
     PH_Shape* ph_shape = PH_CreateCircleShape(
@@ -162,7 +185,7 @@ func void InitGameState(GameState* game_state)
 
     game_state->ball_id = entety_id;
     game_state->throw_ball = true;
-    PH_ApplyLinearImpulseToShape(ph_shape, MakeVec2f(-1500.0f, -500.0f));
+    PH_ApplyLinearImpulseToShape(ph_shape, MakeVec2f(0.0f, -1500.0f));
   }
 
   // --AlNov: Left Wall
@@ -219,10 +242,16 @@ func void InitGameState(GameState* game_state)
     CreatePhysicsComponent(game_state, entety_id, ph_shape);
   }
 
-  // --AlNov: Add Bricks
+  for (i32 i = 0; i < MAX_ENTETY_COUNT; i += 1)
   {
-    Vec2f size     = MakeVec2f(game_state->window.width * 0.25f, 15.0f);
-    Vec2f position = MakeVec2f(game_state->window.width / 2.0f, 100.0f);
+    game_state->bricks_ids[i] = INVALID_ID;
+  }
+
+  // --AlNov: Add Bricks
+  for (i32 i = 0; i < 4; i += 1)
+  {
+    Vec2f size     = MakeVec2f(75.0f, 15.0f);
+    Vec2f position = MakeVec2f(150.0f + i * (size.x + 10.0f), 100.0f);
     Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
 
     PH_Shape* ph_shape = PH_CreateBoxShape(
@@ -235,6 +264,8 @@ func void InitGameState(GameState* game_state)
     u32 entety_id = CreateEntety(game_state);
     CreateBoxComponent(game_state, entety_id, size, color);
     CreatePhysicsComponent(game_state, entety_id, ph_shape);
+
+    game_state->bricks_ids[entety_id] = entety_id;
   }
 }
 
@@ -330,7 +361,7 @@ func void Update(GameState* game_state, f32 delta_time)
   Vec2f mouse_position = OS_MousePosition(game_state->window);
 
   u32       player_id       = game_state->player_id;
-  PH_Shape* player_ph_shape = game_state->physic_components[player_id].collision_shape;
+  PH_Shape* player_ph_shape = GetComponentFromArray(PhysicsComponent, game_state->physics_components, player_id)->collision_shape;
   player_ph_shape->position.x = mouse_position.x;
   if (mouse_position.x < 0.0f)
   {
@@ -346,20 +377,31 @@ func void Update(GameState* game_state, f32 delta_time)
     for (i32 j = i; j < game_state->entety_count; j += 1)
     {
       PH_CollisionInfo collision_info = {};
-      PH_Shape*        shape_a        = game_state->physic_components[i].collision_shape;
-      PH_Shape*        shape_b        = game_state->physic_components[j].collision_shape;
+      PH_Shape*        shape_a        = GetComponentFromArray(PhysicsComponent, game_state->physics_components, i)->collision_shape;
+      PH_Shape*        shape_b        = GetComponentFromArray(PhysicsComponent, game_state->physics_components, j)->collision_shape;
 
       if (PH_CheckCollision(&collision_info, shape_a, shape_b))
       {
         PH_ResolveCollisionImpulse(&collision_info);
+
+        bool some_is_brick = ((game_state->bricks_ids[i] != INVALID_ID) || 
+                              (game_state->bricks_ids[j] != INVALID_ID));
+        bool some_is_ball  = (game_state->ball_id == i || game_state->ball_id == j);
+        if (some_is_ball && some_is_brick)
+        {
+          LOG_INFO("BALL HIT BRICK\n");
+          u32 brick_entety_id = (game_state->bricks_ids[i] != INVALID_ID) ? i : j;
+          RemoveEntety(game_state, brick_entety_id);
+        }
       }
     }
   }
 
   // --AlNov: Update Ball
   {
-    PH_Shape* ball   = game_state->physic_components[game_state->ball_id].collision_shape;
-    PH_Shape* player = game_state->physic_components[game_state->player_id].collision_shape;
+
+    PH_Shape* ball   = GetComponentFromArray(PhysicsComponent, game_state->physics_components, game_state->ball_id)->collision_shape;
+    PH_Shape* player = GetComponentFromArray(PhysicsComponent, game_state->physics_components, game_state->player_id)->collision_shape;
     if (game_state->throw_ball)
     {
       ball->position.x = player->position.x;
@@ -398,20 +440,26 @@ func void Draw(GameState* game_state, f32 delta_time)
   {
     R_BeginRenderPass(clear_color, clear_depth, clear_stencil);
     {
-      for (i32 i = 0; i < game_state->entety_count; i += 1)
+      for (i32 i = 0; i < game_state->box_components.count; i += 1)
       {
-        Vec2f position = game_state->physic_components[i].collision_shape->position;
-        Vec2f size     = game_state->box_component[i].size;
-        Vec3f color    = game_state->box_component[i].color;
+        PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + i;
+        Vec2f position = physics_component->collision_shape->position;
+
+        BoxComponent* box_component = (BoxComponent*)game_state->box_components.array + i;
+        Vec2f size     = MulVec2f(box_component->size, 0.5f);
+        Vec3f color    = box_component->color;
 
         DrawBox(game_state, position, size, color);
       }
 
-      for (i32 i = 0; i < game_state->entety_count; i += 1)
+      for (i32 i = 0; i < game_state->circle_components.count; i += 1)
       {
-        Vec2f position = game_state->physic_components[i].collision_shape->position;
-        f32   radius   = game_state->circle_components[i].radius;
-        Vec3f color    = game_state->circle_components[i].color;
+        PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + i;
+        Vec2f position = physics_component->collision_shape->position;
+
+        CircleComponent* circle_component = (CircleComponent*)game_state->circle_components.array + i;
+        f32   radius   = circle_component->radius;
+        Vec3f color    = circle_component->color;
 
         DrawCircle(game_state, position, radius, color);
       }
@@ -537,8 +585,12 @@ CreateCircleComponent(GameState* game_state, u32 entety_id, f32 radius, Vec3f co
 {
   assert(entety_id < game_state->entety_count);
 
-  game_state->circle_components[entety_id].radius = radius;
-  game_state->circle_components[entety_id].color  = color;
+  CircleComponent* circle_component = (CircleComponent*)game_state->circle_components.array + entety_id;
+
+  circle_component->radius = radius;
+  circle_component->color  = color;
+
+  game_state->circle_components.count += 1;
 }
 
 func void
@@ -546,8 +598,12 @@ CreateBoxComponent(GameState* game_state, u32 entety_id, Vec2f size, Vec3f color
 {
   assert(entety_id < game_state->entety_count);
 
-  game_state->box_component[entety_id].size   = size;
-  game_state->box_component[entety_id].color  = color;
+  BoxComponent* box_component = (BoxComponent*)game_state->box_components.array + entety_id;
+
+  box_component->size  = size;
+  box_component->color = color;
+
+  game_state->box_components.count += 1;
 }
 
 func void
@@ -555,5 +611,17 @@ CreatePhysicsComponent(GameState* game_state, u32 entety_id, PH_Shape* shape)
 {
   assert(entety_id < game_state->entety_count);
 
-  game_state->physic_components[entety_id].collision_shape = shape;
+  PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + entety_id;
+
+  physics_component->collision_shape = shape;
+
+  game_state->physics_components.count += 1;
+}
+
+func void
+RemoveEntety(GameState* game_state, u32 entety_id)
+{
+  game_state->enteties[entety_id]                     = game_state->enteties[game_state->entety_count - 1];
+  game_state->enteties[game_state->entety_count - 1]  = INVALID_ID;
+  game_state->entety_count                           -= 1;
 }
