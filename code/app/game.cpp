@@ -18,27 +18,43 @@
 // * Player brick goes out of window (Only left side)
 // * Key event only on release
 
-struct Player
+enum EntetyType
 {
-  PH_Shape* collision_box;
+  ENTETY_TYPE_NONE,
+  ENTETY_TYPE_PLAYER,
+  ENTETY_TYPE_BALL,
+  ENTETY_TYPE_BRICK,
+  ENTETY_TYPE_WALL,
+
+  ENTETY_TYPE_COUNT
 };
 
-struct Ball
+struct PhysicsComponent
 {
-  PH_Shape* collision_ball;
+  PH_Shape* collision_shape;
 };
 
-struct Wall
+struct CircleComponent
 {
-  PH_Shape* collision_box;
+  f32   radius;
+  Vec3f color;
 };
 
-struct Brick
+struct BoxComponent
 {
-  u32   id;
-  Vec2f position;
   Vec2f size;
+  Vec3f color;
 };
+
+struct Entety
+{
+  u32 id;
+  EntetyType type;
+
+  PH_Shape* collision_shape;
+};
+
+#define MAX_ENTETY_COUNT 256
 
 global struct GameState
 {
@@ -53,13 +69,14 @@ global struct GameState
   b8 quit_game;
   b8 throw_ball;
 
-  Player  player;
-  Ball    ball;
-  Wall    walls[3];
-  Brick   bricks[256];
-  u32 block_count;
+  u32                 enteties[MAX_ENTETY_COUNT];
+  CircleComponent     circle_components[MAX_ENTETY_COUNT];
+  BoxComponent        box_component[MAX_ENTETY_COUNT];
+  PhysicsComponent    physic_components[MAX_ENTETY_COUNT];
+  u32                 entety_count;
 
-  PH_ShapeList collision_shapes;
+  u32 player_id;
+  u32 ball_id;
 } game_state;
 
 func void InitGameState(GameState* game_state);
@@ -67,7 +84,13 @@ func void InitPipelines(GameState* game_state);
 func void HandleEvents(GameState* game_state);
 func void Update(GameState* game_state, f32 delta_time);
 func void Draw(GameState* game_state, f32 delta_time);
-func void DrawBox(GameState* game_state, Vec2f position, Vec2f size);
+func void DrawBox(GameState* game_state, Vec2f position, Vec2f size, Vec3f color);
+func void DrawCircle(GameState* game_state, Vec2f position, f32 radius, Vec3f color);
+
+func u32  CreateEntety(GameState* game_state);
+func void CreateCircleComponent(GameState* game_state, u32 entety_id, f32 radius, Vec3f color);
+func void CreateBoxComponent(GameState* game_state, u32 entety_id, Vec2f radius, Vec3f color);
+func void CreatePhysicsComponent(GameState* game_state, u32 entety_id, PH_Shape* shape);
 
 int main()
 {
@@ -101,54 +124,118 @@ func void InitGameState(GameState* game_state)
 
   InitPipelines(game_state);
 
-  game_state->player.collision_box = PH_CreateBoxShape(
-    game_state->arena,
-    MakeVec2f(game_state->window.width / 2.0f, game_state->window.height - 20.0f),
-    15.0f,
-    150.f,
-    10000.0f
-  );
-  PH_PushShapeList(&game_state->collision_shapes, game_state->player.collision_box);
+  // --AlNov: Add Player
+  {
+    Vec2f size     = MakeVec2f(150.0f, 15.0f);
+    Vec2f position = MakeVec2f(game_state->window.width / 2.0f, game_state->window.height - 20.0f);
+    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
 
-  game_state->ball.collision_ball = PH_CreateCircleShape(
-    game_state->arena,
-    AddVec2f(game_state->player.collision_box->position, MakeVec2f(0.0f, -20.0f)),
-    15.0f,
-    1.0f
-  );
-  PH_PushShapeList(&game_state->collision_shapes, game_state->ball.collision_ball);
-  game_state->throw_ball = true;
-  PH_ApplyLinearImpulseToShape(game_state->ball.collision_ball, MakeVec2f(-1500.0f, -500.0f));
+    PH_Shape* ph_shape = PH_CreateBoxShape(
+      game_state->arena,
+      position,
+      size.y,
+      size.x,
+      10000.0f
+    );
+    u32 entety_id = CreateEntety(game_state);
+    CreateBoxComponent(game_state, entety_id, size, color);
+    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+
+    game_state->player_id = entety_id;
+  }
+
+  // --AlNov: Add ball
+  {
+    f32   radius   = 15.0f;
+    Vec2f position = AddVec2f(game_state->physic_components[game_state->player_id].collision_shape->position, MakeVec2f(0.0f, -20.0f));
+    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+
+    PH_Shape* ph_shape = PH_CreateCircleShape(
+      game_state->arena,
+      position,
+      radius,
+      1.0f
+    );
+    u32 entety_id = CreateEntety(game_state);
+    CreateCircleComponent(game_state, entety_id, radius, color);
+    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+
+    game_state->ball_id = entety_id;
+    game_state->throw_ball = true;
+    PH_ApplyLinearImpulseToShape(ph_shape, MakeVec2f(-1500.0f, -500.0f));
+  }
 
   // --AlNov: Left Wall
-  game_state->walls[0].collision_box = PH_CreateBoxShape(
-    game_state->arena,
-    MakeVec2f(0.0f, game_state->window.height / 2.0f),
-    game_state->window.height * 2.0f,
-    15.0f,
-    0.0f
-  );
-  PH_PushShapeList(&game_state->collision_shapes, game_state->walls[0].collision_box);
+  {
+    Vec2f size     = MakeVec2f(15.0f, game_state->window.height * 2.0f);
+    Vec2f position = MakeVec2f(0.0f, game_state->window.height / 2.0f);
+    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+
+    PH_Shape* ph_shape = PH_CreateBoxShape(
+      game_state->arena,
+      position,
+      size.y,
+      size.x,
+      0.0f
+    );
+    u32 entety_id = CreateEntety(game_state);
+    CreateBoxComponent(game_state, entety_id, size, color);
+    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+  }
 
   // --AlNov: Right Wall
-  game_state->walls[1].collision_box = PH_CreateBoxShape(
-    game_state->arena,
-    MakeVec2f(game_state->window.width - 15.0f, game_state->window.height / 2.0f),
-    game_state->window.height * 2.0f,
-    15.0f,
-    0.0f
-  );
-  PH_PushShapeList(&game_state->collision_shapes, game_state->walls[1].collision_box);
+  {
+    Vec2f size     = MakeVec2f(15.0f, game_state->window.height * 2.0f);
+    Vec2f position = MakeVec2f(game_state->window.width - 15.0f, game_state->window.height / 2.0f);
+    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+
+    PH_Shape* ph_shape = PH_CreateBoxShape(
+      game_state->arena,
+      position,
+      size.y,
+      size.x,
+      0.0f
+    );
+    u32 entety_id = CreateEntety(game_state);
+    CreateBoxComponent(game_state, entety_id, size, color);
+    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+  }
 
   // --AlNov: Top Wall
-  game_state->walls[2].collision_box = PH_CreateBoxShape(
-    game_state->arena,
-    MakeVec2f(game_state->window.width, 15.0f),
-    15.0f,
-    game_state->window.width * 2.0f,
-    0.0f
-  );
-  PH_PushShapeList(&game_state->collision_shapes, game_state->walls[2].collision_box);
+  {
+    Vec2f size     = MakeVec2f(game_state->window.width * 2.0f, 15.0f);
+    Vec2f position = MakeVec2f(game_state->window.width / 2.0f, 15.0f);
+    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+
+    PH_Shape* ph_shape = PH_CreateBoxShape(
+      game_state->arena,
+      position,
+      size.y,
+      size.x,
+      0.0f
+    );
+    u32 entety_id = CreateEntety(game_state);
+    CreateBoxComponent(game_state, entety_id, size, color);
+    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+  }
+
+  // --AlNov: Add Bricks
+  {
+    Vec2f size     = MakeVec2f(game_state->window.width * 0.25f, 15.0f);
+    Vec2f position = MakeVec2f(game_state->window.width / 2.0f, 100.0f);
+    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+
+    PH_Shape* ph_shape = PH_CreateBoxShape(
+      game_state->arena,
+      position,
+      size.y,
+      size.x,
+      0.0f
+    );
+    u32 entety_id = CreateEntety(game_state);
+    CreateBoxComponent(game_state, entety_id, size, color);
+    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+  }
 }
 
 func void InitPipelines(GameState* game_state)
@@ -242,21 +329,26 @@ func void Update(GameState* game_state, f32 delta_time)
 {
   Vec2f mouse_position = OS_MousePosition(game_state->window);
 
-  game_state->player.collision_box->position.x = mouse_position.x;
+  u32       player_id       = game_state->player_id;
+  PH_Shape* player_ph_shape = game_state->physic_components[player_id].collision_shape;
+  player_ph_shape->position.x = mouse_position.x;
   if (mouse_position.x < 0.0f)
   {
-    game_state->player.collision_box->position.x = 0.0f;
+    player_ph_shape->position.x = 0.0f;
   }
   if (mouse_position.x > game_state->window.width)
   {
-    game_state->player.collision_box->position.x = game_state->window.width;
+    player_ph_shape->position.x = game_state->window.width;
   }
 
-  for (PH_Shape* shape_a = game_state->collision_shapes.first; shape_a; shape_a = shape_a->next)
+  for (i32 i = 0; i < game_state->entety_count; i += 1)
   {
-    for (PH_Shape* shape_b = shape_a->next; shape_b; shape_b = shape_b->next)
+    for (i32 j = i; j < game_state->entety_count; j += 1)
     {
       PH_CollisionInfo collision_info = {};
+      PH_Shape*        shape_a        = game_state->physic_components[i].collision_shape;
+      PH_Shape*        shape_b        = game_state->physic_components[j].collision_shape;
+
       if (PH_CheckCollision(&collision_info, shape_a, shape_b))
       {
         PH_ResolveCollisionImpulse(&collision_info);
@@ -266,11 +358,12 @@ func void Update(GameState* game_state, f32 delta_time)
 
   // --AlNov: Update Ball
   {
-    PH_Shape* ball = game_state->ball.collision_ball;
+    PH_Shape* ball   = game_state->physic_components[game_state->ball_id].collision_shape;
+    PH_Shape* player = game_state->physic_components[game_state->player_id].collision_shape;
     if (game_state->throw_ball)
     {
-      ball->position.x = game_state->player.collision_box->position.x;
-      ball->position.y = game_state->player.collision_box->position.y - ball->circle.radius * 2.0f;
+      ball->position.x = player->position.x;
+      ball->position.y = player->position.y - ball->circle.radius * 2.0f;
     }
     else
     {
@@ -305,44 +398,22 @@ func void Draw(GameState* game_state, f32 delta_time)
   {
     R_BeginRenderPass(clear_color, clear_depth, clear_stencil);
     {
-      Vec2f player_size = MakeVec2f(game_state->player.collision_box->box.width / 2.0f, game_state->player.collision_box->box.height / 2.0f);
-      DrawBox(game_state, game_state->player.collision_box->position, player_size);
-      for (i32 i = 0; i < CountArrayElements(game_state->walls); i += 1)
+      for (i32 i = 0; i < game_state->entety_count; i += 1)
       {
-        Vec2f wall_size = MakeVec2f(game_state->walls[i].collision_box->box.width, game_state->walls[i].collision_box->box.height);
-        DrawBox(game_state, game_state->walls[i].collision_box->position, wall_size);
+        Vec2f position = game_state->physic_components[i].collision_shape->position;
+        Vec2f size     = game_state->box_component[i].size;
+        Vec3f color    = game_state->box_component[i].color;
+
+        DrawBox(game_state, position, size, color);
       }
 
-      // --AlNov: Draw ball
+      for (i32 i = 0; i < game_state->entety_count; i += 1)
       {
-        struct UBO
-        {
-          alignas(16) Mat4x4f projection;
-          alignas(8)  Vec2f   position;
-          alignas(4)  f32     radius;
-          alignas(16) Vec3f   color;
-        };
+        Vec2f position = game_state->physic_components[i].collision_shape->position;
+        f32   radius   = game_state->circle_components[i].radius;
+        Vec3f color    = game_state->circle_components[i].color;
 
-        Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
-
-        UBO ubo = {};
-        ubo.projection = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, 0.0f, 1.0f);
-        ubo.position   = game_state->ball.collision_ball->position;
-        ubo.radius     = game_state->ball.collision_ball->circle.radius;
-        ubo.color      = MakeVec3f(0.65f, 0.23f, 0.12f);
-
-        R_DrawInfo draw_info = {};
-        draw_info.pipeline          = &game_state->ball_pipeline;
-        draw_info.vertecies         = quad_object->vertecies;
-        draw_info.vertex_size       = sizeof(quad_object->vertecies[0]);
-        draw_info.vertex_count      = quad_object->vertex_count;
-        draw_info.indecies          = quad_object->indecies;
-        draw_info.index_size        = sizeof(quad_object->indecies[0]);
-        draw_info.index_count       = quad_object->index_count;
-        draw_info.uniform_data      = &ubo;
-        draw_info.uniform_data_size = sizeof(ubo);
-
-        R_DrawSceneObject(&draw_info);
+        DrawCircle(game_state, position, radius, color);
       }
     }
     R_EndRenderPass();
@@ -350,7 +421,8 @@ func void Draw(GameState* game_state, f32 delta_time)
   R_EndFrame();
 }
 
-func void DrawBox(GameState* game_state, Vec2f position, Vec2f size)
+func void
+DrawBox(GameState* game_state, Vec2f position, Vec2f size, Vec3f color)
 {
   // --AlNov: @TODO should be created once
   static R_SceneObject* quad_object = (R_SceneObject*)PushArena(game_state->arena, sizeof(R_SceneObject));
@@ -383,7 +455,7 @@ func void DrawBox(GameState* game_state, Vec2f position, Vec2f size)
   ubo.projection = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, 0.0f, 1.0f);
   ubo.position   = position;
   ubo.size       = size;
-  ubo.color      = MakeVec3f(0.65f, 0.23f, 0.12f);
+  ubo.color      = color;
 
   R_DrawInfo draw_info = {};
   draw_info.pipeline          = &game_state->block_pipeline;
@@ -397,4 +469,91 @@ func void DrawBox(GameState* game_state, Vec2f position, Vec2f size)
   draw_info.uniform_data_size = sizeof(ubo);
 
   R_DrawSceneObject(&draw_info);
+}
+
+func void
+DrawCircle(GameState* game_state, Vec2f position, f32 radius, Vec3f color)
+{
+  // --AlNov: @TODO should be created once
+  static R_SceneObject* quad_object = (R_SceneObject*)PushArena(game_state->arena, sizeof(R_SceneObject));
+  quad_object->vertex_count          = 4;
+  quad_object->vertecies             = (R_SceneObject::Vertex*)PushArena(game_state->arena, sizeof(R_SceneObject::Vertex) * quad_object->vertex_count);
+  quad_object->vertecies[0].position = MakeVec3f(-1.0f, -1.0f, 0.0f);
+  quad_object->vertecies[1].position = MakeVec3f(1.0f, -1.0f, 0.0f);
+  quad_object->vertecies[2].position = MakeVec3f(1.0f, 1.0f, 0.0f);
+  quad_object->vertecies[3].position = MakeVec3f(-1.0f, 1.0f, 0.0f);
+  quad_object->index_count           = 6;
+  quad_object->indecies              = (u32*)PushArena(game_state->arena, sizeof(u32) * quad_object->index_count);
+  quad_object->indecies[0]           = 0;
+  quad_object->indecies[1]           = 1;
+  quad_object->indecies[2]           = 2;
+  quad_object->indecies[3]           = 2;
+  quad_object->indecies[4]           = 3;
+  quad_object->indecies[5]           = 0;
+
+  struct UBO
+  {
+    alignas(16) Mat4x4f projection;
+    alignas(8)  Vec2f   position;
+    alignas(4)  f32     radius;
+    alignas(16) Vec3f   color;
+  };
+
+  Vec2f resolution = MakeVec2f(1280.0f, 720.0f);
+
+  UBO ubo = {};
+  ubo.projection = MakeOrthographic4x4f(0.0f, resolution.x, 0.0f, resolution.y, 0.0f, 1.0f);
+  ubo.position   = position;
+  ubo.radius     = radius;
+  ubo.color      = MakeVec3f(0.65f, 0.23f, 0.12f);
+
+  R_DrawInfo draw_info = {};
+  draw_info.pipeline          = &game_state->ball_pipeline;
+  draw_info.vertecies         = quad_object->vertecies;
+  draw_info.vertex_size       = sizeof(quad_object->vertecies[0]);
+  draw_info.vertex_count      = quad_object->vertex_count;
+  draw_info.indecies          = quad_object->indecies;
+  draw_info.index_size        = sizeof(quad_object->indecies[0]);
+  draw_info.index_count       = quad_object->index_count;
+  draw_info.uniform_data      = &ubo;
+  draw_info.uniform_data_size = sizeof(ubo);
+
+  R_DrawSceneObject(&draw_info);
+}
+
+func u32
+CreateEntety(GameState* game_state)
+{
+  assert(game_state->entety_count < MAX_ENTETY_COUNT);
+
+  game_state->enteties[game_state->entety_count]  = game_state->entety_count;
+  game_state->entety_count                       += 1;
+
+  return game_state->entety_count - 1;
+}
+
+func void
+CreateCircleComponent(GameState* game_state, u32 entety_id, f32 radius, Vec3f color)
+{
+  assert(entety_id < game_state->entety_count);
+
+  game_state->circle_components[entety_id].radius = radius;
+  game_state->circle_components[entety_id].color  = color;
+}
+
+func void
+CreateBoxComponent(GameState* game_state, u32 entety_id, Vec2f size, Vec3f color)
+{
+  assert(entety_id < game_state->entety_count);
+
+  game_state->box_component[entety_id].size   = size;
+  game_state->box_component[entety_id].color  = color;
+}
+
+func void
+CreatePhysicsComponent(GameState* game_state, u32 entety_id, PH_Shape* shape)
+{
+  assert(entety_id < game_state->entety_count);
+
+  game_state->physic_components[entety_id].collision_shape = shape;
 }
