@@ -45,14 +45,6 @@ struct BoxComponent
   Vec3f color;
 };
 
-struct Entety
-{
-  u32 id;
-  EntetyType type;
-
-  PH_Shape* collision_shape;
-};
-
 #define INVALID_ID        U32_MAX
 #define MAX_ENTETY_COUNT  256
 
@@ -61,6 +53,8 @@ struct ComponentArray
   void* array;
   u32   type_size;
   u32   count;
+
+  u32 lookup_table[MAX_ENTETY_COUNT];
 };
 
 #define InitComponentArray(arena, type, component_array)                          \
@@ -70,7 +64,7 @@ struct ComponentArray
   component_array.count     = 0;                                                  \
 }                                                                                 \
 
-#define GetComponentFromArray(type, component_array, entety_id) ((type*)component_array.array + entety_id)
+#define GetComponentFromArray(type, component_array, entety_id) ((type*)component_array.array + component_array.lookup_table[entety_id])
 global struct GameState
 {
   Arena* arena;
@@ -248,25 +242,25 @@ func void InitGameState(GameState* game_state)
   }
 
   // --AlNov: Add Bricks
-  for (i32 i = 0; i < 4; i += 1)
-  {
-    Vec2f size     = MakeVec2f(75.0f, 15.0f);
-    Vec2f position = MakeVec2f(150.0f + i * (size.x + 10.0f), 100.0f);
-    Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+  // for (i32 i = 0; i < 4; i += 1)
+  // {
+  //   Vec2f size     = MakeVec2f(75.0f, 15.0f);
+  //   Vec2f position = MakeVec2f(150.0f + i * (size.x + 10.0f), 100.0f);
+  //   Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
 
-    PH_Shape* ph_shape = PH_CreateBoxShape(
-      game_state->arena,
-      position,
-      size.y,
-      size.x,
-      0.0f
-    );
-    u32 entety_id = CreateEntety(game_state);
-    CreateBoxComponent(game_state, entety_id, size, color);
-    CreatePhysicsComponent(game_state, entety_id, ph_shape);
+  //   PH_Shape* ph_shape = PH_CreateBoxShape(
+  //     game_state->arena,
+  //     position,
+  //     size.y,
+  //     size.x,
+  //     0.0f
+  //   );
+  //   u32 entety_id = CreateEntety(game_state);
+  //   CreateBoxComponent(game_state, entety_id, size, color);
+  //   CreatePhysicsComponent(game_state, entety_id, ph_shape);
 
-    game_state->bricks_ids[entety_id] = entety_id;
-  }
+  //   game_state->bricks_ids[entety_id] = entety_id;
+  // }
 }
 
 func void InitPipelines(GameState* game_state)
@@ -372,9 +366,9 @@ func void Update(GameState* game_state, f32 delta_time)
     player_ph_shape->position.x = game_state->window.width;
   }
 
-  for (i32 i = 0; i < game_state->entety_count; i += 1)
+  for (i32 i = 0; i < game_state->physics_components.count; i += 1)
   {
-    for (i32 j = i; j < game_state->entety_count; j += 1)
+    for (i32 j = i; j < game_state->physics_components.count; j += 1)
     {
       PH_CollisionInfo collision_info = {};
       PH_Shape*        shape_a        = GetComponentFromArray(PhysicsComponent, game_state->physics_components, i)->collision_shape;
@@ -391,7 +385,7 @@ func void Update(GameState* game_state, f32 delta_time)
         {
           LOG_INFO("BALL HIT BRICK\n");
           u32 brick_entety_id = (game_state->bricks_ids[i] != INVALID_ID) ? i : j;
-          RemoveEntety(game_state, brick_entety_id);
+          // RemoveEntety(game_state, brick_entety_id);
         }
       }
     }
@@ -416,48 +410,37 @@ func void Update(GameState* game_state, f32 delta_time)
 
 func void Draw(GameState* game_state, f32 delta_time)
 {
-  static R_SceneObject* quad_object = (R_SceneObject*)PushArena(game_state->arena, sizeof(R_SceneObject));
-  quad_object->vertex_count          = 4;
-  quad_object->vertecies             = (R_SceneObject::Vertex*)PushArena(game_state->arena, sizeof(R_SceneObject::Vertex) * quad_object->vertex_count);
-  quad_object->vertecies[0].position = MakeVec3f(-1.0f, -1.0f, 0.0f);
-  quad_object->vertecies[1].position = MakeVec3f(1.0f, -1.0f, 0.0f);
-  quad_object->vertecies[2].position = MakeVec3f(1.0f, 1.0f, 0.0f);
-  quad_object->vertecies[3].position = MakeVec3f(-1.0f, 1.0f, 0.0f);
-  quad_object->index_count           = 6;
-  quad_object->indecies              = (u32*)PushArena(game_state->arena, sizeof(u32) * quad_object->index_count);
-  quad_object->indecies[0]           = 0;
-  quad_object->indecies[1]           = 1;
-  quad_object->indecies[2]           = 2;
-  quad_object->indecies[3]           = 2;
-  quad_object->indecies[4]           = 3;
-  quad_object->indecies[5]           = 0;
-
   Vec4f clear_color   = MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f);
   f32   clear_depth   = 1.0f;
   f32   clear_stencil = 0.0f;
 
+  // --AlNov: @NOTE Cannot understand how render using loop over box/circle components
+  //                (that represent rendering component). The proble is that position
+  //                is needed to render. But cannot be accessed as it is in a different
+  //                component - PhysicsComponent in this case. So use loop over enteties
+  //                for now.
   R_BeginFrame();
   {
     R_BeginRenderPass(clear_color, clear_depth, clear_stencil);
     {
-      for (i32 i = 0; i < game_state->box_components.count; i += 1)
+      for (i32 i = 0; i < game_state->entety_count; i += 1)
       {
-        PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + i;
+        PhysicsComponent* physics_component = GetComponentFromArray(PhysicsComponent, game_state->physics_components, i);
         Vec2f position = physics_component->collision_shape->position;
 
-        BoxComponent* box_component = (BoxComponent*)game_state->box_components.array + i;
+        BoxComponent* box_component = GetComponentFromArray(BoxComponent, game_state->box_components, i);
         Vec2f size     = MulVec2f(box_component->size, 0.5f);
         Vec3f color    = box_component->color;
 
         DrawBox(game_state, position, size, color);
       }
 
-      for (i32 i = 0; i < game_state->circle_components.count; i += 1)
+      for (i32 i = 0; i < game_state->entety_count; i += 1)
       {
-        PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + i;
+        PhysicsComponent* physics_component = GetComponentFromArray(PhysicsComponent, game_state->physics_components, i);
         Vec2f position = physics_component->collision_shape->position;
 
-        CircleComponent* circle_component = (CircleComponent*)game_state->circle_components.array + i;
+        CircleComponent* circle_component = GetComponentFromArray(CircleComponent, game_state->circle_components, i);
         f32   radius   = circle_component->radius;
         Vec3f color    = circle_component->color;
 
@@ -585,11 +568,13 @@ CreateCircleComponent(GameState* game_state, u32 entety_id, f32 radius, Vec3f co
 {
   assert(entety_id < game_state->entety_count);
 
-  CircleComponent* circle_component = (CircleComponent*)game_state->circle_components.array + entety_id;
+  u32              new_circle_id    = game_state->circle_components.count;
+  CircleComponent* circle_component = (CircleComponent*)game_state->circle_components.array + new_circle_id;
 
   circle_component->radius = radius;
   circle_component->color  = color;
-
+  
+  game_state->circle_components.lookup_table[entety_id] = new_circle_id;
   game_state->circle_components.count += 1;
 }
 
@@ -598,11 +583,13 @@ CreateBoxComponent(GameState* game_state, u32 entety_id, Vec2f size, Vec3f color
 {
   assert(entety_id < game_state->entety_count);
 
-  BoxComponent* box_component = (BoxComponent*)game_state->box_components.array + entety_id;
+  u32           new_box_id    = game_state->box_components.count;
+  BoxComponent* box_component = (BoxComponent*)game_state->box_components.array + new_box_id;
 
   box_component->size  = size;
   box_component->color = color;
 
+  game_state->box_components.lookup_table[entety_id] = new_box_id;
   game_state->box_components.count += 1;
 }
 
@@ -611,10 +598,12 @@ CreatePhysicsComponent(GameState* game_state, u32 entety_id, PH_Shape* shape)
 {
   assert(entety_id < game_state->entety_count);
 
-  PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + entety_id;
+  u32               new_shape_id      = game_state->physics_components.count;
+  PhysicsComponent* physics_component = (PhysicsComponent*)game_state->physics_components.array + new_shape_id;
 
   physics_component->collision_shape = shape;
 
+  game_state->physics_components.lookup_table[entety_id] = new_shape_id;
   game_state->physics_components.count += 1;
 }
 

@@ -10,6 +10,7 @@ pushd build
     if "%sphere%"   == "1" sphere.exe
     if "%soa_test%" == "1" soa_test.exe
     if "%fullquad%" == "1" fullquad.exe
+    if "%ecs%" == "1" ecs.exe
 popd
 
 rem --- Unset Arguments ---

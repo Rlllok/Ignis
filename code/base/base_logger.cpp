@@ -1,6 +1,7 @@
 #include "base_logger.h"
 
 #include <stdio.h>
+#include <memory.h>
 #include <stdarg.h>
 
 func void LogOutput(LogMessageType message_type, const char* message, ...)
