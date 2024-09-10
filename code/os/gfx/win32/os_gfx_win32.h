@@ -33,7 +33,7 @@ func void OS_WIN32_InitGfx();
 // Is it better to not redefine. Better to experement
 func OS_Window OS_CreateWindow(const char* title, Vec2u size);
 func void      OS_ShowWindow(const OS_Window* window);
-func void      OS_Win32_ToggleFullscreen(const OS_Window* window);
+// func void      OS_Win32_ToggleFullscreen(const OS_Window* window);
 
 func OS_EventList OS_GetEventList(Arena* arena);
 func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);

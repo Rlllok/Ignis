@@ -3,7 +3,8 @@
 #include "vulkan/r_vk_core.h"
 #include "vulkan/r_vk_core.cpp"
 
-func b8 R_Init(OS_Window* window)
+func b8 
+R_Init(OS_Window* window)
 {
   r_render_state = {};
   R_CreateBackend();
@@ -13,7 +14,8 @@ func b8 R_Init(OS_Window* window)
   return true;
 }
 
-func b8 R_CreateBackend()
+func b8
+R_CreateBackend()
 {
   R_Backend backend = {};
   backend.Init            = R_VK_Init;
@@ -30,7 +32,8 @@ func b8 R_CreateBackend()
   return true;
 }
 
-func b8 R_DestroyBackend()
+func b8
+R_DestroyBackend()
 {
   return true;
 }

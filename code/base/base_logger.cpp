@@ -4,7 +4,8 @@
 #include <memory.h>
 #include <stdarg.h>
 
-func void LogOutput(LogMessageType message_type, const char* message, ...)
+func void
+LogOutput(LogMessageType message_type, const char* message, ...)
 {
   const char* type_strings[LOG_MESSAGE_TYPE_COUNT] = { "[NONE]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: " };
 
@@ -23,7 +24,8 @@ func void LogOutput(LogMessageType message_type, const char* message, ...)
   printf("%s", final_message);
 }
 
-func void AssertionFail(const char* expression, const char* message, const char* file_name, u32 line_number)
+func void
+AssertionFail(const char* expression, const char* message, const char* file_name, u32 line_number)
 {
   LogOutput(LOG_MESSAGE_TYPE_ERROR, "Assertion failure: %s, message: %s. File: %s. Line: %d\n", expression, message, file_name, line_number);
 }

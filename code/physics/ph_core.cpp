@@ -1,13 +1,19 @@
 #include "ph_core.h"
 
+// --AlNov: @TODO List
+//      * Make calculations in functional style ???
+//      * Boxes are not capable with rendering layer - user rectangle sturcture instead of half widht/height
+
 // -------------------------------------------------------------------
 // --AlNov: Forces ---------------------------------------------------
-func Vec2f PH_CalculateWeight(f32 m, f32 g)
+func Vec2f
+PH_CalculateWeight(f32 m, f32 g)
 {
   return MakeVec2f(0.0f, m * g);
 }
 
-func Vec2f PH_CalculateDrag(Vec2f velocity, f32 k)
+func Vec2f
+PH_CalculateDrag(Vec2f velocity, f32 k)
 {
   Vec2f drag = NormalizeVec2f(velocity);
   // f32 ro = 1.2f; // Air density at 30 C
@@ -20,7 +26,8 @@ func Vec2f PH_CalculateDrag(Vec2f velocity, f32 k)
   return drag;
 }
 
-func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k)
+func Vec2f
+PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k)
 {
   Vec2f distance               = SubVec2f(blob_position, anchor_position);
   Vec2f direction              = NormalizeVec2f(distance);
@@ -31,7 +38,8 @@ func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 re
 
 // -------------------------------------------------------------------
 // --AlNov: Particle Operations --------------------------------------
-func PH_Particle* PH_CreateParticle(Arena* arena, Vec2f position, f32 mass)
+func PH_Particle*
+PH_CreateParticle(Arena* arena, Vec2f position, f32 mass)
 {
   PH_Particle* particle = (PH_Particle*)PushArena(arena, sizeof(PH_Particle));
   particle->position = position;
@@ -43,17 +51,20 @@ func PH_Particle* PH_CreateParticle(Arena* arena, Vec2f position, f32 mass)
   return particle;
 }
 
-func void PH_ApplyForceToParticle(PH_Particle* particle, Vec2f force)
+func void
+PH_ApplyForceToParticle(PH_Particle* particle, Vec2f force)
 {
   particle->sum_of_forces = AddVec2f(particle->sum_of_forces, force);
 }
 
-func void PH_ResetParticleForce(PH_Particle* particle)
+func void
+PH_ResetParticleForce(PH_Particle* particle)
 {
   particle->sum_of_forces = {};
 }
 
-func void PH_IntegrateParticle(PH_Particle* particle, f32 dt)
+func void
+PH_IntegrateParticle(PH_Particle* particle, f32 dt)
 {
   // --AlNov: Euler Integration
   particle->acceleration = MulVec2f(particle->sum_of_forces, 1.0f / particle->mass);
@@ -61,7 +72,8 @@ func void PH_IntegrateParticle(PH_Particle* particle, f32 dt)
   particle->position = AddVec2f(particle->position, MulVec2f(particle->velocity, dt));
 }
 
-func void PH_PushParticle(PH_ParticleList* list, PH_Particle* particle)
+func void
+PH_PushParticle(PH_ParticleList* list, PH_Particle* particle)
 {
   if (list->count == 0)
   {
@@ -82,7 +94,8 @@ func void PH_PushParticle(PH_ParticleList* list, PH_Particle* particle)
 
 // -------------------------------------------------------------------
 // -AlNov: Shape Operations ------------------------------------------
-func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f32 mass)
+func PH_Shape*
+PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f32 mass)
 {
   PH_Shape* shape = (PH_Shape*)PushArena(arena, sizeof(PH_Shape));
   shape->type                  = PH_SHAPE_TYPE_CIRCLE;
@@ -103,7 +116,8 @@ func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f3
   return shape;
 }
 
-func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 width, f32 mass)
+func PH_Shape*
+PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 width, f32 mass)
 {
   PH_Shape* shape = (PH_Shape*)PushArena(arena, sizeof(PH_Shape));
   shape->type                  = PH_SHAPE_TYPE_BOX;
@@ -129,12 +143,14 @@ func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 w
   return shape;
 }
 
-func void PH_ApplyForceToShape(PH_Shape* shape, Vec2f force)
+func void
+PH_ApplyForceToShape(PH_Shape* shape, Vec2f force)
 {
   shape->sum_of_forces = AddVec2f(shape->sum_of_forces, force);
 }
 
-func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point)
+func void
+PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -142,27 +158,30 @@ func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point)
   shape->angular_velocity += CrossVec2f(apply_point, j) * shape->inv_moment_of_inertia;
 }
 
-
-func void PH_ApplyLinearImpulseToShape(PH_Shape* shape, Vec2f j)
+func void
+PH_ApplyLinearImpulseToShape(PH_Shape* shape, Vec2f j)
 {
   if (PH_IsStatic(shape)) { return; }
 
   shape->velocity = AddVec2f(shape->velocity, MulVec2f(j, shape->inv_mass));
 }
 
-func void PH_ApplyAngularImpulseToShape(PH_Shape* shape, f32 j)
+func void
+PH_ApplyAngularImpulseToShape(PH_Shape* shape, f32 j)
 {
   if (PH_IsStatic(shape)) { return; }
 
   shape->angular_velocity += j * shape->inv_moment_of_inertia;
 }
 
-func void PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque)
+func void
+PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque)
 {
   shape->sum_of_torque += torque;
 }
 
-func void PH_IntegrateShape(PH_Shape* shape, f32 dt)
+func void
+PH_IntegrateShape(PH_Shape* shape, f32 dt)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -178,7 +197,8 @@ func void PH_IntegrateShape(PH_Shape* shape, f32 dt)
   shape->sum_of_torque        = 0.0f;
 }
 
-func void PH_IntegrateForceShape(PH_Shape* shape, f32 dt)
+func void
+PH_IntegrateForceShape(PH_Shape* shape, f32 dt)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -191,7 +211,8 @@ func void PH_IntegrateForceShape(PH_Shape* shape, f32 dt)
   shape->sum_of_torque        = 0.0f;
 }
 
-func void PH_IntegrateVelocityShape(PH_Shape* shape, f32 dt)
+func void
+PH_IntegrateVelocityShape(PH_Shape* shape, f32 dt)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -200,7 +221,8 @@ func void PH_IntegrateVelocityShape(PH_Shape* shape, f32 dt)
   shape->angle    = shape->angle + shape->angular_velocity * dt;
 }
 
-func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape)
+func void
+PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape)
 {
   if (list->count == 0)
   {
@@ -219,13 +241,15 @@ func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape)
   };
 }
 
-func bool PH_IsStatic(PH_Shape* shape)
+func bool
+PH_IsStatic(PH_Shape* shape)
 {
   // --AlNov: @TODO This is float, so default comparison can be buggy.
   return shape->mass == 0.0f;
 }
 
-func Vec2f PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point)
+func Vec2f
+PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point)
 {
   Vec2f result = world_point;
   result = SubVec2f(world_point, shape->position);
@@ -233,7 +257,8 @@ func Vec2f PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point)
   return result;
 }
 
-func Vec2f PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point)
+func Vec2f
+PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point)
 {
   Vec2f result = local_point;
   result = RotateVec2f(local_point, shape->angle);
@@ -241,14 +266,16 @@ func Vec2f PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point)
   return result;
 }
 
-func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index)
+func Vec2f
+BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index)
 {
   return AddVec2f(box->position, RotateVec2f(box->box.vertecies[vertex_index], box->angle));
 }
 
 // -------------------------------------------------------------------
 // --AlNov: Collision Operations -------------------------------------
-func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info)
+func f32
+PH_CalculateImpulseValue(PH_CollisionInfo* collision_info)
 {
   // --AlNov: @TODO Not Working :(
   PH_Shape* shape_a    = collision_info->shape_a;
@@ -260,7 +287,8 @@ func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info)
   return -(e + 1) * vrel_n_dot / (shape_a->inv_mass + shape_b->inv_mass);
 }
 
-func bool PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Shape* shape_b)
+func bool
+PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Shape* shape_b)
 {
   // --AlNov: @TODO Don't check collision for two static objects for now.
   if (PH_IsStatic(shape_a) && PH_IsStatic(shape_b)) { return false; }
@@ -285,7 +313,8 @@ func bool PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shap
   return false;
 }
 
-func bool PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b)
+func bool
+PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b)
 {
   f32   radius_a          = circle_a->circle.radius;
   f32   radius_b          = circle_b->circle.radius;
@@ -353,7 +382,8 @@ FindMinBoxBoxSeparation(PH_Shape* box_a, PH_Shape* box_b)
   return result;
 }
 
-func bool PH_BoxBoxCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box_a, PH_Shape* box_b)
+func bool
+PH_BoxBoxCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box_a, PH_Shape* box_b)
 {
   SeparationResult a_b_result = FindMinBoxBoxSeparation(box_a, box_b);
   SeparationResult b_a_result = FindMinBoxBoxSeparation(box_b, box_a);
@@ -383,7 +413,8 @@ func bool PH_BoxBoxCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box
   return true;
 }
 
-func bool PH_BoxCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box, PH_Shape* circle)
+func bool
+PH_BoxCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box, PH_Shape* circle)
 {
   // --AlNov: That procedure is not pretty. Maybe there is better solution of this problem.
 
@@ -458,7 +489,8 @@ func bool PH_BoxCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* 
   return true;
 }
 
-func void PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info)
+func void
+PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info)
 {
   PH_Shape* shape_a = collision_info->shape_a;
   PH_Shape* shape_b = collision_info->shape_b;
@@ -472,7 +504,8 @@ func void PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info)
   shape_b->position = AddVec2f(shape_b->position, MulVec2f(collision_info->normal, dp_b));
 }
 
-func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
+func void
+PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
 {
   PH_ResolveCollisionProjection(collision_info);
 
@@ -518,7 +551,8 @@ func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
 
 // -------------------------------------------------------------------
 // --AlNov: Constrains Operations ------------------------------------
-func void PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain)
+func void
+PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain)
 {
   if (list->count == 0)
   {
@@ -537,7 +571,8 @@ func void PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain)
   };
 }
 
-func PH_Constrain* PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location)
+func PH_Constrain*
+PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location)
 {
   PH_Constrain* constrain  = (PH_Constrain*)PushArena(arena, sizeof(PH_Constrain));
   constrain->shape_a       = shape_a;
@@ -548,7 +583,8 @@ func PH_Constrain* PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, P
   return constrain;
 }
 
-func void PH_PresolveConstrain(PH_Constrain* constrain, f32 dt)
+func void
+PH_PresolveConstrain(PH_Constrain* constrain, f32 dt)
 {
   PH_Shape* shape_a = constrain->shape_a;
   PH_Shape* shape_b = constrain->shape_b;
@@ -573,7 +609,8 @@ func void PH_PresolveConstrain(PH_Constrain* constrain, f32 dt)
   constrain->effective_mass = effective_mass;
 }
 
-func void PH_SolveConstrain(PH_Constrain* constrain)
+func void
+PH_SolveConstrain(PH_Constrain* constrain)
 {
   PH_Shape* shape_a = constrain->shape_a;
   PH_Shape* shape_b = constrain->shape_b;

@@ -16,7 +16,6 @@
 // * PH Box and draw box have different sizes
 // * After some time there is a crash (First idea - Vulkan memory) - Fixed by itself for now
 // * Player brick goes out of window (Only left side)
-
 enum EntetyType
 {
   ENTETY_TYPE_NONE,
@@ -223,6 +222,8 @@ func void InitGameState(GameState* game_state)
     Vec2f size     = MakeVec2f(game_state->window.width * 2.0f, 15.0f);
     Vec2f position = MakeVec2f(game_state->window.width / 2.0f, 15.0f);
     Vec3f color    = MakeVec3f(1.0f, 1.0f, 1.0f);
+
+    u32 x = 10 * 2;
 
     PH_Shape* ph_shape = PH_CreateBoxShape(
       game_state->arena,

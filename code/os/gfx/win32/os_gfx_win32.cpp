@@ -8,11 +8,13 @@ global Arena*          os_event_arena;
 global OS_EventList*   os_event_list;
 global WINDOWPLACEMENT previous_window_params = { sizeof(previous_window_params) };
 
-func void OS_WIN32_InitGfx()
+func void
+OS_WIN32_InitGfx()
 {
 }
 
-func OS_Window OS_CreateWindow(const char* title, Vec2u size)
+func OS_Window
+OS_CreateWindow(const char* title, Vec2u size)
 {
   OS_Window window = {};
   window.instance = GetModuleHandle(nullptr);
@@ -44,7 +46,8 @@ func OS_Window OS_CreateWindow(const char* title, Vec2u size)
   return window;
 }
 
-func void OS_ShowWindow(OS_Window* window)
+func void
+OS_ShowWindow(OS_Window* window)
 {
   ShowWindow(window->handle, SW_SHOW);
   UpdateWindow(window->handle);
@@ -52,7 +55,8 @@ func void OS_ShowWindow(OS_Window* window)
   window->status = OS_WINDOW_STATUS_OPEN;
 }
 
-func void OS_WIN32_ToggleFullscreen(HWND window_handle)
+func void
+OS_WIN32_ToggleFullscreen(HWND window_handle)
 {
   DWORD style = GetWindowLong(window_handle, GWL_STYLE);
   if (style & WS_OVERLAPPEDWINDOW)
@@ -79,7 +83,8 @@ func void OS_WIN32_ToggleFullscreen(HWND window_handle)
   }
 }
 
-func OS_EventList OS_GetEventList(Arena* arena)
+func OS_EventList
+OS_GetEventList(Arena* arena)
 {
   OS_EventList event_list = {};
   os_event_arena          = arena;
@@ -97,7 +102,8 @@ func OS_EventList OS_GetEventList(Arena* arena)
   return event_list;
 }
 
-func f32 OS_CurrentTimeSeconds()
+func f32
+OS_CurrentTimeSeconds()
 {
   // --AlNov: @NOTE Frequency should be computed only ones, as it doens't change after system start.
   local_persist LARGE_INTEGER frequency = {};
@@ -112,7 +118,8 @@ func f32 OS_CurrentTimeSeconds()
   return ((f64)counter.QuadPart) / ((f64)frequency.QuadPart);
 }
 
-func void OS_Wait(f32 wait_seconds)
+func void
+OS_Wait(f32 wait_seconds)
 {
   f32 begin_time = OS_CurrentTimeSeconds();
   f32 end_time = begin_time + wait_seconds;
@@ -122,7 +129,8 @@ func void OS_Wait(f32 wait_seconds)
   while (OS_CurrentTimeSeconds() < end_time) {}
 }
 
-func Vec2f OS_MousePosition(OS_Window window)
+func Vec2f
+OS_MousePosition(OS_Window window)
 {
   POINT mouse_point;
   GetCursorPos(&mouse_point);
@@ -131,12 +139,14 @@ func Vec2f OS_MousePosition(OS_Window window)
   return MakeVec2f((f32)mouse_point.x, (f32)mouse_point.y);
 }
 
-func bool OS_IsWindowClosed()
+func bool
+OS_IsWindowClosed()
 {
   return false;
 }
 
-func void OS_PushEvent(OS_EventList* event_list, OS_Event* event)
+func void
+OS_PushEvent(OS_EventList* event_list, OS_Event* event)
 {
   if (event_list->count == 0)
   {
@@ -157,7 +167,8 @@ func void OS_PushEvent(OS_EventList* event_list, OS_Event* event)
   }
 }
 
-func f32 OS_GetMonitorHZ()
+func f32
+OS_GetMonitorHZ()
 {
   DEVMODEW dev_mode = {};
   EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &dev_mode);
@@ -165,7 +176,8 @@ func f32 OS_GetMonitorHZ()
   return (f32)dev_mode.dmDisplayFrequency;
 }
 
-func LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
+func LRESULT
+OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 {
   LRESULT   result  = 0;
   OS_Event* event   = 0;

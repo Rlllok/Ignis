@@ -14,8 +14,10 @@
 #include "third_party/glslang/include/Public/resource_limits_c.h"
 
 #include <stdio.h>
+#include <memory.h>
 
-func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader)
+func void
+R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader)
 {
   FILE* file = fopen(path, "r");
   ASSERT(!file);
@@ -102,7 +104,8 @@ func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point
   glslang_finalize_process();
 }
 
-func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader)
+func void
+R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader)
 {
   *out_shader = {};
   
@@ -121,7 +124,8 @@ func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_
   fclose(file);
 }
 
-func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, u32 count)
+func void
+R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, u32 count)
 {
   ASSERT(count > MAX_ATTRIBUTES);
 
@@ -129,7 +133,8 @@ func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeForm
   pipeline->attributes_count = count;
 }
 
-func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, u32 count)
+func void
+R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, u32 count)
 {
   ASSERT(count > MAX_BINDINGS);
 
@@ -137,7 +142,8 @@ func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bin
   pipeline->bindings_count = count;
 }
 
-func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
+func u32
+R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
 {
   switch (format)
   {
@@ -148,7 +154,8 @@ func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
   }
 }
 
-func u32 R_H_GlslangStageFromShaderType(R_ShaderType type)
+func u32
+R_H_GlslangStageFromShaderType(R_ShaderType type)
 {
   switch (type)
   {

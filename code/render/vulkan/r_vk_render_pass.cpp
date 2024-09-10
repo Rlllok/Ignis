@@ -1,5 +1,7 @@
 #include "r_vk_render_pass.h"
 
+// --AlNov: @TODO Is it even used?
+
 func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f viewport_size, Vec4f clear_value)
 {
   VkAttachmentDescription color_attachment = {};

@@ -7,14 +7,16 @@
 
 global VkDebugUtilsMessengerEXT R_VK_DebugMessenger;
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+VKAPI_ATTR VkBool32 VKAPI_CALL
+debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
   LOG_INFO("VK_VALIDATION: %s\n", pCallbackData->pMessage);
 
   return VK_FALSE;
 }
 
-void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messengerInfo)
+func void
+populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messengerInfo)
 {
   messengerInfo = {};
 
@@ -29,7 +31,8 @@ void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messen
   messengerInfo.pUserData       = nullptr;
 }
 
-VkResult createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
+func VkResult
+createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
 {
   auto f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 
@@ -43,7 +46,8 @@ VkResult createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
   }
 }
 
-void destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator)
+func void
+destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator)
 {
   auto f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 
@@ -53,7 +57,8 @@ void destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
   }
 }
 
-VkResult createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger)
+func VkResult
+createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger)
 {
   VkDebugUtilsMessengerCreateInfoEXT messengerInfo = {};
   populateDebugMessengerCreateInfo(messengerInfo);
@@ -62,7 +67,8 @@ VkResult createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* deb
 }
 // End Debug Layer Staff ---------------------------------------------
 
-func b8 R_VK_Init(OS_Window* window)
+func b8
+R_VK_Init(OS_Window* window)
 {
   r_vk_state = {};
   r_vk_state.arena = AllocateArena(Megabytes(128));
@@ -123,7 +129,8 @@ func b8 R_VK_Init(OS_Window* window)
   return true;
 }
 
-func void R_VK_CreateInstance()
+func void
+R_VK_CreateInstance()
 {
   VkApplicationInfo app_info = {};
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -161,7 +168,8 @@ func void R_VK_CreateInstance()
   VK_CHECK(createDebugMessenger(r_vk_state.instance, &R_VK_DebugMessenger));
 }
 
-func void R_VK_CreateDevice()
+func void
+R_VK_CreateDevice()
 {
   Arena* tmp_arena = AllocateArena(Kilobytes(10));
   {
@@ -224,7 +232,8 @@ func void R_VK_CreateDevice()
   FreeArena(tmp_arena);
 }
 
-func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain)
+func void
+R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain)
 {
   VkWin32SurfaceCreateInfoKHR surface_info = {};
   surface_info.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -263,7 +272,8 @@ func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapc
   FreeArena(tmp_arena);
 }
 
-func void R_VK_CreateSwapchain()
+func void
+R_VK_CreateSwapchain()
 {
   VkSwapchainCreateInfoKHR swapchain_info = {};
   swapchain_info.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -313,7 +323,8 @@ func void R_VK_CreateSwapchain()
   }
 }
 
-func void R_VK_CreateDescriptorPool()
+func void
+R_VK_CreateDescriptorPool()
 {
   u32 descriptor_count = 100;
 
@@ -336,7 +347,8 @@ func void R_VK_CreateDescriptorPool()
   VK_CHECK(vkCreateDescriptorPool(r_vk_state.device.logical, &pool_info, 0, &r_vk_state.descriptor_pool.pool));
 }
 
-func void R_VK_CreateSyncTools()
+func void
+R_VK_CreateSyncTools()
 {
   for (i32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
   {
@@ -354,7 +366,8 @@ func void R_VK_CreateSyncTools()
   }
 }
 
-func void R_VK_CreateDepthImage()
+func void
+R_VK_CreateDepthImage()
 {
   VkImageCreateInfo image_info = {};
   image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -401,7 +414,8 @@ func void R_VK_CreateDepthImage()
 
 // -------------------------------------------------------------------
 // --AlNov: Render Pass ----------------------------------------------
-func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area)
+func void
+R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area)
 {
   VkAttachmentDescription color_attachment = {};
   color_attachment.format         = vk_state->swapchain.surface_format.format;
@@ -466,7 +480,8 @@ func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_rende
   out_render_pass->render_area = render_area;
 }
 
-func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass)
+func void
+R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass)
 {
   if (!render_pass || render_pass->handle) { return; }
 
@@ -475,7 +490,8 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
   render_pass->handle = 0;
 }
 
-func void R_VK_BeginFrame()
+func void
+R_VK_BeginFrame()
 {
   r_vk_state.current_frame %= NUM_FRAMES_IN_FLIGHT;
 
@@ -501,7 +517,8 @@ func void R_VK_BeginFrame()
   R_VK_BeginCommandBuffer(r_vk_state.current_command_buffer);
 }
 
-func void R_VK_EndFrame()
+func void
+R_VK_EndFrame()
 {
   R_VK_EndCommandBuffer(r_vk_state.current_command_buffer);
 
@@ -543,7 +560,8 @@ func void R_VK_EndFrame()
   vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
 }
 
-func void R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil)
+func void
+R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil)
 {
   R_VK_CommandBuffer* command_buffer  = r_vk_state.current_command_buffer;
   R_VK_Framebuffer*   framebuffer     = r_vk_state.current_framebuffer;
@@ -576,12 +594,14 @@ func void R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_ste
   vkCmdBeginRenderPass(command_buffer->handle, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-func void R_VK_EndRenderPass()
+func void
+R_VK_EndRenderPass()
 {
   vkCmdEndRenderPass(r_vk_state.current_command_buffer->handle);
 }
 
-func void R_VK_Draw(R_DrawInfo* info)
+func void
+R_VK_Draw(R_DrawInfo* info)
 {
   R_VK_BindPipeline(info->pipeline);
 
@@ -648,7 +668,8 @@ func void R_VK_Draw(R_DrawInfo* info)
 
 // -------------------------------------------------------------------
 // --AlNov: Command Buffer -------------------------------------------
-func void R_VK_CreateCommandPool(R_VK_State* vk_state)
+func void
+R_VK_CreateCommandPool(R_VK_State* vk_state)
 {
   VkCommandPoolCreateInfo pool_info = {};
   pool_info.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -658,7 +679,8 @@ func void R_VK_CreateCommandPool(R_VK_State* vk_state)
   VK_CHECK(vkCreateCommandPool(vk_state->device.logical, &pool_info, 0, &vk_state->command_pool));
 }
 
-func void R_VK_AllocateCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer)
+func void
+R_VK_AllocateCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer)
 {
   VkCommandBufferAllocateInfo command_buffer_info = {};
   command_buffer_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -671,7 +693,8 @@ func void R_VK_AllocateCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R
   out_command_buffer->state = R_VK_COMMAND_BUFFER_STATE_READY;
 }
 
-func void R_VK_FreeCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer)
+func void
+R_VK_FreeCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer)
 {
   vkFreeCommandBuffers(vk_state->device.logical, pool, 1, &command_buffer->handle);
 
@@ -679,7 +702,8 @@ func void R_VK_FreeCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_
   command_buffer->state  = R_VK_COMMAND_BUFFER_STATE_NOT_ALLOCATED;
 }
 
-func void R_VK_BeginCommandBuffer(R_VK_CommandBuffer* command_buffer)
+func void
+R_VK_BeginCommandBuffer(R_VK_CommandBuffer* command_buffer)
 {
   VkCommandBufferBeginInfo begin_info = {};
   begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -688,23 +712,27 @@ func void R_VK_BeginCommandBuffer(R_VK_CommandBuffer* command_buffer)
   command_buffer->state = R_VK_COMMAND_BUFFER_STATE_RECORDING;
 }
 
-func void R_VK_EndCommandBuffer(R_VK_CommandBuffer* command_buffer)
+func void
+R_VK_EndCommandBuffer(R_VK_CommandBuffer* command_buffer)
 {
   VK_CHECK(vkEndCommandBuffer(command_buffer->handle));
   command_buffer->state = R_VK_COMMAND_BUFFER_STATE_RECORDING_ENDED;
 }
 
-func void R_VK_SubmitComandBuffer(R_VK_CommandBuffer* command_buffer)
+func void
+R_VK_SubmitComandBuffer(R_VK_CommandBuffer* command_buffer)
 {
   command_buffer->state = R_VK_COMMAND_BUFFER_STATE_SUBMITTED;
 }
 
-func void R_VK_ResetCommandBuffer(R_VK_CommandBuffer* command_buffer)
+func void
+R_VK_ResetCommandBuffer(R_VK_CommandBuffer* command_buffer)
 {
   command_buffer->state= R_VK_COMMAND_BUFFER_STATE_READY;
 }
 
-func void R_VK_BeginSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer)
+func void
+R_VK_BeginSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer)
 {
   R_VK_AllocateCommandBuffer(vk_state, pool, out_command_buffer);
 
@@ -716,7 +744,8 @@ func void R_VK_BeginSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool p
   out_command_buffer->state = R_VK_COMMAND_BUFFER_STATE_RECORDING;
 }
 
-func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer, VkQueue queue)
+func void
+R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer, VkQueue queue)
 {
   R_VK_EndCommandBuffer(command_buffer);
 
@@ -735,7 +764,8 @@ func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool poo
 
 // -------------------------------------------------------------------
 // --AlNov: Framebuffer ----------------------------------------------
-func void R_VK_CreateFramebuffer(
+func void
+R_VK_CreateFramebuffer(
   R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size,
   u32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer
 )
@@ -760,7 +790,8 @@ func void R_VK_CreateFramebuffer(
   VK_CHECK(vkCreateFramebuffer(vk_state->device.logical, &framebuffer_info, 0, &out_framebuffer->handle));
 }
 
-func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer)
+func void
+R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer)
 {
   vkDestroyFramebuffer(vk_state->device.logical, framebuffer->handle, 0);
   
@@ -771,7 +802,8 @@ func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* frameb
 
 // -------------------------------------------------------------------
 // --AlNov: Shader ---------------------------------------------------
-func void R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program)
+func void
+R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program)
 {
   vkCmdBindPipeline(command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, program->pipeline.handle);
 }
@@ -780,7 +812,8 @@ func void R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_Shader
 // -------------------------------------------------------------------
 // --AlNov: Pipeline -------------------------------------------------
 
-func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
+func b8
+R_VK_CreatePipeline(R_Pipeline* pipeline)
 {
   // --AlNov: Vertex Shader
   VkShaderModule vertex_shader_module;
@@ -969,7 +1002,8 @@ func b8 R_VK_CreatePipeline(R_Pipeline* pipeline)
   return true;
 }
 
-func void R_VK_BindPipeline(R_Pipeline* pipeline)
+func void
+R_VK_BindPipeline(R_Pipeline* pipeline)
 {
   r_vk_state.active_pipeline_index = pipeline->backend_handle;
   vkCmdBindPipeline(r_vk_state.current_command_buffer->handle, VK_PIPELINE_BIND_POINT_GRAPHICS, r_vk_state.pipelines[r_vk_state.active_pipeline_index].handle);
@@ -978,7 +1012,8 @@ func void R_VK_BindPipeline(R_Pipeline* pipeline)
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
-func u32 R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags)
+func u32
+R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags)
 {
   VkPhysicalDeviceMemoryProperties mem_properties = {};
   vkGetPhysicalDeviceMemoryProperties(r_vk_state.device.physical, &mem_properties);
@@ -996,7 +1031,8 @@ func u32 R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags)
   return -1;
 }
 
-func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory)
+func void
+R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory)
 {
   VkBufferCreateInfo buffer_info = {};
   buffer_info.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1017,7 +1053,8 @@ func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags prop
   VK_CHECK(vkBindBufferMemory(r_vk_state.device.logical, *out_buffer, *out_memory, 0));
 }
 
-func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
+func void
+R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
 {
   void* mapped_memory;
   vkMapMemory(r_vk_state.device.logical, memory, 0, size, 0, &mapped_memory);
@@ -1027,7 +1064,8 @@ func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
   vkUnmapMemory(r_vk_state.device.logical, memory);
 }
 
-func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type)
+func VkShaderStageFlagBits
+R_VK_ShaderStageFromShaderType(R_ShaderType type)
 {
   switch (type)
   {
@@ -1038,7 +1076,8 @@ func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type)
   }
 }
 
-func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
+func VkFormat
+R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
 {
   switch (format)
   {
@@ -1049,7 +1088,8 @@ func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
   }
 }
 
-func VkDescriptorType R_VK_DescriptorTypeFromBindingType(R_BindingType type)
+func VkDescriptorType
+R_VK_DescriptorTypeFromBindingType(R_BindingType type)
 {
   switch (type)
   {
@@ -1060,7 +1100,8 @@ func VkDescriptorType R_VK_DescriptorTypeFromBindingType(R_BindingType type)
   }
 }
 
-func VkCommandBuffer R_VK_BeginSingleCommands()
+func VkCommandBuffer
+R_VK_BeginSingleCommands()
 {
   VkCommandBufferAllocateInfo allocate_info = {};
   allocate_info.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1080,7 +1121,8 @@ func VkCommandBuffer R_VK_BeginSingleCommands()
   return command_buffer;
 }
 
-func void R_VK_EndSingleCommands(VkCommandBuffer command_buffer)
+func void
+R_VK_EndSingleCommands(VkCommandBuffer command_buffer)
 {
   VK_CHECK(vkEndCommandBuffer(command_buffer));
 
@@ -1098,7 +1140,8 @@ func void R_VK_EndSingleCommands(VkCommandBuffer command_buffer)
   vkFreeCommandBuffers(r_vk_state.device.logical, r_vk_state.command_pool, 1, &command_buffer);
 }
 
-func void R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
+func void
+R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
 {
   VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
   {
@@ -1112,7 +1155,8 @@ func void R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size)
   R_VK_EndSingleCommands(command_buffer);
 }
 
-func void R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions)
+func void
+R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions)
 {
   VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
   {
@@ -1132,7 +1176,8 @@ func void R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dim
   R_VK_EndSingleCommands(command_buffer);
 }
 
-func void R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout)
+func void
+R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout)
 {
   VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
   {
@@ -1179,7 +1224,8 @@ func void R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_coun
   R_VK_EndSingleCommands(command_buffer);
 }
 
-func bool LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels)
+func bool
+LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels)
 {
   *out_data = stbi_load(path, out_width, out_height, out_channels, STBI_rgb_alpha);
 
@@ -1192,7 +1238,8 @@ func bool LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_
   return true;
 }
 
-func R_Texture R_VK_CreateTexture(const char* path)
+func R_Texture
+R_VK_CreateTexture(const char* path)
 {
   R_Texture texture = {};
 
@@ -1300,7 +1347,8 @@ func R_Texture R_VK_CreateTexture(const char* path)
   return texture;
 }
 
-func void R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
+func void
+R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
 {
   i32 width = 0;
   i32 height = 0;
@@ -1395,7 +1443,8 @@ func void R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
 
 // -------------------------------------------------------------------
 // --AlNov: View -----------------------------------------------------
-func R_View R_CreateView(Vec3f position, f32 fov, Vec2f size)
+func R_View
+R_CreateView(Vec3f position, f32 fov, Vec2f size)
 {
   R_View view = {};
   view.size               = size;
@@ -1406,7 +1455,8 @@ func R_View R_CreateView(Vec3f position, f32 fov, Vec2f size)
   return view;
 }
 
-func void R_VK_BindView(R_View view)
+func void
+R_VK_BindView(R_View view)
 {
   r_vk_state.view = view;
 }
