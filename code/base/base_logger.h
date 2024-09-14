@@ -26,7 +26,7 @@ func void LogOutput(LogMessageType message_type, const char* message, ...);
 #define LOG_INFO(message, ...) LogOutput(LOG_MESSAGE_TYPE_INFO, message, ##__VA_ARGS__);
 #endif // LOG_INFO
 
-func void AssertionFail(const char* expression, const char* message, const char* file_name, u32 line_number);
+func void AssertionFail(const char* expression, const char* message, const char* file_name, U32 line_number);
 
 #define ASSERTION_ENABLED
 
@@ -38,7 +38,7 @@ func void AssertionFail(const char* expression, const char* message, const char*
     #define debugBreak() __builtin_trap()
   #endif // _MSC_VER
 
-  #define ASSERT(expression)                                \
+  #define Assert(expression)                                \
     {                                                       \
       if (expression)                                       \
       {                                                     \
@@ -47,7 +47,7 @@ func void AssertionFail(const char* expression, const char* message, const char*
       }                                                     \
     }
 
-  #define ASSERT_MESSAGE(expression, message)                    \
+  #define AssertMessage(expression, message)                    \
     {                                                            \
       if (expression)                                            \
       {                                                          \

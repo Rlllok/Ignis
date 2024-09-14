@@ -22,12 +22,14 @@ rem --- Build ---
 @echo.
 
 pushd build
-    if "%game%"       == "1" %compiler% %clang_flags% ..\code\app\game.cpp -o game.exe
-    if "%physics%"    == "1" %compiler% %clang_flags% ..\code\app\physics.cpp -o physics.exe
-    if "%sphere%"     == "1" %compiler% %clang_flags% ..\code\app\sphere.cpp -o sphere.exe
-    if "%soa_test%"   == "1" %compiler% %clang_flags% -O0 ..\code\app\soa_test.cpp -o soa_test.exe
+    if "%game%"         == "1" %compiler% %clang_flags% ..\code\app\game.cpp -o game.exe
+    if "%physics%"      == "1" %compiler% %clang_flags% ..\code\app\physics.cpp -o physics.exe
+    if "%sphere%"       == "1" %compiler% %clang_flags% ..\code\app\sphere.cpp -o sphere.exe
+    if "%soa_test%"     == "1" %compiler% %clang_flags% -O0 ..\code\app\soa_test.cpp -o soa_test.exe
     if "%fullquad%"     == "1" %compiler% %clang_flags% ..\code\app\fullquad.cpp -o fullquad.exe
-    if "%ecs%"     == "1" %compiler% %clang_flags% ..\code\app\ecs.cpp -o ecs.exe
+    if "%ecs%"          == "1" %compiler% %clang_flags% ..\code\app\ecs.cpp -o ecs.exe
+    if "%string_test%"  == "1" %compiler% %clang_flags% ..\code\app\string_test.cpp -o string_test.exe
+    if "%memory%"  == "1" %compiler% %clang_flags% ..\code\app\memory.cpp -o memory.exe
 popd
 
 @echo.

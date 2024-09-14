@@ -11,7 +11,7 @@ struct R_VK_Device
 {
   VkDevice logical;
   VkPhysicalDevice physical;
-  u32 queue_index;
+  U32 queue_index;
 };
 
 // -------------------------------------------------------------------
@@ -69,7 +69,7 @@ struct R_VK_CommandPool
 struct R_VK_Framebuffer
 {
   VkFramebuffer    handle;
-  u32              attachment_count;
+  U32              attachment_count;
   VkImageView*     attachments;
   R_VK_RenderPass* render_pass;
 };
@@ -82,7 +82,7 @@ struct R_VK_Swapchain
   VkSurfaceKHR       surface;
   VkSurfaceFormatKHR surface_format;
   Vec2u              size;
-  u32                image_count;
+  U32                image_count;
   VkImage*           images;
   VkImageView*       image_views;
   R_VK_Framebuffer*  framebuffers;
@@ -113,8 +113,8 @@ struct R_VK_ShaderStage
 {
   R_VK_ShaderType type;
   const char*     enter_point;
-  u32             code_size;
-  u8*             code;
+  U32             code_size;
+  U8*             code;
   
   VkShaderModule                  vk_handle;
   VkPipelineShaderStageCreateInfo vk_info;
@@ -131,7 +131,7 @@ struct R_View
 {
   Vec2f   size;
   Vec3f   position;
-  f32     fov;
+  F32     fov;
 
   struct
   {
@@ -188,8 +188,8 @@ struct R_VK_VertexBuffer
   VkBuffer buffer;
   VkDeviceMemory memory;
   void* mapped_memory;
-  u32 current_position;
-  u32 size;
+  U32 current_position;
+  U32 size;
 };
 
 struct R_VK_IndexBuffer
@@ -197,8 +197,8 @@ struct R_VK_IndexBuffer
   VkBuffer buffer;
   VkDeviceMemory memory;
   void* mapped_memory;
-  u32 current_position;
-  u32 size;
+  U32 current_position;
+  U32 size;
 };
 
 struct R_VK_Buffer
@@ -206,8 +206,8 @@ struct R_VK_Buffer
   VkBuffer        buffer;
   VkDeviceMemory  memory;
   void*           mapped_memory;
-  u32             current_position;
-  u32             size;
+  U32             current_position;
+  U32             size;
 };
 
 // -------------------------------------------------------------------
@@ -229,15 +229,15 @@ struct R_VK_State
   R_VK_RenderPass render_pass;
 
   R_VK_Pipeline         pipelines[2];
-  u32                   pipelines_count;
+  U32                   pipelines_count;
 
-  u32 active_pipeline_index;
+  U32 active_pipeline_index;
 
   R_VK_CommandBuffer* current_command_buffer;
   R_VK_Framebuffer*   current_framebuffer;
 
-  u32 current_frame;
-  u32 current_image_index;
+  U32 current_frame;
+  U32 current_image_index;
 
   R_View view;
 

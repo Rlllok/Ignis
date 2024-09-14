@@ -4,12 +4,14 @@
 #include <memory.h>
 #include <stdarg.h>
 
+// --AlNov: @TODO Change char* to Str8
+
 func void
 LogOutput(LogMessageType message_type, const char* message, ...)
 {
   const char* type_strings[LOG_MESSAGE_TYPE_COUNT] = { "[NONE]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: " };
 
-  const u32 output_message_size = 16000;
+  const U32 output_message_size = 16000;
   char output_message[output_message_size];
   memset(output_message, 0, sizeof(output_message));
 
@@ -25,7 +27,7 @@ LogOutput(LogMessageType message_type, const char* message, ...)
 }
 
 func void
-AssertionFail(const char* expression, const char* message, const char* file_name, u32 line_number)
+AssertionFail(const char* expression, const char* message, const char* file_name, U32 line_number)
 {
   LogOutput(LOG_MESSAGE_TYPE_ERROR, "Assertion failure: %s, message: %s. File: %s. Line: %d\n", expression, message, file_name, line_number);
 }

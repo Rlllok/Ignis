@@ -22,8 +22,8 @@ struct R_Shader
   R_ShaderType      type;
   R_ShaderLanguage  language; // --AlNov: Only SPIRV for now
   const char*       entry_point;
-  u32               code_size;
-  u8*               code;
+  U32               code_size;
+  U8*               code;
 };
 
 enum R_VertexAttributeFormat
@@ -52,22 +52,22 @@ struct R_BindingInfo
 #define MAX_ATTRIBUTES 10
 struct R_Pipeline
 {
-  u32                     backend_handle;
+  U32                     backend_handle;
   R_Shader                shaders[R_SHADER_TYPE_COUNT];
   R_VertexAttributeFormat attributes[MAX_ATTRIBUTES];
-  u32                     attributes_count;
+  U32                     attributes_count;
   R_BindingInfo           bindings[MAX_BINDINGS];
-  u32                     bindings_count;
+  U32                     bindings_count;
 
-  b8 is_depth_test_enabled;
+  B32 is_depth_test_enabled;
 };
 
 func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 
-func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, u32 count);
-func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, u32 count);
+func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, U32 count);
+func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
 
 // --AlNov: @TODO Is it really needed or there is another way to get offset between attributes
-func u32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format);
-func u32 R_H_GlslangStageFromShaderType(R_ShaderType type);
+func U32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format);
+func U32 R_H_GlslangStageFromShaderType(R_ShaderType type);

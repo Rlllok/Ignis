@@ -11,20 +11,20 @@
 
 // -------------------------------------------------------------------
 // --AlNov: Types ----------------------------------------------------
-typedef int8_t  i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
+typedef int8_t  I8;
+typedef int16_t I16;
+typedef int32_t I32;
+typedef int64_t I64;
 
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+typedef uint8_t  U8;
+typedef uint16_t U16;
+typedef uint32_t U32;
+typedef uint64_t U64;
 
-typedef float  f32;
-typedef double f64;
+typedef float  F32;
+typedef double F64;
 
-typedef bool b8;
+typedef I32 B32;
 
 // -------------------------------------------------------------------
 // --AlNov: Limits ---------------------------------------------------
@@ -36,7 +36,7 @@ typedef bool b8;
 #define F32_MAX 3.40282347E+38f
 
 // -------------------------------------------------------------------
-// --AlNov: Min, Max -------------------------------------------------
+// --AlNov: Math Defines (Min, Max ...) ------------------------------
 #define Min(a, b) (((a) < (b)) ? (a) : (b))
 #define Max(a, b) (((a) > (b)) ? (a) : (b))
 #define Clamp(v, low, high) Max(Min(v, high), low)

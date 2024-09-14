@@ -20,9 +20,9 @@ struct OS_Window
   HWND      handle;
   HINSTANCE instance;
 
-  u32  width;
-  u32  height;
-  bool is_fullscreen;
+  U32 width;
+  U32 height;
+  B32 is_fullscreen;
 
   OS_WindowStatus status;
 };
@@ -38,8 +38,8 @@ func void      OS_ShowWindow(const OS_Window* window);
 func OS_EventList OS_GetEventList(Arena* arena);
 func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);
 
-func f32    OS_CurrentTimeSeconds();
-func void   OS_Wait(f32 wait_seconds);
+func F32    OS_CurrentTimeSeconds();
+func void   OS_Wait(F32 wait_seconds);
 func Vec2f  OS_MousePosition(OS_Window window);
 
 func LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);

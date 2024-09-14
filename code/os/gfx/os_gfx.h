@@ -48,7 +48,7 @@ struct OS_EventList
     OS_Event* first;
     OS_Event* last;
 
-    u32 count;
+    U32 count;
 };
 
 
@@ -58,11 +58,11 @@ func void      OS_ShowWindow(OS_Window* window);
 func OS_EventList OS_GetEventList(Arena* arena);
 func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);
 
-func f32 OS_GetMonitorHZ();
+func F32 OS_GetMonitorHZ();
 
 // --AlNov: @NOTE Convertion time getted from this function can be not as presice.
 // The reason that we delete small number to large inside (tick and frequency).
-func f32   OS_CurrentTimeSeconds();
+func F32   OS_CurrentTimeSeconds();
 func Vec2f OS_MousePosition(OS_Window window);
 
 // --AlNov: @TODO It is there because Vulkan neadds windows.h information

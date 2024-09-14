@@ -7,7 +7,7 @@
 #include "os/os_include.h"
 #include "render/r_include.h"
 
-#define VK_CHECK(expression) ASSERT(expression != VK_SUCCESS);
+#define VK_CHECK(expression) Assert(expression != VK_SUCCESS);
 
 #define NUM_FRAMES_IN_FLIGHT 3
 
@@ -17,7 +17,7 @@ global R_VK_State r_vk_state;
 
 // -------------------------------------------------------------------
 // --AlNov: Init Stuff -----------------------------------------------
-func b8   R_VK_Init(OS_Window* window);
+func B32   R_VK_Init(OS_Window* window);
 func void R_VK_CreateInstance();
 func void R_VK_CreateDevice();
 func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain);
@@ -33,7 +33,7 @@ func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_p
 
 func void R_VK_BeginFrame();
 func void R_VK_EndFrame();
-func void R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil);
+func void R_VK_BeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
 func void R_VK_EndRenderPass();
 func void R_VK_Draw(R_DrawInfo* info);
 
@@ -51,7 +51,7 @@ func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool poo
 
 // -------------------------------------------------------------------
 // --AlNov: Framebuffer ----------------------------------------------
-func void R_VK_CreateFramebuffer(R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size, u32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer);
+func void R_VK_CreateFramebuffer(R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size, U32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer);
 func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer);
 
 // -------------------------------------------------------------------
@@ -60,15 +60,15 @@ func void R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_Shader
 
 // -------------------------------------------------------------------
 // --AlNov: Pipeline Functions ---------------------------------------
-func b8   R_VK_CreatePipeline(R_Pipeline* pipeline);
+func B32   R_VK_CreatePipeline(R_Pipeline* pipeline);
 func void R_VK_BindPipeline(R_Pipeline* pipeline);
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
-func u32  R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags);
-func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
+func U32  R_VK_FindMemoryType(U32 filter, VkMemoryPropertyFlags flags);
+func void R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, U32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory);
 // func void R_VK_PushMeshToBuffer(R_Mesh* mesh);
-func void R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size);
+func void R_VK_MemCopy(VkDeviceMemory memory, void* data, U64 size);
 func VkShaderStageFlagBits R_VK_ShaderStageFromShaderType(R_ShaderType type);
 func VkFormat R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format);
 func VkDescriptorType R_VK_DescriptorTypeFromBindingType(R_BindingType type);
@@ -77,16 +77,16 @@ func VkCommandBuffer R_VK_BeginSingleCommands();
 func void            R_VK_EndSingleCommands(VkCommandBuffer command_buffer);
 func void            R_VK_CopyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size);
 func void            R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions);
-func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout);
+func void            R_VK_TransitImageLayout(VkImage image, VkFormat format, U32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout);
 
 // -------------------------------------------------------------------
 // --AlNov: Texture --------------------------------------------------
-func bool LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels);
+func bool LoadTexture(const char* path, U8** out_data, I32* out_width, I32* out_height, I32* out_channels);
 
 func R_Texture R_VK_CreateTexture(const char* path);
 func void      R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap);
 
 // -------------------------------------------------------------------
 // --AlNov: View -----------------------------------------------------
-func R_View R_CreateView(Vec3f position, f32 fov, Vec2f size);
+func R_View R_CreateView(Vec3f position, F32 fov, Vec2f size);
 func void   R_VK_BindView(R_View view);

@@ -20,13 +20,13 @@ func void
 R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader)
 {
   FILE* file = fopen(path, "r");
-  ASSERT(!file);
+  Assert(!file);
 
   fseek(file, 0L, SEEK_END);
-  u32 shader_code_size = ftell(file);
-  u8* shader_code = (u8*)PushArena(arena, shader_code_size * sizeof(u8));
+  U32 shader_code_size = ftell(file);
+  U8* shader_code = (U8*)PushArena(arena, shader_code_size * sizeof(U8));
   rewind(file);
-  fread(shader_code, shader_code_size * sizeof(u8), 1, file);
+  fread(shader_code, shader_code_size * sizeof(U8), 1, file);
   fclose(file);
 
   glslang_initialize_process();
@@ -56,7 +56,7 @@ R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_Shader
     LOG_ERROR("%s", glslang_shader_get_info_log(shader));
     LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
     glslang_shader_delete(shader);
-    ASSERT(true);
+    Assert(true);
   }
 
   if (!glslang_shader_parse(shader, &input))
@@ -66,7 +66,7 @@ R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_Shader
     LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
     // LOG_ERROR("%s", glslang_shader_get_preprocessed_code(shader));
     glslang_shader_delete(shader);
-    ASSERT(true);
+    Assert(true);
   }
 
   glslang_program_t* program = glslang_program_create();
@@ -79,7 +79,7 @@ R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_Shader
     LOG_ERROR("%s", glslang_program_get_info_debug_log(program));
     glslang_program_delete(program);
     glslang_shader_delete(shader);
-    ASSERT(true);
+    Assert(true);
   }
 
   glslang_program_SPIRV_generate(program, input.stage);
@@ -90,8 +90,8 @@ R_H_LoadShader(Arena* arena, const char* path, const char* entry_point, R_Shader
   out_shader->language    = R_SHADER_LANGUAGE_SPIRV;
   out_shader->entry_point = entry_point;
   out_shader->code_size   = 4 * glslang_program_SPIRV_get_size(program);
-  out_shader->code        = (u8*)PushArena(arena, out_shader->code_size * sizeof(u8));
-  glslang_program_SPIRV_get(program, (u32*)out_shader->code);
+  out_shader->code        = (U8*)PushArena(arena, out_shader->code_size * sizeof(U8));
+  glslang_program_SPIRV_get(program, (U32*)out_shader->code);
 
   const char* spirv_messages = glslang_program_SPIRV_get_messages(program);
   if (spirv_messages)
@@ -114,35 +114,35 @@ R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_S
   out_shader->entry_point = entry_point;
 
   FILE* file = fopen(path, "rb");
-  ASSERT(!file);
+  Assert(!file);
 
   fseek(file, 0L, SEEK_END);
   out_shader->code_size = ftell(file);
-  out_shader->code = (u8*)PushArena(arena, out_shader->code_size * sizeof(u8));
+  out_shader->code = (U8*)PushArena(arena, out_shader->code_size * sizeof(U8));
   rewind(file);
-  fread(out_shader->code, out_shader->code_size * sizeof(u8), 1, file);
+  fread(out_shader->code, out_shader->code_size * sizeof(U8), 1, file);
   fclose(file);
 }
 
 func void
-R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, u32 count)
+R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, U32 count)
 {
-  ASSERT(count > MAX_ATTRIBUTES);
+  Assert(count > MAX_ATTRIBUTES);
 
   memcpy(pipeline->attributes, formats, count * sizeof(R_VertexAttributeFormat));
   pipeline->attributes_count = count;
 }
 
 func void
-R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, u32 count)
+R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
 {
-  ASSERT(count > MAX_BINDINGS);
+  Assert(count > MAX_BINDINGS);
 
   memcpy(pipeline->bindings, bindings, count * sizeof(R_BindingInfo));
   pipeline->bindings_count = count;
 }
 
-func u32
+func U32
 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
 {
   switch (format)
@@ -150,11 +150,11 @@ R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F  : return sizeof(Vec3f);
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F  : return sizeof(Vec2f);
     
-    default: ASSERT(1); return 0;
+    default: Assert(1); return 0;
   }
 }
 
-func u32
+func U32
 R_H_GlslangStageFromShaderType(R_ShaderType type)
 {
   switch (type)
@@ -162,6 +162,6 @@ R_H_GlslangStageFromShaderType(R_ShaderType type)
     case R_SHADER_TYPE_VERTEX   : return GLSLANG_STAGE_VERTEX;
     case R_SHADER_TYPE_FRAGMENT : return GLSLANG_STAGE_FRAGMENT;
 
-    default: ASSERT(1); return 0; // --AlNov: type cannot be used with glslang
+    default: Assert(1); return 0; // --AlNov: type cannot be used with glslang
   }
 }

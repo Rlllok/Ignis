@@ -26,7 +26,7 @@ OS_CreateWindow(const char* title, Vec2u size)
   window_class.lpszClassName = OS_WIN32_WindowClassName;
   window_class.hCursor       = LoadCursor(0, IDC_ARROW);
 
-  ASSERT(RegisterClassW(&window_class) == 0);
+  Assert(RegisterClassW(&window_class) == 0);
 
   HWND handle = {};
 
@@ -35,7 +35,7 @@ OS_CreateWindow(const char* title, Vec2u size)
     CW_USEDEFAULT, CW_USEDEFAULT, size.width, size.height, 0, 0, window.instance, 0
   );
 
-  ASSERT_MESSAGE(handle == 0, "Cannot create window.");
+  AssertMessage(handle == 0, "Cannot create window.");
 
   window.handle        = handle;
   window.width         = size.width;
@@ -102,7 +102,7 @@ OS_GetEventList(Arena* arena)
   return event_list;
 }
 
-func f32
+func F32
 OS_CurrentTimeSeconds()
 {
   // --AlNov: @NOTE Frequency should be computed only ones, as it doens't change after system start.
@@ -115,14 +115,14 @@ OS_CurrentTimeSeconds()
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
 
-  return ((f64)counter.QuadPart) / ((f64)frequency.QuadPart);
+  return ((F64)counter.QuadPart) / ((F64)frequency.QuadPart);
 }
 
 func void
-OS_Wait(f32 wait_seconds)
+OS_Wait(F32 wait_seconds)
 {
-  f32 begin_time = OS_CurrentTimeSeconds();
-  f32 end_time = begin_time + wait_seconds;
+  F32 begin_time = OS_CurrentTimeSeconds();
+  F32 end_time = begin_time + wait_seconds;
 
   Sleep(wait_seconds * 500);
 
@@ -136,7 +136,7 @@ OS_MousePosition(OS_Window window)
   GetCursorPos(&mouse_point);
   ScreenToClient(window.handle, &mouse_point);
 
-  return MakeVec2f((f32)mouse_point.x, (f32)mouse_point.y);
+  return MakeVec2f((F32)mouse_point.x, (F32)mouse_point.y);
 }
 
 func bool
@@ -167,13 +167,13 @@ OS_PushEvent(OS_EventList* event_list, OS_Event* event)
   }
 }
 
-func f32
+func F32
 OS_GetMonitorHZ()
 {
   DEVMODEW dev_mode = {};
   EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &dev_mode);
 
-  return (f32)dev_mode.dmDisplayFrequency;
+  return (F32)dev_mode.dmDisplayFrequency;
 }
 
 func LRESULT

@@ -5,13 +5,13 @@
 
 // --AlNov: Vec2
 func Vec2u
-MakeVec2u(u32 x, u32 y)
+MakeVec2u(U32 x, U32 y)
 {
   return { {x, y} };
 }
 
 func Vec2f
-MakeVec2f(f32 x, f32 y)
+MakeVec2f(F32 x, F32 y)
 {
   return { {x, y} };
 }
@@ -36,7 +36,7 @@ SubVec2f(Vec2f a, Vec2f b)
 }
 
 func Vec2f
-MulVec2f(Vec2f a, f32 num)
+MulVec2f(Vec2f a, F32 num)
 {
     Vec2f result = a;
     result.x *= num;
@@ -45,37 +45,37 @@ MulVec2f(Vec2f a, f32 num)
     return result;
 }
 
-func f32
+func F32
 DotVec2f(Vec2f a, Vec2f b)
 {
   return a.x*b.x + a.y*b.y;
 }
 
-func f32
+func F32
 CrossVec2f(Vec2f a, Vec2f b)
 {
   return a.x*b.y - a.y*b.x;
 }
 
 func Vec2f
-RotateVec2f(Vec2f v, f32 radians)
+RotateVec2f(Vec2f v, F32 radians)
 {
   Vec2f result  = {};
-  f32 cos_value = cos(radians);
-  f32 sin_value = sin(radians);
+  F32 cos_value = cos(radians);
+  F32 sin_value = sin(radians);
 
   result.x = v.x * cos_value - v.y * sin_value;
   result.y = v.x * sin_value + v.y * cos_value;
   return result;
 }
 
-func f32
+func F32
 MagnitudeSquareVec2f(Vec2f v)
 {
   return v.x * v.x + v.y * v.y;
 }
 
-func f32
+func F32
 MagnitudeVec2f(Vec2f v)
 {
   return sqrt(v.x * v.x + v.y * v.y);
@@ -84,7 +84,7 @@ MagnitudeVec2f(Vec2f v)
 func Vec2f
 NormalizeVec2f(Vec2f v)
 {
-  f32 magnitude = MagnitudeVec2f(v);
+  F32 magnitude = MagnitudeVec2f(v);
   if (magnitude == 0)
   {
     return { {0.0f, 0.0f} };
@@ -101,14 +101,14 @@ NormalToVec2f(Vec2f v)
 
 // --AlNov: Vec3
 func Vec3f
-MakeVec3f(f32 x, f32 y, f32 z)
+MakeVec3f(F32 x, F32 y, F32 z)
 {
     Vec3f result = { {x, y, z} };
     return result;
 }
 
 func Vec3f
-MulVec3f(Vec3f a, f32 num)
+MulVec3f(Vec3f a, F32 num)
 {
   a.x *= num;
   a.y *= num;
@@ -120,7 +120,7 @@ func Vec3f
 TransformVec3f(Vec3f v, Mat3x3f m)
 {
   Vec3f result = {};
-  for (i32 i = 0; i < 3; i += 1)
+  for (I32 i = 0; i < 3; i += 1)
   {
     result.values[i] += v.values[0] * m.values[0][i];
     result.values[i] += v.values[1] * m.values[1][i];
@@ -129,13 +129,13 @@ TransformVec3f(Vec3f v, Mat3x3f m)
   return result;
 }
 
-func f32
+func F32
 DotVec3f(Vec3f a, Vec3f b)
 {
   return a.x*b.x + a.y*b.y + a.z*b.z;
 }
 
-func f32
+func F32
 MagnitudeVec3f(Vec3f v)
 {
   return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -144,7 +144,7 @@ MagnitudeVec3f(Vec3f v)
 func Vec3f
 NormalizeVec3f(Vec3f v)
 {
-  f32 magnitude = MagnitudeVec3f(v);
+  F32 magnitude = MagnitudeVec3f(v);
   if (magnitude == 0)
   {
     return { {0.0f, 0.0f} };
@@ -154,7 +154,7 @@ NormalizeVec3f(Vec3f v)
 }
 
 func Vec4f
-MakeVec4f(f32 x, f32 y, f32 z, f32 w)
+MakeVec4f(F32 x, F32 y, F32 z, F32 w)
 {
     Vec4f result = { {x, y, z, w} };
     return result;
@@ -165,7 +165,7 @@ MakeVec4f(f32 x, f32 y, f32 z, f32 w)
 
 // --AlNov: Mat3x3
 func Mat3x3f
-Make3x3f(f32 diagonal_value)
+Make3x3f(F32 diagonal_value)
 {
   Mat3x3f result = {};
   result.values[0][0] = diagonal_value;
@@ -178,9 +178,9 @@ func Mat3x3f
 Mul3x3f(Mat3x3f a, Mat3x3f b)
 {
   Mat3x3f c = {};
-  for (i32 i = 0; i < 3; i += 1)
+  for (I32 i = 0; i < 3; i += 1)
   {
-    for (i32 j = 0; j < 3; j += 1)
+    for (I32 j = 0; j < 3; j += 1)
     {
       c.values[i][j] += a.values[0][j] * b.values[i][0];
       c.values[i][j] += a.values[1][j] * b.values[i][1];
@@ -194,9 +194,9 @@ func Mat3x3f
 Transpose3x3f(Mat3x3f m)
 {
   Mat3x3f result = {};
-  for (i32 i = 0; i < 3; i += 1)
+  for (I32 i = 0; i < 3; i += 1)
   {
-    for (i32 j = 0; j < 3; j += 1)
+    for (I32 j = 0; j < 3; j += 1)
     {
       result.values[i][j] = m.values[j][i];
     }
@@ -206,7 +206,7 @@ Transpose3x3f(Mat3x3f m)
 
 // --AlNov: Mat4x4
 func Mat4x4f
-Make4x4f(f32 diagonal_value)
+Make4x4f(F32 diagonal_value)
 {
   Mat4x4f result = {};
   result.values[0][0] = diagonal_value;
@@ -217,7 +217,7 @@ Make4x4f(f32 diagonal_value)
 }
 
 func Mat4x4f
-MakeOrthographic4x4f(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 far_z)
+MakeOrthographic4x4f(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z)
 {
   Mat4x4f result = Make4x4f(1.0f);
   
@@ -234,12 +234,12 @@ MakeOrthographic4x4f(f32 left, f32 right, f32 bottom, f32 top, f32 near_z, f32 f
 }
 
 func Mat4x4f
-MakePerspective4x4f(f32 fov, f32 aspect_ration, f32 near_z, f32 far_z)
+MakePerspective4x4f(F32 fov, F32 aspect_ration, F32 near_z, F32 far_z)
 {
   Mat4x4f result = Make4x4f(0.0f);
 
-  f32 fov_radians  = PI * fov / 180.0f;
-  f32 focal_length = 1.0f / tanf(fov_radians / 2.0f);
+  F32 fov_radians  = PI * fov / 180.0f;
+  F32 focal_length = 1.0f / tanf(fov_radians / 2.0f);
 
   result.values[0][0] = focal_length / aspect_ration;
   result.values[1][1] = focal_length;

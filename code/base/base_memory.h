@@ -9,14 +9,14 @@
 
 struct Arena
 {
-    u64 position;
-    u64 size;
+    U64 position;
+    U64 size;
 };
 
-func Arena* AllocateArena(u64 size);
+func Arena* AllocateArena(U64 size);
 
 // --AlNov: @TODO Initialize with zero
-func void* PushArena(Arena* arena, u64 size);
+func void* PushArena(Arena* arena, U64 size);
 
 func void ResetArena(Arena* arena);
 func void FreeArena(Arena* arena);

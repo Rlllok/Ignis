@@ -7,19 +7,19 @@
 // -------------------------------------------------------------------
 // --AlNov: Forces ---------------------------------------------------
 func Vec2f
-PH_CalculateWeight(f32 m, f32 g)
+PH_CalculateWeight(F32 m, F32 g)
 {
   return MakeVec2f(0.0f, m * g);
 }
 
 func Vec2f
-PH_CalculateDrag(Vec2f velocity, f32 k)
+PH_CalculateDrag(Vec2f velocity, F32 k)
 {
   Vec2f drag = NormalizeVec2f(velocity);
-  // f32 ro = 1.2f; // Air density at 30 C
-  // f32 K = 0.04f; // Drag coeff of "drop" like shape
-  // f32 A = 1;
-  // f32 drag_magnitude = 0.5f * ro * K * A * MagnitudeSquareVec2f(particle->velocity);
+  // F32 ro = 1.2f; // Air density at 30 C
+  // F32 K = 0.04f; // Drag coeff of "drop" like shape
+  // F32 A = 1;
+  // F32 drag_magnitude = 0.5f * ro * K * A * MagnitudeSquareVec2f(particle->velocity);
   // drag = MulVec2f(drag-, drag_magnitude);
   drag = MulVec2f(drag, -1 * MagnitudeSquareVec2f(velocity));
   drag = MulVec2f(drag, k);
@@ -27,11 +27,11 @@ PH_CalculateDrag(Vec2f velocity, f32 k)
 }
 
 func Vec2f
-PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k)
+PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, F32 rest_length, F32 k)
 {
   Vec2f distance               = SubVec2f(blob_position, anchor_position);
   Vec2f direction              = NormalizeVec2f(distance);
-  f32   spring_force_magnitude = (rest_length - MagnitudeVec2f(distance)) * k;
+  F32   spring_force_magnitude = (rest_length - MagnitudeVec2f(distance)) * k;
   Vec2f spring_force           = MulVec2f(direction, spring_force_magnitude);
   return spring_force;
 }
@@ -39,7 +39,7 @@ PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, 
 // -------------------------------------------------------------------
 // --AlNov: Particle Operations --------------------------------------
 func PH_Particle*
-PH_CreateParticle(Arena* arena, Vec2f position, f32 mass)
+PH_CreateParticle(Arena* arena, Vec2f position, F32 mass)
 {
   PH_Particle* particle = (PH_Particle*)PushArena(arena, sizeof(PH_Particle));
   particle->position = position;
@@ -64,7 +64,7 @@ PH_ResetParticleForce(PH_Particle* particle)
 }
 
 func void
-PH_IntegrateParticle(PH_Particle* particle, f32 dt)
+PH_IntegrateParticle(PH_Particle* particle, F32 dt)
 {
   // --AlNov: Euler Integration
   particle->acceleration = MulVec2f(particle->sum_of_forces, 1.0f / particle->mass);
@@ -95,7 +95,7 @@ PH_PushParticle(PH_ParticleList* list, PH_Particle* particle)
 // -------------------------------------------------------------------
 // -AlNov: Shape Operations ------------------------------------------
 func PH_Shape*
-PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f32 mass)
+PH_CreateCircleShape(Arena* arena, Vec2f position, F32 radius, F32 mass)
 {
   PH_Shape* shape = (PH_Shape*)PushArena(arena, sizeof(PH_Shape));
   shape->type                  = PH_SHAPE_TYPE_CIRCLE;
@@ -117,7 +117,7 @@ PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f32 mass)
 }
 
 func PH_Shape*
-PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 width, f32 mass)
+PH_CreateBoxShape(Arena* arena, Vec2f position, F32 height, F32 width, F32 mass)
 {
   PH_Shape* shape = (PH_Shape*)PushArena(arena, sizeof(PH_Shape));
   shape->type                  = PH_SHAPE_TYPE_BOX;
@@ -167,7 +167,7 @@ PH_ApplyLinearImpulseToShape(PH_Shape* shape, Vec2f j)
 }
 
 func void
-PH_ApplyAngularImpulseToShape(PH_Shape* shape, f32 j)
+PH_ApplyAngularImpulseToShape(PH_Shape* shape, F32 j)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -175,13 +175,13 @@ PH_ApplyAngularImpulseToShape(PH_Shape* shape, f32 j)
 }
 
 func void
-PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque)
+PH_ApplyTorqueToShape(PH_Shape* shape, F32 torque)
 {
   shape->sum_of_torque += torque;
 }
 
 func void
-PH_IntegrateShape(PH_Shape* shape, f32 dt)
+PH_IntegrateShape(PH_Shape* shape, F32 dt)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -198,7 +198,7 @@ PH_IntegrateShape(PH_Shape* shape, f32 dt)
 }
 
 func void
-PH_IntegrateForceShape(PH_Shape* shape, f32 dt)
+PH_IntegrateForceShape(PH_Shape* shape, F32 dt)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -212,7 +212,7 @@ PH_IntegrateForceShape(PH_Shape* shape, f32 dt)
 }
 
 func void
-PH_IntegrateVelocityShape(PH_Shape* shape, f32 dt)
+PH_IntegrateVelocityShape(PH_Shape* shape, F32 dt)
 {
   if (PH_IsStatic(shape)) { return; }
 
@@ -267,22 +267,22 @@ PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point)
 }
 
 func Vec2f
-BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index)
+BoxVertexWorldFromLocal(PH_Shape* box, I32 vertex_index)
 {
   return AddVec2f(box->position, RotateVec2f(box->box.vertecies[vertex_index], box->angle));
 }
 
 // -------------------------------------------------------------------
 // --AlNov: Collision Operations -------------------------------------
-func f32
+func F32
 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info)
 {
   // --AlNov: @TODO Not Working :(
   PH_Shape* shape_a    = collision_info->shape_a;
   PH_Shape* shape_b    = collision_info->shape_b;
-  f32       e          = 0.9f;
+  F32       e          = 0.9f;
   Vec2f     vrel       = SubVec2f(collision_info->shape_a->velocity, collision_info->shape_b->velocity);
-  f32       vrel_n_dot = DotVec2f(vrel, collision_info->normal);
+  F32       vrel_n_dot = DotVec2f(vrel, collision_info->normal);
 
   return -(e + 1) * vrel_n_dot / (shape_a->inv_mass + shape_b->inv_mass);
 }
@@ -316,11 +316,11 @@ PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Sh
 func bool
 PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b)
 {
-  f32   radius_a          = circle_a->circle.radius;
-  f32   radius_b          = circle_b->circle.radius;
-  f32   radius_sum_sqr    = (radius_a + radius_b) * (radius_a + radius_b);
+  F32   radius_a          = circle_a->circle.radius;
+  F32   radius_b          = circle_b->circle.radius;
+  F32   radius_sum_sqr    = (radius_a + radius_b) * (radius_a + radius_b);
   Vec2f distance_vector   = SubVec2f(circle_a->position, circle_b->position);
-  f32   distance_sqr      = MagnitudeSquareVec2f(distance_vector);
+  F32   distance_sqr      = MagnitudeSquareVec2f(distance_vector);
 
   if (distance_sqr > radius_sum_sqr)
   {
@@ -340,7 +340,7 @@ PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_
 
 struct SeparationResult
 {
-  f32   separation;
+  F32   separation;
   Vec2f axis;
   Vec2f vertex;
 };
@@ -350,19 +350,19 @@ FindMinBoxBoxSeparation(PH_Shape* box_a, PH_Shape* box_b)
   SeparationResult result = {};
   result.separation = F32_MIN;
 
-  for (i32 i = 0; i < 4; i += 1)
+  for (I32 i = 0; i < 4; i += 1)
   {
     Vec2f vertex_a       = BoxVertexWorldFromLocal(box_a, i);
     Vec2f next_vertex_a  = BoxVertexWorldFromLocal(box_a, (i + 1) % 4);
     Vec2f normal         = NormalToVec2f(SubVec2f(next_vertex_a, vertex_a));
-    f32   min_separation = F32_MAX;
+    F32   min_separation = F32_MAX;
     Vec2f min_vertex     = {};
 
-    for (i32 j = 0; j < 4; j += 1)
+    for (I32 j = 0; j < 4; j += 1)
     {
       Vec2f vertex_b   = BoxVertexWorldFromLocal(box_b, j);
       Vec2f sub_b_a    = SubVec2f(vertex_b, vertex_a);
-      f32   projection = DotVec2f(sub_b_a, normal);
+      F32   projection = DotVec2f(sub_b_a, normal);
 
       if (projection < min_separation)
       {
@@ -418,20 +418,18 @@ PH_BoxCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box, PH_Sh
 {
   // --AlNov: That procedure is not pretty. Maybe there is better solution of this problem.
 
-  f32   min_projection             = F32_MIN;
+  F32   min_projection             = F32_MIN;
   Vec2f min_projection_vertex      = {};
   Vec2f min_projection_next_vertex = {};
-  
-  bool is_outside = false;
 
-  for (i32 i = 0; i < 4; i += 1)
+  for (I32 i = 0; i < 4; i += 1)
   {
     Vec2f current_vertex          = BoxVertexWorldFromLocal(box, i);
     Vec2f next_vertex             = BoxVertexWorldFromLocal(box, (i + 1) % 4);
     Vec2f edge                    = SubVec2f(next_vertex, current_vertex);
     Vec2f edge_normal             = NormalToVec2f(edge);
     Vec2f vertex_to_circle_center = SubVec2f(circle->position, current_vertex);
-    f32   projection_value        = DotVec2f(vertex_to_circle_center, edge_normal);
+    F32   projection_value        = DotVec2f(vertex_to_circle_center, edge_normal);
 
     if (projection_value > 0.0f )
     {
@@ -466,12 +464,12 @@ PH_BoxCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* box, PH_Sh
   }
 
     Vec2f edge                       = SubVec2f(min_projection_next_vertex, min_projection_vertex);
-    f32   edge_length                = MagnitudeVec2f(edge);
+    F32   edge_length                = MagnitudeVec2f(edge);
     Vec2f vertex_to_circle_center    = SubVec2f(circle->position, min_projection_vertex);
-    f32   projection_to_edge         = DotVec2f(vertex_to_circle_center, NormalizeVec2f(edge));
-    f32   projection_to_edge_clamped = Clamp(projection_to_edge, 0.0f, edge_length);
+    F32   projection_to_edge         = DotVec2f(vertex_to_circle_center, NormalizeVec2f(edge));
+    F32   projection_to_edge_clamped = Clamp(projection_to_edge, 0.0f, edge_length);
     Vec2f point_on_edge              = AddVec2f(min_projection_vertex, MulVec2f(NormalizeVec2f(edge), projection_to_edge_clamped));
-    f32   circle_edge_distance       = MagnitudeVec2f(SubVec2f(circle->position, point_on_edge));
+    F32   circle_edge_distance       = MagnitudeVec2f(SubVec2f(circle->position, point_on_edge));
 
     if (circle_edge_distance > circle->circle.radius) { return false; }
 
@@ -497,8 +495,8 @@ PH_ResolveCollisionProjection(PH_CollisionInfo* collision_info)
 
   if (PH_IsStatic(shape_a) && PH_IsStatic(shape_b)) { return; }
 
-  f32 dp_a = collision_info->depth / (shape_a->inv_mass + shape_b->inv_mass) * shape_a->inv_mass;
-  f32 dp_b = collision_info->depth / (shape_a->inv_mass + shape_b->inv_mass) * shape_b->inv_mass;
+  F32 dp_a = collision_info->depth / (shape_a->inv_mass + shape_b->inv_mass) * shape_a->inv_mass;
+  F32 dp_b = collision_info->depth / (shape_a->inv_mass + shape_b->inv_mass) * shape_b->inv_mass;
 
   shape_a->position = AddVec2f(shape_a->position, MulVec2f(collision_info->normal, -dp_a));
   shape_b->position = AddVec2f(shape_b->position, MulVec2f(collision_info->normal, dp_b));
@@ -512,7 +510,7 @@ PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
   PH_Shape* shape_a = collision_info->shape_a;
   PH_Shape* shape_b = collision_info->shape_b;
 
-  f32   e    = 0.5f;
+  F32   e    = 0.5f;
   Vec2f ra   = SubVec2f(collision_info->end_point, shape_a->position);
   Vec2f rb   = SubVec2f(collision_info->start_point, shape_b->position);
   // --AlNov: va = VelocityAtCenter + w x r_a
@@ -524,22 +522,22 @@ PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info)
 
   // --AlNov: Impulse along Normal of collison
   {
-    f32   vrel_dot_normal     = DotVec2f(vrel, collision_info->normal);
-    f32   ra_cross_normal_sqr = CrossVec2f(ra, collision_info->normal) * CrossVec2f(ra, collision_info->normal);
-    f32   rb_cross_normal_sqr = CrossVec2f(rb, collision_info->normal) * CrossVec2f(rb, collision_info->normal);
-    f32   j_magnitude         = -(1.0f + e) * vrel_dot_normal / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_normal_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_normal_sqr * shape_b->inv_moment_of_inertia));
+    F32   vrel_dot_normal     = DotVec2f(vrel, collision_info->normal);
+    F32   ra_cross_normal_sqr = CrossVec2f(ra, collision_info->normal) * CrossVec2f(ra, collision_info->normal);
+    F32   rb_cross_normal_sqr = CrossVec2f(rb, collision_info->normal) * CrossVec2f(rb, collision_info->normal);
+    F32   j_magnitude         = -(1.0f + e) * vrel_dot_normal / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_normal_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_normal_sqr * shape_b->inv_moment_of_inertia));
     Vec2f jn                  = MulVec2f(collision_info->normal, j_magnitude);
     
     j = AddVec2f(j, jn);
   }
   // --AlNov: Impulse along Tangent of collision (Friction)
   {
-    f32   f                    = 0.3f;
+    F32   f                    = 0.3f;
     Vec2f tangent              = NormalToVec2f(collision_info->normal);
-    f32   vrel_dot_tangent     = DotVec2f(vrel, tangent);
-    f32   ra_cross_tangent_sqr = CrossVec2f(ra, tangent) * CrossVec2f(ra, tangent);
-    f32   rb_cross_tangent_sqr = CrossVec2f(rb, tangent) * CrossVec2f(rb, tangent);
-    f32   j_magnitude          = -(1.0f + f) * vrel_dot_tangent / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_tangent_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_tangent_sqr * shape_b->inv_moment_of_inertia));
+    F32   vrel_dot_tangent     = DotVec2f(vrel, tangent);
+    F32   ra_cross_tangent_sqr = CrossVec2f(ra, tangent) * CrossVec2f(ra, tangent);
+    F32   rb_cross_tangent_sqr = CrossVec2f(rb, tangent) * CrossVec2f(rb, tangent);
+    F32   j_magnitude          = -(1.0f + f) * vrel_dot_tangent / ((shape_a->inv_mass + shape_b->inv_mass) + (ra_cross_tangent_sqr * shape_a->inv_moment_of_inertia) + (rb_cross_tangent_sqr * shape_b->inv_moment_of_inertia));
     Vec2f jf                   = MulVec2f(tangent, j_magnitude);
 
     j = AddVec2f(j, jf);
@@ -584,7 +582,7 @@ PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, PH_Shape* shape_b, V
 }
 
 func void
-PH_PresolveConstrain(PH_Constrain* constrain, f32 dt)
+PH_PresolveConstrain(PH_Constrain* constrain, F32 dt)
 {
   PH_Shape* shape_a = constrain->shape_a;
   PH_Shape* shape_b = constrain->shape_b;
@@ -592,10 +590,10 @@ PH_PresolveConstrain(PH_Constrain* constrain, f32 dt)
   Vec2f ra                 = RotateVec2f(constrain->point_a_space, shape_a->angle);
   Vec2f rb                 = RotateVec2f(constrain->point_b_space, shape_b->angle);
   Vec2f n                  = NormalizeVec2f(SubVec2f(AddVec2f(shape_a->position, ra), AddVec2f(shape_b->position, rb)));
-  f32   n_cross_ra_sqr     = CrossVec2f(n, ra) * CrossVec2f(n, ra);
-  f32   n_cross_rb_sqr     = CrossVec2f(n, rb) * CrossVec2f(n, rb);
-  f32   inv_effective_mass = shape_a->inv_mass + shape_b->inv_mass + shape_a->inv_moment_of_inertia*n_cross_ra_sqr + shape_b->inv_moment_of_inertia*n_cross_rb_sqr;
-  f32   effective_mass     = inv_effective_mass != 0.0f ? 1.0f / inv_effective_mass : 0.0f;
+  F32   n_cross_ra_sqr     = CrossVec2f(n, ra) * CrossVec2f(n, ra);
+  F32   n_cross_rb_sqr     = CrossVec2f(n, rb) * CrossVec2f(n, rb);
+  F32   inv_effective_mass = shape_a->inv_mass + shape_b->inv_mass + shape_a->inv_moment_of_inertia*n_cross_ra_sqr + shape_b->inv_moment_of_inertia*n_cross_rb_sqr;
+  F32   effective_mass     = inv_effective_mass != 0.0f ? 1.0f / inv_effective_mass : 0.0f;
   
   Vec2f j = MulVec2f(n, constrain->cached_impulse_magnitude);
   PH_ApplyLinearImpulseToShape(shape_a, MulVec2f(j, -1.0f));
@@ -619,8 +617,8 @@ PH_SolveConstrain(PH_Constrain* constrain)
 
   Vec2f va          = AddVec2f(shape_a->velocity, MulVec2f(MakeVec2f(-ra.y, ra.x), shape_a->angular_velocity));
   Vec2f vb          = AddVec2f(shape_b->velocity, MulVec2f(MakeVec2f(-rb.y, rb.x), shape_b->angular_velocity));
-  f32   cdot        = DotVec2f(constrain->n, SubVec2f(vb, va));
-  f32   j_magnitude = -constrain->effective_mass* cdot;
+  F32   cdot        = DotVec2f(constrain->n, SubVec2f(vb, va));
+  F32   j_magnitude = -constrain->effective_mass* cdot;
   Vec2f j           = MulVec2f(constrain->n, j_magnitude);
 
   PH_ApplyLinearImpulseToShape(shape_a, MulVec2f(j, -1.0f));

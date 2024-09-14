@@ -67,7 +67,7 @@ createDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMesseng
 }
 // End Debug Layer Staff ---------------------------------------------
 
-func b8
+func B32
 R_VK_Init(OS_Window* window)
 {
   r_vk_state = {};
@@ -87,10 +87,10 @@ R_VK_Init(OS_Window* window)
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area);
   // --AlNov: Create Framebuffers
   {
-    u32 image_count = r_vk_state.swapchain.image_count;
+    U32 image_count = r_vk_state.swapchain.image_count;
     r_vk_state.swapchain.framebuffers = (R_VK_Framebuffer*)PushArena(r_vk_state.arena, image_count * sizeof(R_VK_Framebuffer));
 
-    for (u32 i = 0; i < image_count; i += 1)
+    for (U32 i = 0; i < image_count; i += 1)
     {
       VkImageView attachments[2] = { r_vk_state.swapchain.image_views[i], r_vk_state.depth_view };
 
@@ -105,7 +105,7 @@ R_VK_Init(OS_Window* window)
   {
     r_vk_state.command_buffers = (R_VK_CommandBuffer*)PushArena(r_vk_state.arena, NUM_FRAMES_IN_FLIGHT);
 
-    for (u32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
+    for (U32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
     {
       R_VK_AllocateCommandBuffer(&r_vk_state, r_vk_state.command_pool, &r_vk_state.command_buffers[i]);
     }
@@ -173,12 +173,12 @@ R_VK_CreateDevice()
 {
   Arena* tmp_arena = AllocateArena(Kilobytes(10));
   {
-    u32 device_count = 0;
+    U32 device_count = 0;
     vkEnumeratePhysicalDevices(r_vk_state.instance, &device_count, 0);
     VkPhysicalDevice* devices = (VkPhysicalDevice*)PushArena(tmp_arena, device_count * sizeof(VkPhysicalDevice));
     vkEnumeratePhysicalDevices(r_vk_state.instance, &device_count, devices);
 
-    for (u32 i = 0; i < device_count; i += 1)
+    for (U32 i = 0; i < device_count; i += 1)
     {
       VkPhysicalDeviceProperties properties;
       vkGetPhysicalDeviceProperties(devices[i], &properties);
@@ -194,12 +194,12 @@ R_VK_CreateDevice()
 
     LOG_INFO("GPU NAME: %s\n", properties.deviceName);
 
-    u32 queue_family_count = 0;
+    U32 queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(r_vk_state.device.physical, &queue_family_count, 0);
     VkQueueFamilyProperties* queue_family_properties = (VkQueueFamilyProperties*)PushArena(tmp_arena, queue_family_count * sizeof(VkQueueFamilyProperties));
     vkGetPhysicalDeviceQueueFamilyProperties(r_vk_state.device.physical, &queue_family_count, queue_family_properties);
 
-    for (u32 i = 0; i < queue_family_count; i += 1)
+    for (U32 i = 0; i < queue_family_count; i += 1)
     {
       if (queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
       {
@@ -212,7 +212,7 @@ R_VK_CreateDevice()
     graphics_queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     graphics_queue_info.queueFamilyIndex = r_vk_state.device.queue_index;
     graphics_queue_info.queueCount = 1;
-    const f32 priority = 1.0f;
+    const F32 priority = 1.0f;
     graphics_queue_info.pQueuePriorities = &priority;
 
     const char* extension_names[] = {
@@ -257,12 +257,12 @@ R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swap
   // Get Surface Format
   Arena* tmp_arena = AllocateArena(Kilobytes(64));
   {
-    u32 format_count = 0;
+    U32 format_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_state->device.physical, vk_state->swapchain.surface, &format_count, 0);
     VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(tmp_arena, format_count * sizeof(VkSurfaceFormatKHR));
     vkGetPhysicalDeviceSurfaceFormatsKHR(vk_state->device.physical, vk_state->swapchain.surface, &format_count, formats);
 
-    for (u32 i = 0; i < format_count; i += 1)
+    for (U32 i = 0; i < format_count; i += 1)
     {
       if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
         vk_state->swapchain.surface_format = formats[i];
@@ -302,7 +302,7 @@ R_VK_CreateSwapchain()
   vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.swapchain.handle, &r_vk_state.swapchain.image_count, r_vk_state.swapchain.images);
 
   r_vk_state.swapchain.image_views = (VkImageView*)PushArena(r_vk_state.arena, r_vk_state.swapchain.image_count * sizeof(VkImageView));
-  for (u32 i = 0; i < r_vk_state.swapchain.image_count; i += 1)
+  for (U32 i = 0; i < r_vk_state.swapchain.image_count; i += 1)
   {
     VkImageViewCreateInfo image_view_info = {};
     image_view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -326,7 +326,7 @@ R_VK_CreateSwapchain()
 func void
 R_VK_CreateDescriptorPool()
 {
-  u32 descriptor_count = 100;
+  U32 descriptor_count = 100;
 
   VkDescriptorPoolSize pool_size = {};
   pool_size.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -350,7 +350,7 @@ R_VK_CreateDescriptorPool()
 func void
 R_VK_CreateSyncTools()
 {
-  for (i32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
+  for (I32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
   {
     VkSemaphoreCreateInfo semaphore_info = {};
     semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -498,12 +498,12 @@ R_VK_BeginFrame()
   vkWaitForFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[r_vk_state.current_frame], VK_TRUE, U64_MAX);
 
   // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
-  u32 image_index;
-  VkResult image_acquire_result = vkAcquireNextImageKHR(
-      r_vk_state.device.logical, r_vk_state.swapchain.handle,
-      U64_MAX, r_vk_state.sync_tools.image_available_semaphores[r_vk_state.current_frame],
-      0, &image_index
-      );
+  U32 image_index;
+  VK_CHECK(vkAcquireNextImageKHR(
+    r_vk_state.device.logical, r_vk_state.swapchain.handle,
+    U64_MAX, r_vk_state.sync_tools.image_available_semaphores[r_vk_state.current_frame],
+    0, &image_index
+  ));
 
   vkResetFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[r_vk_state.current_frame]);
 
@@ -550,7 +550,9 @@ R_VK_EndFrame()
   present_info.pImageIndices      = &r_vk_state.current_image_index;
   present_info.pResults           = 0;
 
-  VkResult present_result = vkQueuePresentKHR(queue, &present_info);
+  // --AlNov: @TODO Recreate swapchain
+  // VkResult present_result = vkQueuePresentKHR(queue, &present_info);
+  vkQueuePresentKHR(queue, &present_info);
 
   r_vk_state.current_frame += 1;
 
@@ -561,7 +563,7 @@ R_VK_EndFrame()
 }
 
 func void
-R_VK_BeginRenderPass(Vec4f clear_color, f32 clear_depth, f32 clear_stencil)
+R_VK_BeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil)
 {
   R_VK_CommandBuffer* command_buffer  = r_vk_state.current_command_buffer;
   R_VK_Framebuffer*   framebuffer     = r_vk_state.current_framebuffer;
@@ -606,17 +608,17 @@ R_VK_Draw(R_DrawInfo* info)
   R_VK_BindPipeline(info->pipeline);
 
   VkDeviceSize vertex_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->vertecies, info->vertex_count * info->vertex_size);
+  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->vertecies, info->vertex_count * info->vertex_size);
   r_vk_state.big_buffer.current_position += info->vertex_count * info->vertex_size;
 
   VkDeviceSize index_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->indecies, info->index_count * info->index_size);
+  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->indecies, info->index_count * info->index_size);
   r_vk_state.big_buffer.current_position += info->index_count * info->index_size;
 
-  u32 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
+  U32 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
   r_vk_state.big_buffer.current_position += alligment;
   VkDeviceSize set_offset = r_vk_state.big_buffer.current_position;
-  memcpy((u8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->uniform_data, info->uniform_data_size);
+  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->uniform_data, info->uniform_data_size);
   r_vk_state.big_buffer.current_position += info->uniform_data_size;
 
   VkDescriptorSetAllocateInfo set_info = {};
@@ -641,7 +643,7 @@ R_VK_Draw(R_DrawInfo* info)
   R_Pipeline* active_pipeline = r_vk_state.pipelines[r_vk_state.active_pipeline_index].r_pipeline;
 
   VkWriteDescriptorSet write_sets[5] = {};
-  for (u32 i = 0; i < active_pipeline->bindings_count; i += 1)
+  for (U32 i = 0; i < active_pipeline->bindings_count; i += 1)
   {
     write_sets[i].sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     write_sets[i].dstSet          = current_set;
@@ -767,11 +769,11 @@ R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_Co
 func void
 R_VK_CreateFramebuffer(
   R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size,
-  u32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer
+  U32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer
 )
 {
   out_framebuffer->attachments = (VkImageView*)PushArena(vk_state->arena, sizeof(VkImageView) * attachment_count);
-  for (u32 i = 0; i < attachment_count; i += 1)
+  for (U32 i = 0; i < attachment_count; i += 1)
   {
     out_framebuffer->attachments[i] = attachments[i];
   }
@@ -812,7 +814,7 @@ R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* p
 // -------------------------------------------------------------------
 // --AlNov: Pipeline -------------------------------------------------
 
-func b8
+func B32
 R_VK_CreatePipeline(R_Pipeline* pipeline)
 {
   // --AlNov: Vertex Shader
@@ -822,7 +824,7 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
     VkShaderModuleCreateInfo module_info = {};
     module_info.sType     = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     module_info.codeSize  = vertex_shader->code_size;
-    module_info.pCode     = (u32*)vertex_shader->code;
+    module_info.pCode     = (U32*)vertex_shader->code;
     VK_CHECK(vkCreateShaderModule(r_vk_state.device.logical, &module_info, 0, &vertex_shader_module));
   }
   VkPipelineShaderStageCreateInfo vertex_shader_stage = {};
@@ -838,7 +840,7 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
     VkShaderModuleCreateInfo module_info = {};
     module_info.sType     = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     module_info.codeSize  = fragment_shader->code_size;
-    module_info.pCode     = (u32*)fragment_shader->code;
+    module_info.pCode     = (U32*)fragment_shader->code;
     VK_CHECK(vkCreateShaderModule(r_vk_state.device.logical, &module_info, 0, &fragment_shader_module));
   }
   VkPipelineShaderStageCreateInfo fragment_shader_stage = {};
@@ -854,7 +856,7 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
 
   VkDescriptorSetLayoutBinding bindings[10] = {};
 
-  for (u32 i = 0; i < pipeline->bindings_count; i += 1)
+  for (U32 i = 0; i < pipeline->bindings_count; i += 1)
   {
     bindings[i].binding         = i;
     bindings[i].descriptorType  = R_VK_DescriptorTypeFromBindingType(pipeline->bindings[i].type);
@@ -872,8 +874,8 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
   // --AlNov: @TODO Get rid of hardcoded size of array
   VkVertexInputAttributeDescription vertex_attributes[10] = {};
 
-  u32 offset = 0;
-  for (u32 i = 0; i < pipeline->attributes_count; i++)
+  U32 offset = 0;
+  for (U32 i = 0; i < pipeline->attributes_count; i++)
   {
     vertex_attributes[i].location = i;
     vertex_attributes[i].binding  = 0;
@@ -1012,13 +1014,13 @@ R_VK_BindPipeline(R_Pipeline* pipeline)
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
-func u32
-R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags)
+func U32
+R_VK_FindMemoryType(U32 filter, VkMemoryPropertyFlags flags)
 {
   VkPhysicalDeviceMemoryProperties mem_properties = {};
   vkGetPhysicalDeviceMemoryProperties(r_vk_state.device.physical, &mem_properties);
 
-  for (u32 type_index = 0; type_index < mem_properties.memoryTypeCount; type_index += 1)
+  for (U32 type_index = 0; type_index < mem_properties.memoryTypeCount; type_index += 1)
   {
     if (filter & (1 << type_index) && ((mem_properties.memoryTypes[type_index].propertyFlags & flags) == flags))
     {
@@ -1032,7 +1034,7 @@ R_VK_FindMemoryType(u32 filter, VkMemoryPropertyFlags flags)
 }
 
 func void
-R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, u32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory)
+R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags, U32 size, VkBuffer* out_buffer, VkDeviceMemory* out_memory)
 {
   VkBufferCreateInfo buffer_info = {};
   buffer_info.sType       = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1054,7 +1056,7 @@ R_VK_CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags
 }
 
 func void
-R_VK_MemCopy(VkDeviceMemory memory, void* data, u64 size)
+R_VK_MemCopy(VkDeviceMemory memory, void* data, U64 size)
 {
   void* mapped_memory;
   vkMapMemory(r_vk_state.device.logical, memory, 0, size, 0, &mapped_memory);
@@ -1072,7 +1074,7 @@ R_VK_ShaderStageFromShaderType(R_ShaderType type)
     case R_SHADER_TYPE_VERTEX   : return VK_SHADER_STAGE_VERTEX_BIT;
     case R_SHADER_TYPE_FRAGMENT : return VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    default: ASSERT(1); return VK_SHADER_STAGE_FRAGMENT_BIT; // --AlNov: type is not supported by Vulkan Layer
+    default: Assert(1); return VK_SHADER_STAGE_FRAGMENT_BIT; // --AlNov: type is not supported by Vulkan Layer
   }
 }
 
@@ -1084,7 +1086,7 @@ R_VK_VkFormatFromAttributeFormat(R_VertexAttributeFormat format)
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F  : return VK_FORMAT_R32G32B32_SFLOAT;
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F  : return VK_FORMAT_R32G32_SFLOAT;
 
-    default: ASSERT(1); return VK_FORMAT_R32_SFLOAT; // --AlNov: format is not supported by Vulkan Layer
+    default: Assert(1); return VK_FORMAT_R32_SFLOAT; // --AlNov: format is not supported by Vulkan Layer
   }
 }
 
@@ -1096,7 +1098,7 @@ R_VK_DescriptorTypeFromBindingType(R_BindingType type)
     case R_BINDING_TYPE_UNIFORM_BUFFER: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     case R_BINDING_TYPE_TEXTURE_2D:     return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-    default: ASSERT(1); return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // --AlNov: Binding type not supported by Vulkan Layer
+    default: Assert(1); return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; // --AlNov: Binding type not supported by Vulkan Layer
   }
 }
 
@@ -1177,7 +1179,7 @@ R_VK_CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2u image_dimensions)
 }
 
 func void
-R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout)
+R_VK_TransitImageLayout(VkImage image, VkFormat format, U32 layer_count, VkImageLayout old_layout, VkImageLayout new_layout)
 {
   VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
   {
@@ -1225,7 +1227,7 @@ R_VK_TransitImageLayout(VkImage image, VkFormat format, u32 layer_count, VkImage
 }
 
 func bool
-LoadTexture(const char* path, u8** out_data, i32* out_width, i32* out_height, i32* out_channels)
+LoadTexture(const char* path, U8** out_data, I32* out_width, I32* out_height, I32* out_channels)
 {
   *out_data = stbi_load(path, out_width, out_height, out_channels, STBI_rgb_alpha);
 
@@ -1243,10 +1245,10 @@ R_VK_CreateTexture(const char* path)
 {
   R_Texture texture = {};
 
-  i32 tex_width    = 0;
-  i32 tex_height   = 0;
-  i32 tex_channels = 0;
-  u8* tex_pixels   = 0;
+  I32 tex_width    = 0;
+  I32 tex_height   = 0;
+  I32 tex_channels = 0;
+  U8* tex_pixels   = 0;
   LoadTexture(path, &tex_pixels, &tex_width, &tex_height, &tex_channels);
 
   texture.size = tex_width * tex_height * 4;
@@ -1350,10 +1352,10 @@ R_VK_CreateTexture(const char* path)
 func void
 R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
 {
-  i32 width = 0;
-  i32 height = 0;
-  i32 channels = 0;
-  u8* datas[R_CUBE_MAP_SIDE_TYPE_COUNT] = {};
+  I32 width = 0;
+  I32 height = 0;
+  I32 channels = 0;
+  U8* datas[R_CUBE_MAP_SIDE_TYPE_COUNT] = {};
   LoadTexture("E:/Programming/Ignis/data/skybox/front.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_FRONT], &width, &height, &channels);
   LoadTexture("E:/Programming/Ignis/data/skybox/back.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_BACK], &width, &height, &channels);
   LoadTexture("E:/Programming/Ignis/data/skybox/right.jpg", &datas[R_CUBE_MAP_SIDE_TYPE_RIGHT], &width, &height, &channels);
@@ -1403,7 +1405,7 @@ R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
 
   R_VK_TransitImageLayout(out_cubemap->image, VK_FORMAT_R8G8B8A8_SRGB, 6, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
   {
-    for (u32 i = 0; i < R_CUBE_MAP_SIDE_TYPE_COUNT; i += 1)
+    for (U32 i = 0; i < R_CUBE_MAP_SIDE_TYPE_COUNT; i += 1)
     {
       VkCommandBuffer command_buffer = R_VK_BeginSingleCommands();
       {
@@ -1416,7 +1418,7 @@ R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
         copy_info.imageSubresource.baseArrayLayer = i;
         copy_info.imageSubresource.layerCount = 1;
         copy_info.imageOffset = { 0, 0, 0 };
-        copy_info.imageExtent = { (u32)width, (u32)height, 1 };
+        copy_info.imageExtent = { (U32)width, (U32)height, 1 };
 
         vkCmdCopyBufferToImage(command_buffer, staging_buffer.buffer, out_cubemap->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
       }
@@ -1444,7 +1446,7 @@ R_VK_CreateCubeMap(const char* folder_path, R_VK_CubeMap* out_cubemap)
 // -------------------------------------------------------------------
 // --AlNov: View -----------------------------------------------------
 func R_View
-R_CreateView(Vec3f position, f32 fov, Vec2f size)
+R_CreateView(Vec3f position, F32 fov, Vec2f size)
 {
   R_View view = {};
   view.size               = size;

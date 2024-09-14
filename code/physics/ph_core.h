@@ -12,7 +12,7 @@
 // --AlNov: Particle
 struct PH_Particle
 {
-  f32 mass;
+  F32 mass;
 
   Vec2f position;
   Vec2f velocity;
@@ -26,7 +26,7 @@ struct PH_ParticleList
 {
   PH_Particle*  first;
   PH_Particle*  last;
-  u32           count;
+  U32           count;
 };
 
 // --AlNov: Rigid Shape
@@ -43,32 +43,32 @@ enum PH_ShapeType
 // Maybe ther is better solution
 struct PH_Circle
 {
-  f32 radius;
+  F32 radius;
 };
 
 struct PH_Box
 {
-  f32 height;
-  f32 width;
+  F32 height;
+  F32 width;
 
   Vec2f vertecies[4];
 };
 
 struct PH_Shape
 {
-  f32   mass;
-  f32   inv_mass;
+  F32   mass;
+  F32   inv_mass;
   Vec2f position;
   Vec2f velocity;
   Vec2f acceleration;
   Vec2f sum_of_forces;
 
-  f32 moment_of_inertia;
-  f32 inv_moment_of_inertia;
-  f32 angle;
-  f32 angular_velocity;
-  f32 angular_acceleration;
-  f32 sum_of_torque;
+  F32 moment_of_inertia;
+  F32 inv_moment_of_inertia;
+  F32 angle;
+  F32 angular_velocity;
+  F32 angular_acceleration;
+  F32 sum_of_torque;
 
   PH_ShapeType type;
   union
@@ -84,7 +84,7 @@ struct PH_ShapeList
 {
   PH_Shape* first;
   PH_Shape* last;
-  u32 count;
+  U32 count;
 };
 
 // --AlNov: Collision
@@ -97,7 +97,7 @@ struct PH_CollisionInfo
   Vec2f normal;
   Vec2f start_point;
   Vec2f end_point;
-  f32   depth;
+  F32   depth;
 };
 
 // --AlNov: Constrain
@@ -114,46 +114,46 @@ struct PH_Constrain
   Vec2f ra;
   Vec2f rb;
   Vec2f n;
-  f32   effective_mass;
-  f32   cached_impulse_magnitude;
+  F32   effective_mass;
+  F32   cached_impulse_magnitude;
 };
 
 struct PH_ConstrainList
 {
   PH_Constrain* first;
   PH_Constrain* last;
-  u32           count;
+  U32           count;
 };
 
 // -------------------------------------------------------------------
 // --AlNov: Forces ---------------------------------------------------
-func Vec2f PH_CalculateWeight(f32 m, f32 g);
-func Vec2f PH_CalculateDrag(Vec2f velocity, f32 k);
-func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, f32 rest_length, f32 k);
+func Vec2f PH_CalculateWeight(F32 m, F32 g);
+func Vec2f PH_CalculateDrag(Vec2f velocity, F32 k);
+func Vec2f PH_CalculateSpring(Vec2f blob_position, Vec2f anchor_position, F32 rest_length, F32 k);
 
 // -------------------------------------------------------------------
 // --AlNov: Particle Operations --------------------------------------
-func PH_Particle* PH_CreateParticle(Arena* arena, Vec2f position, f32 mass);
+func PH_Particle* PH_CreateParticle(Arena* arena, Vec2f position, F32 mass);
 
 func void PH_ApplyForceToParticle(PH_Particle* particle, Vec2f force);
 func void PH_ResetParticleForce(PH_Particle* particle);
-func void PH_IntegrateParticle(PH_Particle* particle, f32 dt);
+func void PH_IntegrateParticle(PH_Particle* particle, F32 dt);
 
 func void PH_PushParticle(PH_ParticleList* list, PH_Particle* particle);
 
 // -------------------------------------------------------------------
 // -AlNov: Shape Operations ------------------------------------------
-func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, f32 radius, f32 mass);
-func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, f32 height, f32 width, f32 mass);
+func PH_Shape* PH_CreateCircleShape(Arena* arena, Vec2f position, F32 radius, F32 mass);
+func PH_Shape* PH_CreateBoxShape(Arena* arena, Vec2f position, F32 height, F32 width, F32 mass);
 
 func void PH_ApplyForceToShape(PH_Shape* shape, Vec2f force);
 func void PH_ApplyImpulseToShape(PH_Shape* shape, Vec2f j, Vec2f apply_point);
 func void PH_ApplyLinearImpulseToShape(PH_Shape* shape, Vec2f j);
-func void PH_ApplyAngularImpulseToShape(PH_Shape* shape, f32 j);
-func void PH_ApplyTorqueToShape(PH_Shape* shape, f32 torque);
-func void PH_IntegrateShape(PH_Shape* shape, f32 dt);
-func void PH_IntegrateForceShape(PH_Shape* shape, f32 dt);
-func void PH_IntegrateVelocityShape(PH_Shape* shape, f32 dt);
+func void PH_ApplyAngularImpulseToShape(PH_Shape* shape, F32 j);
+func void PH_ApplyTorqueToShape(PH_Shape* shape, F32 torque);
+func void PH_IntegrateShape(PH_Shape* shape, F32 dt);
+func void PH_IntegrateForceShape(PH_Shape* shape, F32 dt);
+func void PH_IntegrateVelocityShape(PH_Shape* shape, F32 dt);
 
 func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape);
 
@@ -161,7 +161,7 @@ func void PH_PushShapeList(PH_ShapeList* list, PH_Shape* shape);
 func bool  PH_IsStatic(PH_Shape* shape);
 func Vec2f PH_LocalFromWorldSpace(PH_Shape* shape, Vec2f world_point);
 func Vec2f PH_WorldFromLocalSpace(PH_Shape* shape, Vec2f local_point);
-func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index);
+func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, I32 vertex_index);
 
 // -------------------------------------------------------------------
 // --AlNov: Collision Operations -------------------------------------
@@ -170,7 +170,7 @@ func Vec2f BoxVertexWorldFromLocal(PH_Shape* box, i32 vertex_index);
 // And use it as collision result. If there is no collision - return NIL.
 // It will get read of returning bool and inplace changes of out_coliision_info
 
-func f32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info);
+func F32 PH_CalculateImpulseValue(PH_CollisionInfo* collision_info);
 
 func bool PH_CheckCollision(PH_CollisionInfo* out_collision_info, PH_Shape* shape_a, PH_Shape* shape_b);
 func bool PH_CircleCircleCollision(PH_CollisionInfo* out_collision_info, PH_Shape* circle_a, PH_Shape* circle_b);
@@ -184,5 +184,5 @@ func void PH_ResolveCollisionImpulse(PH_CollisionInfo* collision_info);
 // --AlNov: Constrains Operations ------------------------------------
 func void          PH_PushConstrainList(PH_ConstrainList* list, PH_Constrain* constrain);
 func PH_Constrain* PH_CreateDistanceConstrain(Arena* arena, PH_Shape* shape_a, PH_Shape* shape_b, Vec2f location);
-func void          PH_PresolveConstrain(PH_Constrain* constrain, f32 dt);
+func void          PH_PresolveConstrain(PH_Constrain* constrain, F32 dt);
 func void          PH_SolveConstrain(PH_Constrain* constrain);
