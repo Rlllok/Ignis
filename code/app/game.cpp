@@ -1,4 +1,4 @@
-#pragma comment(lib, "Winmm.lib")
+#t pragma comment(lib, "Winmm.lib")
 
 // --AlNov: .h -------------------------------------------------------
 #include "../base/base_include.h"
