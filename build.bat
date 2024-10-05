@@ -12,7 +12,7 @@ rem --- Build Settings ---
 set compiler=clang
 set clang_turnoff_warnings=-Wno-deprecated-declarations -Wno-gnu-anonymous-struct -Wno-unused-function -Wno-gnu-zero-variadic-macro-arguments
 rem set clang_flags=-Wall -Wconversion %clang_turnoff_warnings% -pedantic -g -I..\code\ -L..\code\
-set clang_flags=-Wall %clang_turnoff_warnings% -fuse-ld=lld -pedantic -g -I..\code\ -L..\code\
+set clang_flags=-Wall %clang_turnoff_warnings% -fuse-ld=lld -pedantic -fms-runtime-lib=dll_dbg -g -I..\code\ -L..\code\
 
 rem --- Build ---
 @echo.
@@ -22,14 +22,7 @@ rem --- Build ---
 @echo.
 
 pushd build
-    if "%game%"         == "1" %compiler% %clang_flags% ..\code\app\game.cpp -o game.exe
-    if "%physics%"      == "1" %compiler% %clang_flags% ..\code\app\physics.cpp -o physics.exe
-    if "%sphere%"       == "1" %compiler% %clang_flags% ..\code\app\sphere.cpp -o sphere.exe
-    if "%soa_test%"     == "1" %compiler% %clang_flags% -O0 ..\code\app\soa_test.cpp -o soa_test.exe
-    if "%fullquad%"     == "1" %compiler% %clang_flags% ..\code\app\fullquad.cpp -o fullquad.exe
-    if "%ecs%"          == "1" %compiler% %clang_flags% ..\code\app\ecs.cpp -o ecs.exe
-    if "%string_test%"  == "1" %compiler% %clang_flags% ..\code\app\string_test.cpp -o string_test.exe
-    if "%memory%"  == "1" %compiler% %clang_flags% ..\code\app\memory.cpp -o memory.exe
+    if "%graphics_test%"         == "1" %compiler% %clang_flags% ..\code\app\graphics_test.cpp -o graphics_test.exe
 popd
 
 @echo.
