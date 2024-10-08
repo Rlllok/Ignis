@@ -607,14 +607,6 @@ R_VK_Draw(R_DrawInfo* info)
 {
   R_VK_BindPipeline(info->pipeline);
 
-  VkDeviceSize vertex_offset = r_vk_state.big_buffer.current_position;
-  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->vertecies, info->vertex_count * info->vertex_size);
-  r_vk_state.big_buffer.current_position += info->vertex_count * info->vertex_size;
-
-  VkDeviceSize index_offset = r_vk_state.big_buffer.current_position;
-  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->indecies, info->index_count * info->index_size);
-  r_vk_state.big_buffer.current_position += info->index_count * info->index_size;
-
   U32 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
   r_vk_state.big_buffer.current_position += alligment;
   VkDeviceSize set_offset = r_vk_state.big_buffer.current_position;
@@ -662,10 +654,14 @@ R_VK_Draw(R_DrawInfo* info)
     0, 1, &current_set, 0, 0
   );
 
-  vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &r_vk_state.big_buffer.buffer, &vertex_offset);
-  vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, r_vk_state.big_buffer.buffer, index_offset, VK_INDEX_TYPE_UINT32);
+  VkBuffer vk_vertex_buffer = r_vk_state.buffers[info->vertex_buffer->buffer.handle].buffer;
+  VkDeviceSize test_offset = 0;
+  vkCmdBindVertexBuffers(r_vk_state.current_command_buffer->handle, 0, 1, &vk_vertex_buffer, &test_offset);
 
-  vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, info->index_count, 1, 0, 0, 0);
+  VkBuffer vk_index_buffer = r_vk_state.buffers[info->index_buffer->buffer.handle].buffer;
+  vkCmdBindIndexBuffer(r_vk_state.current_command_buffer->handle, vk_index_buffer, (VkDeviceSize)0, VK_INDEX_TYPE_UINT32);
+
+  vkCmdDrawIndexed(r_vk_state.current_command_buffer->handle, info->index_buffer->index_count, 1, 0, 0, 0);
 }
 
 // -------------------------------------------------------------------

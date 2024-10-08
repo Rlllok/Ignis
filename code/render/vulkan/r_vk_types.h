@@ -210,8 +210,17 @@ struct R_VK_Buffer
   U32             size;
 };
 
+struct _VK_Buffer
+{
+  VkBuffer       buffer;
+  VkDeviceMemory memory;
+  void*          mapped_memory;
+};
+
 // -------------------------------------------------------------------
 // --AlNov: State ----------------------------------------------------
+#define MAX_BUFFER_COUNT 64
+
 struct R_VK_State
 {
   Arena* arena;
@@ -225,6 +234,10 @@ struct R_VK_State
   R_VK_SyncTools       sync_tools;
   R_VK_Buffer          big_buffer;
   R_VK_Buffer          staging_buffer;
+
+  _VK_Buffer buffers[MAX_BUFFER_COUNT];
+  U32        buffer_count;
+  U32        free_buffer_index;
   
   R_VK_RenderPass render_pass;
 

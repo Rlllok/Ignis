@@ -2,6 +2,7 @@
 
 #include "../base/base_include.h"
 #include "r_pipeline.h"
+#include "r_buffer.h"
 
 struct R_SceneObject
 {
@@ -29,48 +30,40 @@ struct R_FrameInfo
 struct R_DrawInfo
 {
   R_Pipeline* pipeline;
-
-  U32   vertex_count;
-  U32   vertex_size;
-  void* vertecies;
-
-  U32   index_count;
-  U32   index_size;
-  void* indecies;
+  R_VertexBuffer* vertex_buffer;
+  R_IndexBuffer* index_buffer;
 
   void* uniform_data;
   U32   uniform_data_size;
 };
 
+typedef B32  _RendererInit(OS_Window* window);
+typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
+typedef B32  _RendererCreatePipeline(R_Pipeline* pipeline);
+typedef void _RendererBeginFrame();
+typedef void _RendererEndFrame();
+typedef void _RendererBeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
+typedef void _RendererEndRenderPass();
+typedef void _RendererDraw(R_DrawInfo* draw_info);
+typedef void _RendererBindPipeline(R_Pipeline* pipeline);
 
-struct R_Backend
+struct R_Renderer
 {
-  B32    (*Init)             (OS_Window* window);
-  B32    (*DrawFrame)        ();
-  B32    (*CreatePipeline)   (R_Pipeline* pipeline);
-  void  (*BeginFrame)       ();
-  void  (*EndFrame)         ();
-  void  (*BeginRenderPass)  (Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
-  void  (*EndRenderPass)    ();
-  void  (*Draw)             (R_DrawInfo* info);
-  void  (*BindPipeline)     (R_Pipeline* pipeline);
-};
+  _RendererInit*            Init;
+  _RendererDrawFrame*       DrawFrame;
+  _RendererCreatePipeline*  CreatePipeline;
+  _RendererBeginFrame*      BeginFrame;
+  _RendererEndFrame*        EndFrame;
+  _RendererBeginRenderPass* BeginRenderPass;
+  _RendererEndRenderPass*   EndRenderPass;
+  _RendererDraw*            Draw;
+  _RendererBindPipeline*    BindPipeline;
+  
+  R_Buffer (*CreateBuffer) (
+      U64 size,
+      BufferUsageFlags usage_flags,
+      BufferPropertyFlags flags);
+} Renderer;
 
-struct R_RendererState
-{
-  R_Backend backend;
-};
-global R_RendererState r_render_state;
-
+func B32 R_InitRenderer();
 func B32 R_Init(OS_Window* window);
-func B32 R_CreateBackend();
-func B32 R_DestroyBackend();
-
-// --AlNov: Binded backend functions -----------------------------------
-func B32   R_CreatePipeline(R_Pipeline* pipeline);
-func void R_BeginFrame();
-func void R_EndFrame();
-func void R_BeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
-func void R_EndRenderPass();
-func void R_DrawSceneObject(R_DrawInfo* info);
-func void R_BindPipeline(R_Pipeline* pipeline);
