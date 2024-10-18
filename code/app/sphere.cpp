@@ -176,8 +176,14 @@ I32 main()
     };
     R_PipelineAssignBindingLayout(&default_pipeline, bindings, CountArrayElements(bindings));
 
-    R_H_LoadShader(arena, "data/shaders/default3D.vert", "main", R_SHADER_TYPE_VERTEX, &default_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(arena, "data/shaders/default3D.frag", "main", R_SHADER_TYPE_FRAGMENT, &default_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+    R_H_LoadShader(
+      arena, "data/shaders/default3D.vert",
+      "main", R_SHADER_TYPE_VERTEX,
+      &default_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(
+      arena, "data/shaders/default3D.frag",
+      "main", R_SHADER_TYPE_FRAGMENT,
+      &default_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
 
     default_pipeline.is_depth_test_enabled = true;
     
@@ -190,15 +196,14 @@ I32 main()
   Vec3f sphere_position = MakeVec3f(-1.0f, 0.0f, 5.0f);
 
   R_SceneObject* uv_sphere = GenerateUVSphere(arena, sphere_position, 1.0f, 30, 30);
-  // --AlNov: @TODO Vertex buffer is empty because vertex data is not copied
   R_VertexBuffer sphere_vertex_buffer = R_CreateVertexBuffer(
-      uv_sphere->vertecies,
-      sizeof(R_SceneObject::Vertex),
-      uv_sphere->vertex_count);
+    uv_sphere->vertecies,
+    sizeof(R_SceneObject::Vertex),
+    uv_sphere->vertex_count);
   R_IndexBuffer sphere_index_buffer = R_CreateIndexBuffer(
-      uv_sphere->indecies,
-      sizeof(U32),
-      uv_sphere->index_count);
+    uv_sphere->indecies,
+    sizeof(U32),
+    uv_sphere->index_count);
 
   bool is_window_closed = false;
   while(!is_window_closed)
@@ -233,8 +238,8 @@ I32 main()
       {
         struct MVP
         {
-          alignas(16) Vec3f   color       = MakeVec3f(1.0f, 1.0f, 0.0f);
-          alignas(16) Mat4x4f view        = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
+          alignas(16) Vec3f color = MakeVec3f(1.0f, 1.0f, 0.0f);
+          alignas(16) Mat4x4f view = MakePerspective4x4f(45.0f, 1.0f, 0.1f, 1000.0f);
           alignas(16) Mat4x4f translation = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 8.0f));
         };
 
@@ -242,10 +247,10 @@ I32 main()
           MVP mvp;
 
           R_DrawInfo draw_info = {};
-          draw_info.pipeline          = &default_pipeline;
+          draw_info.pipeline = &default_pipeline;
           draw_info.vertex_buffer = &sphere_vertex_buffer;
           draw_info.index_buffer = &sphere_index_buffer;
-          draw_info.uniform_data      = &mvp;
+          draw_info.uniform_data = &mvp;
           draw_info.uniform_data_size = sizeof(mvp);
 
           Renderer.Draw(&draw_info);
