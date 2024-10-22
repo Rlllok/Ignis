@@ -20,6 +20,7 @@ void main()
   color = ubo.color;
 
   vec3 vertex_position = a_position * vec3(ubo.size, 0.0f) + vec3(ubo.position, 0.0f);
+  vertex_position += vec3(ubo.size, 0.0f); // --AlNov: Anchor in upper-left corner
   gl_Position = ubo.projection * vec4(vertex_position, 1.0f);
   gl_Position.z = 0.0f;
 }

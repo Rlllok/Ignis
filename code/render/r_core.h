@@ -35,6 +35,15 @@ struct R_DrawInfo
 
   void* uniform_data;
   U32   uniform_data_size;
+
+  void* scene_data;
+  U32   scene_data_size;
+
+  void* draw_vs_data;
+  U32   draw_vs_data_size;
+  
+  void* draw_fs_data;
+  U32   draw_fs_data_size;
 };
 
 typedef B32  _RendererInit(OS_Window* window);

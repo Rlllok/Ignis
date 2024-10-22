@@ -71,10 +71,10 @@ I32 main()
       F32 stencil_clear = 0.0f;
       Renderer.BeginRenderPass(clear_color, depth_clear, stencil_clear);
       {
-        for (I32 i = 0; i < 5; i += 1)
+        for (I32 i = 0; i < 2; i += 1)
         {
           DrawBox(
-            MakeVec2f(100.0f + 30.0f*i, 100.0 + 30.0f*i),
+            MakeVec2f(0.0f + 300.0f*i, 0.0 + 300.0f*i),
             MakeVec2f(25.0f, 25.0f),
             MakeVec3f(1.0f, 0.5f, 0.0f)
           );
@@ -106,12 +106,12 @@ CreateBox2DPipeline(Arena* arena)
   R_PipelineAssignBindingLayout(&result, bindings, CountArrayElements(bindings));
 
   R_H_LoadShader(
-    arena, "data/shaders/sdf/sdf_box.vert",
+    arena, "data/shaders/sdf_vs.glsl",
     "main", R_SHADER_TYPE_VERTEX,
     &result.shaders[R_SHADER_TYPE_VERTEX]
   );
   R_H_LoadShader(
-    arena, "data/shaders/sdf/sdf_box.frag",
+    arena, "data/shaders/sdf_box_fs.glsl",
     "main", R_SHADER_TYPE_FRAGMENT,
     &result.shaders[R_SHADER_TYPE_FRAGMENT]
   );
@@ -140,12 +140,40 @@ DrawBox(Vec2f position, Vec2f size, Vec3f color)
   uniform_data.size = size;
   uniform_data.color = color;
 
+  struct
+  {
+    alignas(16) Mat4x4f projection;
+  } scene_data;
+  scene_data.projection = MakeOrthographic4x4f(
+    0.0f, 1280.0f, 0.0f, 720.0f, 0.0f, 1.0f
+  );
+
+  struct
+  {
+    alignas(8) Vec2f translate;
+    alignas(8) Vec2f size;
+  } draw_vs_data;
+  draw_vs_data.translate = position;
+  draw_vs_data.size = size;
+
+  struct
+  {
+    alignas(16) Vec3f color;
+  } draw_fs_data;
+  draw_fs_data.color = color;
+
   R_DrawInfo draw_info = {};
   draw_info.pipeline = &box_pipeline;
   draw_info.vertex_buffer = &box_vertex_buffer;
   draw_info.index_buffer = &box_index_buffer;
   draw_info.uniform_data = &uniform_data;
   draw_info.uniform_data_size = sizeof(uniform_data);
+  draw_info.scene_data = &scene_data;
+  draw_info.scene_data_size = sizeof(scene_data);
+  draw_info.draw_vs_data = &draw_vs_data;
+  draw_info.draw_vs_data_size = sizeof(draw_vs_data);
+  draw_info.draw_fs_data = &draw_fs_data;
+  draw_info.draw_fs_data_size = sizeof(draw_fs_data);
 
   Renderer.Draw(&draw_info);
 }

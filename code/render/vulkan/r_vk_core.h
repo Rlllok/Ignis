@@ -15,6 +15,9 @@
 
 global R_VK_State r_vk_state;
 
+global VkDescriptorSetLayout scene_descriptor_layout;
+global VkDescriptorSetLayout draw_descriptor_layout;
+
 // -------------------------------------------------------------------
 // --AlNov: Init Stuff -----------------------------------------------
 func B32   R_VK_Init(OS_Window* window);
