@@ -134,12 +134,21 @@ R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* format
 }
 
 func void
-R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
+R_PipelineAssignSceneBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
 {
   Assert(count > MAX_BINDINGS);
 
-  memcpy(pipeline->bindings, bindings, count * sizeof(R_BindingInfo));
-  pipeline->bindings_count = count;
+  memcpy(pipeline->scene_bindings, bindings, count * sizeof(R_BindingInfo));
+  pipeline->scene_bindings_count = count;
+}
+
+func void
+R_PipelineAssignInstanceBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
+{
+  Assert(count > MAX_BINDINGS);
+
+  memcpy(pipeline->instance_bindings, bindings, count * sizeof(R_BindingInfo));
+  pipeline->instance_bindings_count = count;
 }
 
 func U32

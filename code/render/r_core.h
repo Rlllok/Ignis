@@ -27,23 +27,20 @@ struct R_FrameInfo
   F32 delta_time;
 };
 
+struct R_BindingGroup
+{
+  void* data;
+  U64   data_size;
+};
+
 struct R_DrawInfo
 {
   R_Pipeline* pipeline;
   R_VertexBuffer* vertex_buffer;
   R_IndexBuffer* index_buffer;
 
-  void* uniform_data;
-  U32   uniform_data_size;
-
-  void* scene_data;
-  U32   scene_data_size;
-
-  void* draw_vs_data;
-  U32   draw_vs_data_size;
-  
-  void* draw_fs_data;
-  U32   draw_fs_data_size;
+  R_BindingGroup scene_group;
+  R_BindingGroup instance_group;
 };
 
 typedef B32  _RendererInit(OS_Window* window);

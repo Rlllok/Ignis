@@ -609,21 +609,15 @@ R_VK_Draw(R_DrawInfo* info)
 
   U32 alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
   r_vk_state.big_buffer.current_position += alligment;
-  VkDeviceSize set_offset = r_vk_state.big_buffer.current_position;
-  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->uniform_data, info->uniform_data_size);
-  r_vk_state.big_buffer.current_position += info->uniform_data_size;
-
-  alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
-  r_vk_state.big_buffer.current_position += alligment;
   VkDeviceSize scene_set_offset = r_vk_state.big_buffer.current_position;
-  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->scene_data, info->scene_data_size);
-  r_vk_state.big_buffer.current_position += info->scene_data_size;
+  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->scene_group.data, info->scene_group.data_size);
+  r_vk_state.big_buffer.current_position += info->scene_group.data_size;
 
   alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
   r_vk_state.big_buffer.current_position += alligment;
   VkDeviceSize draw_vs_set_offset = r_vk_state.big_buffer.current_position;
-  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->draw_vs_data, info->draw_vs_data_size);
-  r_vk_state.big_buffer.current_position += info->draw_vs_data_size;
+  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->instance_group.data, info->instance_group.data_size);
+  r_vk_state.big_buffer.current_position += info->instance_group.data_size;
 
   VkDescriptorSetAllocateInfo scene_descriptor = {};
   scene_descriptor.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -635,7 +629,7 @@ R_VK_Draw(R_DrawInfo* info)
   draw_descriptor.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   draw_descriptor.descriptorPool = r_vk_state.descriptor_pool.pool;
   draw_descriptor.descriptorSetCount = 1;
-  draw_descriptor.pSetLayouts = &draw_descriptor_layout;
+  draw_descriptor.pSetLayouts = &instance_descriptor_layout;
 
   VkDescriptorSet scene_set;
   VK_CHECK(vkAllocateDescriptorSets(r_vk_state.device.logical, &scene_descriptor, &scene_set));
@@ -645,7 +639,7 @@ R_VK_Draw(R_DrawInfo* info)
   VkDescriptorBufferInfo scene_buffer_info = {};
   scene_buffer_info.buffer = r_vk_state.big_buffer.buffer;
   scene_buffer_info.offset = scene_set_offset;
-  scene_buffer_info.range = info->scene_data_size;
+  scene_buffer_info.range = info->scene_group.data_size;
 
   {
     VkWriteDescriptorSet write_set = {};
@@ -666,7 +660,7 @@ R_VK_Draw(R_DrawInfo* info)
   VkDescriptorBufferInfo draw_vs_buffer_info = {};
   draw_vs_buffer_info.buffer = r_vk_state.big_buffer.buffer;
   draw_vs_buffer_info.offset = draw_vs_set_offset;
-  draw_vs_buffer_info.range = info->draw_vs_data_size;
+  draw_vs_buffer_info.range = info->instance_group.data_size;
 
   {
     VkWriteDescriptorSet write_set = {};
@@ -893,16 +887,23 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
     fragment_shader_stage
   };
 
-  VkDescriptorSetLayoutBinding scene_binding = {};
-  scene_binding.binding = 0;
-  scene_binding.descriptorType = R_VK_DescriptorTypeFromBindingType(R_BINDING_TYPE_UNIFORM_BUFFER);
-  scene_binding.descriptorCount = 1;
-  scene_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  VkDescriptorSetLayoutBinding scene_bindings[MAX_BINDINGS] = {};
+  for (U32 i = 0; i < pipeline->scene_bindings_count; i += 1)
+  {
+    scene_bindings[i].binding = 0;
+    scene_bindings[i].descriptorType = R_VK_DescriptorTypeFromBindingType(
+      pipeline->scene_bindings[i].type
+    );
+    scene_bindings[i].descriptorCount = 1;
+    scene_bindings[i].stageFlags = R_VK_ShaderStageFromShaderType(
+      pipeline->scene_bindings[i].shader_type
+    );
+  }
 
   VkDescriptorSetLayoutCreateInfo scene_layout_info = {};
   scene_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  scene_layout_info.bindingCount = 1;
-  scene_layout_info.pBindings = &scene_binding;
+  scene_layout_info.bindingCount = pipeline->scene_bindings_count;
+  scene_layout_info.pBindings = scene_bindings;
   VK_CHECK(vkCreateDescriptorSetLayout(
     r_vk_state.device.logical,
     &scene_layout_info,
@@ -910,21 +911,28 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
     &scene_descriptor_layout
   ));
 
-  VkDescriptorSetLayoutBinding draw_vs_binding = {};
-  draw_vs_binding.binding = 0;
-  draw_vs_binding.descriptorType = R_VK_DescriptorTypeFromBindingType(R_BINDING_TYPE_UNIFORM_BUFFER);
-  draw_vs_binding.descriptorCount = 1;
-  draw_vs_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  VkDescriptorSetLayoutBinding instance_bindings[MAX_BINDINGS] = {};
+  for (U32 i = 0; i < pipeline->instance_bindings_count; i += 1)
+  {
+    instance_bindings[i].binding = 0;
+    instance_bindings[i].descriptorType = R_VK_DescriptorTypeFromBindingType(
+      pipeline->instance_bindings[i].type
+    );
+    instance_bindings[i].descriptorCount = 1;
+    instance_bindings[i].stageFlags = R_VK_ShaderStageFromShaderType(
+      pipeline->instance_bindings[i].shader_type
+    );
+  }
 
-  VkDescriptorSetLayoutCreateInfo draw_layout_info = {};
-  draw_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  draw_layout_info.bindingCount = 1;
-  draw_layout_info.pBindings = &draw_vs_binding;
+  VkDescriptorSetLayoutCreateInfo instance_layout_info = {};
+  instance_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  instance_layout_info.bindingCount = pipeline->instance_bindings_count;
+  instance_layout_info.pBindings = instance_bindings;
   VK_CHECK(vkCreateDescriptorSetLayout(
     r_vk_state.device.logical,
-    &draw_layout_info,
+    &instance_layout_info,
     0,
-    &draw_descriptor_layout
+    &instance_descriptor_layout
   ));
 
   // --AlNov: @TODO Get rid of hardcoded size of array
@@ -1026,7 +1034,7 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
   {
     VkDescriptorSetLayout descriptors[2] = {
       scene_descriptor_layout,
-      draw_descriptor_layout
+      instance_descriptor_layout
     };
     VkPipelineLayoutCreateInfo layout_info = {};
     layout_info.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

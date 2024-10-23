@@ -56,8 +56,11 @@ struct R_Pipeline
   R_Shader                shaders[R_SHADER_TYPE_COUNT];
   R_VertexAttributeFormat attributes[MAX_ATTRIBUTES];
   U32                     attributes_count;
-  R_BindingInfo           bindings[MAX_BINDINGS];
-  U32                     bindings_count;
+
+  R_BindingInfo scene_bindings[MAX_BINDINGS];
+  U32           scene_bindings_count;
+  R_BindingInfo instance_bindings[MAX_BINDINGS];
+  U32           instance_bindings_count;
 
   B32 is_depth_test_enabled;
 };
@@ -66,7 +69,8 @@ func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point
 func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 
 func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, U32 count);
-func void R_PipelineAssignBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
+func void R_PipelineAssignSceneBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
+func void R_PipelineAssignInstanceBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
 
 // --AlNov: @TODO Is it really needed or there is another way to get offset between attributes
 func U32 R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format);

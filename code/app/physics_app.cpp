@@ -7,11 +7,15 @@
 #include "render/r_include.cpp"
 
 global R_Pipeline box_pipeline = {};
+global R_Pipeline circle_pipeline = {};
 global R_VertexBuffer box_vertex_buffer = {};
 global R_IndexBuffer box_index_buffer = {};
+
 func R_Pipeline CreateBox2DPipeline(Arena* arena);
+func R_Pipeline CreateCirclePipeline(Arena* arena);
 
 func void DrawBox(Vec2f position, Vec2f size, Vec3f color);
+func void DrawCircle(Vec2f position, float radius, Vec3f color);
 
 I32 main()
 {
@@ -23,6 +27,7 @@ I32 main()
   Arena* arena = AllocateArena(Megabytes(64));
 
   box_pipeline = CreateBox2DPipeline(arena);
+  circle_pipeline = CreateCirclePipeline(arena);
 
   // --AlNov: Vertex and Index Buffers for sdf box
   Vec2f vertecies[] = {
@@ -79,6 +84,8 @@ I32 main()
             MakeVec3f(1.0f, 0.5f, 0.0f)
           );
         }
+
+        DrawCircle(MakeVec2f(400.0f, 400.0f), 40.0f, MakeVec3f(0.0f, 0.3f, 0.2f));
       }
       Renderer.EndRenderPass();
     }
@@ -99,11 +106,17 @@ CreateBox2DPipeline(Arena* arena)
     vertex_attributes,
     CountArrayElements(vertex_attributes));
 
-  R_BindingInfo bindings[] = 
+  R_BindingInfo scene_bindings[] = 
   {
     {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
   };
-  R_PipelineAssignBindingLayout(&result, bindings, CountArrayElements(bindings));
+  R_PipelineAssignSceneBindingLayout(&result, scene_bindings, CountArrayElements(scene_bindings));
+
+  R_BindingInfo instance_bindings[] = 
+  {
+    {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
+  };
+  R_PipelineAssignInstanceBindingLayout(&result, instance_bindings, CountArrayElements(instance_bindings));
 
   R_H_LoadShader(
     arena, "data/shaders/sdf_vs.glsl",
@@ -123,23 +136,54 @@ CreateBox2DPipeline(Arena* arena)
   return result;
 }
 
+func R_Pipeline
+CreateCirclePipeline(Arena* arena)
+{
+  R_Pipeline result = {};
+
+  R_VertexAttributeFormat vertex_attributes[] = {
+    R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+  };
+
+  R_PipelineAssignAttributes(
+    &result,
+    vertex_attributes,
+    CountArrayElements(vertex_attributes)
+  );
+
+  R_BindingInfo scene_bindings[] = 
+  {
+    {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
+  };
+  R_PipelineAssignSceneBindingLayout(&result, scene_bindings, CountArrayElements(scene_bindings));
+
+  R_BindingInfo instance_bindings[] = 
+  {
+    {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
+  };
+  R_PipelineAssignInstanceBindingLayout(&result, instance_bindings, CountArrayElements(instance_bindings));
+
+  R_H_LoadShader(
+    arena, "data/shaders/sdf_vs.glsl",
+    "main", R_SHADER_TYPE_VERTEX,
+    &result.shaders[R_SHADER_TYPE_VERTEX]
+  );
+  R_H_LoadShader(
+    arena, "data/shaders/sdf_circle_fs.glsl",
+    "main", R_SHADER_TYPE_FRAGMENT,
+    &result.shaders[R_SHADER_TYPE_FRAGMENT]
+  );
+
+  result.is_depth_test_enabled = false;
+
+  Renderer.CreatePipeline(&result);
+
+  return result;
+}
+
 func void
 DrawBox(Vec2f position, Vec2f size, Vec3f color)
 {
-  struct 
-  {
-    alignas(16) Mat4x4f projection;
-    alignas(8)  Vec2f position;
-    alignas(8)  Vec2f size;
-    alignas(16) Vec3f color;
-  } uniform_data;
-  uniform_data.projection = MakeOrthographic4x4f(
-    0.0f, 1280.0f, 0.0f, 720.0f, 0.0f, 1.0f
-  );
-  uniform_data.position = position;
-  uniform_data.size = size;
-  uniform_data.color = color;
-
   struct
   {
     alignas(16) Mat4x4f projection;
@@ -168,14 +212,49 @@ DrawBox(Vec2f position, Vec2f size, Vec3f color)
   draw_info.pipeline = &box_pipeline;
   draw_info.vertex_buffer = &box_vertex_buffer;
   draw_info.index_buffer = &box_index_buffer;
-  draw_info.uniform_data = &uniform_data;
-  draw_info.uniform_data_size = sizeof(uniform_data);
-  draw_info.scene_data = &scene_data;
-  draw_info.scene_data_size = sizeof(scene_data);
-  draw_info.draw_vs_data = &draw_vs_data;
-  draw_info.draw_vs_data_size = sizeof(draw_vs_data);
-  draw_info.draw_fs_data = &draw_fs_data;
-  draw_info.draw_fs_data_size = sizeof(draw_fs_data);
+  draw_info.scene_group.data = &scene_data;
+  draw_info.scene_group.data_size = sizeof(scene_data);
+  draw_info.instance_group.data = &draw_vs_data;
+  draw_info.instance_group.data_size = sizeof(draw_vs_data);
+
+  Renderer.Draw(&draw_info);
+}
+
+func void
+DrawCircle(Vec2f position, float radius, Vec3f color)
+{
+  struct
+  {
+    alignas(16) Mat4x4f projection;
+  } scene_data;
+  scene_data.projection = MakeOrthographic4x4f(
+    0.0f, 1280.0f, 0.0f, 720.0f, 0.0f, 1.0f
+  );
+
+  struct
+  {
+    alignas(8)  Vec2f translate;
+    alignas(8)  Vec2f size;
+    alignas(16) Vec3f color;
+  } draw_vs_data;
+  draw_vs_data.translate = position;
+  draw_vs_data.size = MakeVec2f(radius, radius);
+  draw_vs_data.color = color;
+
+  struct
+  {
+    alignas(16) Vec3f color;
+  } draw_fs_data;
+  draw_fs_data.color = color;
+
+  R_DrawInfo draw_info = {};
+  draw_info.pipeline = &circle_pipeline;
+  draw_info.vertex_buffer = &box_vertex_buffer;
+  draw_info.index_buffer = &box_index_buffer;
+  draw_info.scene_group.data = &scene_data;
+  draw_info.scene_group.data_size = sizeof(scene_data);
+  draw_info.instance_group.data = &draw_vs_data;
+  draw_info.instance_group.data_size = sizeof(draw_vs_data);
 
   Renderer.Draw(&draw_info);
 }
