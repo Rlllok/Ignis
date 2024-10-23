@@ -119,12 +119,12 @@ CreateBox2DPipeline(Arena* arena)
   R_PipelineAssignInstanceBindingLayout(&result, instance_bindings, CountArrayElements(instance_bindings));
 
   R_H_LoadShader(
-    arena, "data/shaders/sdf_vs.glsl",
+    arena, "data/shaders/sdf/sdf_vs.glsl",
     "main", R_SHADER_TYPE_VERTEX,
     &result.shaders[R_SHADER_TYPE_VERTEX]
   );
   R_H_LoadShader(
-    arena, "data/shaders/sdf_box_fs.glsl",
+    arena, "data/shaders/sdf/sdf_box_fs.glsl",
     "main", R_SHADER_TYPE_FRAGMENT,
     &result.shaders[R_SHADER_TYPE_FRAGMENT]
   );
@@ -164,12 +164,12 @@ CreateCirclePipeline(Arena* arena)
   R_PipelineAssignInstanceBindingLayout(&result, instance_bindings, CountArrayElements(instance_bindings));
 
   R_H_LoadShader(
-    arena, "data/shaders/sdf_vs.glsl",
+    arena, "data/shaders/sdf/sdf_vs.glsl",
     "main", R_SHADER_TYPE_VERTEX,
     &result.shaders[R_SHADER_TYPE_VERTEX]
   );
   R_H_LoadShader(
-    arena, "data/shaders/sdf_circle_fs.glsl",
+    arena, "data/shaders/sdf/sdf_circle_fs.glsl",
     "main", R_SHADER_TYPE_FRAGMENT,
     &result.shaders[R_SHADER_TYPE_FRAGMENT]
   );
