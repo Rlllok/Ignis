@@ -625,12 +625,6 @@ R_VK_Draw(R_DrawInfo* info)
   memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->draw_vs_data, info->draw_vs_data_size);
   r_vk_state.big_buffer.current_position += info->draw_vs_data_size;
 
-  alligment = 64 - (r_vk_state.big_buffer.current_position % 64);
-  r_vk_state.big_buffer.current_position += alligment;
-  VkDeviceSize draw_fs_set_offset = r_vk_state.big_buffer.current_position;
-  memcpy((U8*)r_vk_state.big_buffer.mapped_memory + r_vk_state.big_buffer.current_position, info->draw_fs_data, info->draw_fs_data_size);
-  r_vk_state.big_buffer.current_position += info->draw_fs_data_size;
-
   VkDescriptorSetAllocateInfo scene_descriptor = {};
   scene_descriptor.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   scene_descriptor.descriptorPool = r_vk_state.descriptor_pool.pool;
@@ -683,27 +677,6 @@ R_VK_Draw(R_DrawInfo* info)
     write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     write_set.descriptorCount = 1;
     write_set.pBufferInfo = &draw_vs_buffer_info;
-
-    vkUpdateDescriptorSets(
-      r_vk_state.device.logical,
-      1, &write_set, 0, 0
-    );
-  }
-
-  VkDescriptorBufferInfo draw_fs_buffer_info = {};
-  draw_fs_buffer_info.buffer = r_vk_state.big_buffer.buffer;
-  draw_fs_buffer_info.offset = draw_fs_set_offset;
-  draw_fs_buffer_info.range = info->draw_fs_data_size;
-
-  {
-    VkWriteDescriptorSet write_set = {};
-    write_set.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_set.dstSet = draw_set;
-    write_set.dstBinding = 1;
-    write_set.dstArrayElement = 0;
-    write_set.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    write_set.descriptorCount = 1;
-    write_set.pBufferInfo = &draw_fs_buffer_info;
 
     vkUpdateDescriptorSets(
       r_vk_state.device.logical,
@@ -942,17 +915,11 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
   draw_vs_binding.descriptorType = R_VK_DescriptorTypeFromBindingType(R_BINDING_TYPE_UNIFORM_BUFFER);
   draw_vs_binding.descriptorCount = 1;
   draw_vs_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  VkDescriptorSetLayoutBinding draw_fs_binding = {};
-  draw_fs_binding.binding = 1;
-  draw_fs_binding.descriptorType = R_VK_DescriptorTypeFromBindingType(R_BINDING_TYPE_UNIFORM_BUFFER);
-  draw_fs_binding.descriptorCount = 1;
-  draw_fs_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  VkDescriptorSetLayoutBinding draw_bindings[2] = {draw_vs_binding, draw_fs_binding};
   VkDescriptorSetLayoutCreateInfo draw_layout_info = {};
   draw_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  draw_layout_info.bindingCount = 2;
-  draw_layout_info.pBindings = draw_bindings;
+  draw_layout_info.bindingCount = 1;
+  draw_layout_info.pBindings = &draw_vs_binding;
   VK_CHECK(vkCreateDescriptorSetLayout(
     r_vk_state.device.logical,
     &draw_layout_info,

@@ -150,11 +150,13 @@ DrawBox(Vec2f position, Vec2f size, Vec3f color)
 
   struct
   {
-    alignas(8) Vec2f translate;
-    alignas(8) Vec2f size;
+    alignas(8)  Vec2f translate;
+    alignas(8)  Vec2f size;
+    alignas(16) Vec3f color;
   } draw_vs_data;
   draw_vs_data.translate = position;
   draw_vs_data.size = size;
+  draw_vs_data.color = color;
 
   struct
   {

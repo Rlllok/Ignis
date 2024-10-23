@@ -12,9 +12,15 @@ layout(set = 1, binding = 0) uniform DrawData
 {
   vec2 translate;
   vec2 size;
+  vec3 color;
 } draw;
 
 layout(location = 0) out vec2 uv;
+
+layout(location = 1) out struct DataTransfer
+{
+  vec3 color;
+} data_transfer;
 
 void main()
 {
@@ -22,6 +28,8 @@ void main()
   vertex_position += vec3(draw.size, 0.0f); // --AlNov: Anchor in upper-left corner
 
   uv = a_position.xy;
+
+  data_transfer.color = draw.color;
   
   gl_Position = scene.projection * vec4(vertex_position, 1.0f);
   gl_Position.z = 0.0f;
