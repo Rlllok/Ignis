@@ -123,6 +123,8 @@ OS_CurrentTimeSeconds()
 func void
 OS_Wait(F32 wait_seconds)
 {
+  if (wait_seconds <= 0) return;
+
   F32 begin_time = OS_CurrentTimeSeconds();
   F32 end_time = begin_time + wait_seconds;
 

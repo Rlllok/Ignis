@@ -14,5 +14,5 @@ global D_State _d_state;
 
 func void D_Init(Arena* arena);
 
-func void D_DrawBox(Vec2f position, Vec2f size, Vec3f color);
-func void D_DrawCircle(Vec2f position, float radius, Vec3f color);
+func void D_DrawRectangle(RectI, Vec3f color);
+func void D_DrawCircle(Vec2I position, I32 radius, Vec3f color);

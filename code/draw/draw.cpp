@@ -99,7 +99,7 @@ D_Init(Arena* arena)
 }
 
 func void
-D_DrawBox(Vec2f position, Vec2f size, Vec3f color)
+D_DrawRectangle(RectI rectangle, Vec3f color)
 {
   struct
   {
@@ -115,8 +115,10 @@ D_DrawBox(Vec2f position, Vec2f size, Vec3f color)
     alignas(8)  Vec2f size;
     alignas(16) Vec3f color;
   } draw_vs_data;
-  draw_vs_data.translate = position;
-  draw_vs_data.size = size;
+  draw_vs_data.translate.x = rectangle.position.x;
+  draw_vs_data.translate.y = rectangle.position.y;
+  draw_vs_data.size.x = rectangle.size.x;
+  draw_vs_data.size.y = rectangle.size.y;
   draw_vs_data.color = color;
 
   struct
@@ -134,12 +136,22 @@ D_DrawBox(Vec2f position, Vec2f size, Vec3f color)
   draw_info.instance_group.data = &draw_vs_data;
   draw_info.instance_group.data_size = sizeof(draw_vs_data);
 
+  RectI viewport = {};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.w = 1280;
+  viewport.h = 720;
+  draw_info.viewport = viewport;
+
+  RectI scissor = rectangle;
+  draw_info.scissor = scissor;
+
   Renderer.Draw(&draw_info);
 
 }
 
 func void
-D_DrawCircle(Vec2f position, float radius, Vec3f color)
+D_DrawCircle(Vec2I position, I32 radius, Vec3f color)
 {
   struct
   {
@@ -155,7 +167,7 @@ D_DrawCircle(Vec2f position, float radius, Vec3f color)
     alignas(8)  Vec2f size;
     alignas(16) Vec3f color;
   } draw_vs_data;
-  draw_vs_data.translate = position;
+  draw_vs_data.translate = Vec2FFromVec(position);
   draw_vs_data.size = MakeVec2f(radius, radius);
   draw_vs_data.color = color;
 
@@ -173,6 +185,19 @@ D_DrawCircle(Vec2f position, float radius, Vec3f color)
   draw_info.scene_group.data_size = sizeof(scene_data);
   draw_info.instance_group.data = &draw_vs_data;
   draw_info.instance_group.data_size = sizeof(draw_vs_data);
+
+  RectI viewport = {};
+  viewport.x = 0;
+  viewport.y = 0;
+  viewport.w = 1280;
+  viewport.h = 720;
+  draw_info.viewport = viewport;
+
+  RectI scissor = {};
+  scissor.position.x = Max(0, position.x - radius);
+  scissor.position.y = Max(0, position.y - radius);
+  scissor.size = MakeVec2I(radius*2.0f, radius*2.0f);
+  draw_info.scissor = scissor;
 
   Renderer.Draw(&draw_info);
 }

@@ -1,5 +1,6 @@
 #include "r_vk_core.h"
 #include "r_vk_types.h"
+#include "third_party/vulkan/include/vulkan_core.h"
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -80,10 +81,10 @@ R_VK_Init(OS_Window* window)
   R_VK_CreateDescriptorPool();
   R_VK_CreateDepthImage();
   Rect2f render_area = {};
-  render_area.x0 = 0.0f;
-  render_area.y0 = 0.0f;
-  render_area.x1 = r_vk_state.swapchain.size.width;
-  render_area.y1 = r_vk_state.swapchain.size.height;
+  render_area.x = 0.0f;
+  render_area.y = 0.0f;
+  render_area.w = r_vk_state.swapchain.size.width;
+  render_area.h = r_vk_state.swapchain.size.height;
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area);
   // --AlNov: Create Framebuffers
   {
@@ -558,6 +559,8 @@ R_VK_EndFrame()
 
   r_vk_state.big_buffer.current_position = 0;
 
+  r_vk_state.current_viewport = {};
+
   vkDeviceWaitIdle(r_vk_state.device.logical);
   vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
 }
@@ -573,10 +576,10 @@ R_VK_BeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil)
   begin_info.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   begin_info.renderPass               = render_pass->handle;
   begin_info.framebuffer              = framebuffer->handle;
-  begin_info.renderArea.offset.x      = render_pass->render_area.x0;
-  begin_info.renderArea.offset.y      = render_pass->render_area.y0;
-  begin_info.renderArea.extent.width  = render_pass->render_area.x1 - render_pass->render_area.x0;
-  begin_info.renderArea.extent.height = render_pass->render_area.y1 - render_pass->render_area.y0;
+  begin_info.renderArea.offset.x      = render_pass->render_area.x;
+  begin_info.renderArea.offset.y      = render_pass->render_area.y;
+  begin_info.renderArea.extent.width  = render_pass->render_area.w;
+  begin_info.renderArea.extent.height = render_pass->render_area.h;
 
   VkClearValue color_clear_value = {};
   color_clear_value.color.float32[0] = clear_color.r;
@@ -690,6 +693,15 @@ R_VK_Draw(R_DrawInfo* info)
     r_vk_state.pipelines[r_vk_state.active_pipeline_index].layout,
     1, 1, &draw_set, 0, 0
   );
+
+  VkRect2D scissor = {};
+  scissor.offset.x = info->scissor.x;
+  scissor.offset.y = info->scissor.y;
+  scissor.extent.width = info->scissor.w;
+  scissor.extent.height = info->scissor.h;
+  vkCmdSetScissor(
+    r_vk_state.current_command_buffer->handle,
+    0, 1, &scissor);
 
   VkBuffer vk_vertex_buffer = r_vk_state.buffers[info->vertex_buffer->buffer.handle].buffer;
   VkDeviceSize test_offset = 0;
@@ -1031,6 +1043,15 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
   color_blend_state_info.attachmentCount = 1;
   color_blend_state_info.pAttachments    = &color_blend_attachment;
 
+  VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_SCISSOR
+  };
+
+  VkPipelineDynamicStateCreateInfo dynamic_state_info = {};
+  dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamic_state_info.dynamicStateCount = CountArrayElements(dynamic_states);
+  dynamic_state_info.pDynamicStates = dynamic_states;
+
   {
     VkDescriptorSetLayout descriptors[2] = {
       scene_descriptor_layout,
@@ -1057,7 +1078,7 @@ R_VK_CreatePipeline(R_Pipeline* pipeline)
   pipeline_info.pMultisampleState   = &multisample_state_info;
   pipeline_info.pDepthStencilState  = &depth_stencil_state_info;
   pipeline_info.pColorBlendState    = &color_blend_state_info;
-  pipeline_info.pDynamicState       = 0;
+  pipeline_info.pDynamicState       = &dynamic_state_info;
   pipeline_info.layout              = r_vk_state.pipelines[r_vk_state.pipelines_count].layout;
   pipeline_info.renderPass          = r_vk_state.render_pass.handle;
   pipeline_info.subpass             = 0;

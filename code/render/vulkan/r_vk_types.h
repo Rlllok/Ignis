@@ -251,6 +251,9 @@ struct R_VK_State
 
   U32 current_frame;
   U32 current_image_index;
+  
+  RectI current_viewport;
+  RectI current_scissor;
 
   R_View view;
 

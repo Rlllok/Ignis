@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../base/base_include.h"
+#include "base/base_math.h"
 #include "r_pipeline.h"
 #include "r_buffer.h"
 
@@ -41,6 +42,9 @@ struct R_DrawInfo
 
   R_BindingGroup scene_group;
   R_BindingGroup instance_group;
+
+  RectI viewport;
+  RectI scissor;
 };
 
 typedef B32  _RendererInit(OS_Window* window);

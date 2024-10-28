@@ -8,6 +8,25 @@
 #include "render/r_include.cpp"
 #include "draw/d_include.cpp"
 
+struct Particle
+{
+  Vec2f position;
+  Vec2f velocity;
+  Vec2f force;
+  F32   radius;
+  F32   mass;
+};
+
+#define PIXELS_PER_METER 10.0f
+#define GROUND_LEVEL 200.0f
+
+#define MAX_PARTICLES 10
+global Particle particles[MAX_PARTICLES] = {};
+
+func void ParticleApplyForce(Particle* particle, Vec2f force);
+func void ParticleIntegrateEuler(Particle* particle, F32 dt);
+func void ParticleGroundCollision(Particle* particle, F32 ground_level);
+
 I32 main()
 {
   Arena* arena = AllocateArena(Megabytes(64));
@@ -17,10 +36,21 @@ I32 main()
   D_Init(arena);
 
   OS_ShowWindow(&window);
+  F32 delta_time = 1.0f / 60.0f;
+
+  for (I32 i = 0; i < MAX_PARTICLES; i += 1)
+  {
+    particles[i].position = MakeVec2f(30.0f + i*50.0f, 40.0f);
+    particles[i].velocity = MakeVec2f(0.0f, 0.0f);
+    particles[i].radius = 10.0f;
+    particles[i].mass = 1.0f + i;
+  }
 
   B32 is_window_closed = false;
   while(!is_window_closed)
   {
+    F32 begin_time = OS_CurrentTimeSeconds();
+
     OS_EventList event_list = OS_GetEventList(arena);
     
     for (OS_Event* event = event_list.first;
@@ -38,6 +68,13 @@ I32 main()
       }
     }
 
+    for (I32 i = 0; i < MAX_PARTICLES; i += 1)
+    {
+      ParticleApplyForce(&particles[i], MakeVec2f(0.0f, 1*9.8f*PIXELS_PER_METER));
+      ParticleIntegrateEuler(&particles[i], delta_time);
+      ParticleGroundCollision(&particles[i], GROUND_LEVEL);
+    }
+
     R_FrameInfo frame_info = {};
     Renderer.BeginFrame();
     {
@@ -46,19 +83,68 @@ I32 main()
       F32 stencil_clear = 0.0f;
       Renderer.BeginRenderPass(clear_color, depth_clear, stencil_clear);
       {
-        for (I32 i = 0; i < 2; i += 1)
-        {
-          D_DrawBox(
-            MakeVec2f(0.0f + 300.0f*i, 0.0 + 300.0f*i),
-            MakeVec2f(25.0f, 25.0f),
-            MakeVec3f(1.0f, 0.5f, 0.0f)
-          );
-        }
+        RectI ground = {};
+        ground.x = 0;
+        ground.y = GROUND_LEVEL;
+        // AlNov: @TODO Viewport size is not equal window size
+        //        Get Viewport size from Render layer could be useful
+        ground.w = 1264;
+        ground.h = 30;
+        D_DrawRectangle(ground, MakeVec3f(1.0f, 0.5f, 0.0f));
 
-        D_DrawCircle(MakeVec2f(400.0f, 400.0f), 40.0f, MakeVec3f(0.0f, 0.3f, 0.2f));
+        D_DrawCircle(
+          MakeVec2I(0, 0), 50, MakeVec3f(0.8f, 0.3f, 0.02f));
+
+        for (I32 i = 0; i < MAX_PARTICLES; i += 1)
+        {
+          Particle* particle = particles + i;
+
+          D_DrawCircle(
+            Vec2IFromVec(particle->position),
+            particle->radius, MakeVec3f(0.8f, 0.3f, 0.02f));
+        }
       }
       Renderer.EndRenderPass();
     }
     Renderer.EndFrame();
+
+    F32 end_time = OS_CurrentTimeSeconds();
+    F32 wait_time = delta_time - (end_time - begin_time);
+    OS_Wait(wait_time);
+  }
+}
+
+func void
+ParticleApplyForce(Particle* particle, Vec2f force)
+{
+  particle->force += force;
+}
+
+func void
+ParticleIntegrateEuler(Particle* particle, F32 dt)
+{
+  Vec2f F = particle->force;
+  F32 m = particle->mass;
+  Vec2f a = F / m;
+
+  Vec2f v = particle->velocity + a*dt;
+  Vec2f s = particle->position + v*dt;
+
+  particle->velocity = v;
+  particle->position = s;
+  particle->force = {};
+}
+
+func void
+ParticleGroundCollision(Particle* particle, F32 ground_level)
+{
+  F32 low_point_position = particle->position.y + particle->radius;
+
+  F32 delta = ground_level - low_point_position;
+
+  if (delta < 0.0f)
+  {
+    // particle->position.y = ground_level - 2*particle->radius;
+    particle->velocity.y *= -1;
   }
 }

@@ -13,78 +13,168 @@
 // --AlNov: Vector Types ---------------------------------------------
 
 // --AlNov: Vec2
+union Vec2I
+{
+  struct
+  {
+    I32 x;
+    I32 y;
+  };
+
+  I32 values[2];
+};
+inline Vec2I
+MakeVec2I(I32 x, I32 y)
+{
+  Vec2I result = {};
+  result.x = x;
+  result.y = y;
+
+  return result;
+}
+inline Vec2I
+operator-(Vec2I v, I32 n)
+{
+  Vec2I result = {};
+
+  result.x = v.x - n;
+  result.y = v.y - n;
+
+  return result;
+}
+
 union Vec2u
 {
-    struct
-    {
-        U32 x;
-        U32 y;
-    };
+  struct
+  {
+    U32 x;
+    U32 y;
+  };
 
-    struct
-    {
-        U32 width;
-        U32 height;
-    };
+  struct
+  {
+    U32 width;
+    U32 height;
+  };
 
-    U32 values[2];
+  U32 values[2];
 };
 
 union Vec2f
 {
-    struct
-    {
-        F32 x;
-        F32 y;
-    };
+  struct
+  {
+    F32 x;
+    F32 y;
+  };
 
-    F32 values[2];
+  struct
+  {
+    F32 u;
+    F32 v;
+  };
+
+  F32 values[2];
 };
+
+inline Vec2f
+operator+(Vec2f v, F32 n)
+{
+  Vec2f result = {};
+
+  result.x = v.x + n;
+  result.y = v.y + n;
+
+  return result;
+}
+
+inline Vec2f
+operator+(Vec2f v1, Vec2f v2)
+{
+  Vec2f result = {};
+
+  result.x = v1.x + v2.x;
+  result.y = v1.y + v2.y;
+
+  return result;
+}
+
+inline Vec2f&
+operator+=(Vec2f& v1, Vec2f& v2)
+{
+  v1 = v1 + v2;
+
+  return v1;
+}
+
+inline Vec2f
+operator*(Vec2f v, F32 n)
+{
+  Vec2f result = {};
+
+  result.x = v.x*n;
+  result.y = v.y*n;
+
+  return result;
+}
+
+inline Vec2f
+operator/(Vec2f& v, F32 n)
+{
+  Vec2f result = {};
+
+  result.x = v.x/n;
+  result.y = v.y/n;
+
+  return result;
+}
 
 // --AlNov: Vec3
 union Vec3f
 {
-    struct
-    {
-        F32 x;
-        F32 y;
-        F32 z;
-    };
+  struct
+  {
+    F32 x;
+    F32 y;
+    F32 z;
+  };
 
-    struct
-    {
-        F32 r;
-        F32 g;
-        F32 b;
-    };
+  struct
+  {
+    F32 r;
+    F32 g;
+    F32 b;
+  };
 
-    F32 values[3];
+  F32 values[3];
 };
 
 union Vec4f
 {
-    struct
-    {
-        F32 x;
-        F32 y;
-        F32 z;
-        F32 w;
-    };
+  struct
+  {
+    F32 x;
+    F32 y;
+    F32 z;
+    F32 w;
+  };
 
-    struct
-    {
-        F32 r;
-        F32 g;
-        F32 b;
-        F32 a;
-    };
+  struct
+  {
+    F32 r;
+    F32 g;
+    F32 b;
+    F32 a;
+  };
 
-    F32 values[4];
+  F32 values[4];
 };
 
 // --AlNov: Vector type convertion -----------------------------------
+#define Vec2IFromVec(v)  MakeVec2I((I32)v.x, (I32)v.y)
 #define Vec2uFromVec(v)  MakeVec2f((U32)v.x, (U32)v.y)
 #define Vec2fFromVec(v)  MakeVec2f((F32)v.x, (F32)v.y)
+#define Vec2FFromVec(v)  MakeVec2f((F32)v.x, (F32)v.y)
 #define Vec3fFromVec2(v) MakeVec3f((F32)v.x, (F32)v.y, 0.0f)
 
 // -------------------------------------------------------------------
@@ -109,19 +199,38 @@ union Rect2f
 {
   struct
   {
-    Vec2f min;
-    Vec2f max;
+    Vec2f position;
+    Vec2f size;
   };
 
   struct
   {
-    F32 x0;
-    F32 y0;
-    F32 x1;
-    F32 y1;
+    F32 x;
+    F32 y;
+    F32 w;
+    F32 h;
   };
 
   Vec2f value[2];
+};
+
+union RectI
+{
+  struct
+  {
+    Vec2I position;
+    Vec2I size;
+  };
+
+  struct 
+  {
+    I32 x;
+    I32 y;
+    I32 w;
+    I32 h;
+  };
+
+  Vec2I value[2];
 };
 
 // -------------------------------------------------------------------
