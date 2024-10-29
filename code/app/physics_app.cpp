@@ -7,6 +7,7 @@
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
 #include "draw/d_include.cpp"
+#include <winuser.h>
 
 struct Particle
 {
@@ -26,6 +27,7 @@ global Particle particles[MAX_PARTICLES] = {};
 func void ParticleApplyForce(Particle* particle, Vec2f force);
 func void ParticleIntegrateEuler(Particle* particle, F32 dt);
 func void ParticleGroundCollision(Particle* particle, F32 ground_level);
+func void ParticleBoundBoxCollision(Particle* particle, RectI bound_box);
 
 I32 main()
 {
@@ -34,6 +36,9 @@ I32 main()
   OS_Window window = OS_CreateWindow("PhysicsApp", MakeVec2u(1280, 720));
   R_Init(&window);
   D_Init(arena);
+
+  RECT window_rect = {};
+  GetClientRect(window.handle, &window_rect);
 
   OS_ShowWindow(&window);
   F32 delta_time = 1.0f / 60.0f;
@@ -68,11 +73,18 @@ I32 main()
       }
     }
 
+    RectI bound_box = {};
+    bound_box.x = window_rect.left;
+    bound_box.y = window_rect.top;
+    bound_box.w = window_rect.right;
+    bound_box.h = window_rect.bottom;
     for (I32 i = 0; i < MAX_PARTICLES; i += 1)
     {
       ParticleApplyForce(&particles[i], MakeVec2f(0.0f, 1*9.8f*PIXELS_PER_METER));
+      ParticleApplyForce(&particles[i], MakeVec2f(10.0f, 5.0f));
       ParticleIntegrateEuler(&particles[i], delta_time);
-      ParticleGroundCollision(&particles[i], GROUND_LEVEL);
+
+      ParticleBoundBoxCollision(&particles[i], bound_box);
     }
 
     R_FrameInfo frame_info = {};
@@ -88,7 +100,7 @@ I32 main()
         ground.y = GROUND_LEVEL;
         // AlNov: @TODO Viewport size is not equal window size
         //        Get Viewport size from Render layer could be useful
-        ground.w = 1264;
+        ground.w = window_rect.right;
         ground.h = 30;
         D_DrawRectangle(ground, MakeVec3f(1.0f, 0.5f, 0.0f));
 
@@ -145,6 +157,23 @@ ParticleGroundCollision(Particle* particle, F32 ground_level)
   if (delta < 0.0f)
   {
     // particle->position.y = ground_level - 2*particle->radius;
+    particle->velocity.y *= -1;
+  }
+}
+
+func void
+ParticleBoundBoxCollision(Particle* particle, RectI bound_box)
+{
+  Vec2f position = particle->position;
+  Vec2I box_min = bound_box.position;
+  Vec2I box_max = box_min + bound_box.size;
+
+  if ((position.x < box_min.x) || (position.x > box_max.x))
+  {
+    particle->velocity.x *= -1;
+  }
+  if ((position.y < box_min.y) || (position.y > box_max.y))
+  {
     particle->velocity.y *= -1;
   }
 }

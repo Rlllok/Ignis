@@ -32,6 +32,29 @@ MakeVec2I(I32 x, I32 y)
 
   return result;
 }
+
+inline Vec2I
+operator+(Vec2I v, I32 n)
+{
+  Vec2I result = {};
+
+  result.x = v.x + n;
+  result.y = v.y + n;
+
+  return result;
+}
+
+inline Vec2I
+operator+(Vec2I v1, Vec2I v2)
+{
+  Vec2I result = {};
+
+  result.x = v1.x + v2.x;
+  result.y = v1.y + v2.y;
+
+  return result;
+}
+
 inline Vec2I
 operator-(Vec2I v, I32 n)
 {
@@ -114,6 +137,16 @@ operator*(Vec2f v, F32 n)
 
   result.x = v.x*n;
   result.y = v.y*n;
+
+  return result;
+}
+
+inline Vec2f&
+operator*=(Vec2f& v, F32 n)
+{
+  Vec2f result = {};
+
+  result = result * n;
 
   return result;
 }
