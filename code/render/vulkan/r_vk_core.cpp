@@ -327,7 +327,7 @@ R_VK_CreateSwapchain()
 func void
 R_VK_CreateDescriptorPool()
 {
-  U32 descriptor_count = 100;
+  U32 descriptor_count = 10000;
 
   VkDescriptorPoolSize pool_size = {};
   pool_size.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

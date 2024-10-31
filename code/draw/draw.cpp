@@ -99,7 +99,7 @@ D_Init(Arena* arena)
 }
 
 func void
-D_DrawRectangle(RectI rectangle, Vec3f color)
+D_DrawRectangle(RectI rectangle, Vec3f color, F32 rotation)
 {
   struct
   {
@@ -111,21 +111,17 @@ D_DrawRectangle(RectI rectangle, Vec3f color)
 
   struct
   {
+    alignas(4)  F32 rotation;
     alignas(8)  Vec2f translate;
     alignas(8)  Vec2f size;
     alignas(16) Vec3f color;
   } draw_vs_data;
+  draw_vs_data.rotation = rotation;
   draw_vs_data.translate.x = rectangle.position.x;
   draw_vs_data.translate.y = rectangle.position.y;
   draw_vs_data.size.x = rectangle.size.x;
   draw_vs_data.size.y = rectangle.size.y;
   draw_vs_data.color = color;
-
-  struct
-  {
-    alignas(16) Vec3f color;
-  } draw_fs_data;
-  draw_fs_data.color = color;
 
   R_DrawInfo draw_info = {};
   draw_info.pipeline = &_d_state.box_pipeline;
@@ -143,7 +139,14 @@ D_DrawRectangle(RectI rectangle, Vec3f color)
   viewport.h = 720;
   draw_info.viewport = viewport;
 
-  RectI scissor = rectangle;
+  // --AlNov: @TODO @NOTE There is "magic" with max size because of how sdf rendere.
+  //          It uses scissor, so there is problem when box rotate, as we should
+  //          change scissor area to fit box in it.
+  F32 max_size = Max(rectangle.w, rectangle.h);
+  RectI scissor = {};
+  scissor.position.x = Max(0, rectangle.position.x - max_size/2.0f);
+  scissor.position.y = Max(0, rectangle.position.y - max_size/2.0f);
+  scissor.size = MakeVec2I(max_size*2.0f, max_size*2.0f);
   draw_info.scissor = scissor;
 
   Renderer.Draw(&draw_info);

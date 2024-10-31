@@ -14,6 +14,7 @@ layout(location = 1) in struct DataTransfer
   vec3 color;
   vec2 position;
   vec2 radius;
+  float rotation;
 } DT;
 
 layout(location = 0) out vec4 out_color;

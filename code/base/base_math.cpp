@@ -10,7 +10,7 @@ MakeVec2u(U32 x, U32 y)
   return { {x, y} };
 }
 
-func Vec2f
+inline Vec2f
 MakeVec2f(F32 x, F32 y)
 {
   return { {x, y} };

@@ -1,33 +1,35 @@
 #include "base/base_include.h"
+#include "os/gfx/os_gfx.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
 #include "draw/d_include.h"
+
+#include "physics/physics_2d.h"
 
 #include "base/base_include.cpp"
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
 #include "draw/d_include.cpp"
+
+#include "physics/physics_2d.cpp"
+
 #include <winuser.h>
 
-struct Particle
+#define PIXELS_PER_METER 10.0f
+
+struct RigidBody2D
 {
+  F32 mass;
+  Vec2f size;
   Vec2f position;
+  F32 rotation;
   Vec2f velocity;
-  Vec2f force;
-  F32   radius;
-  F32   mass;
+  Vec2f acceleration;
+  Vec2f sum_of_forces;
 };
 
-#define PIXELS_PER_METER 10.0f
-#define GROUND_LEVEL 200.0f
-
-#define MAX_PARTICLES 10
-global Particle particles[MAX_PARTICLES] = {};
-
-func void ParticleApplyForce(Particle* particle, Vec2f force);
-func void ParticleIntegrateEuler(Particle* particle, F32 dt);
-func void ParticleGroundCollision(Particle* particle, F32 ground_level);
-func void ParticleBoundBoxCollision(Particle* particle, RectI bound_box);
+func void ApplyForceRigidBody2D(RigidBody2D* body, Vec2f force);
+func void UpdateRigidBody2D(RigidBody2D* body, F32 dt);
 
 I32 main()
 {
@@ -43,12 +45,26 @@ I32 main()
   OS_ShowWindow(&window);
   F32 delta_time = 1.0f / 60.0f;
 
-  for (I32 i = 0; i < MAX_PARTICLES; i += 1)
+  World2D world = {};
+  world.gravity = MakeVec2f(0.0f, 9.8f*PIXELS_PER_METER);
+  world.forces = MakeVec2f(30.0f, 0.0f);
+
+  RigidBody2D box = {};
+  box.mass = 10.0f;
+  box.position = MakeVec2f(50.0f, 50.0f);
+  box.size = MakeVec2f(75.0f, 25.0f);
+
+  F32 particle_radius = 8.0f;
+  for (I32 i = 0; i < 10; i += 1)
   {
-    particles[i].position = MakeVec2f(30.0f + i*50.0f, 40.0f);
-    particles[i].velocity = MakeVec2f(0.0f, 0.0f);
-    particles[i].radius = 10.0f;
-    particles[i].mass = 1.0f + i;
+    for (I32 j = 0; j < 10; j += 1)
+    {
+      Vec2f position = MakeVec2f(
+        30.0f + (3*particle_radius)*j,
+        50.0f + (3*particle_radius)*i);
+
+      PH_CreateParticle2D(&world, position, 1.0f, particle_radius);
+    }
   }
 
   B32 is_window_closed = false;
@@ -73,20 +89,22 @@ I32 main()
       }
     }
 
+    // AlNov: Update Physics
+    #if 0
     RectI bound_box = {};
     bound_box.x = window_rect.left;
     bound_box.y = window_rect.top;
     bound_box.w = window_rect.right;
     bound_box.h = window_rect.bottom;
-    for (I32 i = 0; i < MAX_PARTICLES; i += 1)
-    {
-      ParticleApplyForce(&particles[i], MakeVec2f(0.0f, 1*9.8f*PIXELS_PER_METER));
-      ParticleApplyForce(&particles[i], MakeVec2f(10.0f, 5.0f));
-      ParticleIntegrateEuler(&particles[i], delta_time);
+    PH_ParticleBoundBoxCollision(&world, bound_box);
+    PH_ParticleParticleCollision(&world);
+    PH_UpdateWorld2D(&world, delta_time);
+    #endif
 
-      ParticleBoundBoxCollision(&particles[i], bound_box);
-    }
+    // ApplyForceRigidBody2D(&box, MakeVec2f(0.0f, 98.0f));
+    UpdateRigidBody2D(&box, delta_time);
 
+    // AlNov: Render
     R_FrameInfo frame_info = {};
     Renderer.BeginFrame();
     {
@@ -95,26 +113,19 @@ I32 main()
       F32 stencil_clear = 0.0f;
       Renderer.BeginRenderPass(clear_color, depth_clear, stencil_clear);
       {
-        RectI ground = {};
-        ground.x = 0;
-        ground.y = GROUND_LEVEL;
-        // AlNov: @TODO Viewport size is not equal window size
-        //        Get Viewport size from Render layer could be useful
-        ground.w = window_rect.right;
-        ground.h = 30;
-        D_DrawRectangle(ground, MakeVec3f(1.0f, 0.5f, 0.0f));
-
-        D_DrawCircle(
-          MakeVec2I(0, 0), 50, MakeVec3f(0.8f, 0.3f, 0.02f));
-
-        for (I32 i = 0; i < MAX_PARTICLES; i += 1)
+        #if 0
+        for (I32 i = 0; i < world.particles.count; i += 1)
         {
-          Particle* particle = particles + i;
-
           D_DrawCircle(
-            Vec2IFromVec(particle->position),
-            particle->radius, MakeVec3f(0.8f, 0.3f, 0.02f));
+            Vec2IFromVec(world.particles.position[i]),
+            world.particles.radius[i], MakeVec3f(0.8f, 0.3f, 0.02f));
         }
+        #endif
+
+        RectI box_rect = {};
+        box_rect.position = Vec2IFromVec(box.position);
+        box_rect.size = Vec2IFromVec(box.size);
+        D_DrawRectangle(box_rect, MakeVec3f(0.65f, 0.77f, 0.09f), box.rotation);
       }
       Renderer.EndRenderPass();
     }
@@ -127,53 +138,21 @@ I32 main()
 }
 
 func void
-ParticleApplyForce(Particle* particle, Vec2f force)
+ApplyForceRigidBody2D(RigidBody2D* body, Vec2f force)
 {
-  particle->force += force;
+  body->sum_of_forces += force;
 }
 
 func void
-ParticleIntegrateEuler(Particle* particle, F32 dt)
+UpdateRigidBody2D(RigidBody2D* body, F32 dt)
 {
-  Vec2f F = particle->force;
-  F32 m = particle->mass;
-  Vec2f a = F / m;
+  F32 inv_m = 1.0f/body->mass;
+  Vec2f a = body->sum_of_forces*inv_m;
 
-  Vec2f v = particle->velocity + a*dt;
-  Vec2f s = particle->position + v*dt;
+  body->velocity = body->velocity + a*dt;
+  body->position = body->position + body->velocity*dt;
 
-  particle->velocity = v;
-  particle->position = s;
-  particle->force = {};
-}
+  body->rotation += 0.4f*dt;
 
-func void
-ParticleGroundCollision(Particle* particle, F32 ground_level)
-{
-  F32 low_point_position = particle->position.y + particle->radius;
-
-  F32 delta = ground_level - low_point_position;
-
-  if (delta < 0.0f)
-  {
-    // particle->position.y = ground_level - 2*particle->radius;
-    particle->velocity.y *= -1;
-  }
-}
-
-func void
-ParticleBoundBoxCollision(Particle* particle, RectI bound_box)
-{
-  Vec2f position = particle->position;
-  Vec2I box_min = bound_box.position;
-  Vec2I box_max = box_min + bound_box.size;
-
-  if ((position.x < box_min.x) || (position.x > box_max.x))
-  {
-    particle->velocity.x *= -1;
-  }
-  if ((position.y < box_min.y) || (position.y > box_max.y))
-  {
-    particle->velocity.y *= -1;
-  }
+  body->sum_of_forces = MakeVec2f(0.0f, 0.0f);
 }

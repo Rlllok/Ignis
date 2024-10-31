@@ -131,6 +131,17 @@ operator+=(Vec2f& v1, Vec2f& v2)
 }
 
 inline Vec2f
+operator-(Vec2f v1, Vec2f v2)
+{
+  Vec2f result = {};
+
+  result.x = v1.x - v2.x;
+  result.y = v1.y - v2.y;
+
+  return result;
+}
+
+inline Vec2f
 operator*(Vec2f v, F32 n)
 {
   Vec2f result = {};
@@ -141,7 +152,7 @@ operator*(Vec2f v, F32 n)
   return result;
 }
 
-inline Vec2f&
+inline Vec2f
 operator*=(Vec2f& v, F32 n)
 {
   Vec2f result = {};

@@ -10,6 +10,7 @@ layout(set = 0, binding = 0) uniform SceneData
 // --AlNov: @TODO DrawData name describe nothing for me
 layout(set = 1, binding = 0) uniform DrawData
 {
+  float rotation;
   vec2 translate;
   vec2 size;
   vec3 color;
@@ -22,6 +23,7 @@ layout(location = 1) out struct DataTransfer
   vec3 color;
   vec2 position;
   vec2 size;
+  float rotation;
 } data_transfer;
 
 void main()
@@ -31,6 +33,7 @@ void main()
   data_transfer.color = draw.color;
   data_transfer.position = draw.translate;
   data_transfer.size = draw.size;
+  data_transfer.rotation = draw.rotation;
 
   gl_Position = vec4(a_position.xy, 0.0f, 1.0f);
 }
