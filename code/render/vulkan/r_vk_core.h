@@ -25,6 +25,7 @@ func void R_VK_CreateInstance();
 func void R_VK_CreateDevice();
 func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain);
 func void R_VK_CreateSwapchain();
+func void R_VK_RecreateSwapchain();
 func void R_VK_CreateDescriptorPool();
 func void R_VK_CreateSyncTools();
 func void R_VK_CreateDepthImage();

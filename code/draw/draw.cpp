@@ -150,7 +150,6 @@ D_DrawRectangle(RectI rectangle, Vec3f color, F32 rotation)
   draw_info.scissor = scissor;
 
   Renderer.Draw(&draw_info);
-
 }
 
 func void
@@ -166,19 +165,15 @@ D_DrawCircle(Vec2I position, I32 radius, Vec3f color)
 
   struct
   {
+    alignas(4)  F32   rotation;
     alignas(8)  Vec2f translate;
     alignas(8)  Vec2f size;
     alignas(16) Vec3f color;
   } draw_vs_data;
+  draw_vs_data.rotation = 0.0f;
   draw_vs_data.translate = Vec2FFromVec(position);
   draw_vs_data.size = MakeVec2f(radius, radius);
   draw_vs_data.color = color;
-
-  struct
-  {
-    alignas(16) Vec3f color;
-  } draw_fs_data;
-  draw_fs_data.color = color;
 
   R_DrawInfo draw_info = {};
   draw_info.pipeline = &_d_state.circle_pipeline;

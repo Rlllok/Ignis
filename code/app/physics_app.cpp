@@ -17,19 +17,22 @@
 
 #define PIXELS_PER_METER 10.0f
 
-struct RigidBody2D
+struct Plane2D
 {
-  F32 mass;
   Vec2f size;
+
+  F32 mass;
   Vec2f position;
-  F32 rotation;
   Vec2f velocity;
   Vec2f acceleration;
   Vec2f sum_of_forces;
+
+  F32 inertia;
+  F32 rotation;
 };
 
-func void ApplyForceRigidBody2D(RigidBody2D* body, Vec2f force);
-func void UpdateRigidBody2D(RigidBody2D* body, F32 dt);
+func void ApplyForceRigidBody2D(Plane2D* body, Vec2f force);
+func void UpdateRigidBody2D(Plane2D* body, F32 dt);
 
 I32 main()
 {
@@ -49,10 +52,10 @@ I32 main()
   world.gravity = MakeVec2f(0.0f, 9.8f*PIXELS_PER_METER);
   world.forces = MakeVec2f(30.0f, 0.0f);
 
-  RigidBody2D box = {};
-  box.mass = 10.0f;
-  box.position = MakeVec2f(50.0f, 50.0f);
-  box.size = MakeVec2f(75.0f, 25.0f);
+  Plane2D plane = {};
+  plane.mass = 10.0f;
+  plane.position = MakeVec2f(50.0f, 50.0f);
+  plane.size = MakeVec2f(75.0f, 25.0f);
 
   F32 particle_radius = 8.0f;
   for (I32 i = 0; i < 10; i += 1)
@@ -88,9 +91,7 @@ I32 main()
         default: break;
       }
     }
-
     // AlNov: Update Physics
-    #if 0
     RectI bound_box = {};
     bound_box.x = window_rect.left;
     bound_box.y = window_rect.top;
@@ -99,10 +100,9 @@ I32 main()
     PH_ParticleBoundBoxCollision(&world, bound_box);
     PH_ParticleParticleCollision(&world);
     PH_UpdateWorld2D(&world, delta_time);
-    #endif
 
     // ApplyForceRigidBody2D(&box, MakeVec2f(0.0f, 98.0f));
-    UpdateRigidBody2D(&box, delta_time);
+    UpdateRigidBody2D(&plane, delta_time);
 
     // AlNov: Render
     R_FrameInfo frame_info = {};
@@ -113,19 +113,27 @@ I32 main()
       F32 stencil_clear = 0.0f;
       Renderer.BeginRenderPass(clear_color, depth_clear, stencil_clear);
       {
-        #if 0
         for (I32 i = 0; i < world.particles.count; i += 1)
         {
           D_DrawCircle(
             Vec2IFromVec(world.particles.position[i]),
             world.particles.radius[i], MakeVec3f(0.8f, 0.3f, 0.02f));
         }
-        #endif
+
+        Vec2f plane_center_position = plane.position + plane.size/2.0f;
 
         RectI box_rect = {};
-        box_rect.position = Vec2IFromVec(box.position);
-        box_rect.size = Vec2IFromVec(box.size);
-        D_DrawRectangle(box_rect, MakeVec3f(0.65f, 0.77f, 0.09f), box.rotation);
+        box_rect.position = Vec2IFromVec(plane.position);
+        box_rect.size = Vec2IFromVec(plane.size);
+        D_DrawRectangle(box_rect, MakeVec3f(0.65f, 0.77f, 0.09f), plane.rotation);
+        D_DrawCircle(
+          Vec2IFromVec(plane_center_position), 6.0f, MakeVec3f(0.89f, 0.01f, 0.02f));
+        Vec2f local_head_position = RotateVec2f(
+          MakeVec2f(0.5f*plane.size.x*0.9f, 0.0f),
+          plane.rotation);
+        D_DrawCircle(
+          Vec2IFromVec(plane_center_position + local_head_position),
+          6.0f, MakeVec3f(0.23f, 0.02f, 0.89f));
       }
       Renderer.EndRenderPass();
     }
@@ -138,13 +146,13 @@ I32 main()
 }
 
 func void
-ApplyForceRigidBody2D(RigidBody2D* body, Vec2f force)
+ApplyForceRigidBody2D(Plane2D* body, Vec2f force)
 {
   body->sum_of_forces += force;
 }
 
 func void
-UpdateRigidBody2D(RigidBody2D* body, F32 dt)
+UpdateRigidBody2D(Plane2D* body, F32 dt)
 {
   F32 inv_m = 1.0f/body->mass;
   Vec2f a = body->sum_of_forces*inv_m;

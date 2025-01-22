@@ -325,6 +325,21 @@ R_VK_CreateSwapchain()
 }
 
 func void
+R_VK_RecreateSwapchain()
+{
+  vkDeviceWaitIdle(r_vk_state.device.logical);
+
+  for (U32 i = 0; i < image_count; i += 1)
+  {
+    VkImageView attachments[2] = { r_vk_state.swapchain.image_views[i], r_vk_state.depth_view };
+
+    vkDestoyFramebuffer(r_vk_state.swapchain.framebuffers[i].handle);
+  }
+
+  R_VK_CreateSwapchain();
+}
+
+func void
 R_VK_CreateDescriptorPool()
 {
   U32 descriptor_count = 10000;
