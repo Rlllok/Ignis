@@ -47,7 +47,8 @@ struct R_DrawInfo
   RectI scissor;
 };
 
-typedef B32  _RendererInit(OS_Window* window);
+typedef void _RendererInit(OS_Window* window);
+typedef void _RendererDestroy();
 typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
 typedef B32  _RendererCreatePipeline(R_Pipeline* pipeline);
 typedef B32  _RendererBeginFrame();
@@ -60,13 +61,17 @@ typedef void _RendererBindPipeline(R_Pipeline* pipeline);
 struct R_Renderer
 {
   _RendererInit*            Init;
-  _RendererDrawFrame*       DrawFrame;
-  _RendererCreatePipeline*  CreatePipeline;
+  _RendererDestroy*         Destroy;
+
   _RendererBeginFrame*      BeginFrame;
   _RendererEndFrame*        EndFrame;
+
   _RendererBeginRenderPass* BeginRenderPass;
   _RendererEndRenderPass*   EndRenderPass;
+
   _RendererDraw*            Draw;
+
+  _RendererCreatePipeline*  CreatePipeline;
   _RendererBindPipeline*    BindPipeline;
   
   R_Buffer (*CreateBuffer) (
@@ -75,5 +80,5 @@ struct R_Renderer
       BufferPropertyFlags flags);
 } Renderer;
 
-func B32 R_InitRenderer();
-func B32 R_Init(OS_Window* window);
+func void R_InitBackend(OS_Window* window);
+func void R_DestroyBackend();

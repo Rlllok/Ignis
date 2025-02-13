@@ -1,32 +1,22 @@
 #include "r_core.h"
 
-#include "vulkan/r_vk_core.h"
-#include "vulkan/r_vk_core.cpp"
-#include "vulkan/r_vk_buffer.cpp"
+#include "vulkan/r_vk_main.h"
+#include "vulkan/r_vk_main.cpp"
 
-func B32
-R_InitRenderer()
+func void 
+R_InitBackend(OS_Window* window)
 {
   Renderer = {};
   Renderer.Init = R_VK_Init;
+  Renderer.Destroy = R_VK_Destroy;
   Renderer.CreatePipeline = R_VK_CreatePipeline;
-  Renderer.BeginFrame = R_VK_BeginFrame;
-  Renderer.EndFrame = R_VK_EndFrame;
-  Renderer.BeginRenderPass = R_VK_BeginRenderPass;
-  Renderer.EndRenderPass = R_VK_EndRenderPass;
-  Renderer.Draw = R_VK_Draw;
-  Renderer.BindPipeline = R_VK_BindPipeline;
-  Renderer.CreateBuffer = _VK_CreateBuffer;
-  
-  return true;
-}
-
-func B32 
-R_Init(OS_Window* window)
-{
-  R_InitRenderer();
+  // Renderer.BeginFrame = R_VK_BeginFrame;
+  // Renderer.EndFrame = R_VK_EndFrame;
+  // Renderer.BeginRenderPass = R_VK_BeginRenderPass;
+  // Renderer.EndRenderPass = R_VK_EndRenderPass;
+  // Renderer.Draw = R_VK_Draw;
+  // Renderer.BindPipeline = R_VK_BindPipeline;
+  // Renderer.CreateBuffer = _VK_CreateBuffer;
 
   Renderer.Init(window);
-
-  return true;
 }

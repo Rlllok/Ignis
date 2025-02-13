@@ -22,9 +22,7 @@ rem --- Build ---
 @echo.
 
 pushd build
-    if "%graphics_test%"         == "1" %compiler% %clang_flags% ..\code\app\graphics_test.cpp -o graphics_test.exe
-    if "%sphere%"         == "1" %compiler% %clang_flags% ..\code\app\sphere.cpp -o sphere.exe
-    if "%physics_app%"         == "1" %compiler% %clang_flags% ..\code\app\physics_app.cpp -o physics_app.exe
+    if "%renderer%" == "1" %compiler% %clang_flags% ..\code\app\renderer.cpp -o renderer.exe
 popd
 
 @echo.
