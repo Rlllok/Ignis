@@ -24,18 +24,22 @@ func B32   R_VK_Init(OS_Window* window);
 func void R_VK_CreateInstance();
 func void R_VK_CreateDevice();
 func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain);
-func void R_VK_CreateSwapchain();
-func void R_VK_RecreateSwapchain();
 func void R_VK_CreateDescriptorPool();
 func void R_VK_CreateSyncTools();
 func void R_VK_CreateDepthImage();
+
+// -------------------------------------------------------------------
+// --AlNov: Swapchain -----------------------------------------------
+func void R_VK_CreateSwapchain();
+func void R_VK_RecreateSwapchain();
+func void R_VK_DestroySwapchain();
 
 // -------------------------------------------------------------------
 // --AlNov: Render Pass ----------------------------------------------
 func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area);
 func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass);
 
-func void R_VK_BeginFrame();
+func B32 R_VK_BeginFrame();
 func void R_VK_EndFrame();
 func void R_VK_BeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
 func void R_VK_EndRenderPass();

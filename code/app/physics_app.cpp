@@ -106,7 +106,7 @@ I32 main()
 
     // AlNov: Render
     R_FrameInfo frame_info = {};
-    Renderer.BeginFrame();
+    if (Renderer.BeginFrame())
     {
       Vec4f clear_color = MakeVec4f(0.2f, 0.2f, 0.2f, 1.0f);
       F32 depth_clear = 1.0f;
@@ -134,8 +134,9 @@ I32 main()
         D_DrawCircle(
           Vec2IFromVec(plane_center_position + local_head_position),
           6.0f, MakeVec3f(0.23f, 0.02f, 0.89f));
+        Renderer.EndRenderPass();
       }
-      Renderer.EndRenderPass();
+
     }
     Renderer.EndFrame();
 

@@ -50,7 +50,7 @@ struct R_DrawInfo
 typedef B32  _RendererInit(OS_Window* window);
 typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
 typedef B32  _RendererCreatePipeline(R_Pipeline* pipeline);
-typedef void _RendererBeginFrame();
+typedef B32  _RendererBeginFrame();
 typedef void _RendererEndFrame();
 typedef void _RendererBeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
 typedef void _RendererEndRenderPass();

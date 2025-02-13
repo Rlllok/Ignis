@@ -1,5 +1,4 @@
-#include "r_vk_core.h"
-#include "r_vk_types.h"
+#include "render/vulkan/r_vk_core.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
@@ -77,7 +76,6 @@ R_VK_Init(OS_Window* window)
   R_VK_CreateInstance();
   R_VK_CreateDevice();
   R_VK_CreateSurface(&r_vk_state, window, &r_vk_state.swapchain);
-  R_VK_CreateSwapchain();
   R_VK_CreateDescriptorPool();
   R_VK_CreateDepthImage();
   Rect2f render_area = {};
@@ -86,6 +84,7 @@ R_VK_Init(OS_Window* window)
   render_area.w = r_vk_state.swapchain.size.width;
   render_area.h = r_vk_state.swapchain.size.height;
   R_VK_CreateRenderPass(&r_vk_state, &r_vk_state.render_pass, render_area);
+  R_VK_CreateSwapchain();
   // --AlNov: Create Framebuffers
   {
     U32 image_count = r_vk_state.swapchain.image_count;
@@ -274,6 +273,49 @@ R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swap
 }
 
 func void
+R_VK_CreateDescriptorPool()
+{
+  U32 descriptor_count = 10000;
+
+  VkDescriptorPoolSize pool_size = {};
+  pool_size.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  pool_size.descriptorCount = 1024;
+
+  VkDescriptorPoolSize sampler_pool_size = {};
+  sampler_pool_size.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  sampler_pool_size.descriptorCount = 1024;
+
+  VkDescriptorPoolSize pool_sizes[2] = { pool_size, sampler_pool_size };
+
+  VkDescriptorPoolCreateInfo pool_info = {};
+  pool_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  pool_info.maxSets       = descriptor_count;
+  pool_info.poolSizeCount = 2;
+  pool_info.pPoolSizes    = pool_sizes;
+
+  VK_CHECK(vkCreateDescriptorPool(r_vk_state.device.logical, &pool_info, 0, &r_vk_state.descriptor_pool.pool));
+}
+
+func void
+R_VK_CreateSyncTools()
+{
+  for (I32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
+  {
+    VkSemaphoreCreateInfo semaphore_info = {};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VK_CHECK(vkCreateSemaphore(r_vk_state.device.logical, &semaphore_info, 0, &r_vk_state.sync_tools.image_available_semaphores[i]));
+    VK_CHECK(vkCreateSemaphore(r_vk_state.device.logical, &semaphore_info, 0, &r_vk_state.sync_tools.image_ready_semaphores[i]));
+
+    VkFenceCreateInfo fence_info = {};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    VK_CHECK(vkCreateFence(r_vk_state.device.logical, &fence_info, 0, &r_vk_state.sync_tools.fences[i]));
+  }
+}
+
+func void
 R_VK_CreateSwapchain()
 {
   VkSwapchainCreateInfoKHR swapchain_info = {};
@@ -329,57 +371,41 @@ R_VK_RecreateSwapchain()
 {
   vkDeviceWaitIdle(r_vk_state.device.logical);
 
-  for (U32 i = 0; i < image_count; i += 1)
-  {
-    VkImageView attachments[2] = { r_vk_state.swapchain.image_views[i], r_vk_state.depth_view };
-
-    vkDestoyFramebuffer(r_vk_state.swapchain.framebuffers[i].handle);
-  }
-
+  R_VK_DestroySwapchain();
   R_VK_CreateSwapchain();
-}
 
-func void
-R_VK_CreateDescriptorPool()
-{
-  U32 descriptor_count = 10000;
-
-  VkDescriptorPoolSize pool_size = {};
-  pool_size.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  pool_size.descriptorCount = 1024;
-
-  VkDescriptorPoolSize sampler_pool_size = {};
-  sampler_pool_size.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  sampler_pool_size.descriptorCount = 1024;
-
-  VkDescriptorPoolSize pool_sizes[2] = { pool_size, sampler_pool_size };
-
-  VkDescriptorPoolCreateInfo pool_info = {};
-  pool_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  pool_info.maxSets       = descriptor_count;
-  pool_info.poolSizeCount = 2;
-  pool_info.pPoolSizes    = pool_sizes;
-
-  VK_CHECK(vkCreateDescriptorPool(r_vk_state.device.logical, &pool_info, 0, &r_vk_state.descriptor_pool.pool));
-}
-
-func void
-R_VK_CreateSyncTools()
-{
-  for (I32 i = 0; i < NUM_FRAMES_IN_FLIGHT; i += 1)
+  // --AlNov: Create Framebuffers
   {
-    VkSemaphoreCreateInfo semaphore_info = {};
-    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    U32 image_count = r_vk_state.swapchain.image_count;
+    r_vk_state.swapchain.framebuffers = (R_VK_Framebuffer*)PushArena(r_vk_state.arena, image_count * sizeof(R_VK_Framebuffer));
 
-    VK_CHECK(vkCreateSemaphore(r_vk_state.device.logical, &semaphore_info, 0, &r_vk_state.sync_tools.image_available_semaphores[i]));
-    VK_CHECK(vkCreateSemaphore(r_vk_state.device.logical, &semaphore_info, 0, &r_vk_state.sync_tools.image_ready_semaphores[i]));
+    for (U32 i = 0; i < image_count; i += 1)
+    {
+      R_VK_DestroyFramebuffer(&r_vk_state, &r_vk_state.swapchain.framebuffers[i]);
 
-    VkFenceCreateInfo fence_info = {};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+      VkImageView attachments[2] = { r_vk_state.swapchain.image_views[i], r_vk_state.depth_view };
 
-    VK_CHECK(vkCreateFence(r_vk_state.device.logical, &fence_info, 0, &r_vk_state.sync_tools.fences[i]));
+      R_VK_CreateFramebuffer(
+        &r_vk_state, &r_vk_state.render_pass, r_vk_state.swapchain.size,
+        CountArrayElements(attachments), attachments, &r_vk_state.swapchain.framebuffers[i]
+      );
+    }
   }
+}
+
+func void
+R_VK_DestroySwapchain()
+{
+  for (U32 i = 0; i < r_vk_state.swapchain.image_count; i += 1)
+  {
+    vkDestroyImageView(r_vk_state.device.logical,
+                       r_vk_state.swapchain.image_views[i],
+                       0);
+  }
+
+  vkDestroySwapchainKHR(r_vk_state.device.logical,
+                        r_vk_state.swapchain.handle,
+                        0);
 }
 
 func void
@@ -506,20 +532,27 @@ R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass)
   render_pass->handle = 0;
 }
 
-func void
+func B32
 R_VK_BeginFrame()
 {
-  r_vk_state.current_frame %= NUM_FRAMES_IN_FLIGHT;
-
   vkWaitForFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[r_vk_state.current_frame], VK_TRUE, U64_MAX);
 
   // --AlNov: @TODO Read more about vkAcquireNextImageKHR in terms of synchonization
   U32 image_index;
-  VK_CHECK(vkAcquireNextImageKHR(
+  VkResult acquire_result = vkAcquireNextImageKHR(
     r_vk_state.device.logical, r_vk_state.swapchain.handle,
     U64_MAX, r_vk_state.sync_tools.image_available_semaphores[r_vk_state.current_frame],
-    0, &image_index
-  ));
+    0, &image_index);
+
+  if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR)
+  {
+    R_VK_RecreateSwapchain();
+    return false;
+  }
+  else
+  {
+    VK_CHECK(acquire_result);
+  }
 
   vkResetFences(r_vk_state.device.logical, 1, &r_vk_state.sync_tools.fences[r_vk_state.current_frame]);
 
@@ -531,6 +564,8 @@ R_VK_BeginFrame()
   r_vk_state.current_framebuffer    = &r_vk_state.swapchain.framebuffers[image_index];
 
   R_VK_BeginCommandBuffer(r_vk_state.current_command_buffer);
+
+  return true;
 }
 
 func void
@@ -555,7 +590,7 @@ R_VK_EndFrame()
   VkQueue queue;
   vkGetDeviceQueue(r_vk_state.device.logical, r_vk_state.device.queue_index, 0, &queue);
 
-  vkQueueSubmit(queue, 1, &submit_info, r_vk_state.sync_tools.fences[r_vk_state.current_frame]);
+  VK_CHECK(vkQueueSubmit(queue, 1, &submit_info, r_vk_state.sync_tools.fences[r_vk_state.current_frame]))
 
   VkPresentInfoKHR present_info = {};
   present_info.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -567,17 +602,24 @@ R_VK_EndFrame()
   present_info.pResults           = 0;
 
   // --AlNov: @TODO Recreate swapchain
-  // VkResult present_result = vkQueuePresentKHR(queue, &present_info);
-  vkQueuePresentKHR(queue, &present_info);
+  VkResult present_result = vkQueuePresentKHR(queue, &present_info);
 
-  r_vk_state.current_frame += 1;
-
-  r_vk_state.big_buffer.current_position = 0;
-
-  r_vk_state.current_viewport = {};
+  if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR)
+  {
+    R_VK_RecreateSwapchain();
+  }
+  else
+  {
+    VK_CHECK(present_result);
+  }
 
   vkDeviceWaitIdle(r_vk_state.device.logical);
   vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pool.pool, 0);
+
+  r_vk_state.current_frame += 1;
+  r_vk_state.current_frame %= NUM_FRAMES_IN_FLIGHT;
+  r_vk_state.big_buffer.current_position = 0;
+  r_vk_state.current_viewport = {};
 }
 
 func void
