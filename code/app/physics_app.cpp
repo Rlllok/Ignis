@@ -1,4 +1,5 @@
 #include "base/base_include.h"
+#include "base/base_memory.h"
 #include "os/gfx/os_gfx.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
@@ -37,7 +38,7 @@ func void UpdateRigidBody2D(Plane2D* body, F32 dt);
 I32 main()
 {
   Arena* arena = AllocateArena(Megabytes(64));
-
+  
   OS_Window window = OS_CreateWindow("PhysicsApp", MakeVec2u(1280, 720));
   R_Init(&window);
   D_Init(arena);
@@ -137,8 +138,9 @@ I32 main()
         Renderer.EndRenderPass();
       }
 
+      Renderer.EndFrame();
+      Renderer.PresentFrame();
     }
-    Renderer.EndFrame();
 
     F32 end_time = OS_CurrentTimeSeconds();
     F32 wait_time = delta_time - (end_time - begin_time);

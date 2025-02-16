@@ -54,7 +54,7 @@ _VK_CreateBuffer(U64 size, BufferUsageFlags usage_type, BufferPropertyFlags prop
   buffer_info.usage = _VkFromBufferUsageFlags(usage_type);
   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   
-  _VK_Buffer* vk_buffer = r_vk_state.buffers + result.handle;
+  R_VK_Buffer* vk_buffer = r_vk_state.buffers + result.handle;
 
   VK_CHECK(vkCreateBuffer(r_vk_state.device.logical, &buffer_info, 0, &vk_buffer->buffer));
   r_vk_state.free_buffer_index += 1;
@@ -90,7 +90,7 @@ _VK_CreateBuffer(U64 size, BufferUsageFlags usage_type, BufferPropertyFlags prop
 func void
 _VK_FillBuffer(R_Buffer* buffer, U8* data, U64 size, U64 offset)
 {
-  _VK_Buffer* vk_buffer = r_vk_state.buffers + buffer->handle;
+  R_VK_Buffer* vk_buffer = r_vk_state.buffers + buffer->handle;
 
   // --AlNov: @NOTE Better to use staging buffer.
   //                Not CPU/GPU visible memory.

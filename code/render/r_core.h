@@ -52,6 +52,7 @@ typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
 typedef B32  _RendererCreatePipeline(R_Pipeline* pipeline);
 typedef B32  _RendererBeginFrame();
 typedef void _RendererEndFrame();
+typedef void _RendererPresentFrame();
 typedef void _RendererBeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
 typedef void _RendererEndRenderPass();
 typedef void _RendererDraw(R_DrawInfo* draw_info);
@@ -64,6 +65,7 @@ struct R_Renderer
   _RendererCreatePipeline*  CreatePipeline;
   _RendererBeginFrame*      BeginFrame;
   _RendererEndFrame*        EndFrame;
+  _RendererPresentFrame*    PresentFrame;
   _RendererBeginRenderPass* BeginRenderPass;
   _RendererEndRenderPass*   EndRenderPass;
   _RendererDraw*            Draw;

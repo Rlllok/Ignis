@@ -11,65 +11,134 @@
 
 #define NUM_FRAMES_IN_FLIGHT 3
 
-#include "r_vk_types.h"
+#include "r_vk_device.h"
+#include "r_vk_render_pass.h"
+#include "r_vk_swapchain.h"
+#include "r_vk_command_buffer.h"
+#include "r_vk_buffer.h"
+#include "r_vk_pipeline.h"
 
-global R_VK_State r_vk_state;
+struct R_View
+{
+  Vec2f   size;
+  Vec3f   position;
+  F32     fov;
 
-global VkDescriptorSetLayout scene_descriptor_layout;
-global VkDescriptorSetLayout instance_descriptor_layout;
+  struct
+  {
+    alignas(16) Mat4x4f projection;
+  } uniform;
+};
 
 // -------------------------------------------------------------------
+// --AlNov: Texture --------------------------------------------------
+struct R_Texture
+{
+  VkImage        vk_image;
+  VkImageView    vk_view;
+  VkDeviceMemory vk_memory;
+  VkDeviceSize   size;
+};
+
+enum R_CubeMapSideType
+{
+  R_CUBE_MAP_SIDE_TYPE_RIGHT,
+  R_CUBE_MAP_SIDE_TYPE_LEFT,
+  R_CUBE_MAP_SIDE_TYPE_TOP,
+  R_CUBE_MAP_SIDE_TYPE_BOTTOM,
+  R_CUBE_MAP_SIDE_TYPE_BACK,
+  R_CUBE_MAP_SIDE_TYPE_FRONT,
+
+  R_CUBE_MAP_SIDE_TYPE_COUNT
+};
+
+struct R_VK_CubeMap
+{
+  VkImage        image;
+  VkImageView    view;
+  VkDeviceMemory memory;
+  VkDeviceSize   size;
+};
+
+// -------------------------------------------------------------------
+// --AlNov: Main States ----------------------------------------------
+struct R_VK_DescriptorPool
+{
+  VkDescriptorPool pool;
+};
+
+struct R_VK_SyncTools
+{
+  VkFence fences[NUM_FRAMES_IN_FLIGHT];
+  VkSemaphore image_available_semaphores[NUM_FRAMES_IN_FLIGHT];
+  VkSemaphore image_ready_semaphores[NUM_FRAMES_IN_FLIGHT];
+};
+
+// -------------------------------------------------------------------
+// --AlNov: State ----------------------------------------------------
+#define MAX_BUFFER_COUNT 64
+
+struct R_VK_State
+{
+  Arena* arena;
+
+  VkInstance           instance;
+  R_VK_Device          device;
+  R_VK_Swapchain       swapchain;
+  VkCommandPool        command_pool;
+  R_VK_CommandBuffer*  command_buffers;
+  R_VK_DescriptorPool  descriptor_pool;
+  R_VK_SyncTools       sync_tools;
+  R_VK_Buffer          big_buffer;
+  R_VK_Buffer          staging_buffer;
+
+  R_VK_Buffer buffers[MAX_BUFFER_COUNT];
+  U32        buffer_count;
+  U32        free_buffer_index;
+  
+  R_VK_RenderPass render_pass;
+
+  R_VK_Pipeline         pipelines[2];
+  U32                   pipelines_count;
+
+  U32 active_pipeline_index;
+
+  R_VK_CommandBuffer* current_command_buffer;
+  R_VK_Framebuffer*   current_framebuffer;
+
+  U32 current_frame;
+  U32 current_image_index;
+  
+  RectI current_viewport;
+  RectI current_scissor;
+
+  R_View view;
+
+  R_SceneObject scene_object;
+
+  R_Texture texture;
+  R_VK_CubeMap cubemap;
+  VkSampler sampler;
+
+  VkImage        depth_image;
+  VkImageView    depth_view;
+  VkDeviceMemory depth_memory;
+};
+
+global R_VK_State r_vk_state;
+// -------------------------------------------------------------------
 // --AlNov: Init Stuff -----------------------------------------------
-func B32   R_VK_Init(OS_Window* window);
+func B32  R_VK_Init(OS_Window* window);
 func void R_VK_CreateInstance();
-func void R_VK_CreateDevice();
 func void R_VK_CreateSurface(R_VK_State* vk_state, OS_Window* window, R_VK_Swapchain* swapchain);
 func void R_VK_CreateDescriptorPool();
 func void R_VK_CreateSyncTools();
 func void R_VK_CreateDepthImage();
 
-// -------------------------------------------------------------------
-// --AlNov: Swapchain -----------------------------------------------
-func void R_VK_CreateSwapchain();
-func void R_VK_RecreateSwapchain();
-func void R_VK_DestroySwapchain();
-
-// -------------------------------------------------------------------
-// --AlNov: Render Pass ----------------------------------------------
-func void R_VK_CreateRenderPass(R_VK_State* vk_state, R_VK_RenderPass* out_render_pass, Rect2f render_area);
-func void R_VK_DestroyRenderPass(R_VK_State* vk_state, R_VK_RenderPass* render_pass);
-
-func B32 R_VK_BeginFrame();
+func B32  R_VK_BeginFrame();
 func void R_VK_EndFrame();
-func void R_VK_BeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
-func void R_VK_EndRenderPass();
+func void R_VK_PresentFrame();
 func void R_VK_Draw(R_DrawInfo* info);
-
-// -------------------------------------------------------------------
-// --AlNov: Command Buffer -------------------------------------------
-func void R_VK_CreateCommandPool(R_VK_State* vk_state);
-func void R_VK_AllocateCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer);
-func void R_VK_FreeCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer);
-func void R_VK_BeginCommandBuffer(R_VK_CommandBuffer* command_buffer);
-func void R_VK_EndCommandBuffer(R_VK_CommandBuffer* command_buffer);
-func void R_VK_SubmitComandBuffer(R_VK_CommandBuffer* command_buffer); // --AlNov: @TODO Only change state for now
-func void R_VK_ResetCommandBuffer(R_VK_CommandBuffer* command_buffer);
-func void R_VK_BeginSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* out_command_buffer);
-func void R_VK_EndSingleUseCommandBuffer(R_VK_State* vk_state, VkCommandPool pool, R_VK_CommandBuffer* command_buffer, VkQueue queue);
-
-// -------------------------------------------------------------------
-// --AlNov: Framebuffer ----------------------------------------------
-func void R_VK_CreateFramebuffer(R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size, U32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer);
-func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer);
-
-// -------------------------------------------------------------------
-// --AlNov: Shader ---------------------------------------------------
-func void R_VK_BindShaderProgram(R_VK_CommandBuffer* command_buffer, R_VK_ShaderProgram* program);
-
-// -------------------------------------------------------------------
-// --AlNov: Pipeline Functions ---------------------------------------
-func B32   R_VK_CreatePipeline(R_Pipeline* pipeline);
-func void R_VK_BindPipeline(R_Pipeline* pipeline);
 
 // -------------------------------------------------------------------
 // --AlNov: Helpers --------------------------------------------------
