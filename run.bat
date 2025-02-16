@@ -7,6 +7,7 @@ rem --- Run App ---
 pushd build
     if "%graphics_test%" == "1" graphics_test.exe
     if "%physics_app%" == "1" physics_app.exe
+    if "%triangle%" == "1" triangle.exe
 popd
 
 rem --- Unset Arguments ---
