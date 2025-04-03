@@ -26,6 +26,7 @@ pushd build
     if "%sphere%"         == "1" %compiler% %clang_flags% ..\code\app\sphere.cpp -o sphere.exe
     if "%physics_app%"         == "1" %compiler% %clang_flags% ..\code\app\physics_app.cpp -o physics_app.exe
     if "%triangle%"         == "1" %compiler% %clang_flags% ..\code\app\triangle.cpp -o triangle.exe
+    if "%gltf%"         == "1" %compiler% %clang_flags% ..\code\app\gltf.cpp -o gltf.exe
 popd
 
 @echo.

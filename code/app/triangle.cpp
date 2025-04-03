@@ -7,7 +7,6 @@
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
 
-#include "render/vulkan/r_vk_core.h"
 #include "third_party/vulkan/include/vulkan.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 #include "third_party/vulkan/include/vulkan_win32.h"
