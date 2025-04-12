@@ -1,5 +1,7 @@
 #include "r_gltf.h"
 
+#include "sys/stat.h"
+
 func Buffer
 AllocateBuffer(U64 size)
 {

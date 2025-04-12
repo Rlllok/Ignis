@@ -44,10 +44,19 @@ I32 main()
   GLTFElement* gltf_attributes = LookUpElement(gltf_primitives->first_sub_element, ConstString("attributes"));
   mesh.atribute.acessor_id = GetNumberElement(gltf_attributes, ConstString("POSITION"));
 
-  Buffer test = Base64Decode(ConstString("cGFzc3dvcmQ="));
-  PrintBuffer(test);
-
-  U64 comma_position = FindPosition(ConstString("Hello, World"), ',');
+  GLTFElement* buffers_list_element = LookUpElement(gltf_reader.element, ConstString("buffers"));
+  GLTFElement* buffer_element = buffers_list_element->first_sub_element->first_sub_element;
+  Buffer mesh_buffer = buffer_element->value;
+  
+  U64 comma_position = FindPosition(mesh_buffer, ',');
+  U64 quat_position = FindPosition(mesh_buffer, '"');
+  mesh_buffer.data = mesh_buffer.data + comma_position + 1;
+  mesh_buffer.size = mesh_buffer.size - comma_position - 1;
+  Buffer decoded = Base64Decode(mesh_buffer);
+  
+  PrintBuffer(mesh_buffer);
+  printf("\n");
+  PrintBuffer(decoded);
   
   return 0;
 }

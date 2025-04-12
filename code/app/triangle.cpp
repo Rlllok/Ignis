@@ -6,10 +6,12 @@
 #include "base/base_include.cpp"
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
+#include "render/r_gltf.h"
 
 #include "third_party/vulkan/include/vulkan.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 #include "third_party/vulkan/include/vulkan_win32.h"
+#include "render/r_gltf.cpp"
 
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
@@ -137,7 +139,7 @@ struct Pipeline
 func void CreatePipeline();
 func void DestroyPipeline();
 
-struct Buffer
+struct VertexBuffer
 {
   VkBuffer handle;
   U32 size;
@@ -166,7 +168,7 @@ struct AppState
   Pipeline pipeline;
   R_Shader vertex_shader;
   R_Shader fragment_shader;
-  Buffer vertex_buffer;
+  VertexBuffer vertex_buffer;
 
   Vertex vertecies[3];     
 
@@ -603,22 +605,16 @@ CreatePipeline()
 
   VkVertexInputBindingDescription binding_description = {
     .binding = 0,
-    .stride = sizeof(Vertex),
+    .stride = sizeof(Vec3f),
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  VkVertexInputAttributeDescription attribute_descriptions[2];
+  VkVertexInputAttributeDescription attribute_descriptions[1];
   attribute_descriptions[0] = {
     .location = 0,
     .binding = 0,
-    .format = VK_FORMAT_R32G32_SFLOAT,
-    .offset = offsetof(Vertex, position)
-  };
-  attribute_descriptions[1] = {
-    .location = 1,
-    .binding = 0,
     .format = VK_FORMAT_R32G32B32_SFLOAT,
-    .offset = offsetof(Vertex, color)
+    .offset = 0
   };
 
   VkPipelineVertexInputStateCreateInfo vertex_input = {
@@ -768,13 +764,33 @@ DestroyPipeline()
 func void
 CreateVertexBuffer()
 {
-  VkDeviceSize size = sizeof(app_state.vertecies[0]) * CountArrayElements(app_state.vertecies);
-  app_state.vertex_buffer.size = size;
+  GLTFReader gltf_reader = {};
+  gltf_reader.file_buffer = ReadFile("data/box_gltf/test.gltf");
+  ParseGLTF(&gltf_reader);
+
+  GLTFElement* buffers_list_element = LookUpElement(gltf_reader.element, ConstString("buffers"));
+  GLTFElement* buffer_element = buffers_list_element->first_sub_element->first_sub_element;
+  Buffer mesh_buffer = buffer_element->value;
+  
+  U64 comma_position = FindPosition(mesh_buffer, ',');
+  U64 quat_position = FindPosition(mesh_buffer, '"');
+  mesh_buffer.data = mesh_buffer.data + comma_position + 1;
+  mesh_buffer.size = mesh_buffer.size - comma_position - 1;
+  Buffer decoded = Base64Decode(mesh_buffer);
+  U64 vertex_offset = 8;
+  U64 vertex_length = 36;
+  
+  PrintBuffer(mesh_buffer);
+  printf("\n");
+  PrintBuffer(decoded);
+  
+  // VkDeviceSize size = sizeof(app_state.vertecies[0]) * CountArrayElements(app_state.vertecies);
+  app_state.vertex_buffer.size = decoded.size;
   
   VkBufferCreateInfo buffer_info = {
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-    .size = size,
-    .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    .size = app_state.vertex_buffer.size,
+    .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
     .sharingMode = VK_SHARING_MODE_EXCLUSIVE
   };
 
@@ -809,7 +825,7 @@ CreateVertexBuffer()
   void* data;
   VK_CHECK(vkMapMemory(app_state.device.logical, app_state.vertex_buffer.memory, 0, app_state.vertex_buffer.size, 0, &data));
   {
-    memcpy(data, app_state.vertecies, size);
+      memcpy(data, decoded.data, decoded.size);
   }
   vkUnmapMemory(app_state.device.logical, app_state.vertex_buffer.memory);
 }
@@ -829,7 +845,7 @@ RenderTriangle(U32 image_index)
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-  };
+  }; 
 
   VK_CHECK(vkBeginCommandBuffer(cmd, &begin_info))
   {
@@ -892,10 +908,12 @@ RenderTriangle(U32 image_index)
       };
       vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-      VkDeviceSize offset = {};
+      VkDeviceSize offset = { 8 };
       vkCmdBindVertexBuffers(cmd, 0, 1, &app_state.vertex_buffer.handle, &offset);
+      vkCmdBindIndexBuffer(cmd, app_state.vertex_buffer.handle, 0, VK_INDEX_TYPE_UINT16);
 
       vkCmdDraw(cmd, CountArrayElements(app_state.vertecies), 1, 0, 0);
+      vkCmdDrawIndexed(cmd, 3, 1, 0, 0, 0);
     }
     vkCmdEndRendering(cmd);
 
