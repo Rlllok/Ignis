@@ -1,28 +1,34 @@
 #pragma once
 
-struct R_VK_Framebuffer
+#include "base/base_include.h"
+
+#define FRAMES_IN_FLIGHT 3
+struct FrameResources
 {
-  VkFramebuffer    handle;
-  U32              attachment_count;
-  VkImageView*     attachments;
+  VkFence submit_fence;
+  VkCommandPool cmd_pool;
+  VkCommandBuffer cmd_buffer;
+  VkSemaphore acquire_semaphore;
+  VkSemaphore release_semaphore;
 };
 
-func void R_VK_CreateFramebuffer(R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size, U32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer);
-func void R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer);
+func void R_VK_CreateFrameResources(R_VK_State* state, FrameResources* resources);
+func void R_VK_DestroyFrameResources(R_VK_State* state, FrameResources* resources);
 
 struct R_VK_Swapchain
 {
-  VkSwapchainKHR     handle;
-  VkSurfaceKHR       surface;
+  VkSwapchainKHR handle;
   VkSurfaceFormatKHR surface_format;
-  Vec2u              size;
-  U32                image_count;
-  VkImage*           images;
-  VkImageView*       image_views;
-  R_VK_Framebuffer*  framebuffers;
+  Vec2u size;
+  Arena* image_arena;
+  U32 image_count;
+  VkImage* images;
+  VkImageView* image_views;
+  FrameResources* frame_resources; // Per Image
+  U32 current_index;
 };
 
-func void R_VK_CreateSwapchain(U32 width, U32 height);
-func void R_VK_RecreateSwapchain();
-func void R_VK_DestroySwapchain();
-
+func void R_VK_CreateSwapchain(R_VK_State* state);
+func void R_VK_RecreateSwapchain(R_VK_State* state);
+func void R_VK_DestroySwapchain(R_VK_State* state);
+func B32 R_VK_AcquireNextImage(R_VK_State* state, U32 *image_index);

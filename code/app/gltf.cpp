@@ -14,6 +14,10 @@ I32 main()
 {
   LOG_INFO("GLTF Test message!\n");
 
+#if IGNIS_DEBUG
+  LOG_INFO("DEBUG BUILD\n");
+#endif // IGNIS_DEBUG
+
   GLTFReader gltf_reader = {};
   gltf_reader.file_buffer = ReadFile("data/box_gltf/test.gltf");
 

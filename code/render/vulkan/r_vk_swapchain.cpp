@@ -1,129 +1,183 @@
 #include "r_vk_swapchain.h"
 
 func void
-R_VK_CreateFramebuffer(
-  R_VK_State* vk_state, R_VK_RenderPass* render_pass, Vec2u size,
-  U32 attachment_count, VkImageView* attachments, R_VK_Framebuffer* out_framebuffer
-)
+R_VK_CreateFrameResources(R_VK_State* state, FrameResources* resources)
 {
-  out_framebuffer->attachments = (VkImageView*)PushArena(vk_state->arena, sizeof(VkImageView) * attachment_count);
-  for (U32 i = 0; i < attachment_count; i += 1)
-  {
-    out_framebuffer->attachments[i] = attachments[i];
-  }
-  out_framebuffer->attachment_count = attachment_count;
+  VkFenceCreateInfo fence_info = {
+    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    .flags = VK_FENCE_CREATE_SIGNALED_BIT
+  };
+  VK_CHECK(vkCreateFence(state->device.logical, &fence_info, 0, &resources->submit_fence));
 
-  VkFramebufferCreateInfo framebuffer_info = {};
-  framebuffer_info.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-  framebuffer_info.renderPass      = r_vk_state.render_pass.handle;
-  framebuffer_info.attachmentCount = attachment_count;
-  framebuffer_info.pAttachments    = out_framebuffer->attachments;
-  framebuffer_info.width           = size.width;
-  framebuffer_info.height          = size.height;
-  framebuffer_info.layers          = 1;
+  VkCommandPoolCreateInfo cmd_pool_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+    .queueFamilyIndex = state->device.graphics_queue_index
+  };
+  VK_CHECK(vkCreateCommandPool(state->device.logical, &cmd_pool_info, 0, &resources->cmd_pool));
 
-  VK_CHECK(vkCreateFramebuffer(vk_state->device.logical, &framebuffer_info, 0, &out_framebuffer->handle));
+  VkCommandBufferAllocateInfo cmd_buffer = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .commandPool = resources->cmd_pool,
+    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandBufferCount = 1
+  };
+  VK_CHECK(vkAllocateCommandBuffers(state->device.logical, &cmd_buffer, &resources->cmd_buffer));
+
+  VkSemaphoreCreateInfo semaphore_info = {
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+  };
+  VK_CHECK(vkCreateSemaphore(state->device.logical, &semaphore_info, 0, &resources->acquire_semaphore));
+  VK_CHECK(vkCreateSemaphore(state->device.logical, &semaphore_info, 0, &resources->release_semaphore));
 }
 
 func void
-R_VK_DestroyFramebuffer(R_VK_State* vk_state, R_VK_Framebuffer* framebuffer)
+R_VK_DestroyFrameResources(R_VK_State* state, FrameResources* resources)
 {
-  vkDestroyFramebuffer(vk_state->device.logical, framebuffer->handle, 0);
+  vkDestroySemaphore(state->device.logical, resources->release_semaphore, 0);
+  vkDestroySemaphore(state->device.logical, resources->acquire_semaphore, 0);
+  vkDestroyCommandPool(state->device.logical, resources->cmd_pool, 0);
+  vkDestroyFence(state->device.logical, resources->submit_fence, 0);
+}
+
+func void
+R_VK_CreateSwapchain(R_VK_State* state)
+{
+  R_VK_Swapchain swapchain = {};
   
-  // --AlNov: @TODO @EROR There is memory leak. Don't free attachments
-  *framebuffer = {};
-}
-
-func void
-R_VK_CreateSwapchain(U32 width, U32 height)
-{
-  VkSwapchainCreateInfoKHR swapchain_info = {};
-  swapchain_info.sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  swapchain_info.surface               = r_vk_state.swapchain.surface;
-  swapchain_info.minImageCount         = r_vk_state.swapchain.image_count;
-  swapchain_info.imageFormat           = r_vk_state.swapchain.surface_format.format;
-  swapchain_info.imageColorSpace       = r_vk_state.swapchain.surface_format.colorSpace;
-  swapchain_info.imageExtent.width     = width;
-  swapchain_info.imageExtent.height    = height;
-  swapchain_info.imageArrayLayers      = 1;
-  swapchain_info.imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-  swapchain_info.imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE;
-  swapchain_info.queueFamilyIndexCount = 0;
-  swapchain_info.pQueueFamilyIndices   = 0;
-  swapchain_info.preTransform          = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-  swapchain_info.compositeAlpha        = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  swapchain_info.presentMode           = VK_PRESENT_MODE_IMMEDIATE_KHR;
-  swapchain_info.clipped               = VK_TRUE;
-  swapchain_info.oldSwapchain          = VK_NULL_HANDLE;
-
-  VK_CHECK(vkCreateSwapchainKHR(r_vk_state.device.logical, &swapchain_info, 0, &r_vk_state.swapchain.handle));
-
-  vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.swapchain.handle, &r_vk_state.swapchain.image_count, 0);
-  // --AlNov: @TODO Images doesnt deleted on swapchain recreation
-  r_vk_state.swapchain.images = (VkImage*)PushArena(r_vk_state.arena, r_vk_state.swapchain.image_count * sizeof(VkImage));
-  vkGetSwapchainImagesKHR(r_vk_state.device.logical, r_vk_state.swapchain.handle, &r_vk_state.swapchain.image_count, r_vk_state.swapchain.images);
-
-  r_vk_state.swapchain.image_views = (VkImageView*)PushArena(r_vk_state.arena, r_vk_state.swapchain.image_count * sizeof(VkImageView));
-  for (U32 i = 0; i < r_vk_state.swapchain.image_count; i += 1)
+  Arena* tmp_arena = AllocateArena(Kilobytes(64));
   {
-    VkImageViewCreateInfo image_view_info = {};
-    image_view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    image_view_info.image                           = r_vk_state.swapchain.images[i];
-    image_view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
-    image_view_info.format                          = r_vk_state.swapchain.surface_format.format;
-    image_view_info.components.r                    = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.components.g                    = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.components.b                    = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.components.a                    = VK_COMPONENT_SWIZZLE_IDENTITY;
-    image_view_info.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    image_view_info.subresourceRange.baseMipLevel   = 0;
-    image_view_info.subresourceRange.levelCount     = 1;
-    image_view_info.subresourceRange.baseArrayLayer = 0;
-    image_view_info.subresourceRange.layerCount     = 1;
+    U32 format_count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(state->device.physical, state->surface.handle, &format_count, 0);
+    VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(tmp_arena, format_count * sizeof(VkSurfaceFormatKHR));
+    vkGetPhysicalDeviceSurfaceFormatsKHR(state->device.physical, state->surface.handle, &format_count, formats);
 
-    VK_CHECK(vkCreateImageView(r_vk_state.device.logical, &image_view_info, 0, &r_vk_state.swapchain.image_views[i]));
-  }
-}
-
-func void
-R_VK_RecreateSwapchain()
-{
-  vkDeviceWaitIdle(r_vk_state.device.logical);
-
-  R_VK_DestroySwapchain();
-  R_VK_CreateSwapchain(50, 50);
-
-  // --AlNov: Create Framebuffers
-  {
-    U32 image_count = r_vk_state.swapchain.image_count;
-    r_vk_state.swapchain.framebuffers = (R_VK_Framebuffer*)PushArena(r_vk_state.arena, image_count * sizeof(R_VK_Framebuffer));
-
-    for (U32 i = 0; i < image_count; i += 1)
+    for (U32 i = 0; i < format_count; i += 1)
     {
-      R_VK_DestroyFramebuffer(&r_vk_state, &r_vk_state.swapchain.framebuffers[i]);
-
-      VkImageView attachments[2] = { r_vk_state.swapchain.image_views[i], r_vk_state.depth_view };
-
-      R_VK_CreateFramebuffer(
-        &r_vk_state, &r_vk_state.render_pass, r_vk_state.swapchain.size,
-        CountArrayElements(attachments), attachments, &r_vk_state.swapchain.framebuffers[i]
-      );
+      if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
+        swapchain.surface_format = formats[i];
+      }
     }
   }
+  FreeArena(tmp_arena);
+  
+  VkSurfaceCapabilitiesKHR capabilities;
+  VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(state->device.physical,
+                                                     state->surface.handle,
+                                                     &capabilities));
+  if (capabilities.currentExtent.width == U32_MAX)
+  {
+    swapchain.size = MakeVec2u(1280, 720);
+  }
+  else
+  {
+    swapchain.size.width = capabilities.currentExtent.width;
+    swapchain.size.height = capabilities.currentExtent.height;
+  }
+
+  VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+
+  U32 image_count = capabilities.minImageCount + 1;
+  if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount))
+  {
+    image_count = capabilities.maxImageCount;
+  }
+
+  VkSwapchainCreateInfoKHR swapchain_info = {
+    .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+    .surface = state->surface.handle,
+    .minImageCount = image_count,
+    .imageFormat = swapchain.surface_format.format,
+    .imageColorSpace = swapchain.surface_format.colorSpace,
+    .imageExtent = { .width = swapchain.size.width, .height = swapchain.size.height },
+    .imageArrayLayers = 1,
+    .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .preTransform = capabilities.currentTransform,
+    .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+    .presentMode = present_mode,
+    .clipped = true,
+    .oldSwapchain = 0
+  };
+
+  VK_CHECK(vkCreateSwapchainKHR(state->device.logical, &swapchain_info, 0, &swapchain.handle));
+
+  VK_CHECK(vkGetSwapchainImagesKHR(state->device.logical, swapchain.handle, &swapchain.image_count, 0));
+  swapchain.image_arena = AllocateArena(Megabytes(8));
+  swapchain.images = (VkImage*)PushArena(swapchain.image_arena, swapchain.image_count * sizeof(VkImage));
+  VK_CHECK(vkGetSwapchainImagesKHR(state->device.logical, swapchain.handle, &swapchain.image_count, swapchain.images));
+
+  swapchain.image_views = (VkImageView*)PushArena(swapchain.image_arena, swapchain.image_count * sizeof(VkImageView));
+  swapchain.frame_resources = (FrameResources*)PushArena(swapchain.image_arena, swapchain.image_count * sizeof(FrameResources));
+  for (U32 i = 0; i < swapchain.image_count; i += 1)
+  {
+    VkImageViewCreateInfo view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = swapchain.images[i],
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = swapchain.surface_format.format,
+      .subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+      }
+    };
+
+    VK_CHECK(vkCreateImageView(state->device.logical, &view_info, 0, &swapchain.image_views[i]));
+    
+    R_VK_CreateFrameResources(state, &swapchain.frame_resources[i]);
+  }
+  
+  state->swapchain = swapchain;
 }
 
 func void
-R_VK_DestroySwapchain()
+R_VK_RecreateSwapchain(R_VK_State* state)
 {
-  for (U32 i = 0; i < r_vk_state.swapchain.image_count; i += 1)
-  {
-    vkDestroyImageView(r_vk_state.device.logical,
-                       r_vk_state.swapchain.image_views[i],
-                       0);
-  }
-
-  vkDestroySwapchainKHR(r_vk_state.device.logical,
-                        r_vk_state.swapchain.handle,
-                        0);
+  LOG_INFO("Recreate Swapchain\n");
+  R_VK_DestroySwapchain(state);
+  R_VK_CreateSwapchain(state);
 }
 
+func void
+R_VK_DestroySwapchain(R_VK_State* state)
+{
+  vkDeviceWaitIdle(state->device.logical);
+  
+  for (I32 i = 0; i < state->swapchain.image_count; i += 1)
+  {
+    R_VK_DestroyFrameResources(state, &state->swapchain.frame_resources[i]);
+    vkDestroyImageView(state->device.logical, state->swapchain.image_views[i], 0);
+  }
+
+  vkDestroySwapchainKHR(state->device.logical, state->swapchain.handle, 0);
+
+  FreeArena(state->swapchain.image_arena);
+}
+
+func B32
+R_VK_AcquireNextImage(R_VK_State* state, U32 *image_index)
+{
+  state->swapchain.current_index += 1;
+  state->swapchain.current_index %= state->swapchain.image_count;
+  U32 current_index = state->swapchain.current_index;
+
+  VkResult acquire_result = vkAcquireNextImageKHR(
+    state->device.logical, state->swapchain.handle, U64_MAX,
+    state->swapchain.frame_resources[current_index].acquire_semaphore, 0,
+    image_index
+  );
+  
+  if (acquire_result != VK_SUCCESS) {
+    return false;
+  }
+
+  vkWaitForFences(state->device.logical, 1, &state->swapchain.frame_resources[*image_index].submit_fence, true, U64_MAX);
+  vkResetFences(state->device.logical, 1, &state->swapchain.frame_resources[*image_index].submit_fence);
+
+  vkResetCommandPool(state->device.logical, state->swapchain.frame_resources[*image_index].cmd_pool, 0);
+
+  return true;
+}

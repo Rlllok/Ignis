@@ -47,7 +47,17 @@ struct R_DrawInfo
   RectI scissor;
 };
 
+enum R_RendererType
+{
+  R_RENDERER_TYPE_NONE,
+
+  R_RENDERER_TYPE_VULKAN,
+
+  R_RENDERER_TYPE_COUNT
+};
+
 typedef B32  _RendererInit(OS_Window* window);
+typedef B32  _RendererShutdown();
 typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
 typedef B32  _RendererCreatePipeline(R_Pipeline* pipeline);
 typedef B32  _RendererBeginFrame();
@@ -56,11 +66,13 @@ typedef void _RendererPresentFrame();
 typedef void _RendererBeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
 typedef void _RendererEndRenderPass();
 typedef void _RendererDraw(R_DrawInfo* draw_info);
+typedef B32  _RendererDrawTriangle();
 typedef void _RendererBindPipeline(R_Pipeline* pipeline);
 
 struct R_Renderer
 {
   _RendererInit*            Init;
+  _RendererShutdown*        Shutdown;
   _RendererDrawFrame*       DrawFrame;
   _RendererCreatePipeline*  CreatePipeline;
   _RendererBeginFrame*      BeginFrame;
@@ -69,6 +81,7 @@ struct R_Renderer
   _RendererBeginRenderPass* BeginRenderPass;
   _RendererEndRenderPass*   EndRenderPass;
   _RendererDraw*            Draw;
+  _RendererDrawTriangle*    DrawTriangle;
   _RendererBindPipeline*    BindPipeline;
   
   R_Buffer (*CreateBuffer) (
@@ -78,4 +91,5 @@ struct R_Renderer
 } Renderer;
 
 func B32 R_InitRenderer();
-func B32 R_Init(OS_Window* window);
+func B32 R_Init(R_RendererType type, OS_Window* window);
+func B32 R_Shutdown();
