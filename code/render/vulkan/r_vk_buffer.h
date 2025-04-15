@@ -3,9 +3,10 @@
 struct R_VK_Buffer
 {
   VkBuffer handle;
-  U64 size;
   VkDeviceMemory memory;
+  U64 size;
+  U64 capacity;
 };
 
-func void R_VK_CreateBuffer(R_VK_State* state);
+func R_VK_Buffer R_VK_CreateBuffer(U64 capacity, BufferUsageFlags usage_flags, BufferPropertyFlags flags);
 func void R_VK_DestroyBuffer(R_VK_State* state);

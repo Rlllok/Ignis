@@ -54,8 +54,9 @@ R_VK_Init(OS_Window* window)
   R_VK_CreateSurface(&r_vk_state, window);
   R_VK_CreateSwapchain(&r_vk_state);
   R_VK_CreateGraphicsPipeline(&r_vk_state);
-  R_VK_CreateBuffer(&r_vk_state);
-
+  
+  r_vk_state.geometry_buffer = R_VK_CreateBuffer(Megabytes(256), BUFFER_USAGE_FLAG_VERTEX | BUFFER_USAGE_FLAG_INDEX, BUFFER_PROPERTY_HOST_COHERENT | BUFFER_PROPERTY_HOST_VISIBLE);
+  
   return true;
 }
 
@@ -77,9 +78,35 @@ R_VK_Shutdown()
   return true;
 }
 
-func B32
-R_VK_Draw()
+func void R_VK_PushGeometry(R_Geometry* geometry)
 {
+  R_VK_State* state = &r_vk_state;
+  
+  void* data;
+  vkMapMemory(state->device.logical, state->geometry_buffer.memory, state->geometry_buffer.size, VK_WHOLE_SIZE, 0, &data);
+  {
+    U64 offset = 0;
+    
+    U64 index_data_size = geometry->index_size * geometry->index_count;
+    memcpy(data, geometry->index_data, index_data_size);
+    geometry->index_backend_offset = state->geometry_buffer.size;
+    offset += index_data_size + index_data_size%4;
+    state->geometry_buffer.size += offset;
+    
+    U64 vertex_data_size = geometry->vertex_size * geometry->vertex_count;
+    memcpy((U8*)data + offset, geometry->vertex_data, vertex_data_size);
+    geometry->vertex_backend_offset = state->geometry_buffer.size;
+    offset += vertex_data_size + vertex_data_size%4;
+    state->geometry_buffer.size += offset;
+  }
+  vkUnmapMemory(state->device.logical, state->geometry_buffer.memory);
+}
+
+func B32
+R_VK_DrawGeometry(R_Geometry* geometry)
+{
+  // Load geometry data to GeometryBuffer's memory
+  
   R_VK_State* state = &r_vk_state;
   
   U32 image_index;
@@ -152,12 +179,13 @@ R_VK_Draw()
         }
       };
       vkCmdSetScissor(cmd, 0, 1, &scissor);
+      
+      vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, geometry->index_backend_offset, VK_INDEX_TYPE_UINT16);
+      
+      VkDeviceSize offset = { geometry->vertex_backend_offset };
+      vkCmdBindVertexBuffers(cmd, 0, 1, &state->geometry_buffer.handle, &offset);
 
-      VkDeviceSize offset = { 8 };
-      vkCmdBindVertexBuffers(cmd, 0, 1, &state->vertex_buffer.handle, &offset);
-      vkCmdBindIndexBuffer(cmd, state->vertex_buffer.handle, 0, VK_INDEX_TYPE_UINT16);
-
-      vkCmdDrawIndexed(cmd, 3, 1, 0, 0, 0);
+      vkCmdDrawIndexed(cmd, geometry->index_count, 1, 0, 0, 0);
     }
     vkCmdEndRendering(cmd);
 

@@ -14,16 +14,8 @@ R_InitRenderer(R_RendererType type)
   {
     Renderer.Init = R_VK_Init;
     Renderer.Shutdown = R_VK_Shutdown;
-    // Renderer.CreatePipeline = R_VK_CreatePipeline;
-    // Renderer.BeginFrame = R_VK_BeginFrame;
-    // Renderer.EndFrame = R_VK_EndFrame;
-    // Renderer.PresentFrame = R_VK_PresentFrame;
-    // Renderer.BeginRenderPass = R_VK_BeginRenderPass;
-    // Renderer.EndRenderPass = R_VK_EndRenderPass;
-    // Renderer.Draw = R_VK_Draw;
-    Renderer.DrawTriangle = R_VK_Draw;
-    // Renderer.BindPipeline = R_VK_BindPipeline;
-    // Renderer.CreateBuffer = _VK_CreateBuffer;
+    Renderer.PushGeometry = R_VK_PushGeometry;
+    Renderer.DrawGeometry = R_VK_DrawGeometry;
   }
   else
   {

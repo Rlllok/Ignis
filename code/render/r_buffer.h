@@ -25,21 +25,17 @@ enum BufferPropertyFlagBits
 };
 typedef U64 BufferPropertyFlags;
 
-struct R_Buffer
+struct R_BufferReference
 {
-  U64 handle;
-  
   U64 size;
+  U64 offset;
 };
-
-func R_Buffer R_CreateBuffer(U64 size, BufferUsageFlags usage_type, BufferPropertyFlags flags);
-func void R_FillBuffer(R_Buffer* buffer, U8* data, U64 size, U64 offset);
 
 struct R_VertexBuffer
 {
-  R_Buffer buffer;
+  R_BufferReference buffer;
 
-  void* vertecies;
+  U8* vertecies;
   U64   vertex_size;
   U64   vertex_count;
 };
@@ -48,9 +44,9 @@ func R_VertexBuffer R_CreateVertexBuffer(void* vertecies, U64 vertex_size, U64 v
 
 struct R_IndexBuffer
 {
-  R_Buffer buffer;
+  R_BufferReference buffer;
 
-  void* indecies;
+  U8* indecies;
   U64   index_size;
   U64   index_count;
 };

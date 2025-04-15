@@ -26,7 +26,7 @@ struct R_VK_State
   R_VK_GraphicsPipeline pipeline;
   R_Shader vertex_shader;
   R_Shader fragment_shader;
-  R_VK_Buffer vertex_buffer;
+  R_VK_Buffer geometry_buffer;
 
 #if IGNIS_DEBUG
   VkDebugUtilsMessengerEXT debug_messenger;
@@ -45,6 +45,7 @@ func B32 R_VK_Init(OS_Window* window);
 func B32 R_VK_Shutdown();
 
 func B32 R_VK_Draw();
+func B32 R_VK_DrawGeometry(R_Geometry* geometry);
 
 #if IGNIS_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL

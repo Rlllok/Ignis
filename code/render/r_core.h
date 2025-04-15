@@ -23,6 +23,19 @@ struct R_SceneObject
   U32     index_count;
 };
 
+struct R_Geometry
+{
+  U8* index_data;
+  U64 index_size;
+  U64 index_count;
+  U64 index_backend_offset;
+  
+  U8* vertex_data;
+  U64 vertex_size;
+  U64 vertex_count;
+  U64 vertex_backend_offset;
+};
+
 struct R_FrameInfo
 {
   F32 delta_time;
@@ -58,36 +71,19 @@ enum R_RendererType
 
 typedef B32  _RendererInit(OS_Window* window);
 typedef B32  _RendererShutdown();
+
 typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
-typedef B32  _RendererCreatePipeline(R_Pipeline* pipeline);
-typedef B32  _RendererBeginFrame();
-typedef void _RendererEndFrame();
-typedef void _RendererPresentFrame();
-typedef void _RendererBeginRenderPass(Vec4f clear_color, F32 clear_depth, F32 clear_stencil);
-typedef void _RendererEndRenderPass();
-typedef void _RendererDraw(R_DrawInfo* draw_info);
-typedef B32  _RendererDrawTriangle();
-typedef void _RendererBindPipeline(R_Pipeline* pipeline);
+
+typedef void _RendererPushGeometry(R_Geometry* geometry);
+
+typedef B32  _RendererDrawGeometry(R_Geometry* geometry);
 
 struct R_Renderer
 {
   _RendererInit*            Init;
   _RendererShutdown*        Shutdown;
-  _RendererDrawFrame*       DrawFrame;
-  _RendererCreatePipeline*  CreatePipeline;
-  _RendererBeginFrame*      BeginFrame;
-  _RendererEndFrame*        EndFrame;
-  _RendererPresentFrame*    PresentFrame;
-  _RendererBeginRenderPass* BeginRenderPass;
-  _RendererEndRenderPass*   EndRenderPass;
-  _RendererDraw*            Draw;
-  _RendererDrawTriangle*    DrawTriangle;
-  _RendererBindPipeline*    BindPipeline;
-  
-  R_Buffer (*CreateBuffer) (
-      U64 size,
-      BufferUsageFlags usage_flags,
-      BufferPropertyFlags flags);
+  _RendererPushGeometry*    PushGeometry;
+  _RendererDrawGeometry*    DrawGeometry;
 } Renderer;
 
 func B32 R_InitRenderer();

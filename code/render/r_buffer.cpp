@@ -1,12 +1,6 @@
 #include "r_buffer.h"
 #include "vulkan/r_vk_buffer.h"
 
-func void
-R_FillBuffer(R_Buffer* buffer, U8* data, U64 size, U64 offset)
-{
-  _VK_FillBuffer(buffer, data, size, offset);
-}
-
 func R_VertexBuffer
 R_CreateVertexBuffer(void* vertecies, U64 vertex_size, U64 vertex_count)
 {
@@ -20,7 +14,7 @@ R_CreateVertexBuffer(void* vertecies, U64 vertex_size, U64 vertex_count)
   result.vertex_size = vertex_size;
   result.vertex_count = vertex_count;
 
-  R_FillBuffer(&result.buffer, (U8*)vertecies, vertex_size*vertex_count, 0);
+  Renderer.FillBuffer(&result.buffer, (U8*)vertecies, vertex_size*vertex_count, 0);
 
   return result;
 }
@@ -37,7 +31,7 @@ R_CreateIndexBuffer(void* indecies, U64 index_size, U64 index_count)
   result.index_size = index_size;
   result.index_count = index_count;
 
-  R_FillBuffer(&result.buffer, (U8*)indecies, index_size*index_count, 0);
+  Renderer.R_FillBuffer(&result.buffer, (U8*)indecies, index_size*index_count, 0);
 
   return result;
 }
