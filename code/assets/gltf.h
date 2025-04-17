@@ -4,6 +4,7 @@
 
 #include "base/base_include.cpp"
 
+// @TODO Remove Buffer from here to Base layer. The truth is that Buffer is String
 struct Buffer
 {
   U8* data;
@@ -62,28 +63,14 @@ struct GLTFReader
   GLTFElement* element;
 };
 
-func Buffer ReadGLTFFile(char const* file_name);
-func void GLTFError(GLTFReader* reader, GLTFToken token, const char* message);
-func GLTFToken GetGLTFToken(GLTFReader* reader);
-func GLTFElement* ParseList(GLTFReader* reader, GLTFToken start_token, enum GLTFTokenType end_type);
-func GLTFElement* ParseElement(GLTFReader* reader, Buffer label, GLTFToken token);
-func B32 ParseGLTF(GLTFReader* reader);
-func GLTFElement* LookUpElement(GLTFElement* object, Buffer label);
-
 struct GLTFBufferView
 {
   U32 buffer_id;
-  U32 offset;
+  U32 byte_offset;
   U32 byte_length;
   U32 target;
-};
 
-#define MAX_BUFFER_VIEWS 5
-struct GLTFBufferViews
-{
-  GLTFBufferView views[MAX_BUFFER_VIEWS];
-  U32 count;
-  U32 capacity = MAX_BUFFER_VIEWS;
+  GLTFBufferView* next;
 };
 
 enum GLTFAttributeType
@@ -97,22 +84,69 @@ enum GLTFAttributeType
 
 struct GLTFAttribute
 {
-  U32 acessor_id;
+  U32 accessor_id;
   GLTFAttributeType type;
+
+  GLTFAttribute* next;
+};
+
+enum GLTFAccessorType
+{
+  GLTF_ACCESSOR_TYPE_NONE,
+
+  GLTF_ACCESSOR_TYPE_SCALAR,
+  GLTF_ACCESSOR_TYPE_VEC3,
+
+  GLTF_ACCSSOR_TYPE_COUNT
+};
+
+struct GLTFAccessor
+{
+  U32 buffer_view_id;
+  U64 byte_offset;
+  U64 count;
+  GLTFAccessorType type;
+  
+  GLTFAccessor* next;
+};
+
+struct GLTFPrimitive
+{
+  U32 indices_accessor_id;
+  GLTFAttribute attributes;
+
+  GLTFPrimitive* next;
 };
 
 struct GLTFMesh
 {
-  U32 indices_accessor_id;
-  GLTFAttribute atribute;
+  List primitive_list;
+};
+
+struct GLTFBuffer
+{
+  Buffer uri;
+  U64 byte_length;
+
+  GLTFBuffer* next;
 };
 
 struct GLTFData
 {
-  U32 deault_scene_id;
-  GLTFMesh mesh;
-  GLTFBufferViews buffer_views;
+  U32 default_scene_id;
+  List buffer_list;
+  List mesh_list;
+  List buffer_view_list;
+  List accessor_list;
 };
+
+func Buffer ReadGLTFFile(char const* file_name);
+func void GLTFError(GLTFReader* reader, GLTFToken token, const char* message);
+func GLTFToken GetGLTFToken(GLTFReader* reader);
+func GLTFElement* ParseList(GLTFReader* reader, GLTFToken start_token, enum GLTFTokenType end_type);
+func GLTFElement* ParseElement(GLTFReader* reader, Buffer label, GLTFToken token);
+func GLTFData GetGLTFData(GLTFReader* reader);
+func GLTFElement* LookUpElement(GLTFElement* object, Buffer label);
 
 // Base64 Decoder
 U8 base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
@@ -157,35 +191,6 @@ Base64Decode(Buffer in)
   return result;
 }
 
-func GLTFBufferView
-GLTFGetBufferView(GLTFData* data, U32 index)
-{
-  GLTFBufferView result = {};
-
-  if (data->buffer_views.count > index)
-  {
-    result = data->buffer_views.views[index];
-  }
-  else
-  {
-    LOG_ERROR("BufferView's index is out of bound");
-  }
-  
-  return result;
-}
-
-func void
-GLTFAddBufferView(GLTFData* data, GLTFBufferView view)
-{
-  if (data->buffer_views.count == data->buffer_views.capacity)
-  {
-    LOG_ERROR("GLTFBufferViews is full");
-    return;
-  }
-
-  data->buffer_views.views[data->buffer_views.count] = view;
-  data->buffer_views.count += 1;
-}
 
 // @TODO Move
 func F64 GetNumberElement(GLTFElement* element, Buffer label)

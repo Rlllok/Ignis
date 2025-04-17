@@ -2,39 +2,10 @@
 
 #include "../base/base_include.h"
 #include "base/base_math.h"
+#include "assets/mesh.h"
+
 #include "r_pipeline.h"
 #include "r_buffer.h"
-
-struct R_SceneObject
-{
-  struct Vertex
-  {
-    Vec3f position;
-    Vec3f normal;
-    Vec2f uv;
-  };
-
-  R_SceneObject* next;
-  R_SceneObject* previous;
-
-  Vertex* vertecies;
-  U32     vertex_count;
-  U32*    indecies;
-  U32     index_count;
-};
-
-struct R_Geometry
-{
-  U8* index_data;
-  U64 index_size;
-  U64 index_count;
-  U64 index_backend_offset;
-  
-  U8* vertex_data;
-  U64 vertex_size;
-  U64 vertex_count;
-  U64 vertex_backend_offset;
-};
 
 struct R_FrameInfo
 {
@@ -74,9 +45,9 @@ typedef B32  _RendererShutdown();
 
 typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
 
-typedef void _RendererPushGeometry(R_Geometry* geometry);
+typedef void _RendererPushGeometry(AST_Geometry* geometry);
 
-typedef B32  _RendererDrawGeometry(R_Geometry* geometry);
+typedef B32  _RendererDrawGeometry(AST_Geometry* geometry);
 
 struct R_Renderer
 {

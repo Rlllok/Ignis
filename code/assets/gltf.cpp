@@ -1,6 +1,8 @@
-#include "r_gltf.h"
+#include "gltf.h"
 
+#include "base/base_core.h"
 #include "sys/stat.h"
+#include <winscard.h>
 
 func Buffer
 AllocateBuffer(U64 size)
@@ -314,12 +316,75 @@ ParseElement(GLTFReader* reader, Buffer label, GLTFToken token)
   return result;
 }
 
-func B32
-ParseGLTF(GLTFReader* reader)
+func GLTFData
+GetGLTFData(GLTFReader* reader)
 {
-  reader->element = ParseElement(reader, {}, GetGLTFToken(reader));
+  // @TODO @NOTE NO FREE
+  Arena* licky_arena = AllocateArena(Megabytes(16));
+  
+  GLTFData result = {};
+  
+  GLTFElement* head = ParseElement(reader, {}, GetGLTFToken(reader));
 
-  return true;
+  result.default_scene_id = GetNumberElement(head, ConstString("scene"));
+  
+  // Meshes
+  result.mesh_list = CreateList(licky_arena);
+  GLTFElement* meshes_list_element = LookUpElement(head, ConstString("meshes"));
+  for (GLTFElement* mesh_element = meshes_list_element->first_sub_element;
+       mesh_element;
+       mesh_element = mesh_element->next_sibling)
+  {
+    GLTFMesh mesh = {};
+    mesh.primitive_list = CreateList(licky_arena);
+    
+    GLTFElement* primitives_list_element = LookUpElement(mesh_element, ConstString("primitives"));
+    for (GLTFElement* primitive_element = primitives_list_element->first_sub_element;
+         primitive_element;
+         primitive_element = primitive_element->next_sibling)
+    {
+      GLTFPrimitive primitive = {};
+      GLTFElement* attributes = LookUpElement(primitive_element, ConstString("attributes"));
+      for (GLTFElement* attribute = attributes->first_sub_element;
+           attribute;
+           attribute = attribute->next_sibling)
+      {
+        if (AreBuffersEqual(attribute->label, ConstString("POSITION")))
+        {
+          primitive.attributes.type = GLTF_ATTRIBUTE_TYPE_POSITION;
+          primitive.attributes.accessor_id = GetNumberElement(attributes, ConstString("POSITION"));
+        }
+        else
+        {
+          LOG_ERROR("Wrong Attribute name\n");
+        }
+      }
+            
+      primitive.indices_accessor_id = GetNumberElement(primitive_element, ConstString("indices"));
+      
+      PushList(&mesh.primitive_list, GLTFPrimitive, &primitive);
+    }
+    PushList(&result.mesh_list, GLTFMesh, &mesh);
+  }
+
+  // BufferViews
+  result.buffer_view_list = CreateList(licky_arena);
+  GLTFElement* buffer_views_list = LookUpElement(head, ConstString("bufferViews"));
+  for (GLTFElement* buffer_view_element = buffer_views_list->first_sub_element;
+       buffer_view_element;
+       buffer_view_element = buffer_view_element->next_sibling)
+  {
+    GLTFBufferView buffer_view = {};
+    
+    buffer_view.buffer_id = GetNumberElement(buffer_view_element, ConstString("buffer"));
+    buffer_view.byte_offset = GetNumberElement(buffer_view_element, ConstString("byteOffset"));
+    buffer_view.byte_length = GetNumberElement(buffer_view_element, ConstString("byteLength"));
+    buffer_view.target = GetNumberElement(buffer_view_element, ConstString("target"));
+
+    PushList(&result.buffer_view_list, GLTFBufferView, &buffer_view);
+  }
+  
+  return result;
 }
 
 func GLTFElement*

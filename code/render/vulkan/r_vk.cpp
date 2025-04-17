@@ -78,7 +78,7 @@ R_VK_Shutdown()
   return true;
 }
 
-func void R_VK_PushGeometry(R_Geometry* geometry)
+func void R_VK_PushGeometry(AST_Geometry* geometry)
 {
   R_VK_State* state = &r_vk_state;
   
@@ -89,13 +89,13 @@ func void R_VK_PushGeometry(R_Geometry* geometry)
     
     U64 index_data_size = geometry->index_size * geometry->index_count;
     memcpy(data, geometry->index_data, index_data_size);
-    geometry->index_backend_offset = state->geometry_buffer.size;
+    geometry->index_r_backend_offset = state->geometry_buffer.size;
     offset += index_data_size + index_data_size%4;
     state->geometry_buffer.size += offset;
     
     U64 vertex_data_size = geometry->vertex_size * geometry->vertex_count;
     memcpy((U8*)data + offset, geometry->vertex_data, vertex_data_size);
-    geometry->vertex_backend_offset = state->geometry_buffer.size;
+    geometry->vertex_r_backend_offset = state->geometry_buffer.size;
     offset += vertex_data_size + vertex_data_size%4;
     state->geometry_buffer.size += offset;
   }
@@ -103,7 +103,7 @@ func void R_VK_PushGeometry(R_Geometry* geometry)
 }
 
 func B32
-R_VK_DrawGeometry(R_Geometry* geometry)
+R_VK_DrawGeometry(AST_Geometry* geometry)
 {
   // Load geometry data to GeometryBuffer's memory
   
@@ -180,9 +180,9 @@ R_VK_DrawGeometry(R_Geometry* geometry)
       };
       vkCmdSetScissor(cmd, 0, 1, &scissor);
       
-      vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, geometry->index_backend_offset, VK_INDEX_TYPE_UINT16);
+      vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, geometry->index_r_backend_offset, VK_INDEX_TYPE_UINT16);
       
-      VkDeviceSize offset = { geometry->vertex_backend_offset };
+      VkDeviceSize offset = { geometry->vertex_r_backend_offset };
       vkCmdBindVertexBuffers(cmd, 0, 1, &state->geometry_buffer.handle, &offset);
 
       vkCmdDrawIndexed(cmd, geometry->index_count, 1, 0, 0, 0);

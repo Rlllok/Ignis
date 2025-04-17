@@ -45,7 +45,8 @@ func B32 R_VK_Init(OS_Window* window);
 func B32 R_VK_Shutdown();
 
 func B32 R_VK_Draw();
-func B32 R_VK_DrawGeometry(R_Geometry* geometry);
+// @TODO Vulkan later should not know about geometry. It works with index/vertex/uniform buffers
+func B32 R_VK_DrawGeometry(AST_Geometry* geometry);
 
 #if IGNIS_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL
