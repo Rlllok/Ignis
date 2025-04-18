@@ -18,21 +18,12 @@ I32 main()
 #endif // IGNIS_DEBUG
 
   GLTFReader gltf_reader = {};
-  gltf_reader.file_buffer = ReadFile("data/box_gltf/test.gltf");
-
-  Arena* list_arena = AllocateArena(Megabytes(4));
-  List list = CreateList(list_arena);
-  {
-    I32 item0 = 110;
-    PushList(&list, I32, &item0);
-    I32 item1 = 10;
-    PushList(&list, I32, &item1);
-  }
-
-  I32 item = *(I32*)list.first->data;
+  gltf_reader.file_buffer = ReadFile(ConstString("data/box_gltf/test.gltf"));
 
   GLTFData gltf_data = GetGLTFData(&gltf_reader);
-  GLTFBufferView buffer_view = *(GLTFBufferView*)gltf_data.buffer_view_list.first->next->data;
+  GLTFBufferView buffer_view = gltf_data.buffer_view_list.first->data;
+  
+  LOG_INFO("%d", buffer_view.byte_length);
   
   return 0;
 }

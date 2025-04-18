@@ -35,6 +35,8 @@ enum GLTFTokenType
   GLTF_TOKEN_TYPE_CLOSE_BRACKET,
   GLTF_TOKEN_TYPE_STRING,
   GLTF_TOKEN_TYPE_NUMBER,
+  GLTF_TOKEN_TYPE_TRUE,
+  GLTF_TOKEN_TYPE_FALSE,
   
   GLTF_TOKEN_TYPE_COUNT
 };
@@ -63,21 +65,13 @@ struct GLTFReader
   GLTFElement* element;
 };
 
-struct GLTFBufferView
-{
-  U32 buffer_id;
-  U32 byte_offset;
-  U32 byte_length;
-  U32 target;
-
-  GLTFBufferView* next;
-};
-
 enum GLTFAttributeType
 {
   GLTF_ATTRIBUTE_TYPE_NONE,
   
   GLTF_ATTRIBUTE_TYPE_POSITION,
+  GLTF_ATTRIBUTE_TYPE_NORMAL,
+  GLTF_ATTRIBUTE_TYPE_TEXCOORD_0,
 
   GLTF_ATTRIBUTE_TYPE_COUNT
 };
@@ -89,6 +83,7 @@ struct GLTFAttribute
 
   GLTFAttribute* next;
 };
+DefineList(GLTFAttribute)
 
 enum GLTFAccessorType
 {
@@ -109,19 +104,22 @@ struct GLTFAccessor
   
   GLTFAccessor* next;
 };
+DefineList(GLTFAccessor)
 
 struct GLTFPrimitive
 {
   U32 indices_accessor_id;
-  GLTFAttribute attributes;
+  ListGLTFAttribute attribute_list;
 
   GLTFPrimitive* next;
 };
+DefineList(GLTFPrimitive)
 
 struct GLTFMesh
 {
-  List primitive_list;
+  ListGLTFPrimitive primitive_list;
 };
+DefineList(GLTFMesh)
 
 struct GLTFBuffer
 {
@@ -130,23 +128,36 @@ struct GLTFBuffer
 
   GLTFBuffer* next;
 };
+DefineList(GLTFBuffer)
+
+struct GLTFBufferView
+{
+  U32 buffer_id;
+  U32 byte_offset;
+  U32 byte_length;
+  U32 target;
+
+  GLTFBufferView* next;
+};
+DefineList(GLTFBufferView)
 
 struct GLTFData
 {
   U32 default_scene_id;
-  List buffer_list;
-  List mesh_list;
-  List buffer_view_list;
-  List accessor_list;
+  ListGLTFBuffer buffer_list;
+  ListGLTFMesh mesh_list;
+  ListGLTFBufferView buffer_view_list;
+  ListGLTFAccessor accessor_list;
 };
 
-func Buffer ReadGLTFFile(char const* file_name);
+func Buffer ReadGLTFFile(Buffer file_name);
 func void GLTFError(GLTFReader* reader, GLTFToken token, const char* message);
 func GLTFToken GetGLTFToken(GLTFReader* reader);
 func GLTFElement* ParseList(GLTFReader* reader, GLTFToken start_token, enum GLTFTokenType end_type);
 func GLTFElement* ParseElement(GLTFReader* reader, Buffer label, GLTFToken token);
 func GLTFData GetGLTFData(GLTFReader* reader);
 func GLTFElement* LookUpElement(GLTFElement* object, Buffer label);
+func Buffer GetDataFromGLTFBuffer(GLTFBuffer gltf_buffer);
 
 // Base64 Decoder
 U8 base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',

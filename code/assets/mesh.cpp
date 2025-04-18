@@ -10,24 +10,27 @@ AST_LoadGeometryFromGLTF(const char* gltf_name)
   AST_Geometry result = {};
   
   GLTFReader gltf_reader = {};
-  gltf_reader.file_buffer = ReadFile(gltf_name);
-  //ParseGLTF(&gltf_reader);
+  gltf_reader.file_buffer = ReadFile(ConstString("data/monkey_gltf/monkey.gltf"));
 
-  GLTFElement* buffers_list_element = LookUpElement(gltf_reader.element, ConstString("buffers"));
-  GLTFElement* buffer_element = buffers_list_element->first_sub_element->first_sub_element;
-  Buffer mesh_buffer = buffer_element->value;
+  GLTFData gltf_data = GetGLTFData(&gltf_reader);
   
-  U64 comma_position = FindPosition(mesh_buffer, ',');
-  mesh_buffer.data = mesh_buffer.data + comma_position + 1;
-  mesh_buffer.size = mesh_buffer.size - comma_position - 1;
-  Buffer decoded = Base64Decode(mesh_buffer);  
+  Buffer decoded = GetDataFromGLTFBuffer(gltf_data.buffer_list.first->data);  
   
-  result.index_data = decoded.data;
-  result.index_size = sizeof(U16);
-  result.index_count = 3;
-  result.vertex_data = decoded.data + 8;
-  result.vertex_size = sizeof(Vec3f);
-  result.vertex_count = 3;
+  U64 index_accessor_id = gltf_data.mesh_list.first->data.primitive_list.first->data.indices_accessor_id;
+  U64 position_accessor_id = 0; //gltf_data.mesh_list.first->data.primitive_list.first->data.attributes.accessor_id;
+
+  GLTFAccessor index_accessor = GetListGLTFAccessorItem(&gltf_data.accessor_list, index_accessor_id);
+  GLTFAccessor position_accessor = GetListGLTFAccessorItem(&gltf_data.accessor_list, position_accessor_id);
+
+  GLTFBufferView index_buffer_view = GetListGLTFBufferViewItem(&gltf_data.buffer_view_list, index_accessor.buffer_view_id);
+  GLTFBufferView position_buffer_view = GetListGLTFBufferViewItem(&gltf_data.buffer_view_list, position_accessor.buffer_view_id);
+  
+  result.index_data = decoded.data + index_buffer_view.byte_offset;
+  result.index_size = index_buffer_view.byte_length / index_accessor.count;
+  result.index_count = index_accessor.count;
+  result.vertex_data = decoded.data + position_buffer_view.byte_offset;
+  result.vertex_size = position_buffer_view.byte_length / position_accessor.count;
+  result.vertex_count = position_accessor.count;
 
   return result;
 }

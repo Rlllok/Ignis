@@ -9,6 +9,8 @@
 #include "render/r_include.cpp"
 #include "assets/mesh.cpp"
 
+DefineList(I32);
+
 struct AppState
 {
   Arena* arena;
@@ -33,7 +35,7 @@ I32 main()
   // @TODO Create Pipeline
   
   // @TODO @NOTE Hardcoded gltf information in R_Geometry
-  AST_Geometry geometry = AST_LoadGeometryFromGLTF("data/box_gltf/test.gltf");
+  AST_Geometry geometry = AST_LoadGeometryFromGLTF("data/monkey_gltf/monkey.gltf");
   Renderer.PushGeometry(&geometry);
   
   while (!app_state.is_window_closed)
