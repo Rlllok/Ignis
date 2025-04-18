@@ -10,18 +10,24 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
 
   VkVertexInputBindingDescription binding_description = {
     .binding = 0,
-    .stride = sizeof(Vec3f),
+    .stride = 2 * sizeof(Vec3f),
     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
   };
 
-  VkVertexInputAttributeDescription attribute_descriptions[1];
+  VkVertexInputAttributeDescription attribute_descriptions[2];
   attribute_descriptions[0] = {
     .location = 0,
     .binding = 0,
     .format = VK_FORMAT_R32G32B32_SFLOAT,
     .offset = 0
   };
-
+  attribute_descriptions[1] = {
+    .location = 1,
+    .binding = 0,
+    .format = VK_FORMAT_R32G32B32_SFLOAT,
+    .offset = 0
+  };
+  
   VkPipelineVertexInputStateCreateInfo vertex_input = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
     .vertexBindingDescriptionCount = 1,
