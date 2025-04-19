@@ -214,6 +214,19 @@ R_VK_BeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color
     .clearValue = clear_value
   };
 
+  VkRenderingAttachmentInfo depth_attachment = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .imageView = state->swapchain.depth_image_view,
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+    .loadOp = R_VK_GetVkAttachmentLoadOperation(load_operation),
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .clearValue = {
+      .depthStencil = {
+        .depth = 0.0
+      }
+    }
+  };
+
   VkExtent2D render_area = {
     .width = state->swapchain.size.width,
     .height = state->swapchain.size.height
@@ -227,6 +240,7 @@ R_VK_BeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color
     .layerCount = 1,
     .colorAttachmentCount = 1,
     .pColorAttachments = &color_attachment,
+    .pDepthAttachment = &depth_attachment
   };
 
   VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;

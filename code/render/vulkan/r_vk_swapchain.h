@@ -24,6 +24,9 @@ struct R_VK_Swapchain
   U32 image_count;
   VkImage* images;
   VkImageView* image_views;
+  VkImage depth_image;
+  VkDeviceMemory depth_image_memory;
+  VkImageView depth_image_view;
   FrameResources* frame_resources; // Per Image
   U32 current_index;
 };

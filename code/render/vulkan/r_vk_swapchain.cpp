@@ -131,6 +131,54 @@ R_VK_CreateSwapchain(R_VK_State* state)
     
     R_VK_CreateFrameResources(state, &swapchain.frame_resources[i]);
   }
+
+  {
+    VkImageCreateInfo image_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = VK_FORMAT_D32_SFLOAT,
+      .extent = { .width = swapchain.size.width, .height = swapchain.size.height, .depth = 1 },
+      .mipLevels = 1,
+      .arrayLayers = 1,
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .tiling = VK_IMAGE_TILING_OPTIMAL,
+      .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+      .queueFamilyIndexCount = 0,
+      .pQueueFamilyIndices = 0,
+      .initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+    };
+
+    VK_CHECK(vkCreateImage(state->device.logical, &image_info, 0, &swapchain.depth_image));
+
+    VkMemoryRequirements memory_requirements;
+    vkGetImageMemoryRequirements(state->device.logical, swapchain.depth_image, &memory_requirements);
+
+    VkMemoryAllocateInfo allocate_info = {
+      .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize = memory_requirements.size,
+      .memoryTypeIndex = R_VK_FindMemoryTypeIndex(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+    };
+    VK_CHECK(vkAllocateMemory(state->device.logical, &allocate_info, 0, &swapchain.depth_image_memory));
+    
+    vkBindImageMemory(state->device.logical, swapchain.depth_image, swapchain.depth_image_memory, 0);
+
+    VkImageViewCreateInfo view_info = {
+      .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+      .image = swapchain.depth_image,
+      .viewType = VK_IMAGE_VIEW_TYPE_2D,
+      .format = VK_FORMAT_D32_SFLOAT,
+      .subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+      }
+    };
+
+    VK_CHECK(vkCreateImageView(state->device.logical, &view_info, 0, &swapchain.depth_image_view));
+  }
   
   state->swapchain = swapchain;
 }
