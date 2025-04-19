@@ -1,4 +1,6 @@
 #include "r_vk_swapchain.h"
+#include "render/vulkan/r_vk_utils.h"
+#include "third_party/vulkan/include/vulkan_core.h"
 
 func void
 R_VK_CreateFrameResources(R_VK_State* state, FrameResources* resources)

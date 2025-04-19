@@ -14,6 +14,12 @@ R_InitRenderer(R_RendererType type)
   {
     Renderer.Init = R_VK_Init;
     Renderer.Shutdown = R_VK_Shutdown;
+    Renderer.CreatePipeline = R_VK_CreateGraphicsPipeline;
+    Renderer.BindPipeline = R_VK_BindPipeline;
+    Renderer.BeginFrame = R_VK_BeginFrame;
+    Renderer.EndFrame = R_VK_EndFrame;
+    Renderer.BeginRenderPass = R_VK_BeginRenderPass;
+    Renderer.EndRenderPass = R_VK_EndRenderPass;
     Renderer.PushGeometry = R_VK_PushGeometry;
     Renderer.DrawGeometry = R_VK_DrawGeometry;
   }

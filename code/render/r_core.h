@@ -40,19 +40,42 @@ enum R_RendererType
   R_RENDERER_TYPE_COUNT
 };
 
+enum R_AttachmentLoadOperation
+{
+  R_ATTACHMENT_LOAD_OPERATION_DONT_CARE,
+  R_ATTACHMENT_LOAD_OPERATION_LOAD,
+  R_ATTACHMENT_LOAD_OPERATION_CLEAR
+};
+
 typedef B32  _RendererInit(OS_Window* window);
 typedef B32  _RendererShutdown();
 
-typedef B32  _RendererDrawFrame(R_Pipeline* pipeline);
+typedef void _RendererCreatePipeline(R_Pipeline* pipeline);
+typedef void _RendererBindPipeline(R_Pipeline* pipeline);
+
+typedef void _RendererBeginFrame();
+typedef void _RendererEndFrame();
+
+typedef void _RendererBeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
+typedef void _RendererEndRenderPass();
 
 typedef void _RendererPushGeometry(AST_Geometry* geometry);
-
 typedef B32  _RendererDrawGeometry(AST_Geometry* geometry);
 
 struct R_Renderer
 {
   _RendererInit*            Init;
   _RendererShutdown*        Shutdown;
+
+  _RendererCreatePipeline*  CreatePipeline;
+  _RendererBindPipeline*    BindPipeline;
+  
+  _RendererBeginFrame*      BeginFrame;
+  _RendererEndFrame*        EndFrame;
+
+  _RendererBeginRenderPass* BeginRenderPass;
+  _RendererEndRenderPass*   EndRenderPass;
+  
   _RendererPushGeometry*    PushGeometry;
   _RendererDrawGeometry*    DrawGeometry;
 } Renderer;

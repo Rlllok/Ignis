@@ -1,4 +1,5 @@
 #include "r_vk.h"
+#include "third_party/vulkan/include/vulkan_core.h"
 
 func B32
 R_VK_Init(OS_Window* window)
@@ -53,7 +54,6 @@ R_VK_Init(OS_Window* window)
   R_VK_CreateDevice(&r_vk_state);
   R_VK_CreateSurface(&r_vk_state, window);
   R_VK_CreateSwapchain(&r_vk_state);
-  R_VK_CreateGraphicsPipeline(&r_vk_state);
   
   r_vk_state.geometry_buffer = R_VK_CreateBuffer(Megabytes(256), BUFFER_USAGE_FLAG_VERTEX | BUFFER_USAGE_FLAG_INDEX, BUFFER_PROPERTY_HOST_COHERENT | BUFFER_PROPERTY_HOST_VISIBLE);
   
@@ -102,104 +102,63 @@ func void R_VK_PushGeometry(AST_Geometry* geometry)
   vkUnmapMemory(state->device.logical, state->geometry_buffer.memory);
 }
 
-func B32
-R_VK_DrawGeometry(AST_Geometry* geometry)
+func void
+R_VK_BindPipeline(R_Pipeline* pipeline)
 {
-  // Load geometry data to GeometryBuffer's memory
-  
+  R_VK_State* state = &r_vk_state;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->graphics_pipelines[pipeline->backend_handle].handle);
+}
+
+func void
+R_VK_BeginFrame()
+{
   R_VK_State* state = &r_vk_state;
   
-  U32 image_index;
-  R_VK_AcquireNextImage(state, &image_index);
+  R_VK_AcquireNextImage(state, &state->current_image_id);
   
-  VkCommandBuffer cmd = state->swapchain.frame_resources[image_index].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
 
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
   }; 
 
-  VK_CHECK(vkBeginCommandBuffer(cmd, &begin_info))
-  {
-    R_VK_TransitImageLayout(
-      cmd,
-      state->swapchain.images[image_index],
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      0,
-      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-    );
+  VK_CHECK(vkBeginCommandBuffer(cmd, &begin_info));
+  
+  R_VK_TransitImageLayout(
+    cmd,
+    state->swapchain.images[state->current_image_id],
+    VK_IMAGE_LAYOUT_UNDEFINED,
+    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    0,
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_IMAGE_ASPECT_COLOR_BIT
+  );
+}
 
-    VkClearValue clear_value = {
-      .color = { {0.01f, 0.01f, 0.033f, 1.0f} }
-    };
+func void
+R_VK_EndFrame()
+{
+  R_VK_State* state = &r_vk_state;
+  
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  vkCmdEndRendering(cmd);
 
-    VkRenderingAttachmentInfo color_attachment = {
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = state->swapchain.image_views[image_index],
-      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clear_value
-    };
-
-    VkExtent2D render_area = {
-      .width = state->swapchain.size.width,
-      .height = state->swapchain.size.height
-    };
-    VkRenderingInfo rendering_info = {
-      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-      .renderArea = {
-        .offset = { 0, 0 },
-        .extent = render_area
-      },
-      .layerCount = 1,
-      .colorAttachmentCount = 1,
-      .pColorAttachments = &color_attachment
-    };
-
-    vkCmdBeginRendering(cmd, &rendering_info);
-    {
-      vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->pipeline.handle);
-      
-      VkViewport viewport = {
-        .width = (F32)render_area.width,
-        .height = (F32)render_area.height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f
-      };
-      vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-      VkRect2D scissor = {
-        .extent = {
-          .width = render_area.width,
-          .height = render_area.height
-        }
-      };
-      vkCmdSetScissor(cmd, 0, 1, &scissor);
-      
-      vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, geometry->index_r_backend_offset, VK_INDEX_TYPE_UINT16);
-      
-      VkDeviceSize offset = { geometry->vertex_r_backend_offset };
-      vkCmdBindVertexBuffers(cmd, 0, 1, &state->geometry_buffer.handle, &offset);
-
-      vkCmdDrawIndexed(cmd, geometry->index_count, 1, 0, 0, 0);
-    }
-    vkCmdEndRendering(cmd);
-
-    R_VK_TransitImageLayout(
-      cmd,
-      state->swapchain.images[image_index],
-      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-      0,
-      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-      VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-    );
-  }
+  R_VK_TransitImageLayout(
+    cmd,
+    state->swapchain.images[state->current_image_id],
+    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    0,
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+    VK_IMAGE_ASPECT_COLOR_BIT
+  );
+  
   VK_CHECK(vkEndCommandBuffer(cmd));
 
   VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
@@ -212,26 +171,111 @@ R_VK_DrawGeometry(AST_Geometry* geometry)
     .commandBufferCount = 1,
     .pCommandBuffers = &cmd,
     .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &state->swapchain.frame_resources[image_index].release_semaphore
+    .pSignalSemaphores = &state->swapchain.frame_resources[state->current_image_id].release_semaphore
   };
 
-  VK_CHECK(vkQueueSubmit(state->device.graphics_queue, 1, &submit_info, state->swapchain.frame_resources[image_index].submit_fence));
+  VkResult vk_result = (vkQueueSubmit(state->device.graphics_queue, 1, &submit_info, state->swapchain.frame_resources[state->current_image_id].submit_fence));
+  VK_CHECK(vk_result);
   
   VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &state->swapchain.frame_resources[image_index].release_semaphore,
+    .pWaitSemaphores = &state->swapchain.frame_resources[state->current_image_id].release_semaphore,
     .swapchainCount = 1,
     .pSwapchains = &state->swapchain.handle,
-    .pImageIndices = &image_index
+    .pImageIndices = &state->current_image_id
   };
 
   VkResult present_result = vkQueuePresentKHR(state->device.graphics_queue, &present_info);
 
   if (present_result != VK_SUCCESS)
   {
-    return false;
+    // return false;
   }
+}
+
+func void
+R_VK_BeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color)
+{
+  R_VK_State* state = &r_vk_state;
+  
+  VkClearValue clear_value = {};
+  clear_value.color.float32[0] = clear_color.r;
+  clear_value.color.float32[1] = clear_color.g;
+  clear_value.color.float32[2] = clear_color.b;
+  clear_value.color.float32[3] = clear_color.a;
+
+  VkRenderingAttachmentInfo color_attachment = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .imageView = state->swapchain.image_views[state->current_image_id],
+    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    .loadOp = R_VK_GetVkAttachmentLoadOperation(load_operation),
+    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    .clearValue = clear_value
+  };
+
+  VkExtent2D render_area = {
+    .width = state->swapchain.size.width,
+    .height = state->swapchain.size.height
+  };
+  VkRenderingInfo rendering_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+    .renderArea = {
+      .offset = { 0, 0 },
+      .extent = render_area
+    },
+    .layerCount = 1,
+    .colorAttachmentCount = 1,
+    .pColorAttachments = &color_attachment,
+  };
+
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  vkCmdBeginRendering(cmd, &rendering_info);
+}
+
+func void
+R_VK_EndRenderPass()
+{
+  R_VK_State* state = &r_vk_state;
+  
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  vkCmdEndRendering(cmd);
+}
+
+func B32
+R_VK_DrawGeometry(AST_Geometry* geometry)
+{
+  R_VK_State* state = &r_vk_state;
+  
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  
+  VkExtent2D render_area = {
+    .width = state->swapchain.size.width,
+    .height = state->swapchain.size.height
+  };
+    
+  VkViewport viewport = {
+    .width = (F32)render_area.width,
+    .height = (F32)render_area.height,
+    .minDepth = 0.0f,
+    .maxDepth = 1.0f
+  };
+  vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+  VkRect2D scissor = {
+    .extent = {
+      .width = render_area.width,
+      .height = render_area.height
+    }
+  };
+  vkCmdSetScissor(cmd, 0, 1, &scissor);
+  
+  vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, geometry->index_r_backend_offset, VK_INDEX_TYPE_UINT16);
+  
+  VkDeviceSize offset = { geometry->vertex_r_backend_offset };
+  vkCmdBindVertexBuffers(cmd, 0, 1, &state->geometry_buffer.handle, &offset);
+  
+  vkCmdDrawIndexed(cmd, geometry->index_count, 1, 0, 0, 0);
 
   return true;
 }

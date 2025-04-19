@@ -6,7 +6,7 @@
 #include "third_party/vulkan/include/vulkan_win32.h"
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
-#define VK_CHECK(expression) Assert(expression != VK_SUCCESS);
+#define VK_CHECK(expression) Assert(expression != VK_SUCCESS)
 
 #include "r_vk_utils.h"
 #include "r_vk_device.h"
@@ -23,10 +23,12 @@ struct R_VK_State
   R_VK_Device device;
   R_VK_Surface surface;
   R_VK_Swapchain swapchain;
-  R_VK_GraphicsPipeline pipeline;
-  R_Shader vertex_shader;
-  R_Shader fragment_shader;
+  R_VK_GraphicsPipeline graphics_pipelines[10];
   R_VK_Buffer geometry_buffer;
+
+  U32 current_cmd_id;
+  U32 current_image_id;
+  U32 pipelines_count;
 
 #if IGNIS_DEBUG
   VkDebugUtilsMessengerEXT debug_messenger;
@@ -43,6 +45,13 @@ struct R_VK_State
 
 func B32 R_VK_Init(OS_Window* window);
 func B32 R_VK_Shutdown();
+
+func void R_VK_BindPipeline(R_Pipeline* pipeline);
+
+func void R_VK_BeginFrame();
+func void R_VK_EndFrame();
+func void R_VK_BeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
+func void R_VK_EndRenderPass();
 
 func B32 R_VK_Draw();
 // @TODO Vulkan later should not know about geometry. It works with index/vertex/uniform buffers

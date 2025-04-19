@@ -1,38 +1,43 @@
 #include "r_vk_pipeline.h"
+#include "render/r_pipeline.h"
+#include "render/vulkan/r_vk_utils.h"
+#include "third_party/vulkan/include/vulkan_core.h"
 
 func void
-R_VK_CreateGraphicsPipeline(R_VK_State* state)
+R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
 {
+  R_VK_State* state =&r_vk_state;
+  
   VkPipelineLayoutCreateInfo layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
   };
-  VK_CHECK(vkCreatePipelineLayout(state->device.logical, &layout_info, 0, &state->pipeline.layout));
+  VK_CHECK(vkCreatePipelineLayout(state->device.logical, &layout_info, 0, &state->graphics_pipelines[state->pipelines_count].layout));
+  
+  U32 stride = 0;
+  VkVertexInputAttributeDescription attribute_descriptions[MAX_ATTRIBUTES];
+  for (U32 i = 0; i < pipeline->attributes_count; i += 1)
+  {
+    attribute_descriptions[i] = {
+      .location = i,
+      .binding = 0,
+      .format = R_VK_GetVkFormatAttribute(pipeline->attributes[i]),
+      .offset = 0
+    };
 
+    stride += R_H_OffsetFromAttributeFormat(pipeline->attributes[i]);
+  }
+  
   VkVertexInputBindingDescription binding_description = {
     .binding = 0,
-    .stride = 2 * sizeof(Vec3f),
-    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-  };
-
-  VkVertexInputAttributeDescription attribute_descriptions[2];
-  attribute_descriptions[0] = {
-    .location = 0,
-    .binding = 0,
-    .format = VK_FORMAT_R32G32B32_SFLOAT,
-    .offset = 0
-  };
-  attribute_descriptions[1] = {
-    .location = 1,
-    .binding = 0,
-    .format = VK_FORMAT_R32G32B32_SFLOAT,
-    .offset = 0
+    .stride = stride,
+    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
   };
   
   VkPipelineVertexInputStateCreateInfo vertex_input = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
     .vertexBindingDescriptionCount = 1,
     .pVertexBindingDescriptions = &binding_description,
-    .vertexAttributeDescriptionCount = CountArrayElements(attribute_descriptions),
+    .vertexAttributeDescriptionCount = pipeline->attributes_count,
     .pVertexAttributeDescriptions = attribute_descriptions
   };
 
@@ -76,7 +81,9 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
 
   VkPipelineDepthStencilStateCreateInfo depth_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-    .depthCompareOp = VK_COMPARE_OP_ALWAYS
+    .depthTestEnable = VK_TRUE,
+    .depthWriteEnable = VK_TRUE,
+    .depthCompareOp = VK_COMPARE_OP_LESS
   };
 
   VkPipelineMultisampleStateCreateInfo multisample = {
@@ -90,19 +97,12 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
     .pDynamicStates = dynamic_states
   };
 
-  R_H_LoadShader(state->arena, "data/shaders/triangle.vs.glsl",
-                 "main", R_SHADER_TYPE_VERTEX,
-                 &state->vertex_shader);
-  R_H_LoadShader(state->arena, "data/shaders/triangle.fs.glsl",
-                 "main", R_SHADER_TYPE_FRAGMENT,
-                 &state->fragment_shader);
-
   VkShaderModule vertex_module;
   {
     VkShaderModuleCreateInfo module_info = {
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-      .codeSize = state->vertex_shader.code_size,
-      .pCode = (U32*)state->vertex_shader.code
+      .codeSize = pipeline->shaders[R_SHADER_TYPE_VERTEX].code_size,
+      .pCode = (U32*)pipeline->shaders[R_SHADER_TYPE_VERTEX].code
     };
     VK_CHECK(vkCreateShaderModule(state->device.logical, &module_info, 0, &vertex_module));
   }
@@ -110,15 +110,15 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
     .stage = VK_SHADER_STAGE_VERTEX_BIT,
     .module = vertex_module,
-    .pName = state->vertex_shader.entry_point
+    .pName = pipeline->shaders[R_SHADER_TYPE_VERTEX].entry_point
   };
   
   VkShaderModule fragment_module;
   {
     VkShaderModuleCreateInfo module_info = {
       .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-      .codeSize = state->fragment_shader.code_size,
-      .pCode = (U32*)state->fragment_shader.code
+      .codeSize = pipeline->shaders[R_SHADER_TYPE_FRAGMENT].code_size,
+      .pCode = (U32*)pipeline->shaders[R_SHADER_TYPE_FRAGMENT].code
     };
     VK_CHECK(vkCreateShaderModule(state->device.logical, &module_info, 0, &fragment_module));
   }
@@ -126,7 +126,7 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
     .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
     .module = fragment_module,
-    .pName = state->fragment_shader.entry_point
+    .pName = pipeline->shaders[R_SHADER_TYPE_FRAGMENT].entry_point
   };
 
   VkPipelineShaderStageCreateInfo shaders[] = {
@@ -137,7 +137,8 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
   VkPipelineRenderingCreateInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
     .colorAttachmentCount = 1,
-    .pColorAttachmentFormats = &state->swapchain.surface_format.format
+    .pColorAttachmentFormats = &state->swapchain.surface_format.format,
+    .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT
   };
 
   VkGraphicsPipelineCreateInfo pipeline_info = {
@@ -153,13 +154,15 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
     .pDepthStencilState = &depth_state,
     .pColorBlendState = &blend,
     .pDynamicState = &dynamic,
-    .layout = state->pipeline.layout,
+    .layout = state->graphics_pipelines[state->pipelines_count].layout,
     .renderPass = 0,
-    .subpass = 0
+    .subpass = 0,
   };
   VK_CHECK(vkCreateGraphicsPipelines(state->device.logical,
                                      0, 1, &pipeline_info, 0,
-                                     &state->pipeline.handle));
+                                     &state->graphics_pipelines[state->pipelines_count].handle));
+  pipeline->backend_handle = state->pipelines_count;
+  state->pipelines_count += 1;
 
   vkDestroyShaderModule(state->device.logical, vertex_module, 0);
   vkDestroyShaderModule(state->device.logical, fragment_module, 0);
@@ -168,6 +171,9 @@ R_VK_CreateGraphicsPipeline(R_VK_State* state)
 func void
 R_VK_DestroyPipeline(R_VK_State* state)
 {
-  vkDestroyPipelineLayout(state->device.logical, state->pipeline.layout, 0);
-  vkDestroyPipeline(state->device.logical, state->pipeline.handle, 0);
+  for (U32 i = 0; i < state->pipelines_count; i += 1)
+  {
+    vkDestroyPipelineLayout(state->device.logical, state->graphics_pipelines[i].layout, 0);
+    vkDestroyPipeline(state->device.logical, state->graphics_pipelines[i].handle, 0);
+  }
 }

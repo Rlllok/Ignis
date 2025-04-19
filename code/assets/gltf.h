@@ -4,14 +4,7 @@
 
 #include "base/base_include.cpp"
 
-// @TODO Remove Buffer from here to Base layer. The truth is that Buffer is String
-struct Buffer
-{
-  U8* data;
-  U64 size;
-};
-
-#define ConstString(String) {(U8*)(String), sizeof(String) - 1}
+typedef Str8 Buffer;
 
 func Buffer AllocateBuffer(U64 size);
 func void FreeBuffer(Buffer* buffer);
@@ -58,6 +51,7 @@ struct GLTFElement
 
 struct GLTFReader
 {
+  Str8 file_path;
   B32 has_error;
   Buffer file_buffer;
   U64 position;
@@ -109,7 +103,9 @@ DefineList(GLTFAccessor)
 struct GLTFPrimitive
 {
   U32 indices_accessor_id;
-  ListGLTFAttribute attribute_list;
+  U32 position_accessor_id;
+  U32 normal_accessor_id;
+  U32 texcoord_accessor_id;
 
   GLTFPrimitive* next;
 };
@@ -123,8 +119,8 @@ DefineList(GLTFMesh)
 
 struct GLTFBuffer
 {
-  Buffer uri;
-  U64 byte_length;
+  Str8 uri;
+  Buffer buffer;
 
   GLTFBuffer* next;
 };
