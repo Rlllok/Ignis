@@ -302,6 +302,29 @@ func Vec3f TransformVec3f(Vec3f v, Mat3x3f m);
 func F32   DotVec3f(Vec3f a, Vec3f b);
 func F32   MagnitudeVec3f(Vec3f v);
 func Vec3f NormalizeVec3f(Vec3f v);
+func Vec3f CrossVec3f(Vec3f a, Vec3f b);
+
+inline Vec3f
+operator+ (Vec3f a, Vec3f b)
+{
+  Vec3f result = {
+    .x = a.x + b.x,
+    .y = a.y + b.y,
+    .z = a.z + b.z
+  };
+  return result;
+}
+
+inline Vec3f
+operator- (Vec3f a, Vec3f b)
+{
+  Vec3f result = {
+    .x = a.x - b.x,
+    .y = a.y - b.y,
+    .z = a.z - b.z
+  };
+  return result;
+}
 
 // --AlNov: Vec4
 func Vec4f MakeVec4f(F32 x, F32 y, F32 z, F32 w);
@@ -316,6 +339,7 @@ func Mat3x3f Transpose3x3f(Mat3x3f m);
 
 // --AlNov: Mat4x4
 func Mat4x4f Make4x4f(F32 diagonal_value);
+func Mat4x4f MakeLookAt(Vec3f position, Vec3f target, Vec3f up);
 func Mat4x4f MakeOrthographic4x4f(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z);
-func Mat4x4f MakePerspective4x4f(F32 fov, F32 aspect_ration, F32 near_z, F32 far_z);
+func Mat4x4f MakePerspective4x4f(F32 fov, F32 aspect, F32 near_z, F32 far_z);
 func Mat4x4f Transpose4x4f(Vec3f v);

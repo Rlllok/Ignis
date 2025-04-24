@@ -6,10 +6,12 @@
 func void
 R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
 {
-  R_VK_State* state =&r_vk_state;
+  R_VK_State* state = &r_vk_state;
   
   VkPipelineLayoutCreateInfo layout_info = {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts = &state->descriptor_layout,
   };
   VK_CHECK(vkCreatePipelineLayout(state->device.logical, &layout_info, 0, &state->graphics_pipelines[state->pipelines_count].layout));
   

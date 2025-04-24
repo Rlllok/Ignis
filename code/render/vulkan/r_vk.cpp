@@ -1,3 +1,5 @@
+#include "render/vulkan/r_vk.h"
+#include "base/base_math.h"
 #include "r_vk.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 
@@ -55,7 +57,11 @@ R_VK_Init(OS_Window* window)
   R_VK_CreateSurface(&r_vk_state, window);
   R_VK_CreateSwapchain(&r_vk_state);
   
-  r_vk_state.geometry_buffer = R_VK_CreateBuffer(Megabytes(256), BUFFER_USAGE_FLAG_VERTEX | BUFFER_USAGE_FLAG_INDEX, BUFFER_PROPERTY_HOST_COHERENT | BUFFER_PROPERTY_HOST_VISIBLE);
+  r_vk_state.geometry_buffer = R_VK_CreateBuffer(Megabytes(256), BUFFER_USAGE_FLAG_UNIFORM | BUFFER_USAGE_FLAG_VERTEX | BUFFER_USAGE_FLAG_INDEX, BUFFER_PROPERTY_HOST_COHERENT | BUFFER_PROPERTY_HOST_VISIBLE);
+
+  R_VK_CreateDescriptorPool();
+  R_VK_CreateDescriptorSet();
+  R_VK_WriteDescriptorSet();
   
   return true;
 }
@@ -106,8 +112,12 @@ func void
 R_VK_BindPipeline(R_Pipeline* pipeline)
 {
   R_VK_State* state = &r_vk_state;
+  
+  R_VK_GraphicsPipeline vk_pipeline = state->graphics_pipelines[pipeline->backend_handle];
   VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, state->graphics_pipelines[pipeline->backend_handle].handle);
+  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.handle);
+  
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.layout, 0, 1, &state->descriptor_set, 0, 0);
 }
 
 func void
@@ -283,7 +293,7 @@ R_VK_DrawGeometry(AST_Geometry* geometry)
     }
   };
   vkCmdSetScissor(cmd, 0, 1, &scissor);
-  
+
   vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, geometry->index_r_backend_offset, VK_INDEX_TYPE_UINT16);
   
   VkDeviceSize offset = { geometry->vertex_r_backend_offset };
@@ -292,4 +302,102 @@ R_VK_DrawGeometry(AST_Geometry* geometry)
   vkCmdDrawIndexed(cmd, geometry->index_count, 1, 0, 0, 0);
 
   return true;
+}
+
+func void
+R_VK_CreateDescriptorPool()
+{
+  R_VK_State* state = &r_vk_state;
+  
+  VkDescriptorPoolSize pool_size = {
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1
+  };
+  
+  VkDescriptorPoolCreateInfo pool_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .maxSets = 1,
+    .poolSizeCount = 1,
+    .pPoolSizes = &pool_size
+  };
+
+  VK_CHECK(vkCreateDescriptorPool(state->device.logical, &pool_info, 0, &state->descriptor_pool));
+}
+
+func void
+R_VK_CreateDescriptorSet()
+{
+  R_VK_State* state = &r_vk_state;
+
+  VkDescriptorSetLayoutBinding binding = {
+    .binding = 0,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .descriptorCount = 1,
+    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+  };
+
+  VkDescriptorSetLayoutCreateInfo layout = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings = &binding
+  };
+  VK_CHECK(vkCreateDescriptorSetLayout(state->device.logical, &layout, 0, &state->descriptor_layout));
+  
+  VkDescriptorSetAllocateInfo allocate_info = {
+    .descriptorPool = state->descriptor_pool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &state->descriptor_layout
+  };
+
+  VK_CHECK(vkAllocateDescriptorSets(state->device.logical, &allocate_info, &state->descriptor_set));
+}
+
+func void
+R_VK_WriteDescriptorSet()
+{
+  struct UData
+  {
+    alignas(16) Mat4x4f projection;
+    alignas(16) Mat4x4f view;
+    // alignas(16) Vec3f color;
+  };
+
+  UData u_data = {
+    .projection = MakePerspective4x4f(45.0f, 1280.0f/720.0f, 0.01f, 100.0f),
+    .view = MakeLookAt(MakeVec3f(0.0f, 0.0f, 1.0f), MakeVec3f(0.0f, 0.0f, 0.0f), MakeVec3f(0.0f, 1.0f, 0.0f)),
+    // .color = MakeVec3f(0.3f, 0.1f, 0.7f),
+  };
+  
+  U64 uniform_buffer_offset = 0;
+  
+  void* data;
+  vkMapMemory(r_vk_state.device.logical, r_vk_state.geometry_buffer.memory, r_vk_state.geometry_buffer.size, VK_WHOLE_SIZE, 0, &data);
+  {
+    U64 offset = r_vk_state.geometry_buffer.size;
+    
+    U64 uniform_data_size = sizeof(u_data);
+    memcpy((U8*)data + offset, &u_data, uniform_data_size);
+    uniform_buffer_offset = r_vk_state.geometry_buffer.size;
+    offset += uniform_data_size + uniform_data_size%4;
+    r_vk_state.geometry_buffer.size += offset;
+  }
+  vkUnmapMemory(r_vk_state.device.logical, r_vk_state.geometry_buffer.memory);
+  
+  VkDescriptorBufferInfo buffer_info = {
+    .buffer = r_vk_state.geometry_buffer.handle,
+    .offset = uniform_buffer_offset,
+    .range = sizeof(u_data)
+  };
+  
+  VkWriteDescriptorSet write_info = {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = r_vk_state.descriptor_set,
+    .dstBinding = 0,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .pBufferInfo = &buffer_info
+  };
+
+  vkUpdateDescriptorSets(r_vk_state.device.logical, 1, &write_info, 0, 0);
 }

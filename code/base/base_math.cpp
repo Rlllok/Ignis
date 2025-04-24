@@ -153,6 +153,17 @@ NormalizeVec3f(Vec3f v)
   return MulVec3f(v, 1.0f / magnitude);
 }
 
+func Vec3f
+CrossVec3f(Vec3f a, Vec3f b)
+{
+  Vec3f result = {
+    .x = a.y*b.z - a.z*b.y,
+    .y = a.z*b.x - a.x*b.z,
+    .z = a.x*b.y - a.y*b.x
+  };
+  return result;
+}
+
 func Vec4f
 MakeVec4f(F32 x, F32 y, F32 z, F32 w)
 {
@@ -217,6 +228,31 @@ Make4x4f(F32 diagonal_value)
 }
 
 func Mat4x4f
+MakeLookAt(Vec3f from, Vec3f to, Vec3f up)
+{
+  Mat4x4f result = Make4x4f(1.0f);
+  
+  Vec3f f = NormalizeVec3f(to - from);
+  Vec3f r = NormalizeVec3f(CrossVec3f(f, up));
+  Vec3f u = CrossVec3f(r, f);
+  
+    result.values[0][0] = r.x;
+		result.values[1][0] = r.y;
+		result.values[2][0] = r.z;
+		result.values[0][1] = u.x;
+		result.values[1][1] = u.y;
+		result.values[2][1] = u.z;
+		result.values[0][2] =-f.x;
+		result.values[1][2] =-f.y;
+		result.values[2][2] =-f.z;
+		result.values[3][0] =-DotVec3f(r, from);
+		result.values[3][1] =-DotVec3f(u, from);
+		result.values[3][2] = DotVec3f(f, from);
+
+  return result;
+}
+
+func Mat4x4f
 MakeOrthographic4x4f(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z)
 {
   Mat4x4f result = Make4x4f(1.0f);
@@ -234,20 +270,18 @@ MakeOrthographic4x4f(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 f
 }
 
 func Mat4x4f
-MakePerspective4x4f(F32 fov, F32 aspect_ration, F32 near_z, F32 far_z)
+MakePerspective4x4f(F32 fov, F32 aspect, F32 near_z, F32 far_z)
 {
   Mat4x4f result = Make4x4f(0.0f);
 
   F32 fov_radians  = PI * fov / 180.0f;
-  F32 focal_length = 1.0f / tanf(fov_radians / 2.0f);
-
-  result.values[0][0] = focal_length / aspect_ration;
-  result.values[1][1] = focal_length;
-  result.values[2][2] = far_z / (far_z - near_z);
-  result.values[3][3] = 0.0f;
-
-  result.values[3][2] = -(near_z * far_z) / (far_z - near_z);
-  result.values[2][3] = 1.0f;
+  F32 tan_half_fov = tanf(fov_radians*0.5f);
+  
+  result.values[0][0] =  1.0f / (aspect * tan_half_fov);
+  result.values[1][1] = 1.0f / tan_half_fov;
+  result.values[2][2] = -(far_z + near_z) / (far_z - near_z);
+  result.values[2][3] = -1.0f;
+  result.values[3][2] = -(2.0f * far_z * near_z) / (far_z - near_z);
 
   return result;
 }

@@ -26,6 +26,10 @@ struct R_VK_State
   R_VK_GraphicsPipeline graphics_pipelines[10];
   R_VK_Buffer geometry_buffer;
 
+  VkDescriptorPool descriptor_pool;
+  VkDescriptorSetLayout descriptor_layout;
+  VkDescriptorSet descriptor_set;
+  
   U32 current_cmd_id;
   U32 current_image_id;
   U32 pipelines_count;
@@ -56,6 +60,11 @@ func void R_VK_EndRenderPass();
 func B32 R_VK_Draw();
 // @TODO Vulkan later should not know about geometry. It works with index/vertex/uniform buffers
 func B32 R_VK_DrawGeometry(AST_Geometry* geometry);
+
+// DESCRIPTOR SETS
+func void R_VK_CreateDescriptorPool();
+func void R_VK_CreateDescriptorSet();
+func void R_VK_WriteDescriptorSet();
 
 #if IGNIS_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL

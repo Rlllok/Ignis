@@ -31,7 +31,6 @@ I32 main()
 
   R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
 
-  // @TODO Create Pipeline
   R_Pipeline pipeline = {};
   {
     R_VertexAttributeFormat attributes[] = {
@@ -68,7 +67,6 @@ I32 main()
     Renderer.CreatePipeline(&red_pipeline);
   }
   
-  // @TODO @NOTE Hardcoded gltf information in R_Geometry
   AST_StaticMesh static_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/motocycle_gltf/motocycle.gltf"));
   for (ListNodeAST_Geometry* geometry_node = static_mesh.geometry_list.first;
        geometry_node;
@@ -84,6 +82,14 @@ I32 main()
   {
     Renderer.PushGeometry(&geometry_node->data);
   }
+
+  AST_StaticMesh sphere_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/sphere_gltf/sphere.gltf"));
+  for (ListNodeAST_Geometry* geometry_node = sphere_mesh.geometry_list.first;
+       geometry_node;
+       geometry_node = geometry_node->next)
+  {
+    Renderer.PushGeometry(&geometry_node->data);
+  }
   
   while (!app_state.is_window_closed)
   {
@@ -94,15 +100,15 @@ I32 main()
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(1.0f, 1.0f, 1.0f, 1.0f));
       {
         Renderer.BindPipeline(&pipeline);
-        for (ListNodeAST_Geometry* geometry_node = static_mesh.geometry_list.first;
+        for (ListNodeAST_Geometry* geometry_node = sphere_mesh.geometry_list.first;
              geometry_node;
              geometry_node = geometry_node->next)
         {
           Renderer.DrawGeometry(&geometry_node->data);
         }
       }
-      // Renderer.EndRenderPass();
-      #if 0
+      # if 0
+      Renderer.EndRenderPass();
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_LOAD, {});
       {
         Renderer.BindPipeline(&red_pipeline);
@@ -114,7 +120,7 @@ I32 main()
         }
       }
       #endif
-      // @NOTE Vulkan inserts VkCmdEndRendering() at the end by itself
+      // @NOTE Vulkan inserts VkCmdEndRendering() at the end by itself.
       // Renderer.EndRenderPass();
     }
     Renderer.EndFrame();

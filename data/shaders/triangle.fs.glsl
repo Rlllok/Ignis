@@ -19,6 +19,6 @@ void main()
 	float diff_coef = max(dot(norm, light_direction), 0.0f);
 	vec3 diffuse = light_color * diff_coef;
 	
-	vec3 color = (ambient + diffuse) * vec3(0.15f, 0.88f, 0.17f);
+	vec3 color = (ambient + diffuse) * in_color;
 	out_color = vec4(color, 1.0f);
 }
