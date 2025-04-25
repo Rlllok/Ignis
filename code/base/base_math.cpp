@@ -274,14 +274,14 @@ MakePerspective4x4f(F32 fov, F32 aspect, F32 near_z, F32 far_z)
 {
   Mat4x4f result = Make4x4f(0.0f);
 
-  F32 fov_radians  = PI * fov / 180.0f;
-  F32 tan_half_fov = tanf(fov_radians*0.5f);
-  
-  result.values[0][0] =  1.0f / (aspect * tan_half_fov);
-  result.values[1][1] = 1.0f / tan_half_fov;
-  result.values[2][2] = -(far_z + near_z) / (far_z - near_z);
+  F32 fov_rad = fov * 2.0f * PI / 360.0f;
+  F32 focal_length = 1.0 / tanf(fov_rad * 0.5f);
+
+  result.values[0][0] = focal_length / aspect;
+  result.values[1][1] = -focal_length;
+  result.values[2][2] = near_z / (far_z - near_z);
+  result.values[3][2] = (far_z * near_z) / (far_z - near_z);
   result.values[2][3] = -1.0f;
-  result.values[3][2] = -(2.0f * far_z * near_z) / (far_z - near_z);
 
   return result;
 }
@@ -297,3 +297,23 @@ Transpose4x4f(Vec3f v)
 
   return result;
 }
+
+func Mat4x4f
+Rotate4x4f(Vec3f axis, F32 angle)
+{
+ Mat4x4f result = Make4x4f(1.f);
+ 
+ F32 sin_theta = sin(angle);
+ F32 cos_theta = cos(angle);
+ F32 cos_value = 1.f - cos_theta;
+ result.values[0][0] = (axis.x * axis.x * cos_value) + cos_theta;
+ result.values[0][1] = (axis.x * axis.y * cos_value) + (axis.z * sin_theta);
+ result.values[0][2] = (axis.x * axis.z * cos_value) - (axis.y * sin_theta);
+ result.values[1][0] = (axis.y * axis.x * cos_value) - (axis.z * sin_theta);
+ result.values[1][1] = (axis.y * axis.y * cos_value) + cos_theta;
+ result.values[1][2] = (axis.y * axis.z * cos_value) + (axis.x * sin_theta);
+ result.values[2][0] = (axis.z * axis.x * cos_value) + (axis.y * sin_theta);
+ result.values[2][1] = (axis.z * axis.y * cos_value) - (axis.x * sin_theta);
+ result.values[2][2] = (axis.z * axis.z * cos_value) + cos_theta;
+ 
+ return result;}

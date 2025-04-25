@@ -31,6 +31,14 @@ struct R_DrawInfo
   RectI scissor;
 };
 
+struct R_DrawGeometryInfo
+{
+  R_Pipeline* pipeline;
+  U8* uniform_data;
+  U32 uniform_data_size;
+  AST_Geometry* geometry;
+};
+
 enum R_RendererType
 {
   R_RENDERER_TYPE_NONE,
@@ -60,7 +68,7 @@ typedef void _RendererBeginRenderPass(R_AttachmentLoadOperation load_operation, 
 typedef void _RendererEndRenderPass();
 
 typedef void _RendererPushGeometry(AST_Geometry* geometry);
-typedef B32  _RendererDrawGeometry(AST_Geometry* geometry);
+typedef B32  _RendererDrawGeometry(R_DrawGeometryInfo* geometry);
 
 struct R_Renderer
 {

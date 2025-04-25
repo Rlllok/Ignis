@@ -9,16 +9,17 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-	vec3 light_position = vec3(1.0f, 8.0f, 3.0f);
+	vec3 light_position = vec3(2.0f, 1.0f, 2.0f);
 	vec3 light_color = vec3(1.0f);
 
-	vec3 ambient = 0.2f * light_color;
+	vec3 ambient = 0.4f * light_color;
 
 	vec3 norm = normalize(in_normal);
 	vec3 light_direction = normalize(light_position - in_position);
-	float diff_coef = max(dot(norm, light_direction), 0.0f);
-	vec3 diffuse = light_color * diff_coef;
-	
+	float diff_coef = max(dot(light_direction, norm), 0.0f);
+	vec3 diffuse = diff_coef * light_color;
+
 	vec3 color = (ambient + diffuse) * in_color;
 	out_color = vec4(color, 1.0f);
 }
+

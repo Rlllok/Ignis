@@ -316,12 +316,34 @@ operator+ (Vec3f a, Vec3f b)
 }
 
 inline Vec3f
+operator+= (Vec3f a, Vec3f b)
+{
+  Vec3f result = {
+    .x = a.x + b.x,
+    .y = a.y + b.y,
+    .z = a.z + b.z
+  };
+  return result;
+}
+
+inline Vec3f
 operator- (Vec3f a, Vec3f b)
 {
   Vec3f result = {
     .x = a.x - b.x,
     .y = a.y - b.y,
     .z = a.z - b.z
+  };
+  return result;
+}
+
+inline Vec3f
+operator* (F32 a, Vec3f b)
+{
+  Vec3f result = {
+    .x = a * b.x,
+    .y = a * b.y,
+    .z = a * b.z
   };
   return result;
 }
@@ -339,7 +361,26 @@ func Mat3x3f Transpose3x3f(Mat3x3f m);
 
 // --AlNov: Mat4x4
 func Mat4x4f Make4x4f(F32 diagonal_value);
+
+inline Mat4x4f
+operator* (Mat4x4f a, Mat4x4f b)
+{
+  Mat4x4f result = {};
+  for (I32 i = 0; i < 4; i += 1)
+  {
+    for (I32 j = 0; j < 4; j += 1)
+    {
+      result.values[i][j] += a.values[0][j] * b.values[i][0];
+      result.values[i][j] += a.values[1][j] * b.values[i][1];
+      result.values[i][j] += a.values[2][j] * b.values[i][2];
+      result.values[i][j] += a.values[3][j] * b.values[i][3];
+    }
+  }
+  return result;
+}
+
 func Mat4x4f MakeLookAt(Vec3f position, Vec3f target, Vec3f up);
 func Mat4x4f MakeOrthographic4x4f(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z);
 func Mat4x4f MakePerspective4x4f(F32 fov, F32 aspect, F32 near_z, F32 far_z);
 func Mat4x4f Transpose4x4f(Vec3f v);
+func Mat4x4f Rotate4x4f(F32 angle);
