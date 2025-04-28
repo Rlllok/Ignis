@@ -15,6 +15,8 @@
 #include "r_vk_pipeline.h"
 #include "r_vk_buffer.h"
 
+#define FRAMES_IN_FLIGHT 3
+
 struct R_VK_State
 {
   Arena* arena;
@@ -26,12 +28,12 @@ struct R_VK_State
   R_VK_GraphicsPipeline graphics_pipelines[10];
   R_VK_Buffer geometry_buffer;
 
-  VkDescriptorPool descriptor_pool;
+  VkDescriptorPool descriptor_pools[FRAMES_IN_FLIGHT];
   VkDescriptorSetLayout descriptor_layout;
   VkDescriptorSet descriptor_set;
   
-  U32 current_cmd_id;
-  U32 current_image_id;
+  U32 current_frame;
+  U32 current_target;
   U32 pipelines_count;
 
 #if IGNIS_DEBUG

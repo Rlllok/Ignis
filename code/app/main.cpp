@@ -91,29 +91,9 @@ I32 main()
   }
   
   AST_StaticMesh static_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/motocycle_gltf/motocycle.gltf"));
-  for (ListNodeAST_Geometry* geometry_node = static_mesh.geometry_list.first;
-       geometry_node;
-       geometry_node = geometry_node->next)
-  {
-    Renderer.PushGeometry(&geometry_node->data);
-  }
-
   AST_StaticMesh monkey_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/monkey_gltf/monkey.gltf"));
-  for (ListNodeAST_Geometry* geometry_node = monkey_mesh.geometry_list.first;
-       geometry_node;
-       geometry_node = geometry_node->next)
-  {
-    Renderer.PushGeometry(&geometry_node->data);
-  }
-
   AST_StaticMesh sphere_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/sphere_gltf/sphere.gltf"));
-  for (ListNodeAST_Geometry* geometry_node = sphere_mesh.geometry_list.first;
-       geometry_node;
-       geometry_node = geometry_node->next)
-  {
-    Renderer.PushGeometry(&geometry_node->data);
-  }
-  
+ 
   F32 begin_time = OS_CurrentTimeSeconds();
   while (!app_state.is_window_closed)
   {
@@ -124,10 +104,55 @@ I32 main()
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f));
       {
         Renderer.BindPipeline(&pipeline);
-        for (ListNodeAST_Geometry* geometry_node = sphere_mesh.geometry_list.first;
+        for (ListNodeAST_Geometry* geometry_node = static_mesh.geometry_list.first;
              geometry_node;
              geometry_node = geometry_node->next)
         {
+          Renderer.PushGeometry(&geometry_node->data);
+          
+          struct UData
+          {
+            alignas(16) Mat4x4f projection;
+            alignas(16) Mat4x4f view;
+            alignas(16) Mat4x4f model;
+            alignas(4)  F32 dt;
+          };
+
+          local_persist F32 angle = 0.0f;
+          angle += 0.01f;
+
+          Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 0.0f));
+          Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
+          Mat4x4f model = transpose;
+          
+          UData u_data = {
+            .projection = MakePerspective4x4f(45.0f, 1280.0f/720.0f, 0.1f, 1000.0f),
+            .view = MakeLookAt(app_state.camera.position, app_state.camera.position + app_state.camera.front, app_state.camera.up),
+            .model = model,
+            .dt = OS_CurrentTimeSeconds()
+          };
+          
+          R_DrawGeometryInfo draw_info = {
+            .pipeline = &pipeline,
+            .uniform_data = (U8*)PushArena(app_state.frame_arena, sizeof(u_data)),
+            .uniform_data_size = sizeof(u_data),
+            .geometry = &geometry_node->data
+          };
+          memcpy(draw_info.uniform_data, &u_data, sizeof(u_data));
+          Renderer.DrawGeometry(&draw_info);
+        }
+      }
+      #if 0
+      Renderer.EndRenderPass();
+      Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_LOAD, {});
+      {
+        Renderer.BindPipeline(&red_pipeline);
+        for (ListNodeAST_Geometry* geometry_node = monkey_mesh.geometry_list.first;
+             geometry_node;
+             geometry_node = geometry_node->next)
+        {
+          Renderer.PushGeometry(&geometry_node->data);
+          
           struct UData
           {
             alignas(16) Mat4x4f projection;
@@ -135,12 +160,11 @@ I32 main()
             alignas(16) Mat4x4f model;
           };
 
-          static F32 angle = 0.0f;
-          angle += 0.2f * app_state.delta_time;
+          local_persist F32 angle = 0.0f;
+          angle += 0.01f;
 
-          Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 0.0f));
-          Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
-          Mat4x4f model = rotate * transpose;
+          Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, sinf(angle) * 5.0f));
+          Mat4x4f model = transpose;
           
           UData u_data = {
             .projection = MakePerspective4x4f(45.0f, 1280.0f/720.0f, 0.1f, 10.0f),
@@ -158,21 +182,9 @@ I32 main()
           Renderer.DrawGeometry(&draw_info);
         }
       }
-      # if 0
-      Renderer.EndRenderPass();
-      Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_LOAD, {});
-      {
-        Renderer.BindPipeline(&red_pipeline);
-        for (ListNodeAST_Geometry* geometry_node = monkey_mesh.geometry_list.first;
-             geometry_node;
-             geometry_node = geometry_node->next)
-        {
-          Renderer.DrawGeometry(&geometry_node->data);
-        }
-      }
-      #endif
       // @NOTE Vulkan inserts VkCmdEndRendering() at the end by itself.
-      // Renderer.EndRenderPass();
+      //Renderer.EndRenderPass();
+      #endif
     }
     Renderer.EndFrame();
     ResetArena(app_state.frame_arena);

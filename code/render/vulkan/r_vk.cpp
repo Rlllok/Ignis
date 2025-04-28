@@ -115,7 +115,7 @@ R_VK_BindPipeline(R_Pipeline* pipeline)
   R_VK_State* state = &r_vk_state;
   
   R_VK_GraphicsPipeline vk_pipeline = state->graphics_pipelines[pipeline->backend_handle];
-  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_frame].cmd_buffer;
 }
 
 func void
@@ -123,19 +123,28 @@ R_VK_BeginFrame()
 {
   R_VK_State* state = &r_vk_state;
   
-  R_VK_AcquireNextImage(state, &state->current_image_id);
+  R_VK_AcquireNextImage(state, &r_vk_state.current_target);
+  
+  vkWaitForFences(state->device.logical, 1, &state->swapchain.frame_resources[r_vk_state.current_frame].submit_fence, VK_TRUE, U64_MAX);
+  
+  state->geometry_buffer.size = 0;
+  vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pools[r_vk_state.current_frame], 0);
+  
+  vkResetFences(state->device.logical, 1, &state->swapchain.frame_resources[r_vk_state.current_frame].submit_fence);
+
+  vkResetCommandPool(state->device.logical, state->swapchain.frame_resources[r_vk_state.current_frame].cmd_pool, 0);
   
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
   }; 
 
-  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_frame].cmd_buffer;
   VK_CHECK(vkBeginCommandBuffer(cmd, &begin_info));
   
   R_VK_TransitImageLayout(
     cmd,
-    state->swapchain.images[state->current_image_id],
+    state->swapchain.images[r_vk_state.current_target],
     VK_IMAGE_LAYOUT_UNDEFINED,
     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     0,
@@ -151,12 +160,12 @@ R_VK_EndFrame()
 {
   R_VK_State* state = &r_vk_state;
   
-  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_frame].cmd_buffer;
   vkCmdEndRendering(cmd);
   
   R_VK_TransitImageLayout(
     cmd,
-    state->swapchain.images[state->current_image_id],
+    state->swapchain.images[state->current_target],
     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -173,24 +182,24 @@ R_VK_EndFrame()
   VkSubmitInfo submit_info = {
     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
     .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &state->swapchain.frame_resources[state->swapchain.current_index].acquire_semaphore,
+    .pWaitSemaphores = &state->swapchain.frame_resources[state->current_frame].acquire_semaphore,
     .pWaitDstStageMask = &wait_stage,
     .commandBufferCount = 1,
     .pCommandBuffers = &cmd,
     .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &state->swapchain.frame_resources[state->current_image_id].release_semaphore
+    .pSignalSemaphores = &state->swapchain.frame_resources[state->current_frame].release_semaphore
   };
 
-  VkResult vk_result = (vkQueueSubmit(state->device.graphics_queue, 1, &submit_info, state->swapchain.frame_resources[state->current_image_id].submit_fence));
+  VkResult vk_result = (vkQueueSubmit(state->device.graphics_queue, 1, &submit_info, state->swapchain.frame_resources[state->current_frame].submit_fence));
   VK_CHECK(vk_result);
   
   VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &state->swapchain.frame_resources[state->current_image_id].release_semaphore,
+    .pWaitSemaphores = &state->swapchain.frame_resources[state->current_frame].release_semaphore,
     .swapchainCount = 1,
     .pSwapchains = &state->swapchain.handle,
-    .pImageIndices = &state->current_image_id
+    .pImageIndices = &state->current_target
   };
 
   VkResult present_result = vkQueuePresentKHR(state->device.graphics_queue, &present_info);
@@ -200,7 +209,7 @@ R_VK_EndFrame()
     // return false;
   }
 
-  state->geometry_buffer.size = 0;
+  r_vk_state.current_frame = (r_vk_state.current_frame + 1) % FRAMES_IN_FLIGHT;
 }
 
 func void
@@ -216,7 +225,7 @@ R_VK_BeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color
 
   VkRenderingAttachmentInfo color_attachment = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .imageView = state->swapchain.image_views[state->current_image_id],
+    .imageView = state->swapchain.image_views[state->current_target],
     .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
     .loadOp = R_VK_GetVkAttachmentLoadOperation(load_operation),
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -252,7 +261,7 @@ R_VK_BeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color
     .pDepthAttachment = &depth_attachment
   };
   
-  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_frame].cmd_buffer;
   R_VK_TransitImageLayout(
     cmd,
     state->swapchain.depth_image,
@@ -273,7 +282,7 @@ R_VK_EndRenderPass()
 {
   R_VK_State* state = &r_vk_state;
   
-  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_frame].cmd_buffer;
   R_VK_TransitImageLayout(
     cmd,
     state->swapchain.depth_image,
@@ -294,7 +303,7 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
 {
   R_VK_State* state = &r_vk_state;
   
-  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_image_id].cmd_buffer;
+  VkCommandBuffer cmd = state->swapchain.frame_resources[state->current_frame].cmd_buffer;
   
   VkExtent2D render_area = {
     .width = state->swapchain.size.width,
@@ -322,18 +331,29 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
   R_VK_GraphicsPipeline vk_pipeline = state->graphics_pipelines[draw_info->pipeline->backend_handle];
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.handle);
   
+  r_vk_state.geometry_buffer.size = (r_vk_state.geometry_buffer.size + 64) - r_vk_state.geometry_buffer.size%64;
+  
   void* data;
   vkMapMemory(r_vk_state.device.logical, r_vk_state.geometry_buffer.memory, r_vk_state.geometry_buffer.size, VK_WHOLE_SIZE, 0, &data);
   {
-    U64 offset = r_vk_state.geometry_buffer.size;
+    uniform_buffer_offset = r_vk_state.geometry_buffer.size;
     
     U64 uniform_data_size = draw_info->uniform_data_size;
-    memcpy((U8*)data + offset, draw_info->uniform_data, uniform_data_size);
-    uniform_buffer_offset = r_vk_state.geometry_buffer.size;
-    offset += uniform_data_size + uniform_data_size%4;
-    // r_vk_state.geometry_buffer.size += offset;
+    memcpy((U8*)data, draw_info->uniform_data, uniform_data_size);
+    U32 offset = (uniform_data_size + 64) - (uniform_data_size%64);
+    r_vk_state.geometry_buffer.size += offset;
   }
   vkUnmapMemory(r_vk_state.device.logical, r_vk_state.geometry_buffer.memory);
+  
+  VkDescriptorSetAllocateInfo allocate_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = state->descriptor_pools[r_vk_state.current_frame],
+    .descriptorSetCount = 1,
+    .pSetLayouts = &state->descriptor_layout
+  };
+
+  VkDescriptorSet set = {};
+  VK_CHECK(vkAllocateDescriptorSets(state->device.logical, &allocate_info, &set));
   
   VkDescriptorBufferInfo buffer_info = {
     .buffer = r_vk_state.geometry_buffer.handle,
@@ -343,16 +363,16 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
   
   VkWriteDescriptorSet write_info = {
     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .dstSet = r_vk_state.descriptor_set,
+    .dstSet = set,
     .dstBinding = 0,
     .dstArrayElement = 0,
     .descriptorCount = 1,
     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .pBufferInfo = &buffer_info
   };
-
+  
   vkUpdateDescriptorSets(r_vk_state.device.logical, 1, &write_info, 0, 0);
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.layout, 0, 1, &state->descriptor_set, 0, 0);
+  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.layout, 0, 1, &set, 0, 0);
 
   vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, draw_info->geometry->index_r_backend_offset, VK_INDEX_TYPE_UINT16);
   
@@ -370,18 +390,21 @@ R_VK_CreateDescriptorPool()
   R_VK_State* state = &r_vk_state;
   
   VkDescriptorPoolSize pool_size = {
-    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
     .descriptorCount = 1
   };
   
   VkDescriptorPoolCreateInfo pool_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    .maxSets = 1,
+    .maxSets = 1024,
     .poolSizeCount = 1,
     .pPoolSizes = &pool_size
   };
 
-  VK_CHECK(vkCreateDescriptorPool(state->device.logical, &pool_info, 0, &state->descriptor_pool));
+  for (I32 i = 0; i < FRAMES_IN_FLIGHT; i += 1)
+  {
+    VK_CHECK(vkCreateDescriptorPool(state->device.logical, &pool_info, 0, &state->descriptor_pools[i]));
+  }
 }
 
 func void
@@ -404,7 +427,7 @@ R_VK_CreateDescriptorSet()
   VK_CHECK(vkCreateDescriptorSetLayout(state->device.logical, &layout, 0, &state->descriptor_layout));
   
   VkDescriptorSetAllocateInfo allocate_info = {
-    .descriptorPool = state->descriptor_pool,
+    .descriptorPool = state->descriptor_pools[r_vk_state.current_frame],
     .descriptorSetCount = 1,
     .pSetLayouts = &state->descriptor_layout
   };

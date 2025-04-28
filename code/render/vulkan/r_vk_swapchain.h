@@ -28,7 +28,7 @@ struct R_VK_Swapchain
   VkDeviceMemory depth_image_memory;
   VkImageView depth_image_view;
   FrameResources* frame_resources; // Per Image
-  U32 current_index;
+  // U32 current_index;
 };
 
 func void R_VK_CreateSwapchain(R_VK_State* state);

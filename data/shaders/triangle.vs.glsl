@@ -8,6 +8,7 @@ layout(set = 0, binding = 0) uniform UData
     mat4 projection;
     mat4 view;
     mat4 model;
+    float dt;
 } u_data;
 
 layout(location = 0) out vec3 out_color;
@@ -16,8 +17,12 @@ layout(location = 2) out vec3 out_normal;
 
 void main()
 {
-    out_color = vec3(0.7f, 0.4f, 0.3f);
-    out_position = vec3(u_data.model * vec4(in_position, 1.0f));
+    float morh_strength = 0.15f;
+        
+    out_color = vec3(sin(u_data.dt), 0.4f, 0.3f);
+    out_position = in_position;
+    out_position.xy += morh_strength * (in_normal.xy * vec2(sin(in_position.z * u_data.dt), sin(in_position.y * u_data.dt)));
+    out_position = vec3(u_data.model * vec4(out_position, 1.0f));
     out_normal = mat3(transpose(inverse(u_data.model))) * in_normal;
 
     gl_Position = u_data.projection * u_data.view * vec4(out_position, 1.0f);

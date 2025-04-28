@@ -77,7 +77,7 @@ R_VK_CreateSwapchain(R_VK_State* state)
     swapchain.size.height = capabilities.currentExtent.height;
   }
 
-  VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+  VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
   U32 image_count = capabilities.minImageCount + 1;
   if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount))
@@ -146,7 +146,7 @@ R_VK_CreateSwapchain(R_VK_State* state)
       .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
       .queueFamilyIndexCount = 0,
       .pQueueFamilyIndices = 0,
-      .initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
     };
 
     VK_CHECK(vkCreateImage(state->device.logical, &image_info, 0, &swapchain.depth_image));
@@ -210,24 +210,15 @@ R_VK_DestroySwapchain(R_VK_State* state)
 func B32
 R_VK_AcquireNextImage(R_VK_State* state, U32 *image_index)
 {
-  state->swapchain.current_index += 1;
-  state->swapchain.current_index %= state->swapchain.image_count;
-  U32 current_index = state->swapchain.current_index;
-
   VkResult acquire_result = vkAcquireNextImageKHR(
     state->device.logical, state->swapchain.handle, U64_MAX,
-    state->swapchain.frame_resources[current_index].acquire_semaphore, 0,
+    state->swapchain.frame_resources[state->current_frame].acquire_semaphore, 0,
     image_index
   );
   
   if (acquire_result != VK_SUCCESS) {
     return false;
   }
-
-  vkWaitForFences(state->device.logical, 1, &state->swapchain.frame_resources[*image_index].submit_fence, true, U64_MAX);
-  vkResetFences(state->device.logical, 1, &state->swapchain.frame_resources[*image_index].submit_fence);
-
-  vkResetCommandPool(state->device.logical, state->swapchain.frame_resources[*image_index].cmd_pool, 0);
 
   return true;
 }

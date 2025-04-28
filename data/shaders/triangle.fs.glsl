@@ -15,8 +15,9 @@ void main()
 	vec3 ambient = 0.4f * light_color;
 
 	vec3 norm = normalize(in_normal);
-	vec3 light_direction = normalize(light_position - in_position);
-	float diff_coef = max(dot(light_direction, norm), 0.0f);
+	// vec3 light_direction = normalize(light_position - in_position);
+	vec3 light_direction = normalize(vec3(0.0f, 0.0f, -1.0f));
+	float diff_coef = max(dot(-light_direction, norm), 0.0f);
 	vec3 diffuse = diff_coef * light_color;
 
 	vec3 color = (ambient + diffuse) * in_color;
