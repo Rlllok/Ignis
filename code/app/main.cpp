@@ -62,10 +62,10 @@ I32 main()
     };
     R_PipelineAssignAttributes(&pipeline, attributes, CountArrayElements(attributes));
   
-    R_H_LoadShader(app_state.arena, "data/shaders/triangle.vs.glsl",
+    R_H_LoadShader(app_state.arena, "data/shaders/main.vs.glsl",
                    "main", R_SHADER_TYPE_VERTEX,
                    &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(app_state.arena, "data/shaders/triangle.fs.glsl",
+    R_H_LoadShader(app_state.arena, "data/shaders/main.fs.glsl",
                    "main", R_SHADER_TYPE_FRAGMENT,
                    &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
   
