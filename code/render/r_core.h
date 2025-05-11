@@ -4,6 +4,7 @@
 #include "base/base_math.h"
 #include "assets/mesh.h"
 
+#include "r_texture.h"
 #include "r_pipeline.h"
 #include "r_buffer.h"
 

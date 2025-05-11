@@ -58,7 +58,8 @@ I32 main()
   {
     R_VertexAttributeFormat attributes[] = {
       R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
     };
     R_PipelineAssignAttributes(&pipeline, attributes, CountArrayElements(attributes));
   
@@ -93,6 +94,7 @@ I32 main()
   AST_StaticMesh static_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/motocycle_gltf/motocycle.gltf"));
   AST_StaticMesh monkey_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/monkey_gltf/monkey.gltf"));
   AST_StaticMesh sphere_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/sphere_gltf/sphere.gltf"));
+  AST_StaticMesh plane_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/plane_gltf/plane.gltf"));
  
   F32 begin_time = OS_CurrentTimeSeconds();
   while (!app_state.is_window_closed)
@@ -104,7 +106,7 @@ I32 main()
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f));
       {
         Renderer.BindPipeline(&pipeline);
-        for (ListNodeAST_Geometry* geometry_node = static_mesh.geometry_list.first;
+        for (ListNodeAST_Geometry* geometry_node = sphere_mesh.geometry_list.first;
              geometry_node;
              geometry_node = geometry_node->next)
         {
@@ -119,11 +121,11 @@ I32 main()
           };
 
           local_persist F32 angle = 0.0f;
-          angle += 0.01f;
+          angle += 0.001f;
 
           Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 0.0f));
           Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
-          Mat4x4f model = transpose;
+          Mat4x4f model = rotate * transpose;
           
           UData u_data = {
             .projection = MakePerspective4x4f(45.0f, 1280.0f/720.0f, 0.1f, 1000.0f),

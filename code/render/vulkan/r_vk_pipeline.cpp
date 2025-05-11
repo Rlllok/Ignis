@@ -23,7 +23,7 @@ R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
       .location = i,
       .binding = 0,
       .format = R_VK_GetVkFormatAttribute(pipeline->attributes[i]),
-      .offset = 0
+      .offset = stride
     };
 
     stride += R_H_OffsetFromAttributeFormat(pipeline->attributes[i]);

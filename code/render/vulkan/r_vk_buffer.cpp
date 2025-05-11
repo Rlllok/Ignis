@@ -1,5 +1,6 @@
 #include "r_vk_buffer.h"
 #include "render/r_buffer.h"
+#include "third_party/vulkan/include/vulkan_core.h"
 
 func VkBufferUsageFlags
 _VkFromBufferUsageFlags(BufferUsageFlags flags)
@@ -17,6 +18,10 @@ _VkFromBufferUsageFlags(BufferUsageFlags flags)
   if((flags & BUFFER_USAGE_FLAG_UNIFORM) == BUFFER_USAGE_FLAG_UNIFORM)
   {
     result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+  }
+  if((flags & BUFFER_USAGE_FLAG_TRANSFER_SRC) == BUFFER_USAGE_FLAG_TRANSFER_SRC)
+  {
+    result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
   }
 
   return result;

@@ -17,6 +17,13 @@
 
 #define FRAMES_IN_FLIGHT 3
 
+struct R_VK_Texture
+{
+  VkImage image;
+  VkImageView view;
+  VkDeviceMemory memory;
+};
+
 struct R_VK_State
 {
   Arena* arena;
@@ -27,10 +34,16 @@ struct R_VK_State
   R_VK_Swapchain swapchain;
   R_VK_GraphicsPipeline graphics_pipelines[10];
   R_VK_Buffer geometry_buffer;
+  R_VK_Buffer staging_buffer;
 
   VkDescriptorPool descriptor_pools[FRAMES_IN_FLIGHT];
   VkDescriptorSetLayout descriptor_layout;
   VkDescriptorSet descriptor_set;
+
+  VkCommandPool cmd_pool;
+    
+  R_VK_Texture default_texture;
+  VkSampler default_sampler;
   
   U32 current_frame;
   U32 current_target;
@@ -67,6 +80,11 @@ func B32 R_VK_DrawGeometry(AST_Geometry* geometry);
 func void R_VK_CreateDescriptorPool();
 func void R_VK_CreateDescriptorSet();
 func void R_VK_WriteDescriptorSet();
+
+func VkCommandBuffer R_VK_BeginSingleCmd();
+func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
+
+func R_Texture R_VK_CreateTexture(Str8 path);
 
 #if IGNIS_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL
