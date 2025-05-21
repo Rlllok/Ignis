@@ -134,10 +134,9 @@ R_VK_BeginFrame()
 {
   R_VK_State* state = &r_vk_state;
   
-  R_VK_AcquireNextImage(state, &r_vk_state.current_target);
-  
   vkWaitForFences(state->device.logical, 1, &state->swapchain.frame_resources[r_vk_state.current_frame].submit_fence, VK_TRUE, U64_MAX);
   
+  R_VK_AcquireNextImage(state, &r_vk_state.current_target);
   state->geometry_buffer.size = 0;
   vkResetDescriptorPool(r_vk_state.device.logical, r_vk_state.descriptor_pools[r_vk_state.current_frame], 0);
   
@@ -418,7 +417,7 @@ R_VK_CreateDescriptorPool()
   
   VkDescriptorPoolSize pool_sizes[2] = {};
   pool_sizes[0] = {
-    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
     .descriptorCount = 1
   };
   
