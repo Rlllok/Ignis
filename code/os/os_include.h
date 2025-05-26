@@ -1,4 +1,4 @@
 #pragma once
 
 #include "os_memory.h"
-#include "gfx/os_gfx.h"
+#include "os_gfx.h"

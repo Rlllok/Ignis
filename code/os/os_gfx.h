@@ -2,7 +2,14 @@
 
 #include "base/base_include.h"
 
-struct OS_Window;
+struct OS_WindowHandle;
+
+struct OS_Window
+{
+    OS_WindowHandle* handle;
+    Vec2u size;
+};
+
 
 enum OS_EventType
 {
@@ -53,9 +60,10 @@ struct OS_EventList
 
 
 func OS_Window OS_CreateWindow(const char* title, Vec2u size);
+func void OS_DestroyWindow(OS_Window* window);
 func void      OS_ShowWindow(OS_Window* window);
 
-func OS_EventList OS_GetEventList(Arena* arena);
+func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window);
 func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);
 
 func F32 OS_GetMonitorHZ();
@@ -64,7 +72,3 @@ func F32 OS_GetMonitorHZ();
 // The reason that we delete small number to large inside (tick and frequency).
 func F32   OS_CurrentTimeSeconds();
 func Vec2f OS_MousePosition(OS_Window window);
-
-// --AlNov: @TODO It is there because Vulkan neadds windows.h information
-// But it could be removed if above problem is fixed.
-#include "win32/os_gfx_win32.h"

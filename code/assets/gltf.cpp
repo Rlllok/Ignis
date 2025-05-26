@@ -3,7 +3,6 @@
 #include "base/base_core.h"
 #include "base/base_string.h"
 #include "sys/stat.h"
-#include <winscard.h>
 
 func Buffer
 AllocateBuffer(U64 size)
@@ -50,8 +49,8 @@ ReadFile(Buffer file_name)
   FILE* file = fopen(file_name_c, "rb");
   if (file)
   {
-    struct __stat64 stat;
-    __stat64(file_name_c, &stat);
+    struct stat64 stat;
+    stat64(file_name_c, &stat);
 
     result = AllocateBuffer(stat.st_size);
     if (result.data)

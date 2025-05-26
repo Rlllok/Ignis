@@ -1,7 +1,6 @@
 #include "base/base_core.h"
 #include "base/base_include.h"
 #include "base/base_math.h"
-#include "os/gfx/os_gfx.h"
 #include "os/os_include.h"
 #include "render/r_core.h"
 #include "render/r_include.h"
@@ -204,7 +203,7 @@ I32 main()
 func void
 HandleEvents(AppState* state)
 {
-  OS_EventList event_list = OS_GetEventList(app_state.arena);
+  OS_EventList event_list = OS_GetEventList(app_state.arena, &app_state.window);
   
   for (OS_Event *event = event_list.first; event; event = event->next)
   {

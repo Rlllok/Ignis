@@ -1,5 +1,7 @@
 #pragma once
 
+#include "memory.h"
+
 #include "base_core.h"
 
 // --AlNov: @TODO It is naive implementation of allocator to test is it works at all.

@@ -23,13 +23,17 @@ R_VK_Init(OS_Window* window)
   const char* extension_names[] = {
     VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
     "VK_KHR_surface",
+  #if IGNIS_PLATFORM_LINUX
+    "VK_KHR_wayland_surface",
+  #endif // IGNIS_PLATFORM_LINUX
+  #if IGNIS_PLATFORM_WIN32
     "VK_KHR_win32_surface",
+  #endif // IGNIS_PLATFORM_WIN32
   };
 
 #if IGNIS_DEBUG
   const char* validation_layers[] = {
     "VK_LAYER_KHRONOS_validation",
-    "VK_LAYER_LUNARG_monitor",
   };
 #else
   const char* validation_layers[] = {};

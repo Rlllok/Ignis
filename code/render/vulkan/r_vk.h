@@ -2,8 +2,13 @@
 
 #include "base/base_include.h"
 
-#include "third_party/vulkan/include/vulkan.h"
+#include "vulkan/vulkan.h"
+#if IGNIS_PLATFORM_LINUX
+#include "vulkan/vulkan_wayland.h"
+#endif // IGNIS_PLATFORM_LINUX
+#if IGNIS_PLATFORM_WIN32
 #include "third_party/vulkan/include/vulkan_win32.h"
+#endif // IGNIS_PLATFORM_WIN32
 #pragma comment(lib, "third_party/vulkan/lib/vulkan-1.lib")
 
 #define VK_CHECK(expression) Assert(expression != VK_SUCCESS)
