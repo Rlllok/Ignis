@@ -13,7 +13,7 @@ R_VK_CreateFrameResources(R_VK_State* state, FrameResources* resources)
 
   VkCommandPoolCreateInfo cmd_pool_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
     .queueFamilyIndex = state->device.graphics_queue_index
   };
   VK_CHECK(vkCreateCommandPool(state->device.logical, &cmd_pool_info, 0, &resources->cmd_pool));

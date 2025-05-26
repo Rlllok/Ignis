@@ -137,7 +137,7 @@ func void
 R_VK_BeginFrame()
 {
   R_VK_State* state = &r_vk_state;
-  
+
   vkWaitForFences(state->device.logical, 1, &state->swapchain.frame_resources[r_vk_state.current_frame].submit_fence, VK_TRUE, U64_MAX);
   
   R_VK_AcquireNextImage(state, &r_vk_state.current_target);
@@ -146,7 +146,7 @@ R_VK_BeginFrame()
   
   vkResetFences(state->device.logical, 1, &state->swapchain.frame_resources[r_vk_state.current_frame].submit_fence);
 
-  vkResetCommandPool(state->device.logical, state->swapchain.frame_resources[r_vk_state.current_frame].cmd_pool, 0);
+  vkResetCommandBuffer(state->swapchain.frame_resources[r_vk_state.current_frame].cmd_buffer, 0);
   
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -201,7 +201,7 @@ R_VK_EndFrame()
     .commandBufferCount = 1,
     .pCommandBuffers = &cmd,
     .signalSemaphoreCount = 1,
-    .pSignalSemaphores = &state->swapchain.frame_resources[state->current_frame].release_semaphore
+    .pSignalSemaphores = &state->swapchain.frame_resources[state->current_target].release_semaphore
   };
 
   VkResult vk_result = (vkQueueSubmit(state->device.graphics_queue, 1, &submit_info, state->swapchain.frame_resources[state->current_frame].submit_fence));
@@ -210,7 +210,7 @@ R_VK_EndFrame()
   VkPresentInfoKHR present_info = {
     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
     .waitSemaphoreCount = 1,
-    .pWaitSemaphores = &state->swapchain.frame_resources[state->current_frame].release_semaphore,
+    .pWaitSemaphores = &state->swapchain.frame_resources[state->current_target].release_semaphore,
     .swapchainCount = 1,
     .pSwapchains = &state->swapchain.handle,
     .pImageIndices = &state->current_target
