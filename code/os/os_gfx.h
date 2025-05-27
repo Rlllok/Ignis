@@ -49,22 +49,22 @@ struct OS_Event
 
     OS_KeyCode key;
 };
+DefineList(OS_Event)
 
-struct OS_EventList
+struct _OS_State
 {
-    OS_Event* first;
-    OS_Event* last;
+    Arena* arena;
+    Arena* event_arena;
+    ListOS_Event event_list;
+} _os_state;
 
-    U32 count;
-};
-
+func void OS_Init(U64 arena_size);
 
 func OS_Window OS_CreateWindow(const char* title, Vec2u size);
 func void OS_DestroyWindow(OS_Window* window);
 func void      OS_ShowWindow(OS_Window* window);
 
-func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window);
-func void         OS_PushEvent(OS_EventList* event_list, OS_Event* event);
+func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window);
 
 func F32 OS_GetMonitorHZ();
 

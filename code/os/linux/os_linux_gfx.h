@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../os_gfx.h"
+
 #include "wayland-client.h"
 #include "xdg_shell.h"
 #include "xdg_shell.cpp"

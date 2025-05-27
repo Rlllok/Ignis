@@ -1,6 +1,7 @@
 #include "base/base_core.h"
 #include "base/base_include.h"
 #include "base/base_math.h"
+#include "os/os_gfx.h"
 #include "os/os_include.h"
 #include "render/r_core.h"
 #include "render/r_include.h"
@@ -37,6 +38,7 @@ func void HandleEvents(AppState* state);
 
 I32 main()
 {
+  // https://docs.vulkan.org/spec/latest/chapters/cmdbuffers.html#VUID-vkResetCommandBuffer-commandBuffer-00046
   app_state = {};
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
@@ -47,7 +49,10 @@ I32 main()
   app_state.camera.up = NormalizeVec3f(MakeVec3f(0.0f, 1.0f, 0.0f));
   app_state.camera.right = NormalizeVec3f(CrossVec3f(app_state.camera.front, app_state.camera.up));
   app_state.camera.speed = 1.0f;
+
+  F32 new_variable = 0;
  
+  OS_Init(Megabytes(32));
   app_state.window = OS_CreateWindow("Vulkan Triangle", MakeVec2u(1270, 720));
   OS_ShowWindow(&app_state.window);
 
@@ -203,10 +208,12 @@ I32 main()
 func void
 HandleEvents(AppState* state)
 {
-  OS_EventList event_list = OS_GetEventList(app_state.arena, &app_state.window);
+  ListOS_Event event_list = OS_GetEventList(app_state.arena, &app_state.window);
   
-  for (OS_Event *event = event_list.first; event; event = event->next)
+  for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
   {
+    OS_Event* event = &event_node->data;
+
     switch (event->type)
     {
       case OS_EVENT_TYPE_EXIT:

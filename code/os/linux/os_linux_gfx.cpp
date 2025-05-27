@@ -1,5 +1,15 @@
 #include "os_linux_gfx.h"
 #include "os/linux/xdg_shell.h"
+#include "os/os_gfx.h"
+
+#include "time.h"
+#include <ctime>
+
+func void
+OS_Init(U64 arena_size)
+{
+  _os_state.arena = AllocateArena(arena_size);
+}
 
 func void
 _ShellHandlePing(void* data, xdg_wm_base* shell, U32 serial)
@@ -12,7 +22,6 @@ _ShellHandlePing(void* data, xdg_wm_base* shell, U32 serial)
 xdg_wm_base_listener _shell_listener = {
   .ping = _ShellHandlePing
 };
-
 
 func void
 _RegistryHandleGlobal(void* data, wl_registry* registry, U32 name, const char* interface, U32 version)
@@ -55,6 +64,11 @@ func void
 _ToplevelHandleClose(void* data, xdg_toplevel* toplevel)
 {
   LOG_INFO("CLOSE\n");
+  OS_Event event = {
+    .type = OS_EVENT_TYPE_EXIT,
+  };
+
+  PushListOS_Event(&_os_state.event_list, event);
 }
 
 xdg_toplevel_listener _toplevel_listener = {
@@ -97,23 +111,22 @@ OS_ShowWindow(OS_Window* window)
   LOG_INFO("Show Window\n");
 }
 
-func OS_EventList
+func ListOS_Event
 OS_GetEventList(Arena* arena, OS_Window* window)
 {
-  OS_EventList result = {};
+  _os_state.event_arena = arena;
+  _os_state.event_list = CreateListOS_Event(_os_state.event_arena);
+  
   wl_display_dispatch_pending(window->handle->display);
 
-  return result;
-}
-
-func void
-OS_PushEvent(OS_EventList* event_list, OS_Event* event)
-{
-  
+  return _os_state.event_list;
 }
 
 func F32
 OS_CurrentTimeSeconds()
 {
-  return 1.0f;
+  timespec now;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+
+  return now.tv_sec + now.tv_nsec * 0.000000001;
 }
