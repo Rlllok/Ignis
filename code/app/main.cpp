@@ -131,8 +131,9 @@ I32 main()
           Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
           Mat4x4f model = rotate * transpose;
           
+          F32 aspect_ration = (F32)app_state.window.size.x / (F32)app_state.window.size.y;
           UData u_data = {
-            .projection = MakePerspective4x4f(45.0f, 1280.0f/720.0f, 0.1f, 1000.0f),
+            .projection = MakePerspective4x4f(45.0f, aspect_ration, 0.1f, 1000.0f),
             .view = MakeLookAt(app_state.camera.position, app_state.camera.position + app_state.camera.front, app_state.camera.up),
             .model = model,
             .dt = OS_CurrentTimeSeconds()
@@ -148,49 +149,6 @@ I32 main()
           Renderer.DrawGeometry(&draw_info);
         }
       }
-      #if 0
-      Renderer.EndRenderPass();
-      Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_LOAD, {});
-      {
-        Renderer.BindPipeline(&red_pipeline);
-        for (ListNodeAST_Geometry* geometry_node = monkey_mesh.geometry_list.first;
-             geometry_node;
-             geometry_node = geometry_node->next)
-        {
-          Renderer.PushGeometry(&geometry_node->data);
-          
-          struct UData
-          {
-            alignas(16) Mat4x4f projection;
-            alignas(16) Mat4x4f view;
-            alignas(16) Mat4x4f model;
-          };
-
-          local_persist F32 angle = 0.0f;
-          angle += 0.01f;
-
-          Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, sinf(angle) * 5.0f));
-          Mat4x4f model = transpose;
-          
-          UData u_data = {
-            .projection = MakePerspective4x4f(45.0f, 1280.0f/720.0f, 0.1f, 10.0f),
-            .view = MakeLookAt(app_state.camera.position, app_state.camera.position + app_state.camera.front, app_state.camera.up),
-            .model = model
-          };
-          
-          R_DrawGeometryInfo draw_info = {
-            .pipeline = &pipeline,
-            .uniform_data = (U8*)PushArena(app_state.frame_arena, sizeof(u_data)),
-            .uniform_data_size = sizeof(u_data),
-            .geometry = &geometry_node->data
-          };
-          memcpy(draw_info.uniform_data, &u_data, sizeof(u_data));
-          Renderer.DrawGeometry(&draw_info);
-        }
-      }
-      // @NOTE Vulkan inserts VkCmdEndRendering() at the end by itself.
-      //Renderer.EndRenderPass();
-      #endif
     }
     Renderer.EndFrame();
     ResetArena(app_state.frame_arena);
