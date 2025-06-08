@@ -15,4 +15,9 @@ struct OS_WindowHandle
   xdg_wm_base* shell;
   xdg_surface* shell_surface;
   xdg_toplevel* toplevel;
+
+  B32 request_resize;
+  B32 ready_resize;
+  Vec2u last_size;
+  Vec2u new_size;
 };

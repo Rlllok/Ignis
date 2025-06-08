@@ -3,6 +3,7 @@
 #include "base/base_string.h"
 #include "r_vk.h"
 #include "render/r_core.h"
+#include "render/vulkan/r_vk_swapchain.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 
 func B32
@@ -61,7 +62,7 @@ R_VK_Init(OS_Window* window)
 
   R_VK_CreateDevice(&r_vk_state);
   R_VK_CreateSurface(&r_vk_state, window);
-  R_VK_CreateSwapchain(&r_vk_state);
+  R_VK_CreateSwapchain(&r_vk_state, window);
   
   VkCommandPoolCreateInfo cmd_pool_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -98,6 +99,11 @@ R_VK_Shutdown()
   vkDestroyInstance(r_vk_state.instance, 0);
 
   return true;
+}
+
+func void R_VK_HandleResize(OS_Window* window)
+{
+  R_VK_RecreateSwapchain(&r_vk_state, window);
 }
 
 func void R_VK_PushGeometry(AST_Geometry* geometry)

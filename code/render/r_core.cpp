@@ -14,6 +14,7 @@ R_InitRenderer(R_RendererType type)
   {
     Renderer.Init = R_VK_Init;
     Renderer.Shutdown = R_VK_Shutdown;
+    Renderer.HandleResize = R_VK_HandleResize;
     Renderer.CreatePipeline = R_VK_CreateGraphicsPipeline;
     Renderer.BindPipeline = R_VK_BindPipeline;
     Renderer.BeginFrame = R_VK_BeginFrame;

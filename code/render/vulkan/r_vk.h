@@ -70,6 +70,8 @@ struct R_VK_State
 func B32 R_VK_Init(OS_Window* window);
 func B32 R_VK_Shutdown();
 
+func void R_VK_HandleResize(OS_Window* window);
+
 func void R_VK_BindPipeline(R_Pipeline* pipeline);
 
 func void R_VK_BeginFrame();

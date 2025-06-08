@@ -6,6 +6,7 @@ pkgs.mkShell.override { stdenv = pkgs.clangStdenv; } rec
   [
     clang-tools # clang-tools should go before clang. If not lsp (clangd) is not working properly
     clang
+    gdb
   ];
 
   buildInputs = with pkgs;

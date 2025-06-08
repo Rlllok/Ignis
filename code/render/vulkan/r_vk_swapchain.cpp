@@ -1,6 +1,7 @@
 #include "r_vk_swapchain.h"
 #include "render/vulkan/r_vk_utils.h"
 #include "third_party/vulkan/include/vulkan_core.h"
+#include <vulkan/vulkan_core.h>
 
 func void
 R_VK_CreateFrameResources(R_VK_State* state, FrameResources* resources)
@@ -43,7 +44,7 @@ R_VK_DestroyFrameResources(R_VK_State* state, FrameResources* resources)
 }
 
 func void
-R_VK_CreateSwapchain(R_VK_State* state)
+R_VK_CreateSwapchain(R_VK_State* state, OS_Window* window)
 {
   R_VK_Swapchain swapchain = {};
   
@@ -69,7 +70,8 @@ R_VK_CreateSwapchain(R_VK_State* state)
                                                      &capabilities));
   if (capabilities.currentExtent.width == U32_MAX)
   {
-    swapchain.size = MakeVec2u(1280, 720);
+    swapchain.size = window->size;
+    LOG_WARNING("SWAP ===== %d / %d\n", window->size.x, window->size.y);
   }
   else
   {
@@ -184,11 +186,11 @@ R_VK_CreateSwapchain(R_VK_State* state)
 }
 
 func void
-R_VK_RecreateSwapchain(R_VK_State* state)
+R_VK_RecreateSwapchain(R_VK_State* state, OS_Window* window)
 {
   LOG_INFO("Recreate Swapchain\n");
   R_VK_DestroySwapchain(state);
-  R_VK_CreateSwapchain(state);
+  R_VK_CreateSwapchain(state, window);
 }
 
 func void

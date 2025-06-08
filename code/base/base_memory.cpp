@@ -35,7 +35,7 @@ PushArena(Arena* arena, U64 size)
   return result;
 }
 
-  func void
+func void
 ResetArena(Arena* arena)
 {
   arena->position = sizeof(Arena);

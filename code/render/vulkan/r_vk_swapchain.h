@@ -31,7 +31,7 @@ struct R_VK_Swapchain
   // U32 current_index;
 };
 
-func void R_VK_CreateSwapchain(R_VK_State* state);
-func void R_VK_RecreateSwapchain(R_VK_State* state);
+func void R_VK_CreateSwapchain(R_VK_State* state, OS_Window* window);
+func void R_VK_RecreateSwapchain(R_VK_State* state, OS_Window* window);
 func void R_VK_DestroySwapchain(R_VK_State* state);
 func B32 R_VK_AcquireNextImage(R_VK_State* state, U32 *image_index);

@@ -208,7 +208,7 @@ I32 main()
 func void
 HandleEvents(AppState* state)
 {
-  ListOS_Event event_list = OS_GetEventList(app_state.arena, &app_state.window);
+  ListOS_Event event_list = OS_GetEventList(&app_state.window);
   
   for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
   {
@@ -219,6 +219,13 @@ HandleEvents(AppState* state)
       case OS_EVENT_TYPE_EXIT:
       {
         state->is_window_closed = true;
+      } break;
+
+      case OS_EVENT_TYPE_RESIZE:
+      {
+        state->window.size = event->window_size;
+        LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
+        Renderer.HandleResize(&state->window);
       } break;
 
       case OS_EVENT_TYPE_KEYBOARD:

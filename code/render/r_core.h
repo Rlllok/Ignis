@@ -59,6 +59,8 @@ enum R_AttachmentLoadOperation
 typedef B32  _RendererInit(OS_Window* window);
 typedef B32  _RendererShutdown();
 
+typedef void _RendererHandleResize(OS_Window* window);
+
 typedef void _RendererCreatePipeline(R_Pipeline* pipeline);
 typedef void _RendererBindPipeline(R_Pipeline* pipeline);
 
@@ -75,6 +77,8 @@ struct R_Renderer
 {
   _RendererInit*            Init;
   _RendererShutdown*        Shutdown;
+
+  _RendererHandleResize*    HandleResize;
 
   _RendererCreatePipeline*  CreatePipeline;
   _RendererBindPipeline*    BindPipeline;
