@@ -59,6 +59,7 @@ I32 main()
   OS_Init(Megabytes(32));
   app_state.window = OS_CreateWindow("Vulkan Triangle", MakeVec2u(1270, 720));
   OS_ShowWindow(&app_state.window);
+  OS_LockCursor(&app_state.window);
 
   R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
 
@@ -132,8 +133,8 @@ I32 main()
           angle += 1.0f * app_state.delta_time;
 
           Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 0.0f));
-          // Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), app_state.camera.yaw);
-          Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
+          Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), app_state.camera.yaw);
+          // Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
           Mat4x4f model = rotate * transpose;
           
           F32 aspect_ration = (F32)app_state.window.size.x / (F32)app_state.window.size.y;
@@ -193,24 +194,22 @@ HandleEvents(Arena* arena, AppState* state)
 
       case OS_EVENT_TYPE_MOUSE_MOVE:
       {
-        // LOG_INFO("%.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
-        F32 dx = event->mouse_position.x - state->last_mouse_position.x;
-        F32 dy = event->mouse_position.y - state->last_mouse_position.y;
-        Vec2f mouse_direction = NormalizeVec2f(MakeVec2f(dx, dy));
+        LOG_INFO("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
+        Vec2f d_position = state->window.virtual_cursor_position - state->last_mouse_position;
+        Vec2f mouse_direction = NormalizeVec2f(d_position);
 
         state->camera.yaw += mouse_direction.x * 1.0f * state->delta_time;
         // state->camera.pitch += dy * 0.1f;
-        LOG_INFO("X%f, Y%f\n", state->camera.yaw, dy);
 
         Vec3f direction = {};
         direction.x = cos(state->camera.yaw) * cos(state->camera.pitch);
         direction.y = sin(state->camera.pitch);
         direction.z = sin(state->camera.yaw) * cos(state->camera.pitch);
-        state->camera.front = NormalizeVec3f(direction);
-        state->camera.right = NormalizeVec3f(CrossVec3f(state->camera.front, MakeVec3f(0.0f, 1.0f, 0.0f)));
-        state->camera.up = NormalizeVec3f(CrossVec3f(state->camera.right, state->camera.front));
+        // state->camera.front = NormalizeVec3f(direction);
+        // state->camera.right = NormalizeVec3f(CrossVec3f(state->camera.front, MakeVec3f(0.0f, 1.0f, 0.0f)));
+        // state->camera.up = NormalizeVec3f(CrossVec3f(state->camera.right, state->camera.front));
         
-        state->last_mouse_position = event->mouse_position;
+        state->last_mouse_position = state->window.virtual_cursor_position;
       } break;
 
       case OS_EVENT_TYPE_KEYBOARD:

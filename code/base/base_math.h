@@ -123,7 +123,7 @@ operator+(Vec2f v1, Vec2f v2)
 }
 
 inline Vec2f&
-operator+=(Vec2f& v1, Vec2f& v2)
+operator+=(Vec2f& v1, Vec2f v2)
 {
   v1 = v1 + v2;
 

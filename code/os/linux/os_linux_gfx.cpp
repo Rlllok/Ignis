@@ -4,10 +4,13 @@
 #include "os/linux/xdg_shell.h"
 #include "os/os_gfx.h"
 
+#include "third_party/wayland/pointer_constraints_unstable_v1.h"
+#include "third_party/wayland/relative_pointer_unstable_v1.h"
 #include "time.h"
 #include <ctime>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
+#include <wayland-cursor.h>
 
 func void
 OS_Init(U64 arena_size)
@@ -26,6 +29,11 @@ _ShellHandlePing(void* data, xdg_wm_base* shell, U32 serial)
 func void
 _PointerHandleEnter(void* data, wl_pointer* pointer, U32 serial, wl_surface* surface, I32 surface_x, I32 surface_y)
 {
+  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+
+  handle->pointer_enter_serial = serial;
+
+  wl_pointer_set_cursor(handle->pointer, handle->pointer_enter_serial, 0, 0, 0);
 }
 
 func void
@@ -126,6 +134,14 @@ _RegistryHandleGlobal(void* data, wl_registry* registry, U32 name, const char* i
     handle->seat = (wl_seat*)wl_registry_bind(registry, name, &wl_seat_interface, 7);
     wl_seat_add_listener(handle->seat, &_seat_listener, handle);
   }
+  else if (strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0)
+  {
+    handle->relative_pointer_manager = (zwp_relative_pointer_manager_v1*)wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface, 1);
+  }
+  else if (strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0)
+  {
+    handle->pointer_constraints = (zwp_pointer_constraints_v1*)wl_registry_bind(registry, name, &zwp_pointer_constraints_v1_interface, 1);
+  }
 }
 
 wl_registry_listener _registry_listener = {
@@ -221,6 +237,103 @@ func void
 OS_ShowWindow(OS_Window* window)
 {
   LOG_INFO("Show Window\n");
+}
+
+func void
+_HandleRelativeMotion(void* data, zwp_relative_pointer_v1* pointer, U32 time_hi, U32 time_lo, I32 dx, I32 dy, I32 dx_unaccel, I32 dy_unaccel)
+{
+  OS_Window* window = (OS_Window*)data;
+  window->virtual_cursor_position += MakeVec2f(wl_fixed_to_double(dx), wl_fixed_to_double(dy));
+}
+
+zwp_relative_pointer_v1_listener _relative_pointer_listener = {
+  .relative_motion = _HandleRelativeMotion
+};
+
+func void
+_LockedPointerHandleLocked(void* data, zwp_locked_pointer_v1* pointer)
+{
+  LOG_INFO("Pointer is locked.\n")
+}
+
+func void
+_LockedPointerHandleUnlocked(void* data, zwp_locked_pointer_v1* pointer)
+{
+  LOG_INFO("Pointer is unlocked.\n");
+}
+
+zwp_locked_pointer_v1_listener _locked_pointer_listener = {
+  .locked = _LockedPointerHandleLocked,
+  .unlocked = _LockedPointerHandleUnlocked
+};
+
+func void
+_ConfinedPointerHandleConfined(void* data, zwp_confined_pointer_v1* pointer)
+{
+  
+  LOG_INFO("Pointer is confined.\n");
+}
+
+func void
+_ConfinedPointerHandleUnconfined(void* data, zwp_confined_pointer_v1* pointer)
+{
+  LOG_INFO("Pointer is unconfined.\n");
+}
+
+zwp_confined_pointer_v1_listener _confined_pointer_listener = {
+  .confined = _ConfinedPointerHandleConfined,
+  .unconfined = _ConfinedPointerHandleUnconfined
+};
+
+func void
+OS_LockCursor(OS_Window* window)
+{
+  if (!window->handle->relative_pointer_manager)
+  {
+    LOG_ERROR("Relative Pointer is not supported by the compositor.\n");
+    return;
+  }
+
+  window->handle->relative_pointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
+    window->handle->relative_pointer_manager,
+    window->handle->pointer
+  );
+  zwp_relative_pointer_v1_add_listener(
+    window->handle->relative_pointer,
+    &_relative_pointer_listener,
+    window
+  );
+
+  window->handle->confined_pointer = zwp_pointer_constraints_v1_confine_pointer(
+    window->handle->pointer_constraints,
+    window->handle->surface,
+    window->handle->pointer,
+    0,
+    ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT
+  );
+  zwp_confined_pointer_v1_add_listener(window->handle->confined_pointer, &_confined_pointer_listener, window);
+
+  // window->handle->locked_pointer = zwp_pointer_constraints_v1_lock_pointer(
+  //   window->handle->pointer_constraints,
+  //   window->handle->surface,
+  //   window->handle->pointer,
+  //   0,
+  //   ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT
+  // );
+  // zwp_locked_pointer_v1_add_listener(window->handle->locked_pointer, &_locked_pointer_listener, window);
+}
+
+func void
+OS_UnlockCursor(OS_Window* window)
+{
+  zwp_relative_pointer_v1_destroy(window->handle->relative_pointer);
+  window->handle->relative_pointer = 0;
+
+  // zwp_locked_pointer_v1_destroy(window->handle->locked_pointer);
+  // window->handle->locked_pointer = 0;
+
+  zwp_confined_pointer_v1_destroy(window->handle->confined_pointer);
+  window->handle->confined_pointer = 0;
 }
 
 func ListOS_Event
