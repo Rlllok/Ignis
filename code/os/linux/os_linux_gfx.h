@@ -2,9 +2,10 @@
 
 #include "../os_gfx.h"
 
+#include "wayland-client-protocol.h"
 #include "wayland-client.h"
-#include "xdg_shell.h"
-#include "xdg_shell.cpp"
+#include "third_party/wayland/xdg_shell.h"
+#include "third_party/wayland/xdg_shell.cpp"
 
 struct OS_WindowHandle
 {
@@ -15,6 +16,8 @@ struct OS_WindowHandle
   xdg_wm_base* shell;
   xdg_surface* shell_surface;
   xdg_toplevel* toplevel;
+  wl_seat* seat;
+  wl_pointer* pointer;
 
   B32 request_resize;
   B32 ready_resize;

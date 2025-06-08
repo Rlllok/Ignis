@@ -1,17 +1,18 @@
 #include "os_linux_gfx.h"
+#include "base/base_logger.h"
 #include "base/base_memory.h"
 #include "os/linux/xdg_shell.h"
 #include "os/os_gfx.h"
 
 #include "time.h"
 #include <ctime>
+#include <wayland-client-core.h>
+#include <wayland-client-protocol.h>
 
 func void
 OS_Init(U64 arena_size)
 {
   _os_state.arena = AllocateArena(arena_size);
-  _os_state.event_arena = AllocateArena(arena_size);
-  _os_state.event_list = CreateListOS_Event(_os_state.event_arena);
 }
 
 func void
@@ -21,6 +22,86 @@ _ShellHandlePing(void* data, xdg_wm_base* shell, U32 serial)
 
   xdg_wm_base_pong(handle->shell, serial);
 }
+
+func void
+_PointerHandleEnter(void* data, wl_pointer* pointer, U32 serial, wl_surface* surface, I32 surface_x, I32 surface_y)
+{
+}
+
+func void
+_PointerHandleLeave(void*data, wl_pointer* pointer, U32 serial, wl_surface* surface)
+{
+}
+
+func void
+_PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I32 surface_y)
+{
+  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+
+  // LOG_ERROR("pointer %p (%.3f, %.3f)\t", pointer, wl_fixed_to_double(surface_x), wl_fixed_to_double(surface_y));
+  OS_Event event = {
+    .type = OS_EVENT_TYPE_MOUSE_MOVE,
+    .mouse_position = { (F32)wl_fixed_to_double(surface_x), (F32)wl_fixed_to_double(surface_y) }
+  };
+
+  PushListOS_Event(&_os_state.event_list, event);
+}
+
+func void
+_PointerHandleButton(void* data, wl_pointer* pointer, U32 serial, U32 time, U32 button, U32 state)
+{
+  LOG_INFO("Mouse press\n");
+}
+
+func void
+_PointerHandleAxis(void*data, wl_pointer* pointer, U32 time, U32 axis, I32 value)
+{
+}
+
+func void
+_PointerHandleFrame(void* data, wl_pointer* pointer)
+{
+}
+
+wl_pointer_listener _pointer_listener = {
+  .enter = _PointerHandleEnter,
+  .leave = _PointerHandleLeave,
+  .motion = _PointerHandleMotion,
+  .button = _PointerHandleButton,
+  .axis = _PointerHandleAxis,
+  .frame = _PointerHandleFrame,
+};
+
+func void
+_SeatHandleCapabilities(void* data, wl_seat* seat, U32 capabilities)
+{
+  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+
+  B32 have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
+
+  if (have_pointer && handle->pointer == 0)
+  {
+    handle->pointer = wl_seat_get_pointer(handle->seat);
+    wl_pointer_add_listener(handle->pointer, &_pointer_listener, data);
+    LOG_INFO("ADD POINTER\n");
+  }
+  else if (!have_pointer && handle->pointer !=0)
+  {
+    wl_pointer_release(handle->pointer);
+    handle->pointer = 0;
+  }
+}
+
+func void
+_SeatHandleName(void* data, wl_seat* seat, const char* name)
+{
+  LOG_INFO("WL_Seat name: %s\n");
+}
+
+wl_seat_listener _seat_listener = {
+  .capabilities = _SeatHandleCapabilities,
+  .name = _SeatHandleName
+};
 
 xdg_wm_base_listener _shell_listener = {
   .ping = _ShellHandlePing
@@ -39,6 +120,11 @@ _RegistryHandleGlobal(void* data, wl_registry* registry, U32 name, const char* i
   {
     handle->shell = (xdg_wm_base*)wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
     xdg_wm_base_add_listener(handle->shell, &_shell_listener, handle);
+  }
+  else if (strcmp(interface, wl_seat_interface.name) == 0)
+  {
+    handle->seat = (wl_seat*)wl_registry_bind(registry, name, &wl_seat_interface, 7);
+    wl_seat_add_listener(handle->seat, &_seat_listener, handle);
   }
 }
 
@@ -61,9 +147,14 @@ _ShellSurfaceHandleConfigure(void* data, xdg_surface* shell_surface, U32 serial)
       .window_size = handle->new_size,
     };
 
-    PushListOS_Event(&_os_state.event_list, event);
+    // @NOTE Configure occures before GetEventList, so event_list is not initialized
+    if (_os_state.event_list.arena)
+    {
+      PushListOS_Event(&_os_state.event_list, event);
+    }
 
     handle->request_resize = false;
+    wl_surface_commit(handle->surface);
   }
 }
 
@@ -133,13 +224,13 @@ OS_ShowWindow(OS_Window* window)
 }
 
 func ListOS_Event
-OS_GetEventList(OS_Window* window)
+OS_GetEventList(Arena* arena, OS_Window* window)
 {
-  _os_state.event_list = CreateListOS_Event(_os_state.event_arena);
+  _os_state.event_list = CreateListOS_Event(arena);
   
   wl_display_dispatch_pending(window->handle->display);
 
-  ResetArena(_os_state.event_arena);
+  // ResetArena(_os_state.event_arena);
 
   return _os_state.event_list;
 }

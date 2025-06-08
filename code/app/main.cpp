@@ -20,6 +20,8 @@ struct Camera
   Vec3f up;
   Vec3f right;
   F32 speed;
+  F32 yaw;
+  F32 pitch;
 };
 
 struct AppState
@@ -32,9 +34,11 @@ struct AppState
   F32 delta_time;
 
   B32 is_window_closed;
+
+  Vec2f last_mouse_position;
 } app_state;
 
-func void HandleEvents(AppState* state);
+func void HandleEvents(Arena* arena, AppState* state);
 
 I32 main()
 {
@@ -103,7 +107,7 @@ I32 main()
   F32 begin_time = OS_CurrentTimeSeconds();
   while (!app_state.is_window_closed)
   {
-    HandleEvents(&app_state);
+    HandleEvents(app_state.frame_arena, &app_state);
 
     Renderer.BeginFrame();
     {
@@ -125,9 +129,10 @@ I32 main()
           };
 
           local_persist F32 angle = 0.0f;
-          angle += 0.001f;
+          angle += 1.0f * app_state.delta_time;
 
           Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 0.0f));
+          // Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), app_state.camera.yaw);
           Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
           Mat4x4f model = rotate * transpose;
           
@@ -164,9 +169,9 @@ I32 main()
 }
 
 func void
-HandleEvents(AppState* state)
+HandleEvents(Arena* arena, AppState* state)
 {
-  ListOS_Event event_list = OS_GetEventList(&app_state.window);
+  ListOS_Event event_list = OS_GetEventList(arena, &app_state.window);
   
   for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
   {
@@ -182,8 +187,30 @@ HandleEvents(AppState* state)
       case OS_EVENT_TYPE_RESIZE:
       {
         state->window.size = event->window_size;
-        LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
+        // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
         Renderer.HandleResize(&state->window);
+      } break;
+
+      case OS_EVENT_TYPE_MOUSE_MOVE:
+      {
+        // LOG_INFO("%.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
+        F32 dx = event->mouse_position.x - state->last_mouse_position.x;
+        F32 dy = event->mouse_position.y - state->last_mouse_position.y;
+        Vec2f mouse_direction = NormalizeVec2f(MakeVec2f(dx, dy));
+
+        state->camera.yaw += mouse_direction.x * 1.0f * state->delta_time;
+        // state->camera.pitch += dy * 0.1f;
+        LOG_INFO("X%f, Y%f\n", state->camera.yaw, dy);
+
+        Vec3f direction = {};
+        direction.x = cos(state->camera.yaw) * cos(state->camera.pitch);
+        direction.y = sin(state->camera.pitch);
+        direction.z = sin(state->camera.yaw) * cos(state->camera.pitch);
+        state->camera.front = NormalizeVec3f(direction);
+        state->camera.right = NormalizeVec3f(CrossVec3f(state->camera.front, MakeVec3f(0.0f, 1.0f, 0.0f)));
+        state->camera.up = NormalizeVec3f(CrossVec3f(state->camera.right, state->camera.front));
+        
+        state->last_mouse_position = event->mouse_position;
       } break;
 
       case OS_EVENT_TYPE_KEYBOARD:

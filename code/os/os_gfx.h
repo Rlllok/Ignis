@@ -43,7 +43,7 @@ struct OS_Event
 
     Vec2u window_size;
 
-    Vec2u mouse_position;
+    Vec2f mouse_position;
     bool  was_down;
     bool  is_down;
 
@@ -54,7 +54,6 @@ DefineList(OS_Event)
 struct _OS_State
 {
     Arena* arena;
-    Arena* event_arena;
     ListOS_Event event_list;
 } _os_state;
 
@@ -64,7 +63,7 @@ func OS_Window OS_CreateWindow(const char* title, Vec2u size);
 func void OS_DestroyWindow(OS_Window* window);
 func void      OS_ShowWindow(OS_Window* window);
 
-func ListOS_Event OS_GetEventList(OS_Window* window);
+func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window);
 
 func F32 OS_GetMonitorHZ();
 
