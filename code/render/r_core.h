@@ -35,6 +35,8 @@ struct R_DrawInfo
 struct R_DrawGeometryInfo
 {
   R_Pipeline* pipeline;
+  RectI viewport;
+  RectI scissor;
   U8* uniform_data;
   U32 uniform_data_size;
   AST_Geometry* geometry;

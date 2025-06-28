@@ -203,42 +203,6 @@ xdg_toplevel_listener _toplevel_listener = {
   .close = _ToplevelHandleClose
 };
 
-func OS_Window
-OS_CreateWindow(const char* title, Vec2u size)
-{
-  OS_Window result = {};
-  result.handle = (OS_WindowHandle*)OS_AllocateMemory(sizeof(OS_WindowHandle));
-  result.size = size;
-
-  result.handle->display = wl_display_connect(0);
-  result.handle->registry = wl_display_get_registry(result.handle->display);
-  wl_registry_add_listener(result.handle->registry, &_registry_listener, result.handle);
-  wl_display_roundtrip(result.handle->display);
-
-  result.handle->surface = wl_compositor_create_surface(result.handle->compositor);
-  result.handle->shell_surface = xdg_wm_base_get_xdg_surface(result.handle->shell, result.handle->surface);
-  result.handle->toplevel = xdg_surface_get_toplevel(result.handle->shell_surface);
-  xdg_surface_add_listener(result.handle->shell_surface, &_shell_surface_listener, result.handle);
-  xdg_toplevel_add_listener(result.handle->toplevel, &_toplevel_listener, result.handle);
-
-  xdg_toplevel_set_title(result.handle->toplevel, title);
-  xdg_toplevel_set_app_id(result.handle->toplevel, title);
-
-  wl_surface_commit(result.handle->surface);
-  wl_display_roundtrip(result.handle->display);
-  wl_surface_commit(result.handle->surface);
-
-  LOG_INFO("Window Created\n");
-
-  return result;
-}
-
-func void
-OS_ShowWindow(OS_Window* window)
-{
-  LOG_INFO("Show Window\n");
-}
-
 func void
 _HandleRelativeMotion(void* data, zwp_relative_pointer_v1* pointer, U32 time_hi, U32 time_lo, I32 dx, I32 dy, I32 dx_unaccel, I32 dy_unaccel)
 {
@@ -249,6 +213,55 @@ _HandleRelativeMotion(void* data, zwp_relative_pointer_v1* pointer, U32 time_hi,
 zwp_relative_pointer_v1_listener _relative_pointer_listener = {
   .relative_motion = _HandleRelativeMotion
 };
+
+func void
+OS_CreateWindow(const char* title, Vec2u size, OS_Window* out)
+{
+  out->handle = (OS_WindowHandle*)OS_AllocateMemory(sizeof(OS_WindowHandle));
+  out->size = size;
+
+  out->handle->display = wl_display_connect(0);
+  out->handle->registry = wl_display_get_registry(out->handle->display);
+  wl_registry_add_listener(out->handle->registry, &_registry_listener, out->handle);
+  wl_display_roundtrip(out->handle->display);
+
+  out->handle->surface = wl_compositor_create_surface(out->handle->compositor);
+  out->handle->shell_surface = xdg_wm_base_get_xdg_surface(out->handle->shell, out->handle->surface);
+  out->handle->toplevel = xdg_surface_get_toplevel(out->handle->shell_surface);
+  xdg_surface_add_listener(out->handle->shell_surface, &_shell_surface_listener, out->handle);
+  xdg_toplevel_add_listener(out->handle->toplevel, &_toplevel_listener, out->handle);
+
+  xdg_toplevel_set_title(out->handle->toplevel, title);
+  xdg_toplevel_set_app_id(out->handle->toplevel, title);
+
+  wl_surface_commit(out->handle->surface);
+  wl_display_roundtrip(out->handle->display);
+  wl_surface_commit(out->handle->surface);
+
+  if (!out->handle->relative_pointer_manager)
+  {
+    LOG_ERROR("Relative Pointer is not supported by the compositor.\n");
+    return;
+  }
+
+  out->handle->relative_pointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
+    out->handle->relative_pointer_manager,
+    out->handle->pointer
+  );
+  zwp_relative_pointer_v1_add_listener(
+    out->handle->relative_pointer,
+    &_relative_pointer_listener,
+    out
+  );
+
+  LOG_INFO("Window Created\n");
+}
+
+func void
+OS_ShowWindow(OS_Window* window)
+{
+  LOG_INFO("Show Window\n");
+}
 
 func void
 _LockedPointerHandleLocked(void* data, zwp_locked_pointer_v1* pointer)
@@ -288,22 +301,6 @@ zwp_confined_pointer_v1_listener _confined_pointer_listener = {
 func void
 OS_LockCursor(OS_Window* window)
 {
-  if (!window->handle->relative_pointer_manager)
-  {
-    LOG_ERROR("Relative Pointer is not supported by the compositor.\n");
-    return;
-  }
-
-  window->handle->relative_pointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
-    window->handle->relative_pointer_manager,
-    window->handle->pointer
-  );
-  zwp_relative_pointer_v1_add_listener(
-    window->handle->relative_pointer,
-    &_relative_pointer_listener,
-    window
-  );
-
   window->handle->confined_pointer = zwp_pointer_constraints_v1_confine_pointer(
     window->handle->pointer_constraints,
     window->handle->surface,

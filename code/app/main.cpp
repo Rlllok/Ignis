@@ -5,11 +5,13 @@
 #include "os/os_include.h"
 #include "render/r_core.h"
 #include "render/r_include.h"
+#include "draw/d_include.h"
 #include "assets/mesh.h"
 
 #include "base/base_include.cpp"
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
+#include "draw/d_include.cpp"
 #include "assets/mesh.cpp"
 #include "render/r_pipeline.h"
 
@@ -57,11 +59,13 @@ I32 main()
   F32 new_variable = 0;
  
   OS_Init(Megabytes(32));
-  app_state.window = OS_CreateWindow("Vulkan Triangle", MakeVec2u(1270, 720));
+  OS_CreateWindow("Vulkan Triangle", MakeVec2u(1270, 720), &app_state.window);
   OS_ShowWindow(&app_state.window);
-  OS_LockCursor(&app_state.window);
+  // OS_LockCursor(&app_state.window);
+  // OS_UnlockCursor(&app_state.window);
 
   R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
+  // D_Init(Megabytes(32));
 
   R_Pipeline pipeline = {};
   {
@@ -72,6 +76,12 @@ I32 main()
     };
     R_PipelineAssignAttributes(&pipeline, attributes, CountArrayElements(attributes));
   
+    R_BindingInfo bindings[] = {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+      {R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT}
+    };
+    R_PipelineAssignSceneBindingLayout(&pipeline, bindings, CountArrayElements(bindings));
+
     R_H_LoadShader(app_state.arena, "data/shaders/main.vs.glsl",
                    "main", R_SHADER_TYPE_VERTEX,
                    &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
@@ -89,6 +99,12 @@ I32 main()
       R_VERTEX_ATTRIBUTE_FORMAT_VEC3F
     };
     R_PipelineAssignAttributes(&red_pipeline, attributes, CountArrayElements(attributes));
+
+    R_BindingInfo bindings[] = {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+      {R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT}
+    };
+    R_PipelineAssignSceneBindingLayout(&red_pipeline, bindings, CountArrayElements(bindings));
   
     R_H_LoadShader(app_state.arena, "data/shaders/red.vs.glsl",
                    "main", R_SHADER_TYPE_VERTEX,
@@ -194,6 +210,7 @@ HandleEvents(Arena* arena, AppState* state)
 
       case OS_EVENT_TYPE_MOUSE_MOVE:
       {
+        LOG_INFO("MousePosition: %.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
         LOG_INFO("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
         Vec2f d_position = state->window.virtual_cursor_position - state->last_mouse_position;
         Vec2f mouse_direction = NormalizeVec2f(d_position);

@@ -3,6 +3,7 @@
 #include "render/r_core.h"
 #include "render/r_pipeline.h"
 #include "third_party/vulkan/include/vulkan_core.h"
+#include <vulkan/vulkan_core.h>
 
 
 func VkAttachmentLoadOp
@@ -38,10 +39,35 @@ R_VK_GetVkFormatAttribute(R_VertexAttributeFormat format)
   {
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F: result = VK_FORMAT_R32G32B32_SFLOAT; break;
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F: result = VK_FORMAT_R32G32_SFLOAT; break;
+
     default: Assert(1); break;
   }
 
   return result;
+}
+
+func VkShaderStageFlags
+R_VK_GetVkShaderStage(R_ShaderType shader_type)
+{
+  switch (shader_type)
+  {
+    case R_SHADER_TYPE_VERTEX: return VK_SHADER_STAGE_VERTEX_BIT;
+    case R_SHADER_TYPE_FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    default: Assert(1); return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+  }
+}
+
+func VkDescriptorType
+R_VK_GetVkDescriptorType(R_BindingType binding_type)
+{
+  switch (binding_type)
+  {
+    case R_BINDING_TYPE_UNIFORM_BUFFER: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    case R_BINDING_TYPE_TEXTURE_2D: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+    default: Assert(1); return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+  }
 }
 
 func U32

@@ -37,8 +37,8 @@ struct R_VertexBuffer
   R_BufferReference buffer;
 
   U8* vertecies;
-  U64   vertex_size;
-  U64   vertex_count;
+  U64 vertex_size;
+  U64 vertex_count;
 };
 
 func R_VertexBuffer R_CreateVertexBuffer(void* vertecies, U64 vertex_size, U64 vertex_count);
@@ -48,8 +48,8 @@ struct R_IndexBuffer
   R_BufferReference buffer;
 
   U8* indecies;
-  U64   index_size;
-  U64   index_count;
+  U64 index_size;
+  U64 index_count;
 };
 
 func R_IndexBuffer R_CreateIndexBuffer(void* indecies, U64 vertex_size, U64 vertex_count);

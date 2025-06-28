@@ -225,7 +225,7 @@ func F64 GetNumberElement(GLTFElement* element, Buffer label)
   }
   else
   {
-    LOG_ERROR("There is no element \"%.*s\"", (U32)label.size, label.data);
+    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.size, label.data);
   }
 
   return result;

@@ -2,19 +2,14 @@
 
 layout(location = 0) in vec3 a_position;
 
-layout(set = 0, binding = 0) uniform SceneData
+layout(set = 0, binding = 0) uniform UData
 {
   mat4x4 projection;
-} scene;
-
-// --AlNov: @TODO DrawData name describe nothing for me
-layout(set = 1, binding = 0) uniform DrawData
-{
   float rotation;
   vec2 translate;
   vec2 size;
   vec3 color;
-} draw;
+} u_data;
 
 layout(location = 0) out vec2 uv;
 
@@ -30,10 +25,10 @@ void main()
 {
   uv = a_position.xy;
 
-  data_transfer.color = draw.color;
-  data_transfer.position = draw.translate;
-  data_transfer.size = draw.size;
-  data_transfer.rotation = draw.rotation;
+  data_transfer.color = u_data.color;
+  data_transfer.position = u_data.translate;
+  data_transfer.size = u_data.size;
+  data_transfer.rotation = u_data.rotation;
 
   gl_Position = vec4(a_position.xy, 0.0f, 1.0f);
 }

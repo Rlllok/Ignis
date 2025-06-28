@@ -7,11 +7,37 @@ func void
 R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
 {
   R_VK_State* state = &r_vk_state;
-  
+
+  pipeline->backend_handle = state->pipelines_count;
+  R_VK_GraphicsPipeline* vk_pipeline = &state->graphics_pipelines[pipeline->backend_handle];
+
+  VkDescriptorSetLayoutBinding bindings[4] = {};
+  U32 binding_count = 0;
+  for (U32 i = 0; i < pipeline->scene_bindings_count; i += 1)
+  {
+    R_BindingInfo* binding_info = &pipeline->scene_bindings[i];
+
+    bindings[i] = {
+      .binding = i,
+      .descriptorType = R_VK_GetVkDescriptorType(binding_info->type),
+      .descriptorCount = 1,
+      .stageFlags = R_VK_GetVkShaderStage(binding_info->shader_type)
+    };
+
+    binding_count += 1;
+  }
+
+  VkDescriptorSetLayoutCreateInfo layout = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = binding_count,
+    .pBindings = bindings
+  };
+  VK_CHECK(vkCreateDescriptorSetLayout(state->device.logical, &layout, 0, &vk_pipeline->set_layout));
+    
   VkPipelineLayoutCreateInfo layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     .setLayoutCount = 1,
-    .pSetLayouts = &state->descriptor_layout,
+    .pSetLayouts = &vk_pipeline->set_layout,
   };
   VK_CHECK(vkCreatePipelineLayout(state->device.logical, &layout_info, 0, &state->graphics_pipelines[state->pipelines_count].layout));
   
@@ -163,7 +189,6 @@ R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
   VK_CHECK(vkCreateGraphicsPipelines(state->device.logical,
                                      0, 1, &pipeline_info, 0,
                                      &state->graphics_pipelines[state->pipelines_count].handle));
-  pipeline->backend_handle = state->pipelines_count;
   state->pipelines_count += 1;
 
   vkDestroyShaderModule(state->device.logical, vertex_module, 0);

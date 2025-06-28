@@ -1,16 +1,20 @@
 #pragma once
 
+#include "assets/mesh.h"
 #include "render/r_include.h"
 
 struct D_State
 {
+  Arena* arena;
+
   R_Pipeline box_pipeline;
   R_Pipeline circle_pipeline;
 
   R_VertexBuffer quad_vertex_buffer = {};
   R_IndexBuffer  quad_index_buffer = {};
-};
-global D_State _d_state;
+
+  AST_Geometry geometry;
+} _d_state;
 
 func void D_Init(Arena* arena);
 

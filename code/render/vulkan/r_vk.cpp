@@ -3,6 +3,7 @@
 #include "base/base_string.h"
 #include "r_vk.h"
 #include "render/r_core.h"
+#include "render/r_pipeline.h"
 #include "render/vulkan/r_vk_swapchain.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 
@@ -369,7 +370,7 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool = state->descriptor_pools[r_vk_state.current_frame],
     .descriptorSetCount = 1,
-    .pSetLayouts = &state->descriptor_layout
+    .pSetLayouts = &state->graphics_pipelines[draw_info->pipeline->backend_handle].set_layout
   };
 
   VkDescriptorSet set = {};
@@ -387,27 +388,41 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
     .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
   };
   
-  VkWriteDescriptorSet write_infos[2] = {};
-  write_infos[0] = {
-    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .dstSet = set,
-    .dstBinding = 0,
-    .dstArrayElement = 0,
-    .descriptorCount = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .pBufferInfo = &buffer_info
-  };
-  write_infos[1] = {
-    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-    .dstSet = set,
-    .dstBinding = 1,
-    .dstArrayElement = 0,
-    .descriptorCount = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .pImageInfo = &image_info
-  };
+  VkWriteDescriptorSet write_infos[4] = {};
+  U32 write_count = 0;
+
+  for (U32 i = 0; i < draw_info->pipeline->scene_bindings_count; i += 1)
+  {
+    R_BindingInfo* binding_info = &draw_info->pipeline->scene_bindings[i];
+
+    if (binding_info->type == R_BINDING_TYPE_UNIFORM_BUFFER)
+    {
+      write_infos[i] = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = set,
+        .dstBinding = i,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = &buffer_info
+      };
+    }
+    else if (binding_info->type == R_BINDING_TYPE_TEXTURE_2D)
+    {
+      write_infos[i] = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = set,
+        .dstBinding = i,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &image_info
+      };
+    }
+    write_count += 1;
+  }
   
-  vkUpdateDescriptorSets(r_vk_state.device.logical, 2, write_infos, 0, 0);
+  vkUpdateDescriptorSets(r_vk_state.device.logical, write_count, write_infos, 0, 0);
   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.layout, 0, 1, &set, 0, 0);
 
   vkCmdBindIndexBuffer(cmd, state->geometry_buffer.handle, draw_info->geometry->index_r_backend_offset, VK_INDEX_TYPE_UINT16);
@@ -454,27 +469,6 @@ R_VK_CreateDescriptorSet()
 {
   R_VK_State* state = &r_vk_state;
 
-  VkDescriptorSetLayoutBinding bindings[2] = {};
-  bindings[0] = {
-    .binding = 0,
-    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
-  };
-  bindings[1] = {
-    .binding = 1,
-    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1,
-    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
-  };
-  
-  VkDescriptorSetLayoutCreateInfo layout = {
-    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = 2,
-    .pBindings = bindings
-  };
-  VK_CHECK(vkCreateDescriptorSetLayout(state->device.logical, &layout, 0, &state->descriptor_layout));
-  
   VkDescriptorSetAllocateInfo allocate_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool = state->descriptor_pools[r_vk_state.current_frame],
@@ -482,7 +476,7 @@ R_VK_CreateDescriptorSet()
     .pSetLayouts = &state->descriptor_layout
   };
 
-  VK_CHECK(vkAllocateDescriptorSets(state->device.logical, &allocate_info, &state->descriptor_set));
+  // VK_CHECK(vkAllocateDescriptorSets(state->device.logical, &allocate_info, &state->descriptor_set));
 }
 
 func void

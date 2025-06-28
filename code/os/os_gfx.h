@@ -61,9 +61,9 @@ struct _OS_State
 
 func void OS_Init(U64 arena_size);
 
-func OS_Window OS_CreateWindow(const char* title, Vec2u size);
+func void OS_CreateWindow(const char* title, Vec2u size, OS_Window* out);
 func void OS_DestroyWindow(OS_Window* window);
-func void      OS_ShowWindow(OS_Window* window);
+func void OS_ShowWindow(OS_Window* window);
 
 func void OS_LockCursor(OS_Window* window);
 func void OS_UnlockCursor(OS_Window* window);
