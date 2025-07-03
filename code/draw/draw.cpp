@@ -15,13 +15,13 @@ D_Init(U64 arena_size)
       MakeVec2f(+1.0f, +1.0f),
       MakeVec2f(-1.0f, +1.0f),
     };
-    U64 indecies[] = {0, 1, 2, 2, 3, 0};
+    U16 indecies[] = {0, 1, 2, 2, 3, 0};
 
     _d_state.geometry = {};
-    _d_state.geometry.index_data = (U8*)indecies;
+    _d_state.geometry.index_data = (U8*)PushCopyArena(_d_state.arena, sizeof(indecies), &indecies);
     _d_state.geometry.index_size = sizeof(indecies[0]);
     _d_state.geometry.index_count = CountArrayElements(indecies);
-    _d_state.geometry.vertex_data = (U8*)vertecies;
+    _d_state.geometry.vertex_data = (U8*)PushCopyArena(_d_state.arena, sizeof(vertecies), vertecies);
     _d_state.geometry.vertex_size = sizeof(vertecies[0]);
     _d_state.geometry.vertex_count = CountArrayElements(vertecies);
   }
@@ -138,6 +138,7 @@ D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation)
   draw_info.scissor = scissor;
 
   Renderer.BindPipeline(draw_info.pipeline);
+  Renderer.PushGeometry(&_d_state.geometry);
   Renderer.DrawGeometry(&draw_info);
 }
 

@@ -20,7 +20,7 @@ AllocateArena(U64 size)
 func void*
 PushArena(Arena* arena, U64 size)
 {
-  void* result = nullptr;
+  void* result = 0;
 
   if ((arena->position + size) < arena->size)
   {
@@ -32,6 +32,13 @@ PushArena(Arena* arena, U64 size)
     Assert(1 && "Not enough space for allocation");
   }
 
+  return result;
+}
+
+func void* PushCopyArena(Arena* arena, U64 size, void* data)
+{
+  void* result = PushArena(arena, size);
+  memcpy(result, data, size);
   return result;
 }
 

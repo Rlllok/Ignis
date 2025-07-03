@@ -19,6 +19,7 @@ func Arena* AllocateArena(U64 size);
 
 // --AlNov: @TODO Initialize with zero
 func void* PushArena(Arena* arena, U64 size);
+func void* PushCopyArena(Arena* arena, U64 size, void* data);
 
 func void ResetArena(Arena* arena);
 func void FreeArena(Arena* arena);

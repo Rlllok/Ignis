@@ -30,5 +30,5 @@ void main()
   data_transfer.size = u_data.size;
   data_transfer.rotation = u_data.rotation;
 
-  gl_Position = vec4(a_position.xy, 0.0f, 1.0f);
+  gl_Position = vec4(a_position.xy, 0.00f, 1.0f);
 }

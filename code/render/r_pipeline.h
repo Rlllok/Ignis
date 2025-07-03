@@ -49,6 +49,16 @@ struct R_BindingInfo
   R_ShaderType  shader_type;
 };
 
+enum R_PipelineCullingMode
+{
+  R_PIPELINE_CULLING_MODE_NONE,
+
+  R_PIPELINE_CULLING_MODE_BACK_CW,
+  R_PIPELINE_CULLING_MODE_BACK_CCW,
+
+  R_PIPELINE_CULLING_MODE_COUNT
+};
+
 #define MAX_ATTRIBUTES 10
 struct R_Pipeline
 {
@@ -62,6 +72,7 @@ struct R_Pipeline
   R_BindingInfo instance_bindings[MAX_BINDINGS];
   U32           instance_bindings_count;
 
+  B32 is_back_culing_enabled;
   B32 is_depth_test_enabled;
 };
 

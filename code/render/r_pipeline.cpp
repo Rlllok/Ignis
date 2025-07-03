@@ -1,15 +1,5 @@
 #include "r_pipeline.h"
 
-#pragma comment(lib, "third_party/glslang/lib/GenericCodeGen.lib")
-#pragma comment(lib, "third_party/glslang/lib/glslang.lib")
-#pragma comment(lib, "third_party/glslang/lib/glslang-default-resource-limits.lib")
-#pragma comment(lib, "third_party/glslang/lib/MachineIndependent.lib")
-#pragma comment(lib, "third_party/glslang/lib/OSDependent.lib")
-#pragma comment(lib, "third_party/glslang/lib/SPIRV.lib")
-#pragma comment(lib, "third_party/glslang/lib/SPIRV-Tools.lib")
-#pragma comment(lib, "third_party/glslang/lib/SPIRV-Tools-opt.lib")
-#pragma comment(lib, "third_party/glslang/lib/SPVRemapper.lib")
-
 #include "third_party/glslang/include/Include/glslang_c_interface.h"
 #include "third_party/glslang/include/Public/resource_limits_c.h"
 

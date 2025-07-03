@@ -4,14 +4,25 @@
 
 struct OS_WindowHandle;
 
+enum OS_WindowStatus
+{
+  OS_WINDOW_STATUS_NONE,
+  OS_WINDOW_STATUS_CREATED,
+  OS_WINDOW_STATUS_OPEN,
+  OS_WINDOW_STATUS_CLOSED,
+
+  OS_WINDOW_STATUS_COUNT
+};
+
 struct OS_Window
 {
     OS_WindowHandle* handle;
     Vec2u size;
     Vec2f cursor_position;
     Vec2f virtual_cursor_position;
-};
 
+    OS_WindowStatus status;
+};
 
 enum OS_EventType
 {
@@ -46,10 +57,12 @@ struct OS_Event
     Vec2u window_size;
 
     Vec2f mouse_position;
+    
+    OS_KeyCode key;
+    
     bool  was_down;
     bool  is_down;
 
-    OS_KeyCode key;
 };
 DefineList(OS_Event)
 

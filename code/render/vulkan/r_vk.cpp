@@ -1,4 +1,5 @@
 #include "render/vulkan/r_vk.h"
+#include "base/base_logger.h"
 #include "base/base_math.h"
 #include "base/base_string.h"
 #include "r_vk.h"
@@ -332,17 +333,21 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
   };
     
   VkViewport viewport = {
-    .width = (F32)render_area.width,
-    .height = (F32)render_area.height,
+    .width = (F32)draw_info->viewport.w,
+    .height = (F32)draw_info->viewport.h,
     .minDepth = 0.0f,
     .maxDepth = 1.0f
   };
   vkCmdSetViewport(cmd, 0, 1, &viewport);
 
   VkRect2D scissor = {
+    .offset = {
+      .x = draw_info->scissor.x,
+      .y = draw_info->scissor.y
+    },
     .extent = {
-      .width = render_area.width,
-      .height = render_area.height
+      .width = (U32)draw_info->scissor.w,
+      .height = (U32)draw_info->scissor.h
     }
   };
   vkCmdSetScissor(cmd, 0, 1, &scissor);
@@ -374,7 +379,7 @@ R_VK_DrawGeometry(R_DrawGeometryInfo* draw_info)
   };
 
   VkDescriptorSet set = {};
-  VK_CHECK(vkAllocateDescriptorSets(state->device.logical, &allocate_info, &set));
+  vkAllocateDescriptorSets(state->device.logical, &allocate_info, &set);
   
   VkDescriptorBufferInfo buffer_info = {
     .buffer = r_vk_state.geometry_buffer.handle,
@@ -443,12 +448,12 @@ R_VK_CreateDescriptorPool()
   VkDescriptorPoolSize pool_sizes[2] = {};
   pool_sizes[0] = {
     .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-    .descriptorCount = 1
+    .descriptorCount = 1024
   };
   
   pool_sizes[1] = {
     .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-    .descriptorCount = 1
+    .descriptorCount = 1024
   };
   
   VkDescriptorPoolCreateInfo pool_info = {

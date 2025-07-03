@@ -1,9 +1,5 @@
-#include "base/base_core.h"
 #include "base/base_include.h"
-#include "base/base_math.h"
-#include "os/os_gfx.h"
 #include "os/os_include.h"
-#include "render/r_core.h"
 #include "render/r_include.h"
 #include "draw/d_include.h"
 #include "assets/mesh.h"
@@ -13,7 +9,17 @@
 #include "render/r_include.cpp"
 #include "draw/d_include.cpp"
 #include "assets/mesh.cpp"
-#include "render/r_pipeline.h"
+
+// #pragma comment(lib, "user32.lib")
+// #pragma comment(lib, "third_party/glslang/lib/GenericCodeGen.lib")
+// #pragma comment(lib, "third_party/glslang/lib/glslang.lib")
+// #pragma comment(lib, "third_party/glslang/lib/glslang-default-resource-limits.lib")
+// #pragma comment(lib, "third_party/glslang/lib/MachineIndependent.lib")
+// #pragma comment(lib, "third_party/glslang/lib/OSDependent.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPIRV.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPIRV-Tools.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPIRV-Tools-opt.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPVRemapper.lib")
 
 struct Camera
 {
@@ -65,7 +71,7 @@ I32 main()
   // OS_UnlockCursor(&app_state.window);
 
   R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
-  // D_Init(Megabytes(32));
+  D_Init(Megabytes(32));
 
   R_Pipeline pipeline = {};
   {
@@ -89,31 +95,9 @@ I32 main()
                    "main", R_SHADER_TYPE_FRAGMENT,
                    &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
   
+    pipeline.is_back_culing_enabled = true;
+    pipeline.is_depth_test_enabled = true;
     Renderer.CreatePipeline(&pipeline);
-  }
-  
-  R_Pipeline red_pipeline = {};
-  {
-    R_VertexAttributeFormat attributes[] = {
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F
-    };
-    R_PipelineAssignAttributes(&red_pipeline, attributes, CountArrayElements(attributes));
-
-    R_BindingInfo bindings[] = {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
-      {R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT}
-    };
-    R_PipelineAssignSceneBindingLayout(&red_pipeline, bindings, CountArrayElements(bindings));
-  
-    R_H_LoadShader(app_state.arena, "data/shaders/red.vs.glsl",
-                   "main", R_SHADER_TYPE_VERTEX,
-                   &red_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(app_state.arena, "data/shaders/red.fs.glsl",
-                   "main", R_SHADER_TYPE_FRAGMENT,
-                   &red_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-  
-    Renderer.CreatePipeline(&red_pipeline);
   }
   
   AST_StaticMesh static_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/motocycle_gltf/motocycle.gltf"));
@@ -165,10 +149,19 @@ I32 main()
             .pipeline = &pipeline,
             .uniform_data = (U8*)PushArena(app_state.frame_arena, sizeof(u_data)),
             .uniform_data_size = sizeof(u_data),
-            .geometry = &geometry_node->data
+            .geometry = &geometry_node->data,
+            .viewport = { .x = 0, .y = 0, .w = (I32)app_state.window.size.x, .h = (I32)app_state.window.size.y },
+            .scissor = { .x = 0, .y = 0, .w = (I32)app_state.window.size.x, .h = (I32)app_state.window.size.y }
           };
           memcpy(draw_info.uniform_data, &u_data, sizeof(u_data));
           Renderer.DrawGeometry(&draw_info);
+          
+          // D_DrawCircle(MakeVec2I(100, 100), 10, MakeVec3f(1.0f, 1.0f, 1.0f));
+          RectI rect = {
+            .position = {{ 300, 300 }},
+            .size = {{ 50, 50 }}
+          };
+          D_DrawRectangle(&app_state.window, rect, MakeVec3f(1.0f, 1.0f, 1.0f), 0);
         }
       }
     }
@@ -203,6 +196,8 @@ HandleEvents(Arena* arena, AppState* state)
 
       case OS_EVENT_TYPE_RESIZE:
       {
+        // @TODO Window recreated multiple time.
+        // I guess, resize event is triggered multiple time. It should be handled only once, after last resizing
         state->window.size = event->window_size;
         // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
         Renderer.HandleResize(&state->window);

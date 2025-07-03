@@ -80,7 +80,7 @@ R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
     .depthClampEnable = false,
     .rasterizerDiscardEnable = false,
     .polygonMode = VK_POLYGON_MODE_FILL,
-    .cullMode = VK_CULL_MODE_BACK_BIT,
+    .cullMode = (VkCullModeFlags)(pipeline->is_back_culing_enabled * VK_CULL_MODE_BACK_BIT),
     .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     .depthBiasEnable = false,
     .lineWidth = 1.0f
@@ -109,7 +109,7 @@ R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
 
   VkPipelineDepthStencilStateCreateInfo depth_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-    .depthTestEnable = VK_TRUE,
+    .depthTestEnable = (VkBool32)pipeline->is_depth_test_enabled,
     .depthWriteEnable = VK_TRUE,
     .depthCompareOp = VK_COMPARE_OP_GREATER
   };
