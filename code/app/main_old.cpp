@@ -1,5 +1,4 @@
 #include "base/base_include.h"
-#include "os/os_gfx.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
 #include "draw/d_include.h"
@@ -10,7 +9,17 @@
 #include "render/r_include.cpp"
 #include "draw/d_include.cpp"
 #include "assets/mesh.cpp"
-#include "render/r_pipeline.h"
+
+// #pragma comment(lib, "user32.lib")
+// #pragma comment(lib, "third_party/glslang/lib/GenericCodeGen.lib")
+// #pragma comment(lib, "third_party/glslang/lib/glslang.lib")
+// #pragma comment(lib, "third_party/glslang/lib/glslang-default-resource-limits.lib")
+// #pragma comment(lib, "third_party/glslang/lib/MachineIndependent.lib")
+// #pragma comment(lib, "third_party/glslang/lib/OSDependent.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPIRV.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPIRV-Tools.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPIRV-Tools-opt.lib")
+// #pragma comment(lib, "third_party/glslang/lib/SPVRemapper.lib")
 
 struct Camera
 {
@@ -58,34 +67,44 @@ I32 main()
   OS_Init(Megabytes(32));
   OS_CreateWindow("Vulkan Triangle", MakeVec2u(1270, 720), &app_state.window);
   OS_ShowWindow(&app_state.window);
+  // OS_LockCursor(&app_state.window);
+  // OS_UnlockCursor(&app_state.window);
 
   R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
   D_Init(Megabytes(32));
 
-  R_Pipeline bline_pipeline= {};
+  R_Pipeline pipeline = {};
   {
     R_VertexAttributeFormat attributes[] = {
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
       R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
     };
-    R_PipelineAssignAttributes(&bline_pipeline, attributes, CountArrayElements(attributes));
-
-    R_BindingInfo scene_bindings[] = {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
-    };
-    R_PipelineAssignSceneBindingLayout(&bline_pipeline, scene_bindings, CountArrayElements(scene_bindings));
-
-    R_H_LoadShader(app_state.arena, "data/shaders/square.vs.glsl",
-                   "main", R_SHADER_TYPE_VERTEX,
-                   &bline_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(app_state.arena, "data/shaders/bline.fs.glsl",
-                   "main", R_SHADER_TYPE_FRAGMENT,
-                   &bline_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+    R_PipelineAssignAttributes(&pipeline, attributes, CountArrayElements(attributes));
   
-    bline_pipeline.is_back_culing_enabled = false;
-    bline_pipeline.is_depth_test_enabled = false;
-    Renderer.CreatePipeline(&bline_pipeline);
+    R_BindingInfo bindings[] = {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+      {R_BINDING_TYPE_TEXTURE_2D, R_SHADER_TYPE_FRAGMENT}
+    };
+    R_PipelineAssignSceneBindingLayout(&pipeline, bindings, CountArrayElements(bindings));
+
+    R_H_LoadShader(app_state.arena, "data/shaders/main.vs.glsl",
+                   "main", R_SHADER_TYPE_VERTEX,
+                   &pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(app_state.arena, "data/shaders/main.fs.glsl",
+                   "main", R_SHADER_TYPE_FRAGMENT,
+                   &pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+  
+    pipeline.is_back_culing_enabled = true;
+    pipeline.is_depth_test_enabled = true;
+    Renderer.CreatePipeline(&pipeline);
   }
   
+  AST_StaticMesh static_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/motocycle_gltf/motocycle.gltf"));
+  AST_StaticMesh monkey_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/monkey_gltf/monkey.gltf"));
+  AST_StaticMesh sphere_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/sphere_gltf/sphere.gltf"));
+  AST_StaticMesh plane_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8FromC("data/plane_gltf/plane.gltf"));
+ 
   F32 begin_time = OS_CurrentTimeSeconds();
   while (!app_state.is_window_closed)
   {
@@ -95,39 +114,55 @@ I32 main()
     {
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f));
       {
+        Renderer.BindPipeline(&pipeline);
+        for (ListNodeAST_Geometry* geometry_node = sphere_mesh.geometry_list.first;
+             geometry_node;
+             geometry_node = geometry_node->next)
+        {
+          Renderer.PushGeometry(&geometry_node->data);
+          
+          struct UData
+          {
+            alignas(16) Mat4x4f projection;
+            alignas(16) Mat4x4f view;
+            alignas(16) Mat4x4f model;
+            alignas(4)  F32 dt;
+          };
+
+          local_persist F32 angle = 0.0f;
+          angle += 1.0f * app_state.delta_time;
+
+          Mat4x4f transpose = Transpose4x4f(MakeVec3f(0.0f, 0.0f, 0.0f));
+          Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), app_state.camera.yaw);
+          // Mat4x4f rotate = Rotate4x4f(MakeVec3f(0.0f, 1.0f, 0.0f), angle);
+          Mat4x4f model = rotate * transpose;
+          
+          F32 aspect_ration = (F32)app_state.window.size.x / (F32)app_state.window.size.y;
+          UData u_data = {
+            .projection = MakePerspective4x4f(45.0f, aspect_ration, 0.1f, 1000.0f),
+            .view = MakeLookAt(app_state.camera.position, app_state.camera.position + app_state.camera.front, app_state.camera.up),
+            .model = model,
+            .dt = OS_CurrentTimeSeconds()
+          };
+          
+          R_DrawGeometryInfo draw_info = {
+            .pipeline = &pipeline,
+            .uniform_data = (U8*)PushArena(app_state.frame_arena, sizeof(u_data)),
+            .uniform_data_size = sizeof(u_data),
+            .geometry = &geometry_node->data,
+            .viewport = { .x = 0, .y = 0, .w = (I32)app_state.window.size.x, .h = (I32)app_state.window.size.y },
+            .scissor = { .x = 0, .y = 0, .w = (I32)app_state.window.size.x, .h = (I32)app_state.window.size.y }
+          };
+          memcpy(draw_info.uniform_data, &u_data, sizeof(u_data));
+          Renderer.DrawGeometry(&draw_info);
+          
           // D_DrawCircle(MakeVec2I(100, 100), 10, MakeVec3f(1.0f, 1.0f, 1.0f));
           RectI rect = {
             .position = {{ 300, 300 }},
             .size = {{ 50, 50 }}
           };
-          // D_DrawRectangle(&app_state.window, rect, MakeVec3f(1.0f, 1.0f, 1.0f), 0);
-
-          struct
-          {
-            alignas(8) Vec2f mouse_position;
-            alignas(4) F32 time;
-            alignas(4) F32 dt;
-          } u_data;
-          u_data.mouse_position = OS_MousePosition(app_state.window);
-          u_data.time = OS_CurrentTimeSeconds();
-          u_data.dt = app_state.delta_time;
-          LOG_INFO("POS: %f, %f\n", u_data.mouse_position.x, u_data.mouse_position.y);
-          
-          R_DrawGeometryInfo draw_info = {
-            .pipeline = &bline_pipeline,
-            .viewport.x = 0,
-            .viewport.y = 0,
-            .viewport.w = (I32)app_state.window.size.x,
-            .viewport.h = (I32)app_state.window.size.y,
-            .geometry = &_d_state.geometry,
-            .uniform_data = (U8*)&u_data,
-            .uniform_data_size = sizeof(u_data)
-          };
-          draw_info.scissor = draw_info.viewport;
-          
-          Renderer.BindPipeline(draw_info.pipeline);
-          Renderer.PushGeometry(&_d_state.geometry);
-          Renderer.DrawGeometry(&draw_info);
+          D_DrawRectangle(&app_state.window, rect, MakeVec3f(1.0f, 1.0f, 1.0f), 0);
+        }
       }
     }
     Renderer.EndFrame();

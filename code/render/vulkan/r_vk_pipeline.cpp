@@ -110,8 +110,8 @@ R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline)
   VkPipelineDepthStencilStateCreateInfo depth_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
     .depthTestEnable = (VkBool32)pipeline->is_depth_test_enabled,
-    .depthWriteEnable = VK_TRUE,
-    .depthCompareOp = VK_COMPARE_OP_GREATER
+    .depthWriteEnable = (VkBool32)pipeline->is_depth_test_enabled,
+    .depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL
   };
 
   VkPipelineMultisampleStateCreateInfo multisample = {
