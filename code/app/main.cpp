@@ -1,5 +1,4 @@
 #include "base/base_include.h"
-#include "os/os_gfx.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
 #include "draw/d_include.h"
@@ -95,39 +94,8 @@ I32 main()
     {
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f));
       {
-          // D_DrawCircle(MakeVec2I(100, 100), 10, MakeVec3f(1.0f, 1.0f, 1.0f));
-          RectI rect = {
-            .position = {{ 300, 300 }},
-            .size = {{ 50, 50 }}
-          };
-          // D_DrawRectangle(&app_state.window, rect, MakeVec3f(1.0f, 1.0f, 1.0f), 0);
-
-          struct
-          {
-            alignas(8) Vec2f mouse_position;
-            alignas(4) F32 time;
-            alignas(4) F32 dt;
-          } u_data;
-          u_data.mouse_position = OS_MousePosition(app_state.window);
-          u_data.time = OS_CurrentTimeSeconds();
-          u_data.dt = app_state.delta_time;
-          LOG_INFO("POS: %f, %f\n", u_data.mouse_position.x, u_data.mouse_position.y);
-          
-          R_DrawGeometryInfo draw_info = {
-            .pipeline = &bline_pipeline,
-            .viewport.x = 0,
-            .viewport.y = 0,
-            .viewport.w = (I32)app_state.window.size.x,
-            .viewport.h = (I32)app_state.window.size.y,
-            .geometry = &_d_state.geometry,
-            .uniform_data = (U8*)&u_data,
-            .uniform_data_size = sizeof(u_data)
-          };
-          draw_info.scissor = draw_info.viewport;
-          
-          Renderer.BindPipeline(draw_info.pipeline);
-          Renderer.PushGeometry(&_d_state.geometry);
-          Renderer.DrawGeometry(&draw_info);
+          D_DrawBezierCubic(ZeroVec2I(), MakeVec2I(300, 400), MakeVec2I(100, 100), MakeVec2I(800, 400), MakeVec3f(1.0f, 0.0f, 0.0f));
+          D_DrawBezierCubic(MakeVec2I(210, 95), MakeVec2I(300, 400), MakeVec2I(400, 400), MakeVec2I(1100, 550), MakeVec3f(1.0f, 1.0f, 0.0f));
       }
     }
     Renderer.EndFrame();

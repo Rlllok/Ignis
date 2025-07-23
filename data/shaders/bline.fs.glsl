@@ -2,9 +2,11 @@
 
 layout(location = 0) in struct FSData
 {
-    vec2 mouse_position;
-    float time;
-    float dt;
+    vec3 color;
+    vec2 p0;
+    vec2 p1;
+    vec2 c0;
+    vec2 c1;
 } fs_data;
   
 layout(location = 0) out vec4 out_color;
@@ -43,18 +45,20 @@ void main()
 {
   int num_segs = 25;
   
-  vec2 a = vec2(100.0f, 100.0f);
-  vec2 b = vec2(1100.0f, 600.0f);
-  vec2 c0 = fs_data.mouse_position;
-  vec2 c1 = vec2(900.0f, 200.0f);
+  vec2 a = fs_data.p0;
+  vec2 b = fs_data.p1;
+  vec2 c0 = fs_data.c0;
+  vec2 c1 = fs_data.c1;
+  
+  float alpha = 0.0f;
 
-  float t = (sin(fs_data.time) + 1.0f) * 0.5f;
+#if 0 // --AlNov: Debug Code
+  float t = (sin(0) + 1.0f) * 0.5f;
   vec2 ac0 = mix(a, c0, t);
   vec2 c0c1 = mix(c0, c1, t);
   vec2 c1b = mix(c1, b, t);
   vec2 curve_p = mix(mix(ac0, c0c1, t), mix(c0c1, c1b, t), t);
 
-  vec3 color = vec3(0.0f);
 
   color += vec3(1.0f, 1.0f, 1.0f) * Point(gl_FragCoord.xy, a);
   color += vec3(1.0f, 1.0f, 1.0f) * Point(gl_FragCoord.xy, b);
@@ -68,18 +72,18 @@ void main()
   color += vec3(0.0f, 1.0f, 0.0f) * Line(gl_FragCoord.xy, ac0, c0c1);
   color += vec3(0.0f, 1.0f, 0.0f) * Line(gl_FragCoord.xy, c0c1, c1b);
   color += vec3(1.0f, 0.0f, 0.0f) * Line(gl_FragCoord.xy, mix(ac0, c0c1, t), mix(c0c1, c1b,t));
+#endif
 
   vec2 prev_p = a;
   for (int i = 1; i < num_segs + 1; i += 1)
   {
     float t = float(i) / float(num_segs);
-    // vec2 p = Bezier(a, b, c0, t);
     vec2 p = CubicBezier(a, b, c0, c1, t);
 
-    color = max(color, vec3(0.2f, 0.4f, 0.6f) * Line(gl_FragCoord.xy, prev_p, p));
+    alpha = max(alpha, Line(gl_FragCoord.xy, prev_p, p));
     
     prev_p = p;
   }
   
-  out_color = vec4(color, 1.0f);
+  out_color = vec4(fs_data.color, alpha);
 }

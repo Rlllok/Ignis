@@ -1,5 +1,6 @@
 #include "draw.h"
 #include "base/base_core.h"
+#include "base/base_math.h"
 #include "base/base_memory.h"
 
 func void
@@ -90,6 +91,30 @@ D_Init(U64 arena_size)
     _d_state.circle_pipeline.is_depth_test_enabled = false;
 
     Renderer.CreatePipeline(&_d_state.circle_pipeline);
+  }
+  
+  // --AlNov: Bezier Curve Pipeline
+  {
+    R_VertexAttributeFormat attributes[] = {
+      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+    };
+    R_PipelineAssignAttributes(&_d_state.bezier_pipeline, attributes, CountArrayElements(attributes));
+
+    R_BindingInfo scene_bindings[] = {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+    };
+    R_PipelineAssignSceneBindingLayout(&_d_state.bezier_pipeline, scene_bindings, CountArrayElements(scene_bindings));
+
+    R_H_LoadShader(_d_state.arena, "data/shaders/square.vs.glsl",
+                   "main", R_SHADER_TYPE_VERTEX,
+                   &_d_state.bezier_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
+    R_H_LoadShader(_d_state.arena, "data/shaders/bline.fs.glsl",
+                   "main", R_SHADER_TYPE_FRAGMENT,
+                   &_d_state.bezier_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
+  
+    _d_state.bezier_pipeline.is_back_culing_enabled = false;
+    _d_state.bezier_pipeline.is_depth_test_enabled = false;
+    Renderer.CreatePipeline(&_d_state.bezier_pipeline);
   }
 }
 
@@ -184,5 +209,39 @@ D_DrawCircle(Vec2I position, I32 radius, Vec3f color)
   draw_info.viewport = viewport;
   draw_info.scissor = scissor;
 
+  Renderer.DrawGeometry(&draw_info);
+}
+
+func void
+D_DrawBezierCubic(Vec2I p0, Vec2I p1, Vec2I c0, Vec2I c1, Vec3f color)
+{
+  struct
+  {
+    alignas(16) Vec3f color;
+    alignas(8) Vec2f p0;
+    alignas(8) Vec2f p1;
+    alignas(8) Vec2f c0;
+    alignas(8) Vec2f c1;
+  } u_data;
+  u_data.color = color;
+  u_data.p0 = Vec2fFromVec(p0);
+  u_data.p1 = Vec2fFromVec(p1);
+  u_data.c0 = Vec2fFromVec(c0);
+  u_data.c1 = Vec2fFromVec(c1);
+  
+  R_DrawGeometryInfo draw_info = {
+    .pipeline = &_d_state.bezier_pipeline,
+    .viewport.x = 0,
+    .viewport.y = 0,
+    .viewport.w = 1280,
+    .viewport.h = 720,
+    .geometry = &_d_state.geometry,
+    .uniform_data = (U8*)&u_data,
+    .uniform_data_size = sizeof(u_data)
+  };
+  draw_info.scissor = draw_info.viewport;
+  
+  Renderer.BindPipeline(draw_info.pipeline);
+  Renderer.PushGeometry(&_d_state.geometry);
   Renderer.DrawGeometry(&draw_info);
 }

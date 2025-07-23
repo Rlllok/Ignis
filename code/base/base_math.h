@@ -23,6 +23,9 @@ union Vec2I
 
   I32 values[2];
 };
+
+#define ZeroVec2I() {{0,0 }}
+
 inline Vec2I
 MakeVec2I(I32 x, I32 y)
 {
