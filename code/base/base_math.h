@@ -24,7 +24,8 @@ union Vec2I
   I32 values[2];
 };
 
-#define ZeroVec2I() {{0,0 }}
+#define ZeroVec2I() {{0,0}}
+#define OneVec2I() {{1,1}}
 
 inline Vec2I
 MakeVec2I(I32 x, I32 y)
@@ -65,6 +66,17 @@ operator-(Vec2I v, I32 n)
 
   result.x = v.x - n;
   result.y = v.y - n;
+
+  return result;
+}
+
+inline Vec2I
+operator/(Vec2I v, I32 n)
+{
+  Vec2I result = {};
+
+  result.x = v.x/n;
+  result.y = v.y/n;
 
   return result;
 }

@@ -28,6 +28,8 @@ typedef I32 B32;
 
 // -------------------------------------------------------------------
 // --AlNov: Limits ---------------------------------------------------
+#define U16_MIN 0x0000
+#define U16_MAX 0xFFFF
 #define U32_MIN 0x00000000
 #define U32_MAX 0xFFFFFFFF
 #define U64_MIN 0x0000000000000000

@@ -6,7 +6,6 @@ layout(location = 0) in struct FSData
     vec2 p0;
     vec2 p1;
     vec2 c0;
-    vec2 c1;
 } fs_data;
   
 layout(location = 0) out vec4 out_color;
@@ -48,7 +47,6 @@ void main()
   vec2 a = fs_data.p0;
   vec2 b = fs_data.p1;
   vec2 c0 = fs_data.c0;
-  vec2 c1 = fs_data.c1;
   
   float alpha = 0.0f;
 
@@ -78,7 +76,7 @@ void main()
   for (int i = 1; i < num_segs + 1; i += 1)
   {
     float t = float(i) / float(num_segs);
-    vec2 p = CubicBezier(a, b, c0, c1, t);
+    vec2 p = Bezier(a, b, c0, t);
 
     alpha = max(alpha, Line(gl_FragCoord.xy, prev_p, p));
     

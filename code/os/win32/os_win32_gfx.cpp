@@ -159,18 +159,18 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
   switch (message)
   {
     case WM_SIZE:
-      {
-        if (_os_state.event_list.arena == 0) break;
-        
-        event.type = OS_EVENT_TYPE_RESIZE;
-        event.window_size.width = LOWORD(l_param);
-        event.window_size.height = HIWORD(l_param);
-      } break;
+    {
+      if (_os_state.event_list.arena == 0) break;
+      
+      event.type = OS_EVENT_TYPE_RESIZE;
+      event.window_size.width = LOWORD(l_param);
+      event.window_size.height = HIWORD(l_param);
+    } break;
 
     case WM_CLOSE:
-      {
-        DestroyWindow(hwnd);
-      } break;
+    {
+      DestroyWindow(hwnd);
+    } break;
 
     case WM_DESTROY:
       {

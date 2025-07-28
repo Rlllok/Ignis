@@ -1,15 +1,17 @@
 #include "base/base_include.h"
+#include "base/base_math.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
 #include "draw/d_include.h"
 #include "assets/mesh.h"
+#include "assets/ast_font.h"
 
 #include "base/base_include.cpp"
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
 #include "draw/d_include.cpp"
 #include "assets/mesh.cpp"
-#include "render/r_pipeline.h"
+#include "assets/ast_font.cpp"
 
 struct Camera
 {
@@ -37,6 +39,7 @@ struct AppState
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
+func void DrawGlyph(GlyphData glyph, I32 size, Vec2I position);
 
 I32 main()
 {
@@ -84,7 +87,19 @@ I32 main()
     bline_pipeline.is_depth_test_enabled = false;
     Renderer.CreatePipeline(&bline_pipeline);
   }
-  
+
+  // TTFData ttf_data = AST_GetTTFData(app_state.arena, Str8FromC("data/fonts/RobotoMono-Regular.ttf"));
+  TTFData ttf_data = AST_GetTTFData(app_state.arena, Str8FromC("data/fonts/Delius-Regular.ttf"));
+  LOG_INFO("GetGlyphIndex: %i", _AST_TTFGetGlyphIndex(0x0041, ttf_data.format));
+
+  // --AlNov: @TODO Not Working with ttf other than Envy Code R
+  GlyphData glyph_A = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0041);
+  GlyphData glyph_B = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0042);
+  GlyphData glyph_C = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0043);
+  GlyphData glyph_V = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0056);
+  GlyphData glyph_test = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0041);
+
+  // AlNov: AppLoop
   F32 begin_time = OS_CurrentTimeSeconds();
   while (!app_state.is_window_closed)
   {
@@ -92,10 +107,16 @@ I32 main()
 
     Renderer.BeginFrame();
     {
-      Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.3f, 0.3f, 0.3f, 1.0f));
+      Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.03f, 0.03f, 0.03f, 1.0f));
       {
-          D_DrawBezierCubic(ZeroVec2I(), MakeVec2I(300, 400), MakeVec2I(100, 100), MakeVec2I(800, 400), MakeVec3f(1.0f, 0.0f, 0.0f));
-          D_DrawBezierCubic(MakeVec2I(210, 95), MakeVec2I(300, 400), MakeVec2I(400, 400), MakeVec2I(1100, 550), MakeVec3f(1.0f, 1.0f, 0.0f));
+          // D_DrawCircle(MakeVec2I(100, 100), 2, ZeroVec2I()); // --AlNov: @BUG @TODO Not Working. Because I not using SceneUniformData (sdf_vs espects it).
+          I32 padding = 100;
+          I32 size = 100;
+          DrawGlyph(glyph_A, size, MakeVec2I(50 + padding*0, 100));
+          DrawGlyph(glyph_B, size, MakeVec2I(50 + padding*1, 100));
+          DrawGlyph(glyph_C, size, MakeVec2I(50 + padding*2, 100));
+          DrawGlyph(glyph_V, size, MakeVec2I(50 + padding*3, 100));
+          DrawGlyph(glyph_test, size, MakeVec2I(50 + padding*4, 100));
       }
     }
     Renderer.EndFrame();
@@ -106,7 +127,7 @@ I32 main()
     begin_time = end_time;
   }
 
-  R_Shutdown();
+  // R_Shutdown(); // -AlNov: @BUG Driver Timeout (Vulkan Shutdown is not implemented)
   
   return 0;
 }
@@ -133,7 +154,7 @@ HandleEvents(Arena* arena, AppState* state)
         // I guess, resize event is triggered multiple time. It should be handled only once, after last resizing
         state->window.size = event->window_size;
         // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
-        Renderer.HandleResize(&state->window);
+        // Renderer.HandleResize(&state->window);
       } break;
 
       case OS_EVENT_TYPE_MOUSE_MOVE:
@@ -188,4 +209,63 @@ HandleEvents(Arena* arena, AppState* state)
       default: break;
     }
   }
+}
+
+func void
+DrawGlyph(GlyphData glyph, I32 size, Vec2I position)
+{
+  F32 scale_factor = size;
+  I32 contur_start = 0;
+  for (I32 i = 0; i < glyph.num_conturs; i += 1)
+  {
+    for (I32 j = contur_start; j <= glyph.contur_end_indecies[i] - 2; j += 2)
+    {
+      Vec2I p0 = Vec2IFromVec(glyph.points[j]*scale_factor);
+      p0.y *= -1;
+      p0 = p0 + position;
+      Vec2I cp = Vec2IFromVec(glyph.points[j+1]*scale_factor);
+      cp.y *= -1;
+      cp = cp + position;
+      Vec2I p1 = Vec2IFromVec(glyph.points[j+2]*scale_factor);
+      p1.y *= -1;
+      p1 = p1 + position;
+
+      D_DrawBezier(p0, p1, cp, MakeVec3f(1.0f, 1.0f, 1.0f));
+    }
+    contur_start = glyph.contur_end_indecies[i] + 1;
+  }
+
+  #if 0
+  contur_start = 0;
+  for (I32 i = 0; i < glyph.num_conturs; i += 1)
+  {
+    for (I32 j = contur_start; j <= glyph.contur_end_indecies[i] - 2; j += 2)
+    {
+      Vec2I p0 = Vec2IFromVec(glyph.points[j]);
+      p0.y *= -1;
+      p0 = p0*scale_factor;
+      p0 = p0 + position;
+      Vec2I cp = Vec2IFromVec(glyph.points[j+1]);
+      cp.y *= -1;
+      cp = cp*scale_factor;
+      cp = cp + position;
+      Vec2I p1 = Vec2IFromVec(glyph.points[j+2]);
+      p1.y *= -1;
+      p1 = p1*scale_factor;
+      p1 = p1 + position;
+
+      RectI rectangle = {};
+      rectangle.position = p0;
+      rectangle.size = {10, 10};
+      D_DrawRectangle(&app_state.window, rectangle, MakeVec3f(0.0f, 0.0f, 1.0f), 0);
+      rectangle.position = cp;
+      rectangle.size = {10, 10};
+      D_DrawRectangle(&app_state.window, rectangle, MakeVec3f(1.0f, 0.0f, 0.0f), 0);
+      rectangle.position = p1;
+      rectangle.size = {10, 10};
+      D_DrawRectangle(&app_state.window, rectangle, MakeVec3f(0.0f, 0.0f, 1.0f), 0);
+    }
+    contur_start = glyph.contur_end_indecies[i] + 1;
+  }
+  #endif
 }

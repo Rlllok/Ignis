@@ -213,7 +213,7 @@ D_DrawCircle(Vec2I position, I32 radius, Vec3f color)
 }
 
 func void
-D_DrawBezierCubic(Vec2I p0, Vec2I p1, Vec2I c0, Vec2I c1, Vec3f color)
+D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color)
 {
   struct
   {
@@ -221,13 +221,11 @@ D_DrawBezierCubic(Vec2I p0, Vec2I p1, Vec2I c0, Vec2I c1, Vec3f color)
     alignas(8) Vec2f p0;
     alignas(8) Vec2f p1;
     alignas(8) Vec2f c0;
-    alignas(8) Vec2f c1;
   } u_data;
   u_data.color = color;
   u_data.p0 = Vec2fFromVec(p0);
   u_data.p1 = Vec2fFromVec(p1);
   u_data.c0 = Vec2fFromVec(c0);
-  u_data.c1 = Vec2fFromVec(c1);
   
   R_DrawGeometryInfo draw_info = {
     .pipeline = &_d_state.bezier_pipeline,

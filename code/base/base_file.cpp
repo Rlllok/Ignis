@@ -3,20 +3,68 @@
 #include "base_core.h"
 #include "base_memory.h"
 
-struct Str8
+#include <stdio.h>
+
+func FileHandle
+FileOpen(Str8 file_path)
 {
-  U8* data;
-  U64 size;
-};
+  FileHandle file = {};
+  
+  FILE* file_ptr = fopen(CFromStr8(file_path), "rb");
+  if (!file_ptr)
+  {
+    LOG_ERROR("Cannot open file %s", CFromStr8(file_path));
+    return {};
+  }
 
+  file.handle = file_ptr;
+  file.name = file_path;
+  file.size = GetFileSize(file);
+  file.is_valid = true;
+  
+  return file;
+}
 
-func Str8 AllocateStr8(Arena* arena, U64 size);
-func U64 GetCStrLength(const char* c_str);
-#define Str8FromC(c_str) {(U8*)c_str, GetCStrLength(c_str)}
-#define CFromStr8(str) ((const char*)str.data)
-func Str8 SubStr8(Str8 str, U64 position, U64 length);
-func Str8 ConcatStr8(Arena* arena, Str8 str_a, Str8 str_b);
-func U64 GetSymbolPosition(Str8 str, U8 symbol);
-func U64 GetSymbolPositionLast(Str8 str, U8 symbol);
+func void
+FileClose(FileHandle* file)
+{
+  if (file->handle)
+  {
+    fclose((FILE*)file->handle);
+    file->handle = 0;
+    file->is_valid = false;
+  }
+}
 
-func B32 Str8Equal(Str8 a, Str8 b);
+func U64
+GetFileSize(FileHandle file)
+{
+  U64 result = 0;
+
+  if (file.handle)
+  {
+    fseek((FILE*)file.handle, 0, SEEK_END);
+    result = ftell((FILE*)file.handle);
+    rewind((FILE*)file.handle);
+  }
+
+  return result;
+}
+
+func FileData
+ReadFileBinary(Arena* arena, FileHandle file)
+{
+  FileData file_data = {};
+  
+  if (file.handle)
+  {
+    file_data.data = (U8*)PushArena(arena, file.size);
+    file_data.pointer = file_data.data;
+    file_data.size = file.size;
+
+    fread(file_data.data, 1, file_data.size, (FILE*)file.handle);
+  }
+
+  return file_data;
+}
+
