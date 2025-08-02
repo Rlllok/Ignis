@@ -24,3 +24,4 @@ defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX"
 
 echo "Building Main"
 clang++ -g code/app/main.cpp -o build/main $defines $include_flags $linker_flags
+clang++ -g code/app/hash.cpp -o build/hash $defines $include_flags $linker_flags

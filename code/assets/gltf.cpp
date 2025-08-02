@@ -49,8 +49,14 @@ ReadFile(Buffer file_name)
   FILE* file = fopen(file_name_c, "rb");
   if (file)
   {
+  #if IGNIS_PLATFORM_LINUX
+    struct stat64 stat;
+    stat64(file_name_c, &stat);
+  #endif
+  #if IGNIS_PLATFORM_WIN32
     struct _stat64 stat;
     _stat64(file_name_c, &stat);
+  #endif
 
     result = AllocateBuffer(stat.st_size);
     if (result.data)
