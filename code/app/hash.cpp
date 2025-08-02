@@ -1,3 +1,4 @@
+#include "base/base_core.h"
 #include "base/base_include.h"
 #include "os/os_include.h"
 
@@ -21,6 +22,6 @@ I32 main()
   HashMapF32Put(&map_f32, Str8FromC("Bib"), 20.0f);
   LOG_INFO("%f", HashMapF32Get(map_f32, Str8FromC("Bob")));
   LOG_INFO("%f", HashMapF32Get(map_f32, Str8FromC("Bib")));
-  
+
   return 0;
 }

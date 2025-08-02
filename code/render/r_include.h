@@ -3,3 +3,5 @@
 #include "r_core.h"
 #include "r_pipeline.h"
 #include "r_buffer.h"
+
+#include "./vulkan/r_vulkan.h"

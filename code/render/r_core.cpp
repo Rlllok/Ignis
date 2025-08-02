@@ -1,9 +1,6 @@
 #include "r_core.h"
 
-// @TODO Should it be there
 #include "base/base_logger.h"
-#include "vulkan/r_vk.h"
-#include "vulkan/r_vk.cpp"
 
 func B32
 R_InitRenderer(R_RendererType type)

@@ -42,7 +42,7 @@ enum R_BindingType
   R_BINDING_TYPE_COUNT
 };
 
-#define MAX_BINDINGS 10
+#define R_MAX_BINDINGS 10
 struct R_BindingInfo
 {
   R_BindingType type;
@@ -59,17 +59,19 @@ enum R_PipelineCullingMode
   R_PIPELINE_CULLING_MODE_COUNT
 };
 
-#define MAX_ATTRIBUTES 10
+typedef U32 PipelineID;
+
+#define R_MAX_ATTRIBUTES 10
 struct R_Pipeline
 {
-  U32                     backend_handle;
+  PipelineID backend_handle = INVALID_ID;
   R_Shader                shaders[R_SHADER_TYPE_COUNT];
-  R_VertexAttributeFormat attributes[MAX_ATTRIBUTES];
+  R_VertexAttributeFormat attributes[R_MAX_ATTRIBUTES];
   U32                     attributes_count;
 
-  R_BindingInfo scene_bindings[MAX_BINDINGS];
-  U32           scene_bindings_count;
-  R_BindingInfo instance_bindings[MAX_BINDINGS];
+  R_BindingInfo global_bindings[R_MAX_BINDINGS];
+  U32           global_bindings_count;
+  R_BindingInfo instance_bindings[R_MAX_BINDINGS];
   U32           instance_bindings_count;
 
   B32 is_back_culing_enabled;
