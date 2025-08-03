@@ -63,17 +63,17 @@ typedef B32  _RendererShutdown();
 
 typedef void _RendererHandleResize(OS_Window* window);
 
-typedef void _RendererCreatePipeline(R_Pipeline* pipeline);
-typedef void _RendererBindPipeline(R_Pipeline* pipeline);
+typedef void _RendererGraphicsShaderCreate(R_Pipeline* pipeline);
+typedef void _RendererPipelineBind(R_Pipeline* pipeline);
 
-typedef void _RendererBeginFrame();
-typedef void _RendererEndFrame();
+typedef void _RendererFrameBegin();
+typedef void _RendererFrameEnd();
 
-typedef void _RendererBeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
-typedef void _RendererEndRenderPass();
+typedef void _RendererRenderPassBegin(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
+typedef void _RendererRenderPassEnd();
 
-typedef void _RendererPushGeometry(AST_Geometry* geometry);
-typedef B32  _RendererDrawGeometry(R_DrawGeometryInfo* geometry);
+typedef void _RendererGeometryPrepare(AST_Geometry* geometry);
+typedef B32  _RendererGeometryDraw(R_DrawGeometryInfo* geometry);
 
 struct R_Renderer
 {
@@ -82,17 +82,17 @@ struct R_Renderer
 
   _RendererHandleResize*    HandleResize;
 
-  _RendererCreatePipeline*  CreatePipeline;
-  _RendererBindPipeline*    BindPipeline;
+  _RendererGraphicsShaderCreate*  GraphicsShaderCreate;
+  _RendererPipelineBind*    PipelineBind;
   
-  _RendererBeginFrame*      BeginFrame;
-  _RendererEndFrame*        EndFrame;
+  _RendererFrameBegin*      FrameBegin;
+  _RendererFrameEnd*        FrameEnd;
 
-  _RendererBeginRenderPass* BeginRenderPass;
-  _RendererEndRenderPass*   EndRenderPass;
+  _RendererRenderPassBegin* RenderPassBegin;
+  _RendererRenderPassEnd*   RenderPassEnd;
   
-  _RendererPushGeometry*    PushGeometry;
-  _RendererDrawGeometry*    DrawGeometry;
+  _RendererGeometryPrepare* GeometryPrepare;
+  _RendererGeometryDraw*    GeometryDraw;
 } Renderer;
 
 func B32 R_InitRenderer();

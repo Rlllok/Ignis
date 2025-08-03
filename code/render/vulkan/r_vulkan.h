@@ -85,6 +85,7 @@ func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 // Pipeline
 #define R_VK_MAX_OBJECTS 1024
 
+// --AlNov: @TODO I feel that Pipeline is a better name, as it was before.
 struct R_VK_GraphicsShader
 {
   VkPipeline pipeline;
@@ -103,6 +104,21 @@ struct R_VK_GraphicsShader
 func void R_VK_GraphicsShaderCreate(R_Pipeline* pipeline);
 func void R_VK_GraphicsShaderDestroy();
 
+func void R_VK_PipelineBind(R_Pipeline* pipeline);
+
+// --------------------------------------------------
+// Render Pass
+func void R_VK_RenderPassBegin(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
+func void R_VK_RenderPassEnd();
+
+// --------------------------------------------------
+// Draw
+func void R_VK_FrameBegin();
+func void R_VK_FrameEnd();
+
+func void R_VK_GeometryPrepare(AST_Geometry* geometry);
+func B32 R_VK_GeometryDraw(R_DrawGeometryInfo* draw_info); // --AlNov: @TODO Change struct name to R_GeometryDrawInfo
+
 // --------------------------------------------------
 // Global State
 struct R_VK_State
@@ -116,8 +132,17 @@ struct R_VK_State
   R_VK_GraphicsShader graphics_shaders[32];
   U32 graphics_shaders_count;
 
+  R_VK_Buffer geometry_buffer;
+  R_VK_Buffer staging_buffer;
+
+  PipelineID binded_pipeline_id;
+  
   U32 current_frame;
+  U32 current_target;
 } _r_vk_state;
 
 func B32 R_VK_Init(OS_Window* window);
 func B32 R_VK_Shutdown();
+
+func void R_VK_HandleResize(OS_Window* window);
+

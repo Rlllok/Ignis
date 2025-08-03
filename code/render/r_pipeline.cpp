@@ -117,7 +117,7 @@ R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_S
 func void
 R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, U32 count)
 {
-  Assert(count > MAX_ATTRIBUTES);
+  Assert(count > R_MAX_ATTRIBUTES);
 
   memcpy(pipeline->attributes, formats, count * sizeof(R_VertexAttributeFormat));
   pipeline->attributes_count = count;
@@ -126,16 +126,16 @@ R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* format
 func void
 R_PipelineAssignSceneBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
 {
-  Assert(count > MAX_BINDINGS);
+  Assert(count > R_MAX_BINDINGS);
 
-  memcpy(pipeline->scene_bindings, bindings, count * sizeof(R_BindingInfo));
-  pipeline->scene_bindings_count = count;
+  memcpy(pipeline->global_bindings, bindings, count * sizeof(R_BindingInfo));
+  pipeline->global_bindings_count = count;
 }
 
 func void
 R_PipelineAssignInstanceBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
 {
-  Assert(count > MAX_BINDINGS);
+  Assert(count > R_MAX_BINDINGS);
 
   memcpy(pipeline->instance_bindings, bindings, count * sizeof(R_BindingInfo));
   pipeline->instance_bindings_count = count;
