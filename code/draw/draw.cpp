@@ -102,10 +102,15 @@ D_Init(U64 arena_size)
     };
     R_PipelineAssignAttributes(&_d_state.bezier_pipeline, attributes, CountArrayElements(attributes));
 
-    R_BindingInfo scene_bindings[] = {
+    R_BindingInfo global_bindings[] = {
       {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
     };
-    R_PipelineAssignInstanceBindingLayout(&_d_state.bezier_pipeline, scene_bindings, CountArrayElements(scene_bindings));
+		R_PipelineAssignGlobalBindingLayout(&_d_state.bezier_pipeline, global_bindings, CountArrayElements(global_bindings));
+
+    R_BindingInfo instance_bindings[] = {
+      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
+    };
+    R_PipelineAssignInstanceBindingLayout(&_d_state.bezier_pipeline, instance_bindings, CountArrayElements(instance_bindings));
 
     R_H_LoadShader(_d_state.arena, "data/shaders/square.vs.glsl",
                    "main", R_SHADER_TYPE_VERTEX,
@@ -123,6 +128,12 @@ D_Init(U64 arena_size)
 func void
 D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation)
 {
+	struct
+	{
+		alignas(4) F32 dt;
+	} global_data;
+	global_data.dt = 0.5f;
+
   struct
   {
     alignas(16) Mat4x4f projection;
@@ -144,8 +155,8 @@ D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation)
   R_DrawGeometryInfo draw_info = {};
   draw_info.pipeline = &_d_state.box_pipeline;
   draw_info.geometry = &_d_state.geometry;
-  draw_info.uniform_data = (U8*)&u_data;
-  draw_info.uniform_data_size = sizeof(u_data);
+  draw_info.instance_data = (U8*)&u_data;
+  draw_info.instance_data_size = sizeof(u_data);
   
   RectI viewport = {};
   viewport.x = 0;
@@ -164,7 +175,7 @@ D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation)
   scissor.size = MakeVec2I(max_size*2.0f, max_size*2.0f);
   draw_info.scissor = scissor;
 
-  Renderer.BindPipeline(draw_info.pipeline);
+  Renderer.BindPipeline(draw_info.pipeline, (U8*)&global_data, sizeof(global_data));
   Renderer.PrepareGeometry(&_d_state.geometry);
   Renderer.DrawGeometry(&draw_info);
 }
@@ -217,6 +228,11 @@ D_DrawCircle(Vec2I position, I32 radius, Vec3f color)
 func void
 D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color)
 {
+	struct
+	{
+		alignas(4) F32 dt = 0.3f;
+	} global_data;
+  
   struct
   {
     alignas(16) Vec3f color;
@@ -228,7 +244,7 @@ D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color)
   u_data.p0 = Vec2fFromVec(p0);
   u_data.p1 = Vec2fFromVec(p1);
   u_data.c0 = Vec2fFromVec(c0);
-  
+
   R_DrawGeometryInfo draw_info = {
     .pipeline = &_d_state.bezier_pipeline,
     .viewport.x = 0,
@@ -236,12 +252,12 @@ D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color)
     .viewport.w = 1280,
     .viewport.h = 720,
     .geometry = &_d_state.geometry,
-    .uniform_data = (U8*)&u_data,
-    .uniform_data_size = sizeof(u_data)
+    .instance_data = (U8*)&u_data,
+    .instance_data_size = sizeof(u_data)
   };
   draw_info.scissor = draw_info.viewport;
   
-  Renderer.BindPipeline(draw_info.pipeline);
+  Renderer.BindPipeline(draw_info.pipeline, (U8*)&global_data, sizeof(global_data));
   Renderer.PrepareGeometry(&_d_state.geometry);
   Renderer.DrawGeometry(&draw_info);
 }

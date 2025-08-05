@@ -85,14 +85,15 @@ I32 main()
     {
       Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.03f, 0.03f, 0.03f, 1.0f));
       {
-          // D_DrawCircle(MakeVec2I(100, 100), 2, ZeroVec2I()); // --AlNov: @BUG @TODO Not Working. Because I not using SceneUniformData (sdf_vs espects it).
           I32 padding = 100;
           I32 size = 100;
           DrawGlyph(glyph_A, size, MakeVec2I(50 + padding*0, 100));
+					#if 0
           DrawGlyph(glyph_B, size, MakeVec2I(50 + padding*1, 100));
           DrawGlyph(glyph_C, size, MakeVec2I(50 + padding*2, 100));
           DrawGlyph(glyph_V, size, MakeVec2I(50 + padding*3, 100));
           DrawGlyph(glyph_test, size, MakeVec2I(50 + padding*4, 100));
+					#endif 
       }
     }
     Renderer.EndFrame();

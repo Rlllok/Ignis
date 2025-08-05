@@ -37,8 +37,8 @@ struct R_DrawGeometryInfo
   R_Pipeline* pipeline;
   RectI viewport;
   RectI scissor;
-  U8* uniform_data;
-  U32 uniform_data_size;
+  U8* instance_data;
+  U32 instance_data_size;
   AST_Geometry* geometry;
 };
 
@@ -63,17 +63,17 @@ typedef B32  _RendererShutdown();
 
 typedef void _RendererHandleResize(OS_Window* window);
 
-typedef void _RendererGraphicsShaderCreate(R_Pipeline* pipeline);
-typedef void _RendererPipelineBind(R_Pipeline* pipeline);
+typedef void _RendererCreateGraphicsPipeline(R_Pipeline* pipeline);
+typedef void _RendererBindPipeline(R_Pipeline* pipeline, U8* global_data, U32 global_data_size);
 
-typedef void _RendererFrameBegin();
-typedef void _RendererFrameEnd();
+typedef void _RendererBeginFrame();
+typedef void _RendererEndFrame();
 
-typedef void _RendererRenderPassBegin(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
-typedef void _RendererRenderPassEnd();
+typedef void _RendererBeginRenderPass(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
+typedef void _RendererEndRenderPass();
 
-typedef void _RendererGeometryPrepare(AST_Geometry* geometry);
-typedef B32  _RendererGeometryDraw(R_DrawGeometryInfo* geometry);
+typedef void _RendererPrepareGeometry(AST_Geometry* geometry);
+typedef B32  _RendererDrawGeometry(R_DrawGeometryInfo* geometry);
 
 struct R_Renderer
 {
@@ -82,17 +82,17 @@ struct R_Renderer
 
   _RendererHandleResize*    HandleResize;
 
-  _RendererGraphicsShaderCreate*  CreatePipeline;
-  _RendererPipelineBind*    BindPipeline;
+  _RendererCreateGraphicsPipeline*  CreatePipeline;
+  _RendererBindPipeline*    BindPipeline;
   
-  _RendererFrameBegin*      BeginFrame;
-  _RendererFrameEnd*        EndFrame;
+  _RendererBeginFrame*      BeginFrame;
+  _RendererEndFrame*        EndFrame;
 
-  _RendererRenderPassBegin* BeginRenderPass;
-  _RendererRenderPassEnd*   EndRenderPass;
+  _RendererBeginRenderPass* BeginRenderPass;
+  _RendererEndRenderPass*   EndRenderPass;
   
-  _RendererGeometryPrepare* PrepareGeometry;
-  _RendererGeometryDraw*    DrawGeometry;
+  _RendererPrepareGeometry* PrepareGeometry;
+  _RendererDrawGeometry*    DrawGeometry;
 } Renderer;
 
 func B32 R_InitRenderer();

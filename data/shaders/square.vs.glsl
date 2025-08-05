@@ -2,7 +2,12 @@
 
 layout(location = 0) in vec3 a_position;
 
-layout(set = 0, binding = 0) uniform UData
+layout(set = 1, binding = 0) uniform GlobalData
+{
+	float dt;
+} global_data;
+
+layout(set = 1, binding = 0) uniform UData
 {
     vec3 color;
     vec2 p0;

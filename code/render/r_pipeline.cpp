@@ -124,7 +124,7 @@ R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* format
 }
 
 func void
-R_PipelineAssignSceneBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
+R_PipelineAssignGlobalBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count)
 {
   Assert(count > R_MAX_BINDINGS);
 

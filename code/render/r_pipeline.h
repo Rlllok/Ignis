@@ -82,7 +82,7 @@ func void R_H_LoadShader(Arena* arena, const char* path, const char* entry_point
 func void R_H_LoadShaderSPIRV(Arena* arena, const char* path, const char* entry_point, R_ShaderType type, R_Shader* out_shader);
 
 func void R_PipelineAssignAttributes(R_Pipeline* pipeline, R_VertexAttributeFormat* formats, U32 count);
-func void R_PipelineAssignSceneBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
+func void R_PipelineAssignGlobalBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
 func void R_PipelineAssignInstanceBindingLayout(R_Pipeline* pipeline, R_BindingInfo* bindings, U32 count);
 
 // --AlNov: @TODO Is it really needed or there is another way to get offset between attributes

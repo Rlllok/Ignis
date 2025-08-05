@@ -70,7 +70,7 @@ struct R_VK_Swapchain
   VkImage depth_image;
   VkDeviceMemory depth_image_memory;
   VkImageView depth_image_view;
-  FrameResources frame_resources[R_VK_FRAMES_IN_FLIGHT]; // Per Image
+  FrameResources* frame_resources; // @TODO It is per Image for now
 };
 
 // --AlNov: @TODO Remove. Created in CreateSwapchain
@@ -87,25 +87,27 @@ func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 #define R_VK_MAX_OBJECTS 1024
 
 // --AlNov: @TODO I feel that Pipeline is a better name, as it was before.
-struct R_VK_GraphicsShader
+struct R_VK_GraphicsPipeline
 {
-  VkPipeline pipeline;
-  VkPipelineLayout pipeline_layout;
+  VkPipeline handle;
+  VkPipelineLayout layout;
 
-  VkDescriptorPool global_pool[R_VK_FRAMES_IN_FLIGHT];
+  VkDescriptorPool global_set_pool[R_VK_FRAMES_IN_FLIGHT];
   VkDescriptorPool instance_set_pool[R_VK_FRAMES_IN_FLIGHT];
   
   VkDescriptorSetLayout global_set_layout;
   VkDescriptorSetLayout instance_set_layout;
 
   VkDescriptorSet global_sets[R_VK_FRAMES_IN_FLIGHT];
-  VkDescriptorSet instance_sets[R_VK_MAX_OBJECTS];
+  VkDescriptorSet instance_sets[R_VK_MAX_OBJECTS]; // AlNov: @TODO Should be FRAMES*OBJECTS
+
+	U32 object_number;
 };
 
-func void R_VK_GraphicsShaderCreate(R_Pipeline* pipeline);
-func void R_VK_GraphicsShaderDestroy();
+func void R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline);
+func void R_VK_DestroyGraphicsPipeline();
 
-func void R_VK_PipelineBind(R_Pipeline* pipeline);
+func void R_VK_BindPipeline(R_Pipeline* pipeline, U8* global_data, U32 global_data_size);
 
 // -------------------------------------------------------------------
 // Render Pass
@@ -130,8 +132,8 @@ func R_Texture R_VK_CreateTexture(Str8 path);
 
 // -------------------------------------------------------------------
 // Draw
-func void R_VK_FrameBegin();
-func void R_VK_FrameEnd();
+func void R_VK_BeginFrame();
+func void R_VK_EndFrame();
 
 func void R_VK_GeometryPrepare(AST_Geometry* geometry);
 func B32 R_VK_GeometryDraw(R_DrawGeometryInfo* draw_info); // --AlNov: @TODO Change struct name to R_GeometryDrawInfo
@@ -151,8 +153,8 @@ struct R_VK_State
   VkDebugUtilsMessengerEXT debug_messenger;
 #endif // IGNIS_DEBUG
 
-  R_VK_GraphicsShader graphics_shaders[32];
-  U32 graphics_shaders_count;
+  R_VK_GraphicsPipeline graphics_pipelines[32];
+  U32 graphics_pipelines_count;
 
   R_VK_Buffer geometry_buffer;
   R_VK_Buffer staging_buffer;
