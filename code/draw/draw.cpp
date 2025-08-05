@@ -27,6 +27,7 @@ D_Init(U64 arena_size)
     _d_state.geometry.vertex_count = CountArrayElements(vertecies);
   }
 
+#if 0
   // --AlNov: Create SDF 2D Box pipeline
   {
     R_VertexAttributeFormat vertex_attributes[] = {
@@ -92,6 +93,7 @@ D_Init(U64 arena_size)
 
     Renderer.CreatePipeline(&_d_state.circle_pipeline);
   }
+#endif 
   
   // --AlNov: Bezier Curve Pipeline
   {
@@ -103,7 +105,7 @@ D_Init(U64 arena_size)
     R_BindingInfo scene_bindings[] = {
       {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
     };
-    R_PipelineAssignSceneBindingLayout(&_d_state.bezier_pipeline, scene_bindings, CountArrayElements(scene_bindings));
+    R_PipelineAssignInstanceBindingLayout(&_d_state.bezier_pipeline, scene_bindings, CountArrayElements(scene_bindings));
 
     R_H_LoadShader(_d_state.arena, "data/shaders/square.vs.glsl",
                    "main", R_SHADER_TYPE_VERTEX,
@@ -163,7 +165,7 @@ D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation)
   draw_info.scissor = scissor;
 
   Renderer.BindPipeline(draw_info.pipeline);
-  Renderer.PushGeometry(&_d_state.geometry);
+  Renderer.PrepareGeometry(&_d_state.geometry);
   Renderer.DrawGeometry(&draw_info);
 }
 
@@ -240,6 +242,6 @@ D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color)
   draw_info.scissor = draw_info.viewport;
   
   Renderer.BindPipeline(draw_info.pipeline);
-  Renderer.PushGeometry(&_d_state.geometry);
+  Renderer.PrepareGeometry(&_d_state.geometry);
   Renderer.DrawGeometry(&draw_info);
 }

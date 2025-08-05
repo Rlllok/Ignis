@@ -64,30 +64,6 @@ I32 main()
   R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
   D_Init(Megabytes(32));
 
-  R_Pipeline bline_pipeline= {};
-  {
-    R_VertexAttributeFormat attributes[] = {
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
-    };
-    R_PipelineAssignAttributes(&bline_pipeline, attributes, CountArrayElements(attributes));
-
-    R_BindingInfo scene_bindings[] = {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
-    };
-    R_PipelineAssignSceneBindingLayout(&bline_pipeline, scene_bindings, CountArrayElements(scene_bindings));
-
-    R_H_LoadShader(app_state.arena, "data/shaders/square.vs.glsl",
-                   "main", R_SHADER_TYPE_VERTEX,
-                   &bline_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(app_state.arena, "data/shaders/bline.fs.glsl",
-                   "main", R_SHADER_TYPE_FRAGMENT,
-                   &bline_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-  
-    bline_pipeline.is_back_culing_enabled = false;
-    bline_pipeline.is_depth_test_enabled = false;
-    Renderer.CreatePipeline(&bline_pipeline);
-  }
-
   // TTFData ttf_data = AST_GetTTFData(app_state.arena, Str8FromC("data/fonts/RobotoMono-Regular.ttf"));
   TTFData ttf_data = AST_GetTTFData(app_state.arena, Str8FromC("data/fonts/Delius-Regular.ttf"));
   LOG_INFO("GetGlyphIndex: %i", _AST_TTFGetGlyphIndex(0x0041, ttf_data.format));

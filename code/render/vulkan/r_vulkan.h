@@ -24,8 +24,8 @@ struct R_VK_Buffer
   U64 capacity;
 };
 
-func R_VK_Buffer R_VK_BufferCreate(U64 capacity, BufferUsageFlags usage_flags, BufferPropertyFlags flags);
-func void R_VK_BufferDestroy();
+func R_VK_Buffer R_VK_CreateBuffer(U64 capacity, BufferUsageFlags usage_flags, BufferPropertyFlags flags);
+func void R_VK_DestroyBuffer(R_VK_Buffer* buffer);
 
 // --------------------------------------------------
 // Device
@@ -38,8 +38,8 @@ struct R_VK_Device
   VkQueue graphics_queue;
 };
 
-func void R_VK_DeviceCreate();
-func void R_VK_DeviceDestroy();
+func void R_VK_CreateDevice();
+func void R_VK_DestroyDevice();
 
 // --------------------------------------------------
 // Surface/Swapchain
@@ -53,8 +53,8 @@ struct FrameResources
   VkSemaphore release_semaphore;
 };
 
-func void R_VK_FrameResourcesCreate(FrameResources* resources);
-func void R_VK_FrameResourcesDestroy(FrameResources* resources);
+func void R_VK_CreateFrameResources(FrameResources* resources);
+func void R_VK_DestoryFrameResources(FrameResources* resources);
 
 struct R_VK_Swapchain
 {
@@ -73,12 +73,13 @@ struct R_VK_Swapchain
   FrameResources frame_resources[R_VK_FRAMES_IN_FLIGHT]; // Per Image
 };
 
-func void R_VK_SurfaceCreate(OS_Window* window);
-func void R_VK_SurfaceDestroy();
+// --AlNov: @TODO Remove. Created in CreateSwapchain
+func void R_VK_CreateSurface(OS_Window* window);
+func void R_VK_DestroySurface();
 
-func void R_VK_SwapchainCreate(OS_Window* window);
-func void R_VK_SwapchainDestroy();
-func void R_VK_SwapchainRecreate(OS_Window* window);
+func void R_VK_CreateSwapchain(OS_Window* window);
+func void R_VK_DestroySwapchain();
+func void R_VK_RecreateSwapchain(OS_Window* window);
 func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 
 // --------------------------------------------------
@@ -106,12 +107,28 @@ func void R_VK_GraphicsShaderDestroy();
 
 func void R_VK_PipelineBind(R_Pipeline* pipeline);
 
-// --------------------------------------------------
+// -------------------------------------------------------------------
 // Render Pass
 func void R_VK_RenderPassBegin(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
 func void R_VK_RenderPassEnd();
 
-// --------------------------------------------------
+// -------------------------------------------------------------------
+// Command Buffer
+func VkCommandBuffer R_VK_BeginSingleCmd();
+func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
+
+// -------------------------------------------------------------------
+// Texture
+struct R_VK_Texture
+{
+	VkImage image;
+	VkImageView view;
+	VkDeviceMemory memory;
+};
+
+func R_Texture R_VK_CreateTexture(Str8 path);
+
+// -------------------------------------------------------------------
 // Draw
 func void R_VK_FrameBegin();
 func void R_VK_FrameEnd();
@@ -128,12 +145,20 @@ struct R_VK_State
   VkInstance instance;
   R_VK_Device device;
   R_VK_Swapchain swapchain;
+	VkCommandPool cmd_pool;
+
+#if IGNIS_DEBUG
+  VkDebugUtilsMessengerEXT debug_messenger;
+#endif // IGNIS_DEBUG
 
   R_VK_GraphicsShader graphics_shaders[32];
   U32 graphics_shaders_count;
 
   R_VK_Buffer geometry_buffer;
   R_VK_Buffer staging_buffer;
+
+	R_VK_Texture default_texture;
+	VkSampler default_sampler;
 
   PipelineID binded_pipeline_id;
   
@@ -145,4 +170,14 @@ func B32 R_VK_Init(OS_Window* window);
 func B32 R_VK_Shutdown();
 
 func void R_VK_HandleResize(OS_Window* window);
+
+// -------------------------------------------------------------------
+// Debug Tools
+#if IGNIS_DEBUG
+VKAPI_ATTR VkBool32 VKAPI_CALL R_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+func void R_VK_PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messengerInfo);
+func VkResult R_VK_CreateDebugUtilsMessenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger);
+func void R_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator);
+func VkResult R_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger);
+#endif // IGNIS_DEBUG
 

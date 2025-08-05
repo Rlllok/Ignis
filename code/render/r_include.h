@@ -5,3 +5,4 @@
 #include "r_buffer.h"
 
 #include "./vulkan/r_vulkan.h"
+#include "./vulkan/r_vk_utils.h"

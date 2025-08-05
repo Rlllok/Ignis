@@ -82,17 +82,17 @@ struct R_Renderer
 
   _RendererHandleResize*    HandleResize;
 
-  _RendererGraphicsShaderCreate*  GraphicsShaderCreate;
-  _RendererPipelineBind*    PipelineBind;
+  _RendererGraphicsShaderCreate*  CreatePipeline;
+  _RendererPipelineBind*    BindPipeline;
   
-  _RendererFrameBegin*      FrameBegin;
-  _RendererFrameEnd*        FrameEnd;
+  _RendererFrameBegin*      BeginFrame;
+  _RendererFrameEnd*        EndFrame;
 
-  _RendererRenderPassBegin* RenderPassBegin;
-  _RendererRenderPassEnd*   RenderPassEnd;
+  _RendererRenderPassBegin* BeginRenderPass;
+  _RendererRenderPassEnd*   EndRenderPass;
   
-  _RendererGeometryPrepare* GeometryPrepare;
-  _RendererGeometryDraw*    GeometryDraw;
+  _RendererGeometryPrepare* PrepareGeometry;
+  _RendererGeometryDraw*    DrawGeometry;
 } Renderer;
 
 func B32 R_InitRenderer();

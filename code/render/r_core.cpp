@@ -12,14 +12,14 @@ R_InitRenderer(R_RendererType type)
     Renderer.Init = R_VK_Init;
     Renderer.Shutdown = R_VK_Shutdown;
     Renderer.HandleResize = R_VK_HandleResize;
-    Renderer.GraphicsShaderCreate = R_VK_GraphicsShaderCreate;
-    Renderer.PipelineBind = R_VK_PipelineBind;
-    Renderer.FrameBegin = R_VK_FrameBegin;
-    Renderer.FrameEnd = R_VK_FrameEnd;
-    Renderer.RenderPassBegin = R_VK_RenderPassBegin;
-    Renderer.RenderPassEnd = R_VK_RenderPassEnd;
-    Renderer.GeometryPrepare = R_VK_GeometryPrepare;
-    Renderer.GeometryDraw = R_VK_GeometryDraw;
+    Renderer.CreatePipeline = R_VK_GraphicsShaderCreate;
+    Renderer.BindPipeline = R_VK_PipelineBind;
+    Renderer.BeginFrame = R_VK_FrameBegin;
+    Renderer.EndFrame = R_VK_FrameEnd;
+    Renderer.BeginRenderPass = R_VK_RenderPassBegin;
+    Renderer.EndRenderPass = R_VK_RenderPassEnd;
+    Renderer.PrepareGeometry = R_VK_GeometryPrepare;
+    Renderer.DrawGeometry = R_VK_GeometryDraw;
   }
   else
   {

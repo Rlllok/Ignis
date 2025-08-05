@@ -73,10 +73,8 @@ R_VK_GetVkDescriptorType(R_BindingType binding_type)
 func U32
 R_VK_FindMemoryTypeIndex(U32 type_filter, VkMemoryPropertyFlags property_flags)
 {
-  R_VK_State* state = &r_vk_state;
-  
   VkPhysicalDeviceMemoryProperties memory_properties;
-  vkGetPhysicalDeviceMemoryProperties(state->device.physical, &memory_properties);
+  vkGetPhysicalDeviceMemoryProperties(_r_vk_state.device.physical, &memory_properties);
 
   for (U32 i = 0; i < memory_properties.memoryTypeCount; i += 1)
   {
