@@ -20,12 +20,31 @@ struct R_VK_Buffer
 {
   VkBuffer handle;
   VkDeviceMemory memory;
+	void* mapped;
   U64 size;
   U64 capacity;
 };
 
-func R_VK_Buffer R_VK_CreateBuffer(U64 capacity, BufferUsageFlags usage_flags, BufferPropertyFlags flags);
-func void R_VK_DestroyBuffer(R_VK_Buffer* buffer);
+func R_Buffer* R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
+func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
+func void R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
+
+// -------------------------------------------------------------------
+// Command Buffer
+struct R_VK_CommandBuffer
+{
+	VkCommandBuffer handle[R_FRAMES_IN_FLIGHT];
+	VkFence submit_fence[R_FRAMES_IN_FLIGHT];
+	VkSemaphore acquire_semaphore[R_FRAMES_IN_FLIGHT];
+	VkSemaphore release_semaphore[R_FRAMES_IN_FLIGHT];
+};
+
+func R_CommandBuffer* R_VK_GetCommandBuffer();
+func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer);
+func void R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer);
+
+func VkCommandBuffer R_VK_BeginSingleCmd();
+func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
 
 // --------------------------------------------------
 // Device
@@ -43,7 +62,6 @@ func void R_VK_DestroyDevice();
 
 // --------------------------------------------------
 // Surface/Swapchain
-#define R_VK_FRAMES_IN_FLIGHT 3
 struct FrameResources
 {
   VkFence submit_fence;
@@ -71,6 +89,8 @@ struct R_VK_Swapchain
   VkDeviceMemory depth_image_memory;
   VkImageView depth_image_view;
   FrameResources* frame_resources; // @TODO It is per Image for now
+	
+	struct R_VK_Texture* images_texture;
 };
 
 // --AlNov: @TODO Remove. Created in CreateSwapchain
@@ -82,42 +102,29 @@ func void R_VK_DestroySwapchain();
 func void R_VK_RecreateSwapchain(OS_Window* window);
 func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 
+func R_TextureTest* R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer);
+
+// -------------------------------------------------------------------
+// Render Pass
+func R_RenderPass* R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment); // @TODO Returns 0. There is no RenderPass, VK extension is used
+func void R_VK_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass);
+
 // --------------------------------------------------
 // Pipeline
 #define R_VK_MAX_OBJECTS 1024
 
-// --AlNov: @TODO I feel that Pipeline is a better name, as it was before.
 struct R_VK_GraphicsPipeline
 {
   VkPipeline handle;
   VkPipelineLayout layout;
-
-  VkDescriptorPool global_set_pool[R_VK_FRAMES_IN_FLIGHT];
-  VkDescriptorPool instance_set_pool[R_VK_FRAMES_IN_FLIGHT];
-  
-  VkDescriptorSetLayout global_set_layout;
-  VkDescriptorSetLayout instance_set_layout;
-
-  VkDescriptorSet global_sets[R_VK_FRAMES_IN_FLIGHT];
-  VkDescriptorSet instance_sets[R_VK_MAX_OBJECTS]; // AlNov: @TODO Should be FRAMES*OBJECTS
-
-	U32 object_number;
 };
 
-func void R_VK_CreateGraphicsPipeline(R_Pipeline* pipeline);
-func void R_VK_DestroyGraphicsPipeline();
-
-func void R_VK_BindPipeline(R_Pipeline* pipeline, U8* global_data, U32 global_data_size);
+func R_GraphicsPipeline* R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
+func void R_VK_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipeline);
 
 // -------------------------------------------------------------------
-// Render Pass
-func void R_VK_RenderPassBegin(R_AttachmentLoadOperation load_operation, Vec4f clear_color);
-func void R_VK_RenderPassEnd();
-
-// -------------------------------------------------------------------
-// Command Buffer
-func VkCommandBuffer R_VK_BeginSingleCmd();
-func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
+// Draw
+func void R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 
 // -------------------------------------------------------------------
 // Texture
@@ -130,14 +137,6 @@ struct R_VK_Texture
 
 func R_Texture R_VK_CreateTexture(Str8 path);
 
-// -------------------------------------------------------------------
-// Draw
-func void R_VK_BeginFrame();
-func void R_VK_EndFrame();
-
-func void R_VK_GeometryPrepare(AST_Geometry* geometry);
-func B32 R_VK_GeometryDraw(R_DrawGeometryInfo* draw_info); // --AlNov: @TODO Change struct name to R_GeometryDrawInfo
-
 // --------------------------------------------------
 // Global State
 struct R_VK_State
@@ -147,12 +146,12 @@ struct R_VK_State
   VkInstance instance;
   R_VK_Device device;
   R_VK_Swapchain swapchain;
-	VkCommandPool cmd_pool;
+	VkCommandPool command_pool;
 
 #if IGNIS_DEBUG
   VkDebugUtilsMessengerEXT debug_messenger;
 #endif // IGNIS_DEBUG
-
+	
   R_VK_GraphicsPipeline graphics_pipelines[32];
   U32 graphics_pipelines_count;
 
@@ -161,8 +160,6 @@ struct R_VK_State
 
 	R_VK_Texture default_texture;
 	VkSampler default_sampler;
-
-  PipelineID binded_pipeline_id;
   
   U32 current_frame;
   U32 current_target;

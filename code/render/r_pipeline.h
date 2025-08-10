@@ -2,65 +2,6 @@
 
 #include "base/base_include.h"
 
-enum R_ShaderType
-{
-  R_SHADER_TYPE_VERTEX,
-  R_SHADER_TYPE_FRAGMENT,
-  
-  R_SHADER_TYPE_COUNT
-};
-
-enum R_ShaderLanguage
-{
-  R_SHADER_LANGUAGE_SPIRV,
-
-  R_SHADER_LANGUAGE_COUNT
-};
-
-struct R_Shader
-{
-  R_ShaderType      type;
-  R_ShaderLanguage  language; // --AlNov: Only SPIRV for now
-  const char*       entry_point;
-  U32               code_size;
-  U8*               code;
-};
-
-enum R_VertexAttributeFormat
-{
-  R_VERTEX_ATTRIBUTE_FORMAT_VEC2F,
-  R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
-
-  R_VERTEX_ATTRIBUTE_FORMAT_COUNT
-};
-
-enum R_BindingType
-{
-  R_BINDING_TYPE_UNIFORM_BUFFER,
-  R_BINDING_TYPE_TEXTURE_2D,
-
-  R_BINDING_TYPE_COUNT
-};
-
-#define R_MAX_BINDINGS 10
-struct R_BindingInfo
-{
-  R_BindingType type;
-  R_ShaderType  shader_type;
-};
-
-enum R_PipelineCullingMode
-{
-  R_PIPELINE_CULLING_MODE_NONE,
-
-  R_PIPELINE_CULLING_MODE_BACK_CW,
-  R_PIPELINE_CULLING_MODE_BACK_CCW,
-
-  R_PIPELINE_CULLING_MODE_COUNT
-};
-
-typedef U32 PipelineID;
-
 #define R_MAX_ATTRIBUTES 10
 struct R_Pipeline
 {

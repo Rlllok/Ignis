@@ -154,7 +154,7 @@ R_H_OffsetFromAttributeFormat(R_VertexAttributeFormat format)
 }
 
 func U32
-R_H_GlslangStageFromShaderType(R_ShaderType type)
+R_GlslangStageFromShaderType(R_ShaderType type)
 {
   switch (type)
   {

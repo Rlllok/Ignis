@@ -1,10 +1,6 @@
 #include "r_vk_utils.h"
 #include "base/base_logger.h"
-#include "render/r_core.h"
-#include "render/r_pipeline.h"
 #include "third_party/vulkan/include/vulkan_core.h"
-#include <vulkan/vulkan_core.h>
-
 
 func VkAttachmentLoadOp
 R_VK_GetVkAttachmentLoadOperation(R_AttachmentLoadOperation operation)

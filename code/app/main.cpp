@@ -2,27 +2,14 @@
 #include "base/base_math.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
-#include "draw/d_include.h"
 #include "assets/mesh.h"
 #include "assets/ast_font.h"
 
 #include "base/base_include.cpp"
 #include "os/os_include.cpp"
 #include "render/r_include.cpp"
-#include "draw/d_include.cpp"
 #include "assets/mesh.cpp"
 #include "assets/ast_font.cpp"
-
-struct Camera
-{
-  Vec3f position;
-  Vec3f front;
-  Vec3f up;
-  Vec3f right;
-  F32 speed;
-  F32 yaw;
-  F32 pitch;
-};
 
 struct AppState
 {
@@ -30,7 +17,6 @@ struct AppState
   Arena* frame_arena;
   OS_Window window;
 
-  Camera camera;
   F32 delta_time;
 
   B32 is_window_closed;
@@ -39,7 +25,6 @@ struct AppState
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
-func void DrawGlyph(GlyphData glyph, I32 size, Vec2I position);
 
 I32 main()
 {
@@ -48,12 +33,6 @@ I32 main()
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = false;
-  app_state.camera = {};
-  app_state.camera.position = MakeVec3f(0.0f, 0.0f, 4.0f),
-  app_state.camera.front = NormalizeVec3f(MakeVec3f(0.0f, 0.0f, -1.0f));
-  app_state.camera.up = NormalizeVec3f(MakeVec3f(0.0f, 1.0f, 0.0f));
-  app_state.camera.right = NormalizeVec3f(CrossVec3f(app_state.camera.front, app_state.camera.up));
-  app_state.camera.speed = 1.0f;
 
   F32 new_variable = 0;
  
@@ -61,19 +40,40 @@ I32 main()
   OS_CreateWindow("Vulkan Triangle", MakeVec2u(1270, 720), &app_state.window);
   OS_ShowWindow(&app_state.window);
 
-  R_Init(R_RENDERER_TYPE_VULKAN, &app_state.window);
-  D_Init(Megabytes(32));
+  R_Init(R_RENDERER_TYPE_VK, &app_state.window);
 
-  // TTFData ttf_data = AST_GetTTFData(app_state.arena, Str8FromC("data/fonts/RobotoMono-Regular.ttf"));
-  TTFData ttf_data = AST_GetTTFData(app_state.arena, Str8FromC("data/fonts/Delius-Regular.ttf"));
-  LOG_INFO("GetGlyphIndex: %i", _AST_TTFGetGlyphIndex(0x0041, ttf_data.format));
+	struct Vertex
+	{
+		Vec3f position;
+	};
 
-  // --AlNov: @TODO Not Working with ttf other than Envy Code R
-  GlyphData glyph_A = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0041);
-  GlyphData glyph_B = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0042);
-  GlyphData glyph_C = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0043);
-  GlyphData glyph_V = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0056);
-  GlyphData glyph_test = AST_GetGlyphDataFromTTF(app_state.arena, ttf_data, 0x0041);
+	Vertex vertecies[3] = {
+		{.position = MakeVec3f(0.0f, 0.5f, 0.0f)},
+		{.position = MakeVec3f(0.5f, 0.05f, 0.0f)},
+		{.position = MakeVec3f(-0.5f, 0.5f, 0.0f)},
+	};
+
+	R_Buffer* vertex_buffer = R_CreateBuffer(Kilobytes(4), R_BUFFER_USAGE_FLAG_VERTEX, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
+	U64 triangle_vertex_data_offset = R_PushBuffer(vertex_buffer, (U8*)vertecies, sizeof(vertecies[0])*3);
+
+	R_Shader vertex_shader = R_CreateShader(app_state.arena, Str8FromC("data/shaders/triangle.vs.glsl"), R_SHADER_TYPE_VERTEX);
+	R_Shader fragment_shader = R_CreateShader(app_state.arena, Str8FromC("data/shaders/triangle.fs.glsl"), R_SHADER_TYPE_FRAGMENT);
+
+	R_VertexAttribute triangle_vertex_attribute_position = {
+		.location = 0,
+		.format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+		.offset = offsetof(Vertex, position),
+	};
+
+	R_GraphicsPipelineCreateInfo triangle_pipeline_info = {
+		.vertex_shader = vertex_shader,
+		.fragment_shader = fragment_shader,
+		.vertex_attributes_count = 1,
+		.vertex_attributes = &triangle_vertex_attribute_position,
+	};
+	R_GraphicsPipeline* triangle_pipeline = R_CreateGraphicsPipeline(&triangle_pipeline_info);
+
+	R_CommandBuffer* command_buffer = R_GetCommandBuffer();
 
   // AlNov: AppLoop
   F32 begin_time = OS_CurrentTimeSeconds();
@@ -81,22 +81,25 @@ I32 main()
   {
     HandleEvents(app_state.frame_arena, &app_state);
 
-    Renderer.BeginFrame();
-    {
-      Renderer.BeginRenderPass(R_ATTACHMENT_LOAD_OPERATION_CLEAR, MakeVec4f(0.03f, 0.03f, 0.03f, 1.0f));
-      {
-          I32 padding = 100;
-          I32 size = 100;
-          DrawGlyph(glyph_A, size, MakeVec2I(50 + padding*0, 100));
-					#if 0
-          DrawGlyph(glyph_B, size, MakeVec2I(50 + padding*1, 100));
-          DrawGlyph(glyph_C, size, MakeVec2I(50 + padding*2, 100));
-          DrawGlyph(glyph_V, size, MakeVec2I(50 + padding*3, 100));
-          DrawGlyph(glyph_test, size, MakeVec2I(50 + padding*4, 100));
-					#endif 
-      }
-    }
-    Renderer.EndFrame();
+		R_TextureTest* swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
+		R_BeginCommandBuffer(command_buffer);
+		{
+			R_ColorAttachment color_attachment = {
+				.texture = swapchain_texture,
+				.load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+				.store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+				.clear_color = MakeVec4f(1.0f, 0.0f, 0.0f, 1.0f),
+			};
+			R_BeginRenderPass(command_buffer, &color_attachment);
+			{
+				R_BindGraphicsPipeline(command_buffer, triangle_pipeline);
+				R_BindVertexBuffer(command_buffer, vertex_buffer, triangle_vertex_data_offset);
+				R_DrawPrimitives(command_buffer, 3, 1, 0, 0);
+			}
+			R_EndRenderPass(command_buffer, 0);
+		}
+		R_SubmitCommandBuffer(command_buffer);
+
     ResetArena(app_state.frame_arena);
 
     F32 end_time = OS_CurrentTimeSeconds();
@@ -141,17 +144,6 @@ HandleEvents(Arena* arena, AppState* state)
         Vec2f d_position = state->window.virtual_cursor_position - state->last_mouse_position;
         Vec2f mouse_direction = NormalizeVec2f(d_position);
 
-        state->camera.yaw += mouse_direction.x * 1.0f * state->delta_time;
-        // state->camera.pitch += dy * 0.1f;
-
-        Vec3f direction = {};
-        direction.x = cos(state->camera.yaw) * cos(state->camera.pitch);
-        direction.y = sin(state->camera.pitch);
-        direction.z = sin(state->camera.yaw) * cos(state->camera.pitch);
-        // state->camera.front = NormalizeVec3f(direction);
-        // state->camera.right = NormalizeVec3f(CrossVec3f(state->camera.front, MakeVec3f(0.0f, 1.0f, 0.0f)));
-        // state->camera.up = NormalizeVec3f(CrossVec3f(state->camera.right, state->camera.front));
-        
         state->last_mouse_position = state->window.virtual_cursor_position;
       } break;
 
@@ -160,25 +152,21 @@ HandleEvents(Arena* arena, AppState* state)
         if (event->key == OS_KEY_ARROW_UP)
         {
           {
-            state->camera.position = state->camera.position + state->camera.speed * state->camera.front;
           }
         }
         if (event->key == OS_KEY_ARROW_DOWN)
         {
           {
-            state->camera.position = state->camera.position - state->camera.speed * state->camera.front;
           }
         }
         if (event->key == OS_KEY_ARROW_RIGHT)
         {
           {
-            state->camera.position = state->camera.position + state->camera.speed * state->camera.right;
           }
         }
         if (event->key == OS_KEY_ARROW_LEFT)
         {
           {
-            state->camera.position = state->camera.position - state->camera.speed * state->camera.right;
           }
         }
       }
@@ -186,63 +174,4 @@ HandleEvents(Arena* arena, AppState* state)
       default: break;
     }
   }
-}
-
-func void
-DrawGlyph(GlyphData glyph, I32 size, Vec2I position)
-{
-  F32 scale_factor = size;
-  I32 contur_start = 0;
-  for (I32 i = 0; i < glyph.num_conturs; i += 1)
-  {
-    for (I32 j = contur_start; j <= glyph.contur_end_indecies[i] - 2; j += 2)
-    {
-      Vec2I p0 = Vec2IFromVec(glyph.points[j]*scale_factor);
-      p0.y *= -1;
-      p0 = p0 + position;
-      Vec2I cp = Vec2IFromVec(glyph.points[j+1]*scale_factor);
-      cp.y *= -1;
-      cp = cp + position;
-      Vec2I p1 = Vec2IFromVec(glyph.points[j+2]*scale_factor);
-      p1.y *= -1;
-      p1 = p1 + position;
-
-      D_DrawBezier(p0, p1, cp, MakeVec3f(1.0f, 1.0f, 1.0f));
-    }
-    contur_start = glyph.contur_end_indecies[i] + 1;
-  }
-
-  #if 0
-  contur_start = 0;
-  for (I32 i = 0; i < glyph.num_conturs; i += 1)
-  {
-    for (I32 j = contur_start; j <= glyph.contur_end_indecies[i] - 2; j += 2)
-    {
-      Vec2I p0 = Vec2IFromVec(glyph.points[j]);
-      p0.y *= -1;
-      p0 = p0*scale_factor;
-      p0 = p0 + position;
-      Vec2I cp = Vec2IFromVec(glyph.points[j+1]);
-      cp.y *= -1;
-      cp = cp*scale_factor;
-      cp = cp + position;
-      Vec2I p1 = Vec2IFromVec(glyph.points[j+2]);
-      p1.y *= -1;
-      p1 = p1*scale_factor;
-      p1 = p1 + position;
-
-      RectI rectangle = {};
-      rectangle.position = p0;
-      rectangle.size = {10, 10};
-      D_DrawRectangle(&app_state.window, rectangle, MakeVec3f(0.0f, 0.0f, 1.0f), 0);
-      rectangle.position = cp;
-      rectangle.size = {10, 10};
-      D_DrawRectangle(&app_state.window, rectangle, MakeVec3f(1.0f, 0.0f, 0.0f), 0);
-      rectangle.position = p1;
-      rectangle.size = {10, 10};
-      D_DrawRectangle(&app_state.window, rectangle, MakeVec3f(0.0f, 0.0f, 1.0f), 0);
-    }
-    contur_start = glyph.contur_end_indecies[i] + 1;
-  }
-  #endif
 }
