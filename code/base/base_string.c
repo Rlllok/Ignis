@@ -12,6 +12,15 @@ AllocateStr8(Arena* arena, U64 size)
   return result;
 }
 
+func Str8
+MakeStr8(U8* str, U64 size)
+{
+	Str8 result = {0};
+	result.data = str;
+	result.size = size;
+	return result;
+}
+
 func U64
 GetCStrLength(const char* c_str)
 {

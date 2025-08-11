@@ -65,7 +65,7 @@ R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferProperty
   VkMemoryRequirements memory_requirements;
   vkGetBufferMemoryRequirements(_r_vk_state.device.logical, buffer->handle, &memory_requirements);
   
-  VkPhysicalDeviceMemoryProperties mem_properties = {};
+  VkPhysicalDeviceMemoryProperties mem_properties = {0};
   vkGetPhysicalDeviceMemoryProperties(_r_vk_state.device.physical, &mem_properties);
 
   VkMemoryPropertyFlags flags = _VkFromBufferPropertyFlags(property_flags);
@@ -119,12 +119,13 @@ func void R_VK_DestroyBuffer(R_VK_Buffer* buffer)
   vkFreeMemory(_r_vk_state.device.logical, buffer->memory, 0);
   vkDestroyBuffer(_r_vk_state.device.logical, buffer->handle, 0);
 
-  *buffer = {};
+	R_VK_Buffer reset = {0};
+  *buffer = reset;
 }
 
 // -------------------------------------------------------------------
 // Command Buffer
-func R_CommandBuffer* R_VK_GetCommandBuffer()
+func R_CommandBuffer* R_VK_GetCommandBuffer(void)
 {
 	R_VK_CommandBuffer* command_buffer = (R_VK_CommandBuffer*)PushArena(_r_vk_state.arena, sizeof(command_buffer));
 
@@ -210,7 +211,7 @@ R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
 // --------------------------------------------------
 // Device
 func void
-R_VK_CreateDevice()
+R_VK_CreateDevice(void)
 {
   U32 device_count = 0;
   VK_CHECK(vkEnumeratePhysicalDevices(_r_vk_state.instance, &device_count, 0));
@@ -252,19 +253,19 @@ R_VK_CreateDevice()
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
       };
 
-      VkPhysicalDeviceVulkan13Features vulkan13_features = {};
+      VkPhysicalDeviceVulkan13Features vulkan13_features = {0};
       vulkan13_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
       vulkan13_features.dynamicRendering = VK_TRUE;
 
       F32 queue_priority = 1.0f;
 
-      VkDeviceQueueCreateInfo queue_info = {};
+      VkDeviceQueueCreateInfo queue_info = {0};
       queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
       queue_info.queueFamilyIndex = _r_vk_state.device.graphics_queue_index;
       queue_info.queueCount = 1;
       queue_info.pQueuePriorities = &queue_priority;
 
-      VkDeviceCreateInfo device_info = {};
+      VkDeviceCreateInfo device_info = {0};
       device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       device_info.queueCreateInfoCount = 1;
       device_info.pQueueCreateInfos = &queue_info;
@@ -285,18 +286,20 @@ R_VK_CreateDevice()
 }
 
 func void
-R_VK_DestroyDevice()
+R_VK_DestroyDevice(void)
 {
   vkDestroyDevice(_r_vk_state.device.logical, 0);
-  _r_vk_state.device = {};
+
+	R_VK_Device reset = {0};
+  _r_vk_state.device = reset;
 }
 
 // --------------------------------------------------
 // Surface/Swapchain
 func FrameResources
-R_VK_CreateFrameResources()
+R_VK_CreateFrameResources(void)
 {
-  FrameResources resources = {};
+  FrameResources resources = {0};
 
   VkFenceCreateInfo fence_info = {
     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -336,7 +339,8 @@ R_VK_DestroyFrameResources(FrameResources* resources)
   vkDestroyCommandPool(_r_vk_state.device.logical, resources->cmd_pool, 0);
   vkDestroyFence(_r_vk_state.device.logical, resources->submit_fence, 0);
 
-  *resources = {};
+	FrameResources reset = {0};
+  *resources = reset;
 }
 
 func void
@@ -345,7 +349,7 @@ R_VK_SurfaceCreate(OS_Window* window)
 }
 
 func void
-R_VK_DestorySurface()
+R_VK_DestorySurface(void)
 {
   vkDestroySurfaceKHR(_r_vk_state.instance, _r_vk_state.swapchain.surface, 0);
 }
@@ -364,7 +368,7 @@ R_VK_CreateSwapchain(OS_Window* window)
 #endif // IGNIS_PLATFORM_LINUX
 
 #if IGNIS_PLATFORM_WIN32
-  VkWin32SurfaceCreateInfoKHR surface_info = {};
+  VkWin32SurfaceCreateInfoKHR surface_info = {0};
   surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
   surface_info.hinstance = window->handle->instance;
   surface_info.hwnd = window->handle->handle;
@@ -372,7 +376,7 @@ R_VK_CreateSwapchain(OS_Window* window)
   VK_CHECK(vkCreateWin32SurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_WIN32
 
-  R_VK_Swapchain swapchain = {};
+  R_VK_Swapchain swapchain = {0};
   
   Arena* tmp_arena = AllocateArena(Kilobytes(64));
   {
@@ -401,8 +405,8 @@ R_VK_CreateSwapchain(OS_Window* window)
   }
   else
   {
-    swapchain.size.width = capabilities.currentExtent.width;
-    swapchain.size.height = capabilities.currentExtent.height;
+    swapchain.size.w = capabilities.currentExtent.width;
+    swapchain.size.h = capabilities.currentExtent.height;
   }
 
   VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
@@ -419,7 +423,7 @@ R_VK_CreateSwapchain(OS_Window* window)
     .minImageCount = image_count,
     .imageFormat = swapchain.surface_format.format,
     .imageColorSpace = swapchain.surface_format.colorSpace,
-    .imageExtent = { .width = swapchain.size.width, .height = swapchain.size.height },
+    .imageExtent = {.width = swapchain.size.w, .height = swapchain.size.h},
     .imageArrayLayers = 1,
     .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -472,7 +476,9 @@ R_VK_CreateSwapchain(OS_Window* window)
       .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
       .imageType = VK_IMAGE_TYPE_2D,
       .format = VK_FORMAT_D32_SFLOAT,
-      .extent = { .width = swapchain.size.width, .height = swapchain.size.height, .depth = 1 },
+      .extent.width = swapchain.size.w,
+			.extent.height = swapchain.size.h,
+			.extent.depth = 1,
       .mipLevels = 1,
       .arrayLayers = 1,
       .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -519,7 +525,7 @@ R_VK_CreateSwapchain(OS_Window* window)
 }
 
 func void
-R_VK_DestroySwapchain()
+R_VK_DestroySwapchain(void)
 {
   vkDeviceWaitIdle(_r_vk_state.device.logical);
   
@@ -596,12 +602,10 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
   {
 		R_VertexAttribute* vertex_attribute = pipeline_info->vertex_attributes + i;
 
-    attribute_descriptions[i] = {
-      .location = vertex_attribute->location,
-      .binding = 0,
-      .format = R_VK_GetVkFormatAttribute(vertex_attribute->format),
-      .offset = vertex_attribute->offset,
-    };
+		attribute_descriptions[i].location = vertex_attribute->location,
+		attribute_descriptions[i].binding = 0,
+		attribute_descriptions[i].format = R_VK_GetVkFormatAttribute(vertex_attribute->format),
+		attribute_descriptions[i].offset = vertex_attribute->offset,
 
 		stride += vertex_attribute->offset;
   }
@@ -839,7 +843,7 @@ R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_a
 	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
 	R_VK_Texture* vk_attachment_texture = (R_VK_Texture*)color_attachment->texture;
 
-  VkClearValue clear_value = {};
+  VkClearValue clear_value = {0};
   clear_value.color.float32[0] = color_attachment->clear_color.r;
   clear_value.color.float32[1] = color_attachment->clear_color.g;
   clear_value.color.float32[2] = color_attachment->clear_color.b;
@@ -855,8 +859,8 @@ R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_a
   };
 
   VkExtent2D render_area = {
-    .width = _r_vk_state.swapchain.size.width,
-    .height = _r_vk_state.swapchain.size.height
+    .width = _r_vk_state.swapchain.size.w,
+    .height = _r_vk_state.swapchain.size.h,
   };
   VkRenderingInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -919,9 +923,9 @@ R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 insta
 // -------------------------------------------------------------------
 // Command Buffer
 func VkCommandBuffer
-R_VK_BeginSingleCmd()
+R_VK_BeginSingleCmd(void)
 {
-  VkCommandBufferAllocateInfo allocate_info = {};
+  VkCommandBufferAllocateInfo allocate_info = {0};
   allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocate_info.commandPool = _r_vk_state.command_pool;
@@ -930,7 +934,7 @@ R_VK_BeginSingleCmd()
   VkCommandBuffer command_buffer;
   VK_CHECK(vkAllocateCommandBuffers(_r_vk_state.device.logical, &allocate_info, &command_buffer));
 
-  VkCommandBufferBeginInfo begin_info = {};
+  VkCommandBufferBeginInfo begin_info = {0};
   begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -944,7 +948,7 @@ R_VK_EndSingleCmd(VkCommandBuffer cmd)
 {
   VK_CHECK(vkEndCommandBuffer(cmd));
 
-  VkSubmitInfo submit_info = {};
+  VkSubmitInfo submit_info = {0};
   submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submit_info.commandBufferCount = 1;
   submit_info.pCommandBuffers = &cmd;
@@ -960,7 +964,7 @@ R_VK_EndSingleCmd(VkCommandBuffer cmd)
 func R_Texture
 R_VK_CreateTexture(Str8 path)
 {
-  R_Texture texture = {};
+  R_Texture texture = {0};
 
   I32 tex_width    = 0;
   I32 tex_height   = 0;
@@ -981,7 +985,7 @@ R_VK_CreateTexture(Str8 path)
 
   stbi_image_free(tex_pixels);
 
-  VkImageCreateInfo image_info = {};
+  VkImageCreateInfo image_info = {0};
   image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
   image_info.imageType     = VK_IMAGE_TYPE_2D;
@@ -1002,10 +1006,10 @@ R_VK_CreateTexture(Str8 path)
     return texture;
   }
 
-  VkMemoryRequirements mem_requirements = {};
+  VkMemoryRequirements mem_requirements = {0};
   vkGetImageMemoryRequirements(_r_vk_state.device.logical, _r_vk_state.default_texture.image, &mem_requirements);
 
-  VkMemoryAllocateInfo mem_info = {};
+  VkMemoryAllocateInfo mem_info = {0};
   mem_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   mem_info.allocationSize  = mem_requirements.size;
   mem_info.memoryTypeIndex = R_VK_FindMemoryTypeIndex(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -1028,7 +1032,7 @@ R_VK_CreateTexture(Str8 path)
       VK_IMAGE_ASPECT_COLOR_BIT
     );
     
-    VkBufferImageCopy copy_info = {};
+    VkBufferImageCopy copy_info = {0};
     copy_info.bufferOffset                    = 0;
     copy_info.bufferRowLength                 = 0;
     copy_info.bufferImageHeight               = 0;
@@ -1036,8 +1040,13 @@ R_VK_CreateTexture(Str8 path)
     copy_info.imageSubresource.mipLevel       = 0;
     copy_info.imageSubresource.baseArrayLayer = 0;
     copy_info.imageSubresource.layerCount     = 1;
-    copy_info.imageOffset                     = { 0, 0, 0 };
-    copy_info.imageExtent                     = { (U32)tex_width, (U32)tex_height, 1 };
+		copy_info.imageOffset.x = 0;
+		copy_info.imageOffset.y = 0;
+		copy_info.imageOffset.z = 0;
+    copy_info.imageExtent.width = (U32)tex_width;
+		copy_info.imageExtent.height = (U32)tex_height;
+		copy_info.imageExtent.depth = 1;
+
     vkCmdCopyBufferToImage(cmd, _r_vk_state.staging_buffer.handle, _r_vk_state.default_texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
     
     R_VK_TransitImageLayout(
@@ -1055,7 +1064,7 @@ R_VK_CreateTexture(Str8 path)
   }
   
   // AlNov: Create Texture Image View
-  VkImageViewCreateInfo view_info = {};
+  VkImageViewCreateInfo view_info = {0};
   view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   view_info.image                           = _r_vk_state.default_texture.image;
   view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
@@ -1069,7 +1078,7 @@ R_VK_CreateTexture(Str8 path)
   VK_CHECK(vkCreateImageView(_r_vk_state.device.logical, &view_info, 0, &_r_vk_state.default_texture.view));
 
   // AlNov: Create Texture Sampler
-  VkSamplerCreateInfo sampler_info = {};
+  VkSamplerCreateInfo sampler_info = {0};
   sampler_info.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
   sampler_info.magFilter               = VK_FILTER_LINEAR;
   sampler_info.minFilter               = VK_FILTER_LINEAR;
@@ -1098,7 +1107,7 @@ R_VK_Init(OS_Window* window)
 {
   _r_vk_state.arena = AllocateArena(Megabytes(64));
 
-  VkApplicationInfo app_info = {};
+  VkApplicationInfo app_info = {0};
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   app_info.pApplicationName = "VulkanRenderingFramework";
   app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -1122,10 +1131,10 @@ R_VK_Init(OS_Window* window)
     "VK_LAYER_KHRONOS_validation",
   };
 #else
-  const char* validation_layers[] = {};
+  const char* validation_layers[] = {0};
 #endif // IGNIS_DEBUG
 
-  VkInstanceCreateInfo instance_info = {};
+  VkInstanceCreateInfo instance_info = {0};
   instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   instance_info.pApplicationInfo = &app_info;
   instance_info.enabledLayerCount = CountArrayElements(validation_layers);
@@ -1134,12 +1143,11 @@ R_VK_Init(OS_Window* window)
   instance_info.ppEnabledExtensionNames = extension_names;
 
 #if IGNIS_DEBUG
-  VkDebugUtilsMessengerCreateInfoEXT messenger_info;
-  R_VK_PopulateDebugMessengerCreateInfo(messenger_info);
+  VkDebugUtilsMessengerCreateInfoEXT messenger_info = R_VK_PopulateDebugMessengerCreateInfo();
   instance_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&messenger_info;
 #endif // IGNIS_DEBUG
 
-  VK_CHECK(vkCreateInstance(&instance_info, 0, &_r_vk_state.instance));
+  VkResult result = (vkCreateInstance(&instance_info, 0, &_r_vk_state.instance));
 
 #if IGNIS_DEBUG
   VK_CHECK(R_VK_CreateDebugMessenger(_r_vk_state.instance, &_r_vk_state.debug_messenger));
@@ -1159,15 +1167,9 @@ R_VK_Init(OS_Window* window)
 }
 
 func B32
-R_VK_Shutdown()
+R_VK_Shutdown(void)
 {
-  
 	return 0;
-}
-
-func void
-R_VK_Shutdown(OS_Window* window)
-{
 }
 
 func void
@@ -1187,28 +1189,29 @@ R_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDeb
   return VK_FALSE;
 }
 
-func void
-R_VK_PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messengerInfo)
+func VkDebugUtilsMessengerCreateInfoEXT
+R_VK_PopulateDebugMessengerCreateInfo(void)
 {
-  messengerInfo = {};
-
-  messengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  messengerInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+	VkDebugUtilsMessengerCreateInfoEXT messenger_info = {0};
+  messenger_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  messenger_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  messengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
+  messenger_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT;
-  messengerInfo.pfnUserCallback = R_VK_DebugCallback;
-  messengerInfo.pUserData = nullptr;
+  messenger_info.pfnUserCallback = R_VK_DebugCallback;
+  messenger_info.pUserData = 0;
+
+	return messenger_info;
 }
 
 func VkResult
-R_VK_CreateDebugUtilsMessenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
+R_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
 {
-  auto f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+  PFN_vkCreateDebugUtilsMessengerEXT f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 
-  if (f != nullptr)
+  if (f != 0)
   {
     return f(instance, pCreateInfo, pAllocator, pDebugMesseneger);
   }
@@ -1221,9 +1224,9 @@ R_VK_CreateDebugUtilsMessenger(VkInstance instance, const VkDebugUtilsMessengerC
 func void
 R_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator)
 {
-  auto f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+  PFN_vkDestroyDebugUtilsMessengerEXT f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 
-  if (f != nullptr)
+  if (f != 0)
   {
     f(instance, debugMessenger, pAllocator);
   }
@@ -1232,9 +1235,8 @@ R_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT de
 func VkResult
 R_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger)
 {
-  VkDebugUtilsMessengerCreateInfoEXT messengerInfo = {};
-  R_VK_PopulateDebugMessengerCreateInfo(messengerInfo);
+  VkDebugUtilsMessengerCreateInfoEXT messengerInfo = R_VK_PopulateDebugMessengerCreateInfo();
 
-  return R_VK_CreateDebugUtilsMessenger(instance, &messengerInfo, nullptr, debugMessenger);
+  return R_VK_CreateDebugUtilsMessenger(instance, &messengerInfo, 0, debugMessenger);
 }
 #endif // IGNIS_DEBUG

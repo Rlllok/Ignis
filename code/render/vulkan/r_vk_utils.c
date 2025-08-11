@@ -29,7 +29,7 @@ R_VK_GetVkAttachmentLoadOperation(R_AttachmentLoadOperation operation)
 func VkFormat
 R_VK_GetVkFormatAttribute(R_VertexAttributeFormat format)
 {
-  VkFormat result = {};
+  VkFormat result = {0};
 
   switch (format)
   {

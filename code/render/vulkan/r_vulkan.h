@@ -16,6 +16,7 @@
 
 // --------------------------------------------------
 // Buffer
+typedef struct R_VK_Buffer R_VK_Buffer;
 struct R_VK_Buffer
 {
   VkBuffer handle;
@@ -31,6 +32,7 @@ func void R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffe
 
 // -------------------------------------------------------------------
 // Command Buffer
+typedef struct R_VK_CommandBuffer R_VK_CommandBuffer;
 struct R_VK_CommandBuffer
 {
 	VkCommandBuffer handle[R_FRAMES_IN_FLIGHT];
@@ -39,15 +41,16 @@ struct R_VK_CommandBuffer
 	VkSemaphore release_semaphore[R_FRAMES_IN_FLIGHT];
 };
 
-func R_CommandBuffer* R_VK_GetCommandBuffer();
+func R_CommandBuffer* R_VK_GetCommandBuffer(void);
 func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer);
 func void R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer);
 
-func VkCommandBuffer R_VK_BeginSingleCmd();
+func VkCommandBuffer R_VK_BeginSingleCmd(void);
 func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
 
 // --------------------------------------------------
 // Device
+typedef struct R_VK_Device R_VK_Device;
 struct R_VK_Device
 {
   VkDevice logical;
@@ -57,12 +60,13 @@ struct R_VK_Device
   VkQueue graphics_queue;
 };
 
-func void R_VK_CreateDevice();
-func void R_VK_DestroyDevice();
+func void R_VK_CreateDevice(void);
+func void R_VK_DestroyDevice(void);
 
 // --------------------------------------------------
 // Surface/Swapchain
-struct FrameResources
+typedef struct FrameResources FrameResources;
+struct FrameResources // @TODO Remove
 {
   VkFence submit_fence;
   VkCommandPool cmd_pool;
@@ -71,9 +75,10 @@ struct FrameResources
   VkSemaphore release_semaphore;
 };
 
-func void R_VK_CreateFrameResources(FrameResources* resources);
+func FrameResources R_VK_CreateFrameResources(void);
 func void R_VK_DestoryFrameResources(FrameResources* resources);
 
+typedef struct R_VK_Swapchain R_VK_Swapchain;
 struct R_VK_Swapchain
 {
   Arena* image_arena;
@@ -81,7 +86,7 @@ struct R_VK_Swapchain
   VkSwapchainKHR handle;
   VkSurfaceKHR surface;
   VkSurfaceFormatKHR surface_format;
-  Vec2u size;
+  Vec2U32 size;
   U32 image_count;
   VkImage* images;
   VkImageView* image_views;
@@ -95,10 +100,10 @@ struct R_VK_Swapchain
 
 // --AlNov: @TODO Remove. Created in CreateSwapchain
 func void R_VK_CreateSurface(OS_Window* window);
-func void R_VK_DestroySurface();
+func void R_VK_DestroySurface(void);
 
 func void R_VK_CreateSwapchain(OS_Window* window);
-func void R_VK_DestroySwapchain();
+func void R_VK_DestroySwapchain(void);
 func void R_VK_RecreateSwapchain(OS_Window* window);
 func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 
@@ -113,6 +118,7 @@ func void R_VK_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* rend
 // Pipeline
 #define R_VK_MAX_OBJECTS 1024
 
+typedef struct R_VK_GraphicsPipeline R_VK_GraphicsPipeline;
 struct R_VK_GraphicsPipeline
 {
   VkPipeline handle;
@@ -128,6 +134,7 @@ func void R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count,
 
 // -------------------------------------------------------------------
 // Texture
+typedef struct R_VK_Texture R_VK_Texture;
 struct R_VK_Texture
 {
 	VkImage image;
@@ -139,6 +146,7 @@ func R_Texture R_VK_CreateTexture(Str8 path);
 
 // --------------------------------------------------
 // Global State
+typedef struct R_VK_State R_VK_State;
 struct R_VK_State
 {
   Arena* arena;
@@ -166,7 +174,7 @@ struct R_VK_State
 } _r_vk_state;
 
 func B32 R_VK_Init(OS_Window* window);
-func B32 R_VK_Shutdown();
+func B32 R_VK_Shutdown(void);
 
 func void R_VK_HandleResize(OS_Window* window);
 
@@ -174,8 +182,8 @@ func void R_VK_HandleResize(OS_Window* window);
 // Debug Tools
 #if IGNIS_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL R_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
-func void R_VK_PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& messengerInfo);
-func VkResult R_VK_CreateDebugUtilsMessenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger);
+func VkDebugUtilsMessengerCreateInfoEXT R_VK_PopulateDebugMessengerCreateInfo(void);
+func VkResult R_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger);
 func void R_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator);
 func VkResult R_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger);
 #endif // IGNIS_DEBUG

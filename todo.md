@@ -7,10 +7,7 @@
         -[x] Math
         -[x] Memory
         -[x] String
-    -[] OS Layer
+    -[x] OS Layer
         -[x] Memory
-        -[] gfx
-
-#Notes
-- Why use typedef for enums. typedef U16 EnumType;
-
+        -[x] gfx
+    -[x] Render

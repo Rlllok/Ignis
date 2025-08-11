@@ -6,6 +6,26 @@
 #include "third_party/glslang/include/Public/resource_limits_c.h"
 
 // -------------------------------------------------------------------
+// Command Buffer
+func R_CommandBuffer*
+R_GetCommandBuffer(void)
+{
+	return _r_state.device.GetCommandBuffer();
+}
+
+func void
+R_BeginCommandBuffer(R_CommandBuffer* command_buffer)
+{
+	_r_state.device.BeginCommandBuffer(command_buffer);
+}
+
+func void
+R_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
+{
+	_r_state.device.SubmitCommandBuffer(command_buffer);
+}
+
+// -------------------------------------------------------------------
 // Buffer
 func R_Buffer* R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags)
 {
@@ -21,26 +41,6 @@ R_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
 func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset)
 {
 	_r_state.device.BindVertexBuffer(command_buffer, buffer, offset);
-}
-
-// -------------------------------------------------------------------
-// Command Buffer
-func R_CommandBuffer*
-R_GetCommandBuffer()
-{
-	return _r_state.device.GetCommandBuffer();
-}
-
-func void
-R_BeginCommandBuffer(R_CommandBuffer* command_buffer)
-{
-	_r_state.device.BeginCommandBuffer(command_buffer);
-}
-
-func void
-R_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
-{
-	_r_state.device.SubmitCommandBuffer(command_buffer);
 }
 
 // -------------------------------------------------------------------
@@ -83,7 +83,7 @@ R_Init(R_RendererType type, OS_Window* window)
 }
 
 func B32
-R_Shutdown()
+R_Shutdown(void)
 {
 	return false;
 }
@@ -105,7 +105,7 @@ _R_GlslangStageFromShaderType(R_ShaderType type)
 func R_Shader
 R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type)
 {
-	R_Shader out_shader = {};
+	R_Shader out_shader = {0};
 
   FILE* file = fopen(CFromStr8(file_name), "r");
   Assert(!file);
@@ -119,7 +119,7 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type)
 
   glslang_initialize_process();
 
-  glslang_input_t input = {};
+  glslang_input_t input = {0};
   input.language                          = GLSLANG_SOURCE_GLSL,
   input.stage                             = (glslang_stage_t)_R_GlslangStageFromShaderType(type);
   input.client                            = GLSLANG_CLIENT_VULKAN;

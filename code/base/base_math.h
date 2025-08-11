@@ -37,6 +37,12 @@ union Vec2U32
     U32 x;
     U32 y;
   };
+
+	struct
+	{
+		U32 w;
+		U32 h;
+	};
   U32 values[2];
 };
 

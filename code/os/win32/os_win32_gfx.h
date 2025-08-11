@@ -5,7 +5,6 @@
 #include "base/base_include.h"
 #include "os/os_gfx.h"
 
-
 struct OS_WindowHandle
 {
   HWND      handle;

@@ -5,6 +5,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../third_party/stb_image.h"
 
+typedef struct R_Texture R_Texture;
 struct R_Texture
 {
   U64 handle;

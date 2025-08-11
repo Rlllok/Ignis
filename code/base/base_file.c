@@ -19,7 +19,7 @@ FileOpen(Str8 file_path)
 
   file.handle = file_ptr;
   file.name = file_path;
-  file.size = GetFileSize(file);
+  file.size = FileSize(file);
   file.is_valid = 1;
   
   return file;
@@ -37,7 +37,7 @@ FileClose(FileHandle* file)
 }
 
 func U64
-GetFileSize(FileHandle file)
+FileSize(FileHandle file)
 {
   U64 result = 0;
 

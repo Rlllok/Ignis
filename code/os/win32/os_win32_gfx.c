@@ -12,13 +12,13 @@ OS_Init(U64 arena_size)
 }
 
 func void
-OS_CreateWindow(const char* title, Vec2u size, OS_Window* out)
+OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 {
   out->handle = (OS_WindowHandle*)PushArena(_os_state.arena, sizeof(OS_WindowHandle*));
   
-  out->handle->instance = GetModuleHandle(nullptr);
+  out->handle->instance = GetModuleHandle(0);
 
-  WNDCLASSW window_class     = {};
+  WNDCLASSW window_class     = {0};
   window_class.style         = CS_HREDRAW | CS_VREDRAW;
   window_class.lpfnWndProc   = OS_WIN32_WindowProcedure;
   window_class.hInstance     = out->handle->instance;
@@ -27,13 +27,13 @@ OS_CreateWindow(const char* title, Vec2u size, OS_Window* out)
 
   Assert(RegisterClassW(&window_class) == 0);
 
-  HWND handle = {};
+  HWND handle = {0};
 
   wchar_t wchar_title[256];
-  MultiByteToWideChar(CP_ACP, 0, title, -1, wchar_title, 256);
+  MultiByteToWideChar(CP_ACP, 0, CFromStr8(title), -1, wchar_title, 256);
   handle = CreateWindowW(
     OS_WIN32_WindowClassName, wchar_title, WS_OVERLAPPEDWINDOW,
-    CW_USEDEFAULT, CW_USEDEFAULT, size.width, size.height, 0, 0, out->handle->instance, 0
+    CW_USEDEFAULT, CW_USEDEFAULT, size.w, size.h, 0, 0, out->handle->instance, 0
   );
 
   AssertMessage(handle == 0, "Cannot create out->");
@@ -96,10 +96,10 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 }
 
 func F32
-OS_CurrentTimeSeconds()
+OS_CurrentTimeSeconds(void)
 {
   // --AlNov: @NOTE Frequency should be computed only ones, as it doens't change after system start.
-  local_persist LARGE_INTEGER frequency = {};
+  local_persist LARGE_INTEGER frequency = {0};
   if (!frequency.QuadPart)
   {
     QueryPerformanceFrequency(&frequency);
@@ -124,26 +124,26 @@ OS_Wait(F32 wait_seconds)
   while (OS_CurrentTimeSeconds() < end_time) {}
 }
 
-func Vec2f
+func Vec2F32
 OS_MousePosition(OS_Window window)
 {
   POINT mouse_point;
   GetCursorPos(&mouse_point);
   ScreenToClient(window.handle->handle, &mouse_point);
 
-  return MakeVec2f((F32)mouse_point.x, (F32)mouse_point.y);
+  return MakeVec2F32((F32)mouse_point.x, (F32)mouse_point.y);
 }
 
-func bool
-OS_IsWindowClosed()
+func B32
+OS_IsWindowClosed(void)
 {
-  return false;
+  return 0;
 }
 
 func F32
-OS_GetMonitorHZ()
+OS_GetMonitorHZ(void)
 {
-  DEVMODEW dev_mode = {};
+  DEVMODEW dev_mode = {0};
   EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &dev_mode);
 
   return (F32)dev_mode.dmDisplayFrequency;
@@ -152,9 +152,9 @@ OS_GetMonitorHZ()
 func LRESULT
 OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
 {
-  OS_Event event = {};
+  OS_Event event = {0};
   LRESULT result  = 0;
-  B32 release = false;
+  B32 release = 0;
 
   switch (message)
   {
@@ -163,8 +163,8 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
       if (_os_state.event_list.arena == 0) break;
       
       event.type = OS_EVENT_TYPE_RESIZE;
-      event.window_size.width = LOWORD(l_param);
-      event.window_size.height = HIWORD(l_param);
+      event.window_size.w = LOWORD(l_param);
+      event.window_size.h = HIWORD(l_param);
     } break;
 
     case WM_CLOSE:
@@ -187,8 +187,8 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
     case WM_SYSKEYUP:
     case WM_KEYUP:
       {
-        bool was_down = !!(l_param & (1 << 30));
-        bool is_down  = !(l_param & (1 << 31));
+        B32 was_down = !!(l_param & (1 << 30));
+        B32 is_down  = !(l_param & (1 << 31));
 
         if (w_param == VK_ESCAPE)
         {

@@ -31,5 +31,5 @@ struct FileHandle
 
 func FileHandle FileOpen(Str8 file_path);
 func void FileClose(FileHandle* file);
-func U64 GetFileSize(FileHandle file);
+func U64 FileSize(FileHandle file);
 func FileData ReadFileBinary(Arena* arena, FileHandle file);
