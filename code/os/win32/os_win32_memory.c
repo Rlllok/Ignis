@@ -3,7 +3,7 @@
 #include <memory.h>
 
 func void*
-OS_AllocateMemory(U64 size, B32 zero_out)
+OS_AllocateMemory(U64 size)
 {
   void* memory = malloc(size);
   OS_ZeroMemory(memory, size);

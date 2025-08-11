@@ -8,19 +8,19 @@
 func FileHandle
 FileOpen(Str8 file_path)
 {
-  FileHandle file = {};
+  FileHandle file = {0};
   
   FILE* file_ptr = fopen(CFromStr8(file_path), "rb");
   if (!file_ptr)
   {
     LOG_ERROR("Cannot open file %s", CFromStr8(file_path));
-    return {};
+    return file;
   }
 
   file.handle = file_ptr;
   file.name = file_path;
   file.size = GetFileSize(file);
-  file.is_valid = true;
+  file.is_valid = 1;
   
   return file;
 }
@@ -32,7 +32,7 @@ FileClose(FileHandle* file)
   {
     fclose((FILE*)file->handle);
     file->handle = 0;
-    file->is_valid = false;
+    file->is_valid = 0;
   }
 }
 
@@ -54,7 +54,7 @@ GetFileSize(FileHandle file)
 func FileData
 ReadFileBinary(Arena* arena, FileHandle file)
 {
-  FileData file_data = {};
+  FileData file_data = {0};
   
   if (file.handle)
   {

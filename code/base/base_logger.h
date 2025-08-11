@@ -2,7 +2,8 @@
 
 #include "base_core.h"
 
-enum LogMessageType
+typedef U16 LogMessageType;
+typedef enum LogMessageTypeEnum
 {
   LOG_MESSAGE_TYPE_NONE,
   LOG_MESSAGE_TYPE_ERROR,
@@ -10,7 +11,8 @@ enum LogMessageType
   LOG_MESSAGE_TYPE_INFO,
 
   LOG_MESSAGE_TYPE_COUNT
-};
+}
+LogMessageTypeEnum;
 
 func void LogOutput(LogMessageType message_type, const char* message, ...);
 

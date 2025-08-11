@@ -9,6 +9,7 @@
 // There is no resize for arena.
 // I should play more with arena to understand how I can use for it.
 
+typedef struct Arena Arena;
 struct Arena
 {
     U64 position;

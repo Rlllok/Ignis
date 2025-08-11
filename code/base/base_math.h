@@ -10,95 +10,42 @@
 #define PI 3.141592654f
 
 // -------------------------------------------------------------------
-// --AlNov: Vector Types ---------------------------------------------
-
-// --AlNov: Vec2
-union Vec2I
+// Vectors and Matrices
+typedef union Vec2I32 Vec2I32;
+union Vec2I32
 {
   struct
   {
     I32 x;
     I32 y;
   };
-
   I32 values[2];
 };
 
-#define ZeroVec2I() {{0,0}}
-#define OneVec2I() {{1,1}}
+#define ZeroVec2I() {0,0}
+#define OneVec2I() 	{1,1}
 
-inline Vec2I
-MakeVec2I(I32 x, I32 y)
-{
-  Vec2I result = {};
-  result.x = x;
-  result.y = y;
+func Vec2I32 MakeVec2I32(I32 a, I32 b);
+func Vec2I32 AddVec2I32(Vec2I32 a, Vec2I32 b);
+func Vec2I32 SubVec2I32(Vec2I32 a, Vec2I32 b);
 
-  return result;
-}
-
-inline Vec2I
-operator+(Vec2I v, I32 n)
-{
-  Vec2I result = {};
-
-  result.x = v.x + n;
-  result.y = v.y + n;
-
-  return result;
-}
-
-inline Vec2I
-operator+(Vec2I v1, Vec2I v2)
-{
-  Vec2I result = {};
-
-  result.x = v1.x + v2.x;
-  result.y = v1.y + v2.y;
-
-  return result;
-}
-
-inline Vec2I
-operator-(Vec2I v, I32 n)
-{
-  Vec2I result = {};
-
-  result.x = v.x - n;
-  result.y = v.y - n;
-
-  return result;
-}
-
-inline Vec2I
-operator/(Vec2I v, I32 n)
-{
-  Vec2I result = {};
-
-  result.x = v.x/n;
-  result.y = v.y/n;
-
-  return result;
-}
-
-union Vec2u
+typedef union Vec2U32 Vec2U32;
+union Vec2U32
 {
   struct
   {
     U32 x;
     U32 y;
   };
-
-  struct
-  {
-    U32 width;
-    U32 height;
-  };
-
   U32 values[2];
 };
 
-union Vec2f
+func Vec2U32 MakeVec2U32(U32 a, U32 b);
+func Vec2U32 AddVec2U32(Vec2U32 a, Vec2U32 b);
+func Vec2U32 SubVec2U32(Vec2U32 a, Vec2U32 b);
+
+typedef union Vec2F32 Vec2F32;
+union Vec2F32
 {
   struct
   {
@@ -115,81 +62,31 @@ union Vec2f
   F32 values[2];
 };
 
-inline Vec2f
-operator+(Vec2f v, F32 n)
+func Vec2F32 MakeVec2F32(F32 x, F32 y);
+func Vec2F32 AddVec2F32(Vec2F32 a, Vec2F32 b);
+func Vec2F32 SubVec2F32(Vec2F32 a, Vec2F32 b);
+func Vec2F32 MulVec2F32(Vec2F32 a, Vec2F32 b);
+func Vec2F32 DivVec2F32(Vec2F32 a, Vec2F32 b);
+func Vec2F32 ScaleVec2F32(Vec2F32 v, F32 n);
+func F32 DotVec2F32(Vec2F32 a, Vec2F32 b);
+func F32 CrossVec2F32(Vec2F32 a, Vec2F32 b);
+func F32 MagnitudeSquareVec2F32(Vec2F32 v);
+func F32 MagnitudeVec2F32(Vec2F32 v);
+func Vec2F32 NormalizeVec2F32(Vec2F32 v);
+func Vec2F32 GetNormalToVec2F32(Vec2F32 v);
+
+typedef struct Mat3F32 Mat3F32;
+struct Mat3F32
 {
-  Vec2f result = {};
+  F32 values[3][3];
+};
 
-  result.x = v.x + n;
-  result.y = v.y + n;
+func Mat3F32 MakeMat3F32(F32 diagonal_value);
+func Mat3F32 MulMat3F32(Mat3F32 a, Mat3F32 b);
+func Mat3F32 MakeTransposeMat3F32(Mat3F32 m);
 
-  return result;
-}
-
-inline Vec2f
-operator+(Vec2f v1, Vec2f v2)
-{
-  Vec2f result = {};
-
-  result.x = v1.x + v2.x;
-  result.y = v1.y + v2.y;
-
-  return result;
-}
-
-inline Vec2f&
-operator+=(Vec2f& v1, Vec2f v2)
-{
-  v1 = v1 + v2;
-
-  return v1;
-}
-
-inline Vec2f
-operator-(Vec2f v1, Vec2f v2)
-{
-  Vec2f result = {};
-
-  result.x = v1.x - v2.x;
-  result.y = v1.y - v2.y;
-
-  return result;
-}
-
-inline Vec2f
-operator*(Vec2f v, F32 n)
-{
-  Vec2f result = {};
-
-  result.x = v.x*n;
-  result.y = v.y*n;
-
-  return result;
-}
-
-inline Vec2f
-operator*=(Vec2f& v, F32 n)
-{
-  Vec2f result = {};
-
-  result = result * n;
-
-  return result;
-}
-
-inline Vec2f
-operator/(Vec2f& v, F32 n)
-{
-  Vec2f result = {};
-
-  result.x = v.x/n;
-  result.y = v.y/n;
-
-  return result;
-}
-
-// --AlNov: Vec3
-union Vec3f
+typedef union Vec3F32 Vec3F32;
+union Vec3F32
 {
   struct
   {
@@ -208,7 +105,35 @@ union Vec3f
   F32 values[3];
 };
 
-union Vec4f
+func Vec3F32 MakeVec3F32(F32 x, F32 y, F32 z);
+func Vec3F32 AddVec3F32(Vec3F32 a, Vec3F32 b);
+func Vec3F32 SubVec3F32(Vec3F32 a, Vec3F32 b);
+func Vec3F32 MulVec3F32(Vec3F32 a, Vec3F32 b);
+func Vec3F32 DivVec3F32(Vec3F32 a, Vec3F32 b);
+func Vec3F32 ScaleVec3F32(Vec3F32 v, F32 n);
+func F32 DotVec3F32(Vec3F32 a, Vec3F32 b);
+func Vec3F32 CrossVec3F32(Vec3F32 a, Vec3F32 b);
+func F32 MagnitudeSquareVec3F32(Vec3F32 v);
+func F32 MagnitudeVec3F32(Vec3F32 v);
+func Vec3F32 NormalizeVec3F32(Vec3F32 v);
+func Vec3F32 TransformVec3F32(Vec3F32 v, Mat3F32 m);
+
+typedef struct Mat4F32 Mat4F32;
+struct Mat4F32
+{
+  F32 values[4][4];
+};
+
+func Mat4F32 MakeMat4F32(F32 diagonal_value);
+func Mat4F32 MulMat4F32(Mat4F32 a, Mat4F32 b);
+func Mat4F32 MakeLookAt(Vec3F32 position, Vec3F32 target, Vec3F32 up);
+func Mat4F32 MakeOrthographicMat4F32(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z);
+func Mat4F32 MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z);
+func Mat4F32 MakeTransposeMat4F32(Vec3F32 v);
+func Mat4F32 MakeRotationMat4F32(Vec3F32 axis, F32 angle);
+
+typedef union Vec4F32 Vec4F32;
+union Vec4F32
 {
   struct
   {
@@ -229,56 +154,32 @@ union Vec4f
   F32 values[4];
 };
 
-// --AlNov: Vector type convertion -----------------------------------
+func Vec4F32 MakeVec4F32(F32 x, F32 y, F32 z, F32 w);
+func Vec4F32 AddVec4F32(Vec4F32 a, Vec4F32 b);
+func Vec4F32 SubVec4F32(Vec4F32 a, Vec4F32 b);
+func Vec4F32 MulVec4F32(Vec4F32 a, Vec4F32 b);
+func Vec4F32 DivVec4F32(Vec4F32 a, Vec4F32 b);
+func Vec4F32 ScaleVec4F32(Vec4F32 v, F32 n);
+func F32 DotVec4F32(Vec4F32 a, Vec4F32 b);
+func F32 MagnitudeSquareVec4F32(Vec4F32 v);
+func F32 MagnitudeVec4F32(Vec4F32 v);
+func Vec4F32 NormalizeVec4F32(Vec4F32 v);
+
 #define Vec2IFromVec(v)  MakeVec2I((I32)(v).x, (I32)(v).y)
 #define Vec2uFromVec(v)  MakeVec2f((U32)(v).x, (U32)(v).y)
 #define Vec2fFromVec(v)  MakeVec2f((F32)(v).x, (F32)(v).y)
 #define Vec2FFromVec(v)  MakeVec2f((F32)(v).x, (F32)(v).y)
-#define Vec3fFromVec2(v) MakeVec3f((F32)(v).x, (F32)(v).y, 0.0f)
+#define Vec3F32FromVec2(v) MakeVec3F32((F32)(v).x, (F32)(v).y, 0.0f)
 
 // -------------------------------------------------------------------
-// --AlNov: Matrix Types ---------------------------------------------
-
-// --AlNov: Mat3x3f
-struct Mat3x3f
-{
-  F32 values[3][3];
-};
-
-// --AlNov: Mat4x4f
-struct Mat4x4f
-{
-  F32 values[4][4];
-};
-
-
-// -------------------------------------------------------------------
-// --AlNov: Rectangle Type -------------------------------------------
-union Rect2f
+// Rectangle
+typedef union RectI32 RectI32;
+union RectI32
 {
   struct
   {
-    Vec2f position;
-    Vec2f size;
-  };
-
-  struct
-  {
-    F32 x;
-    F32 y;
-    F32 w;
-    F32 h;
-  };
-
-  Vec2f value[2];
-};
-
-union RectI
-{
-  struct
-  {
-    Vec2I position;
-    Vec2I size;
+    Vec2I32 position;
+    Vec2I32 size;
   };
 
   struct 
@@ -289,113 +190,45 @@ union RectI
     I32 h;
   };
 
-  Vec2I value[2];
+  Vec2I32 value[2];
+};
+
+typedef union RectF32 RectF32;
+union Rect2F32
+{
+  struct
+  {
+    Vec2F32 position;
+    Vec2F32 size;
+  };
+
+  struct
+  {
+    F32 x;
+    F32 y;
+    F32 w;
+    F32 h;
+  };
+
+  Vec2F32 value[2];
 };
 
 // -------------------------------------------------------------------
-// --AlNov: Vector Operations ----------------------------------------
+// Default Math functions (Use F32)
+typedef Vec2F32 Vec2;
+typedef Vec3F32 Vec3;
+typedef Vec4F32 Vec4;
+typedef Mat3F32 Mat3;
+typedef Mat4F32 Mat4;
 
-// --AlNov: Vec2 
-func Vec2u MakeVec2u(U32 x, U32 y);
-
-func Vec2f MakeVec2f(F32 x, F32 y);
-func Vec2f AddVec2f(Vec2f a, Vec2f b);
-func Vec2f SubVec2f(Vec2f a, Vec2f b);
-func Vec2f MulVec2f(Vec2f a, F32 num);
-func F32   DotVec2f(Vec2f a, Vec2f b);
-func F32   CrossVec2f(Vec2f a, Vec2f b);
-func Vec2f RotateVec2f(Vec2f v, F32 radians);
-func F32   MagnitudeSquareVec2f(Vec2f v);
-func F32   MagnitudeVec2f(Vec2f v);
-func Vec2f NormalizeVec2f(Vec2f v);
-func Vec2f NormalToVec2f(Vec2f v);
-
-// --AlNov: Vec3
-func Vec3f MakeVec3f(F32 x, F32 y, F32 z);
-func Vec3f MulVec3f(Vec3f a, F32 num);
-func Vec3f TransformVec3f(Vec3f v, Mat3x3f m);
-func F32   DotVec3f(Vec3f a, Vec3f b);
-func F32   MagnitudeVec3f(Vec3f v);
-func Vec3f NormalizeVec3f(Vec3f v);
-func Vec3f CrossVec3f(Vec3f a, Vec3f b);
-
-inline Vec3f
-operator+ (Vec3f a, Vec3f b)
-{
-  Vec3f result = {
-    .x = a.x + b.x,
-    .y = a.y + b.y,
-    .z = a.z + b.z
-  };
-  return result;
-}
-
-inline Vec3f
-operator+= (Vec3f a, Vec3f b)
-{
-  Vec3f result = {
-    .x = a.x + b.x,
-    .y = a.y + b.y,
-    .z = a.z + b.z
-  };
-  return result;
-}
-
-inline Vec3f
-operator- (Vec3f a, Vec3f b)
-{
-  Vec3f result = {
-    .x = a.x - b.x,
-    .y = a.y - b.y,
-    .z = a.z - b.z
-  };
-  return result;
-}
-
-inline Vec3f
-operator* (F32 a, Vec3f b)
-{
-  Vec3f result = {
-    .x = a * b.x,
-    .y = a * b.y,
-    .z = a * b.z
-  };
-  return result;
-}
-
-// --AlNov: Vec4
-func Vec4f MakeVec4f(F32 x, F32 y, F32 z, F32 w);
-
-// -------------------------------------------------------------------
-// --AlNov: Matrix Operations ----------------------------------------
-
-// --AlNov: Mat3x3
-func Mat3x3f Make3x3f(F32 diagonal_value);
-func Mat3x3f Mul3x3f(Mat3x3f A, Mat3x3f B);
-func Mat3x3f Transpose3x3f(Mat3x3f m);
-
-// --AlNov: Mat4x4
-func Mat4x4f Make4x4f(F32 diagonal_value);
-
-inline Mat4x4f
-operator* (Mat4x4f a, Mat4x4f b)
-{
-  Mat4x4f result = {};
-  for (I32 i = 0; i < 4; i += 1)
-  {
-    for (I32 j = 0; j < 4; j += 1)
-    {
-      result.values[i][j] += a.values[0][j] * b.values[i][0];
-      result.values[i][j] += a.values[1][j] * b.values[i][1];
-      result.values[i][j] += a.values[2][j] * b.values[i][2];
-      result.values[i][j] += a.values[3][j] * b.values[i][3];
-    }
-  }
-  return result;
-}
-
-func Mat4x4f MakeLookAt(Vec3f position, Vec3f target, Vec3f up);
-func Mat4x4f MakeOrthographic4x4f(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z);
-func Mat4x4f MakePerspective4x4f(F32 fov, F32 aspect, F32 near_z, F32 far_z);
-func Mat4x4f Transpose4x4f(Vec3f v);
-func Mat4x4f Rotate4x4f(F32 angle);
+// Constructors
+#define MakeVec2(x, y) MakeVec2F32(x, y)
+#define MakeVec3(x, y, z) MakeVec3F32(x, y, z)
+#define MakeVec4(x, y, z, w) MakeVec4F32(x, y, z, w)
+#define MakeMat3(diagonal_value) MakeMat3F32(diagonal_value)
+#define MakeTransposeMat3(v) MakeTransposeMat3F32(v)
+#define MakeMat4(diagonal_value) MakeMat4F32(diagonal_value)
+#define MakeOrthographicsMat4(left, right, bottom, top, near_z, far_z) MakeOrthographicsMat4F32(left, right, bottm, top, near_z, far_z)
+#define MakePerspectiveMat4(fov, aspect, near_z, far_z)
+#define MakeTransposeMat4(v) MakeTransposeMat4F32(v)
+#define MakeRotationMat4(axis, angle) MakeRotationMat4F32(axis, angle)

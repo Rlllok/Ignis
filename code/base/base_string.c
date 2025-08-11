@@ -3,7 +3,7 @@
 func Str8
 AllocateStr8(Arena* arena, U64 size)
 {
-  Str8 result = {};
+  Str8 result = {0};
   
   result.data = (U8*)PushArena(arena, size + 1);
   result.data[size + 1] = 0;

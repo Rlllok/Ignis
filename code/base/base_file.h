@@ -4,6 +4,7 @@
 #include "base_memory.h"
 #include "base_string.h"
 
+typedef struct FileData FileData;
 struct FileData
 {
   U8* data;
@@ -11,6 +12,7 @@ struct FileData
   U64 size;
 };
 
+typedef struct FileHandle FileHandle;
 struct FileHandle
 {
   void* handle;

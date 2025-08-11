@@ -9,8 +9,8 @@ if not exist build mkdir build
 xcopy /y /q /s /e /i data .\build\data
 
 rem --- Build Settings ---
-set compiler=clang
-set clang_turnoff_warnings=-Wno-deprecated-declarations -Wno-gnu-anonymous-struct -Wno-unused-function -Wno-gnu-zero-variadic-macro-arguments -Wno-c++20-designator
+set compiler=clang -std=c11
+set clang_turnoff_warnings=-Wno-deprecated-declarations -Wno-gnu-anonymous-struct -Wno-unused-function -Wno-gnu-zero-variadic-macro-arguments -Wno-missing-braces
 rem set clang_flags=-Wall -Wconversion %clang_turnoff_warnings% -pedantic -g -I..\code\ -L..\code\
 set include_flags=-I..\code\ -I..\code\third_party\include\
 set link_flags=-L..\code\third_party\lib\ -luser32.lib -lvulkan\vulkan-1.lib -lglslang\GenericCodeGen.lib -lglslang\glslang.lib -lglslang\glslang-default-resource-limits.lib -lglslang\MachineIndependent.lib -lglslang\OSDependent.lib -lglslang\SPIRV.lib -lglslang\SPIRV-Tools.lib -lglslang\SPIRV-Tools-opt.lib -lglslang\SPIRV-tools-opt.lib -lglslang\SPVRemapper.lib
@@ -25,7 +25,7 @@ rem --- Build ---
 @echo.
 
 pushd build
-    if "%main%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\app\main.cpp -o main.exe
+    if "%main%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\app\main.c -o main.exe
 popd
 
 @echo.

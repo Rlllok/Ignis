@@ -22,12 +22,14 @@
 // --------------------------------------------------
 // List
 #define DefineList(Type) \
+typedef struct ListNode##Type ListNode##Type; \
 struct ListNode##Type \
 { \
   Type data; \
   ListNode##Type* next; \
 }; \
 \
+typedef struct List##Type List##Type; \
 struct List##Type \
 { \
   Arena* arena; \
@@ -38,7 +40,7 @@ struct List##Type \
 \
 func List##Type CreateList##Type(Arena* arena) \
 { \
-  List##Type result = {}; \
+  List##Type result = {0}; \
   result.arena = arena; \
   return result; \
 } \
@@ -63,7 +65,7 @@ func void PushList##Type(List##Type* list, Type data) \
 \
 func Type GetList##Type##Item(List##Type* list, U64 index) \
 { \
-  Type result = {}; \
+  Type result = {0}; \
   if (list->count < index) \
   { \
     LOG_ERROR("Out of list."); \
@@ -96,6 +98,7 @@ inline I32 CalculateHash(Str8 word)
 }
 
 #define DefineHashMap(Type) \
+typedef struct HashMapElement##Type HashMapElement##Type; \
 struct HashMapElement##Type \
 { \
   HashMapElement##Type* next; \
@@ -103,6 +106,7 @@ struct HashMapElement##Type \
   Type value; \
 }; \
 \
+typedef struct HashMap##Type HashMap##Type; \
 struct HashMap##Type \
 { \
   Arena* arena; \
@@ -113,7 +117,7 @@ struct HashMap##Type \
 \
 func HashMap##Type HashMap##Type##Create(Arena* arena, U32 capacity) \
 { \
-  HashMap##Type map = {}; \
+  HashMap##Type map = {0}; \
    \
   map.arena = arena; \
   map.elements = (HashMapElement##Type*)PushArena(arena, capacity*sizeof(HashMapElement##Type)); \
@@ -175,7 +179,7 @@ func void HashMap##Type##Put(HashMap##Type* map, Str8 key, Type value) \
  \
 func Type HashMap##Type##Get(HashMap##Type map, Str8 key) \
 { \
-  Type value = {}; \
+  Type value = {0}; \
    \
   I32 hash_value = CalculateHash(key); \
   I32 hash_slot = hash_slot % map.capacity; \
