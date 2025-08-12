@@ -38,6 +38,12 @@ R_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
 	return _r_state.device.PushBuffer(buffer, data, size);
 }
 
+func void
+R_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
+{
+	_r_state.device.BindIndexBuffer(command_buffer, buffer, offset, index_size);
+}
+
 func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset)
 {
 	_r_state.device.BindVertexBuffer(command_buffer, buffer, offset);
@@ -90,6 +96,19 @@ R_Shutdown(void)
 
 // -------------------------------------------------------------------
 // Graphics Pipeline
+func U32
+GetSizeOfVertexAttributeFormat(R_VertexAttributeFormat format)
+{
+	U32 size_table[] = {
+		sizeof(Vec2F32),
+		sizeof(Vec3F32),
+		sizeof(Vec4F32),
+		0 // FORMAT_COUNT
+	};
+
+	return size_table[format];
+}
+
 func U32
 _R_GlslangStageFromShaderType(R_ShaderType type)
 {
@@ -209,4 +228,10 @@ func void
 R_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance)
 {
 	_r_state.device.DrawPrimitives(command_buffer, vertex_count, instance_count, first_vertex, first_instance);
+}
+
+func void
+R_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance)
+{
+	_r_state.device.DrawIndexedPrimitives(command_buffer, index_count, instance_count, first_index, vertex_offset, first_instance);
 }

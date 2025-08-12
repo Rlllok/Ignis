@@ -38,31 +38,44 @@ I32 main(void)
 	struct Vertex
 	{
 		Vec3 position;
+		Vec4 color;
 	};
 
 	Vertex vertecies[3] = {
-		{.position = MakeVec3(0.0f, 0.5f, 0.0f)},
-		{.position = MakeVec3(0.5f, 0.05f, 0.0f)},
-		{.position = MakeVec3(-0.5f, 0.5f, 0.0f)},
+		{.position = MakeVec3(0.0f, 0.5f, 0.0f), .color = MakeVec4(1.0f, 0.0f, 0.0f, 1.0f)},
+		{.position = MakeVec3(-0.5f, -0.5f, 0.0f), .color = MakeVec4(0.0f, 1.0f, 0.0f, 1.0f)},
+		{.position = MakeVec3(-0.5f, 0.5f, 0.0f), .color = MakeVec4(0.0f, 0.0f, 1.0f, 1.0f)},
+	};
+	// @NOTE @TODO RenderDoc doesnt accept second vertex attribute.
+	// It can see data, but not name. Maybe, because there is no alignment
+	R_VertexAttribute triangle_vertex_attributes[] = {
+		{
+			.location = 0,
+			.format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+			.offset = offsetof(Vertex, position),
+		},
+		{
+			.location = 1,
+			.format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+			.offset = offsetof(Vertex, color),
+		},
 	};
 
-	R_Buffer* vertex_buffer = R_CreateBuffer(Kilobytes(4), R_BUFFER_USAGE_FLAG_VERTEX, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
-	U64 triangle_vertex_data_offset = R_PushBuffer(vertex_buffer, (U8*)vertecies, sizeof(vertecies[0])*3);
+	U16 indecies[] = {0, 1, 2};
+
+	R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX;
+	R_Buffer* triangle_buffer = R_CreateBuffer(Kilobytes(4), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
+	U64 triangle_vertex_data_offset = R_PushBuffer(triangle_buffer, (U8*)vertecies, sizeof(vertecies[0])*CountArrayElements(vertecies));
+	U64 triangle_index_data_offset = R_PushBuffer(triangle_buffer, (U8*)indecies, sizeof(indecies[0])*CountArrayElements(indecies));
 
 	R_Shader vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.vs.glsl"), R_SHADER_TYPE_VERTEX);
 	R_Shader fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.fs.glsl"), R_SHADER_TYPE_FRAGMENT);
 
-	R_VertexAttribute triangle_vertex_attribute_position = {
-		.location = 0,
-		.format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
-		.offset = offsetof(Vertex, position),
-	};
-
 	R_GraphicsPipelineCreateInfo triangle_pipeline_info = {
 		.vertex_shader = vertex_shader,
 		.fragment_shader = fragment_shader,
-		.vertex_attributes_count = 1,
-		.vertex_attributes = &triangle_vertex_attribute_position,
+		.vertex_attributes_count = CountArrayElements(triangle_vertex_attributes),
+		.vertex_attributes = triangle_vertex_attributes,
 	};
 	R_GraphicsPipeline* triangle_pipeline = R_CreateGraphicsPipeline(&triangle_pipeline_info);
 
@@ -81,13 +94,14 @@ I32 main(void)
 				.texture = swapchain_texture,
 				.load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
 				.store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-				.clear_color = MakeVec4(1.0f, sin(begin_time), 0.0f, 1.0f),
+				.clear_color = MakeVec4(0.0f, 0.07f, 0.12f, 1.0f),
 			};
 			R_BeginRenderPass(command_buffer, &color_attachment);
 			{
 				R_BindGraphicsPipeline(command_buffer, triangle_pipeline);
-				R_BindVertexBuffer(command_buffer, vertex_buffer, triangle_vertex_data_offset);
-				R_DrawPrimitives(command_buffer, 3, 1, 0, 0);
+				R_BindIndexBuffer(command_buffer, triangle_buffer, triangle_index_data_offset, R_INDEX_SIZE_U16);
+				R_BindVertexBuffer(command_buffer, triangle_buffer, triangle_vertex_data_offset);
+				R_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, 0);
 			}
 			R_EndRenderPass(command_buffer, 0);
 		}

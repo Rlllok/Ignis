@@ -105,6 +105,18 @@ func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
 }
 
 func void
+R_VK_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
+{
+	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
+	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+
+	vkCmdBindIndexBuffer(
+			vk_command_buffer->handle[_r_vk_state.current_frame],
+			vk_buffer->handle,
+			offset, R_VK_GetVkIndexTypeFrom(index_size));
+}
+
+func void
 R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset)
 {
 	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
@@ -613,8 +625,9 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 		attribute_descriptions[i].format = R_VK_GetVkFormatAttribute(vertex_attribute->format),
 		attribute_descriptions[i].offset = vertex_attribute->offset,
 
-		stride += sizeof(Vec3F32);
+		stride += GetSizeOfVertexAttributeFormat(vertex_attribute->format);
   }
+	LOG_DEBUG("STRIDE: %d\n", stride);
 
   VkVertexInputBindingDescription binding_description = {
     .binding = 0,
@@ -925,6 +938,15 @@ R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 insta
 
 	vkCmdDraw(vk_command_buffer->handle[_r_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
 }
+
+func void
+R_VK_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance)
+{
+	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
+
+	vkCmdDrawIndexed(vk_command_buffer->handle[_r_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
+}
+
 
 // -------------------------------------------------------------------
 // Command Buffer

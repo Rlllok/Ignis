@@ -32,6 +32,7 @@ struct R_VK_Buffer
 
 func R_Buffer* R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
 func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
+func void R_VK_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
 func void R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
 
 // -------------------------------------------------------------------
@@ -137,6 +138,7 @@ func void R_VK_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsP
 // -------------------------------------------------------------------
 // Draw
 func void R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
+func void R_VK_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 
 // -------------------------------------------------------------------
 // Texture

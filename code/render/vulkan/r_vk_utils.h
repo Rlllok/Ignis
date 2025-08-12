@@ -3,6 +3,8 @@
 #include "render/r_core.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 
+func VkIndexType R_VK_GetVkIndexTypeFrom(R_IndexSize index_size);
+
 func VkAttachmentLoadOp R_VK_GetVkAttachmentLoadOperation(R_AttachmentLoadOperation operation);
 func VkFormat R_VK_GetVkFormatAttribute(R_VertexAttributeFormat format);
 func VkShaderStageFlags R_VK_GetVkShaderStage(R_ShaderType shader_type);

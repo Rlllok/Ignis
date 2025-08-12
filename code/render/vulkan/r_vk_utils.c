@@ -2,6 +2,16 @@
 #include "base/base_logger.h"
 #include "third_party/vulkan/include/vulkan_core.h"
 
+func VkIndexType
+R_VK_GetVkIndexTypeFrom(R_IndexSize index_size)
+{
+	VkIndexType vk_index_type_table[] = {
+		VK_INDEX_TYPE_UINT16,
+		VK_INDEX_TYPE_UINT32,
+	};
+	return vk_index_type_table[index_size];
+}
+
 func VkAttachmentLoadOp
 R_VK_GetVkAttachmentLoadOperation(R_AttachmentLoadOperation operation)
 {
@@ -33,8 +43,9 @@ R_VK_GetVkFormatAttribute(R_VertexAttributeFormat format)
 
   switch (format)
   {
-    case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F: result = VK_FORMAT_R32G32B32_SFLOAT; break;
-    case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F: result = VK_FORMAT_R32G32_SFLOAT; break;
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32: result = VK_FORMAT_R32G32_SFLOAT; break;
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32: result = VK_FORMAT_R32G32B32_SFLOAT; break;
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
 
     default: Assert(1); break;
   }

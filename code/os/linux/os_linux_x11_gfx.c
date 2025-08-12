@@ -81,6 +81,22 @@ func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 	{
 		XEvent x_event = {0};
 		XNextEvent(window->handle->display, &x_event);
+
+		switch (x_event.type)
+		{
+			default: {}break;
+
+			case ClientMessage:
+			{
+				if((Atom)x_event.xclient.data.l[0] == window->handle->delete_window_atom)
+				{
+					OS_Event event = {
+						.type = OS_EVENT_TYPE_EXIT,
+					};
+					PushListOS_Event(&_os_state.event_list, event);
+				}
+			}
+		}
 	}
 	return _os_state.event_list;
 }

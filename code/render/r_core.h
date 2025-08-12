@@ -47,6 +47,16 @@ typedef struct R_Buffer R_Buffer;
 func R_Buffer* R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
 func U64 R_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
 
+typedef U8 R_IndexSize;
+typedef enum R_IndexSizeEnum
+{
+	R_INDEX_SIZE_U16,
+	R_INDEX_SIZE_U32,
+
+	R_INDEX_SIZE_COUNT
+} R_IndexSizeEnum;
+
+func void R_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
 func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
 
 // -------------------------------------------------------------------
@@ -120,11 +130,14 @@ struct R_Shader
 typedef U8 R_VertexAttributeFormat;
 typedef enum R_VertexAttributeFormatEnum
 {
-  R_VERTEX_ATTRIBUTE_FORMAT_VEC2F,
-  R_VERTEX_ATTRIBUTE_FORMAT_VEC3F,
+  R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+  R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+	R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
 
   R_VERTEX_ATTRIBUTE_FORMAT_COUNT
 } R_VertexAttributeFormatEnum;
+
+func U32 GetSizeOfVertexAttributeFormat(R_VertexAttributeFormat format);
 
 typedef struct R_VertexAttribute R_VertexAttribute;
 struct R_VertexAttribute
@@ -183,6 +196,7 @@ func void R_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipe
 // -------------------------------------------------------------------
 // Draw
 func void R_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
+func void R_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 
 // -------------------------------------------------------------------
 // Device
@@ -194,6 +208,7 @@ struct R_Device
 	// Buffer
 	R_Buffer* (*CreateBuffer)(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
 	U64 (*PushBuffer)(R_Buffer* buffer, U8* data, U64 size);
+	void (*BindIndexBuffer)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
 	void (*BindVertexBuffer)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
 
 	// Command Buffer
@@ -214,6 +229,7 @@ struct R_Device
 
 	// Draw
 	void (*DrawPrimitives)(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
+	void (*DrawIndexedPrimitives)(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 };
 
 #define AssignDeviceFunction(api_name, function_name) _r_state.device.function_name = R_##api_name##_##function_name;
@@ -221,6 +237,7 @@ struct R_Device
 	AssignDeviceFunction(api_name, Init) \
 	AssignDeviceFunction(api_name, CreateBuffer) \
 	AssignDeviceFunction(api_name, PushBuffer) \
+	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \
@@ -231,6 +248,7 @@ struct R_Device
 	AssignDeviceFunction(api_name, CreateGraphicsPipeline) \
 	AssignDeviceFunction(api_name, BindGraphicsPipeline) \
 	AssignDeviceFunction(api_name, DrawPrimitives) \
+	AssignDeviceFunction(api_name, DrawIndexedPrimitives) \
 
 // -------------------------------------------------------------------
 // State
