@@ -2,8 +2,8 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
 
-#include "base/base_include.cpp"
-#include "os/os_include.cpp"
+#include "base/base_include.c"
+#include "os/os_include.c"
 
 DefineHashMap(I32)
 DefineHashMap(F32)

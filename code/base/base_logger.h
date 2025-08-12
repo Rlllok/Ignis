@@ -9,6 +9,7 @@ typedef enum LogMessageTypeEnum
   LOG_MESSAGE_TYPE_ERROR,
   LOG_MESSAGE_TYPE_WARNING,
   LOG_MESSAGE_TYPE_INFO,
+	LOG_MESSAGE_TYPE_DEBUG,
 
   LOG_MESSAGE_TYPE_COUNT
 }
@@ -27,6 +28,12 @@ func void LogOutput(LogMessageType message_type, const char* message, ...);
 #ifndef LOG_INFO
 #define LOG_INFO(message, ...) LogOutput(LOG_MESSAGE_TYPE_INFO, message, ##__VA_ARGS__);
 #endif // LOG_INFO
+
+#if IGNIS_DEBUG
+#define LOG_DEBUG(message, ...) LogOutput(LOG_MESSAGE_TYPE_DEBUG, message, ##__VA_ARGS__);
+#else
+#define LOG_DEBUG(message, ...)
+#endif // IGNIS_DEBUG
 
 func void AssertionFail(const char* expression, const char* message, const char* file_name, U32 line_number);
 

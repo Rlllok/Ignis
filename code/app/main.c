@@ -49,8 +49,8 @@ I32 main(void)
 	R_Buffer* vertex_buffer = R_CreateBuffer(Kilobytes(4), R_BUFFER_USAGE_FLAG_VERTEX, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
 	U64 triangle_vertex_data_offset = R_PushBuffer(vertex_buffer, (U8*)vertecies, sizeof(vertecies[0])*3);
 
-	R_Shader vertex_shader = R_CreateShader(app_state.arena, Str8C("data/shaders/triangle.vs.glsl"), R_SHADER_TYPE_VERTEX);
-	R_Shader fragment_shader = R_CreateShader(app_state.arena, Str8C("data/shaders/triangle.fs.glsl"), R_SHADER_TYPE_FRAGMENT);
+	R_Shader vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.vs.glsl"), R_SHADER_TYPE_VERTEX);
+	R_Shader fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.fs.glsl"), R_SHADER_TYPE_FRAGMENT);
 
 	R_VertexAttribute triangle_vertex_attribute_position = {
 		.location = 0,
@@ -81,7 +81,7 @@ I32 main(void)
 				.texture = swapchain_texture,
 				.load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
 				.store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-				.clear_color = MakeVec4(1.0f, 0.0f, 0.0f, 1.0f),
+				.clear_color = MakeVec4(1.0f, sin(begin_time), 0.0f, 1.0f),
 			};
 			R_BeginRenderPass(command_buffer, &color_attachment);
 			{

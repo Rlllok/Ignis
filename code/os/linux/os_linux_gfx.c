@@ -1,13 +1,10 @@
 #include "os_linux_gfx.h"
-#include "base/base_logger.h"
-#include "base/base_memory.h"
+
 #include "os/linux/xdg_shell.h"
-#include "os/os_gfx.h"
 
 #include "third_party/wayland/pointer_constraints_unstable_v1.h"
 #include "third_party/wayland/relative_pointer_unstable_v1.h"
-#include "time.h"
-#include <ctime>
+#include <time.h>
 #include <wayland-client-core.h>
 #include <wayland-client-protocol.h>
 #include <wayland-cursor.h>
@@ -71,7 +68,7 @@ _PointerHandleFrame(void* data, wl_pointer* pointer)
 {
 }
 
-wl_pointer_listener _pointer_listener = {
+struct wl_pointer_listener _pointer_listener = {
   .enter = _PointerHandleEnter,
   .leave = _PointerHandleLeave,
   .motion = _PointerHandleMotion,
@@ -106,12 +103,12 @@ _SeatHandleName(void* data, wl_seat* seat, const char* name)
   LOG_INFO("WL_Seat name: %s\n");
 }
 
-wl_seat_listener _seat_listener = {
+struct wl_seat_listener _seat_listener = {
   .capabilities = _SeatHandleCapabilities,
   .name = _SeatHandleName
 };
 
-xdg_wm_base_listener _shell_listener = {
+struct xdg_wm_base_listener _shell_listener = {
   .ping = _ShellHandlePing
 };
 
@@ -144,7 +141,7 @@ _RegistryHandleGlobal(void* data, wl_registry* registry, U32 name, const char* i
   }
 }
 
-wl_registry_listener _registry_listener = {
+struct wl_registry_listener _registry_listener = {
   .global = _RegistryHandleGlobal,
   .global_remove = 0
 };
@@ -174,16 +171,16 @@ _ShellSurfaceHandleConfigure(void* data, xdg_surface* shell_surface, U32 serial)
   }
 }
 
-xdg_surface_listener _shell_surface_listener = {
+struct xdg_surface_listener _shell_surface_listener = {
   .configure = _ShellSurfaceHandleConfigure
 };
 
 func void
-_ToplevelHandleConfigure(void* data, xdg_toplevel* toplevel, I32 new_width, I32 new_heigth, wl_array* states)
+_ToplevelHandleConfigure(void* data, xdg_toplevel* toplevel, I32 new_width, I32 new_heigth, struct wl_array* states)
 {
   OS_WindowHandle* handle = (OS_WindowHandle*)data;
 
-  handle->new_size = MakeVec2u(new_width, new_heigth);
+  handle->new_size = MakeVec2U32((I32)new_width, (I32)new_heigth);
   handle->request_resize = true;
 }
 
@@ -198,7 +195,7 @@ _ToplevelHandleClose(void* data, xdg_toplevel* toplevel)
   PushListOS_Event(&_os_state.event_list, event);
 }
 
-xdg_toplevel_listener _toplevel_listener = {
+struct xdg_toplevel_listener _toplevel_listener = {
   .configure = _ToplevelHandleConfigure,
   .close = _ToplevelHandleClose
 };
@@ -207,15 +204,15 @@ func void
 _HandleRelativeMotion(void* data, zwp_relative_pointer_v1* pointer, U32 time_hi, U32 time_lo, I32 dx, I32 dy, I32 dx_unaccel, I32 dy_unaccel)
 {
   OS_Window* window = (OS_Window*)data;
-  window->virtual_cursor_position += MakeVec2f(wl_fixed_to_double(dx), wl_fixed_to_double(dy));
+  window->virtual_cursor_position = AddVec2F32(window->virtual_cursor_position, MakeVec2F32(wl_fixed_to_double(dx), wl_fixed_to_double(dy)));
 }
 
-zwp_relative_pointer_v1_listener _relative_pointer_listener = {
+struct zwp_relative_pointer_v1_listener _relative_pointer_listener = {
   .relative_motion = _HandleRelativeMotion
 };
 
 func void
-OS_CreateWindow(const char* title, Vec2u size, OS_Window* out)
+OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 {
   out->handle = (OS_WindowHandle*)OS_AllocateMemory(sizeof(OS_WindowHandle));
   out->size = size;
@@ -231,8 +228,8 @@ OS_CreateWindow(const char* title, Vec2u size, OS_Window* out)
   xdg_surface_add_listener(out->handle->shell_surface, &_shell_surface_listener, out->handle);
   xdg_toplevel_add_listener(out->handle->toplevel, &_toplevel_listener, out->handle);
 
-  xdg_toplevel_set_title(out->handle->toplevel, title);
-  xdg_toplevel_set_app_id(out->handle->toplevel, title);
+  xdg_toplevel_set_title(out->handle->toplevel, CFromStr8(title));
+  xdg_toplevel_set_app_id(out->handle->toplevel, CFromStr8(title));
 
   wl_surface_commit(out->handle->surface);
   wl_display_roundtrip(out->handle->display);
@@ -275,7 +272,7 @@ _LockedPointerHandleUnlocked(void* data, zwp_locked_pointer_v1* pointer)
   LOG_INFO("Pointer is unlocked.\n");
 }
 
-zwp_locked_pointer_v1_listener _locked_pointer_listener = {
+struct zwp_locked_pointer_v1_listener _locked_pointer_listener = {
   .locked = _LockedPointerHandleLocked,
   .unlocked = _LockedPointerHandleUnlocked
 };
@@ -293,7 +290,7 @@ _ConfinedPointerHandleUnconfined(void* data, zwp_confined_pointer_v1* pointer)
   LOG_INFO("Pointer is unconfined.\n");
 }
 
-zwp_confined_pointer_v1_listener _confined_pointer_listener = {
+struct zwp_confined_pointer_v1_listener _confined_pointer_listener = {
   .confined = _ConfinedPointerHandleConfined,
   .unconfined = _ConfinedPointerHandleUnconfined
 };
@@ -348,8 +345,9 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 func F32
 OS_CurrentTimeSeconds()
 {
-  timespec now;
+  struct timespec now;
   clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
   return now.tv_sec + now.tv_nsec * 0.000000001;
+	return 0;
 }

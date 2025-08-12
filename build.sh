@@ -1,6 +1,7 @@
 set echo on
 
 mkdir -p build
+cp -r data/ build/data
 
 if [ ! -f ./code/third_party/wayland/xdg_shell.h ] || [ ! -f ./code/third_party/wayland/xdg_shell.cpp ]; then
     echo "---- Create xdg_shell_protocol files"
@@ -19,9 +20,10 @@ if [ ! -f ./code/third_party/wayland/pointer_constraints_unstable_v1.h ] || [ ! 
 fi
 
 include_flags="-Icode/"
-linker_flags="-lvulkan -lwayland-client -lglslang -lglslang-default-resource-limits"
-defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX"
+vulkan_links="-lvulkan -lglslang -lglslang-default-resource-limits"
+linux_links="-lX11 -lXext -lwayland-client"
+default_links="-lm"
+defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_X11"
 
 echo "Building Main"
-clang++ -g code/app/main.cpp -o build/main $defines $include_flags $linker_flags
-clang++ -g code/app/hash.cpp -o build/hash $defines $include_flags $linker_flags
+clang -g code/app/main.c -o build/main $defines $include_flags $default_links $linux_links $vulkan_links

@@ -11,6 +11,22 @@
 #include "third_party/wayland/pointer_constraints_unstable_v1.h"
 #include "third_party/wayland/pointer_constraints_unstable_v1.cpp"
 
+typedef struct wl_display wl_display;
+typedef struct wl_registry wl_registry;
+typedef struct wl_compositor wl_compositor;
+typedef struct wl_surface wl_surface;
+typedef struct xdg_wm_base xdg_wm_base;
+typedef struct xdg_surface xdg_surface;
+typedef struct xdg_toplevel xdg_toplevel;
+typedef struct wl_seat wl_seat;
+typedef struct wl_pointer wl_pointer;
+typedef struct zwp_relative_pointer_manager_v1 zwp_relative_pointer_manager_v1;
+typedef struct zwp_relative_pointer_v1 zwp_relative_pointer_v1;
+typedef struct zwp_pointer_constraints_v1 zwp_pointer_constraints_v1;
+typedef struct zwp_locked_pointer_v1 zwp_locked_pointer_v1;
+typedef struct zwp_confined_pointer_v1 zwp_confined_pointer_v1;
+
+typedef struct OS_WindowHandle OS_WindowHandle;
 struct OS_WindowHandle
 {
   wl_display* display;
@@ -32,6 +48,6 @@ struct OS_WindowHandle
 
   B32 request_resize;
   B32 ready_resize;
-  Vec2u last_size;
-  Vec2u new_size;
+  Vec2U32 last_size;
+  Vec2U32 new_size;
 };

@@ -166,7 +166,6 @@ func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer)
 
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
   }; 
   VK_CHECK(vkBeginCommandBuffer(vk_command_buffer->handle[_r_vk_state.current_frame], &begin_info));
 }
@@ -187,7 +186,7 @@ R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
 		.pWaitDstStageMask = &wait_stage,
 		.commandBufferCount = 1,
 		.pCommandBuffers = vk_command_buffer->handle + _r_vk_state.current_frame,
-		.signalSemaphoreCount = 1,
+		.signalSemaphoreCount = 0,
     .pSignalSemaphores = &_r_vk_state.swapchain.frame_resources[_r_vk_state.current_target].release_semaphore, // @TODO change location of release_semaphore
 	};
 
@@ -196,16 +195,16 @@ R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
 	// @TODO There is not always should be Present command
 	VkPresentInfoKHR present_info = {
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-		.waitSemaphoreCount = 1,
+		.waitSemaphoreCount = 0,
     .pWaitSemaphores = &_r_vk_state.swapchain.frame_resources[_r_vk_state.current_target].release_semaphore, // @TODO change location of release_semaphore
 		.swapchainCount = 1,
 		.pSwapchains = &_r_vk_state.swapchain.handle,
-    .pImageIndices = &_r_vk_state.current_target
+    .pImageIndices = &_r_vk_state.current_target,
 	};
 
 	VkResult present_result = vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info);
 
-  _r_vk_state.current_frame = (_r_vk_state.current_frame + 1)%R_FRAMES_IN_FLIGHT;
+	_r_vk_state.current_frame = (_r_vk_state.current_frame + 1)%R_FRAMES_IN_FLIGHT;
 }
 
 // --------------------------------------------------
@@ -238,13 +237,13 @@ R_VK_CreateDevice(void)
       VkQueueFamilyProperties* queue_properties = (VkQueueFamilyProperties*)PushArena(tmp_arena, queue_family_count * sizeof(VkQueueFamilyProperties));
       vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, queue_properties);
 
-      for (I32 i = 0; i < queue_family_count; i += 1)
+      for (I32 j = 0; j < queue_family_count; j += 1)
       {
-        VkQueueFamilyProperties* properties = queue_properties + i;
+        VkQueueFamilyProperties* properties = queue_properties + j;
 
         if (properties->queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
-          _r_vk_state.device.graphics_queue_index = i;
+          _r_vk_state.device.graphics_queue_index = j;
           break;
         }
       }
@@ -274,12 +273,15 @@ R_VK_CreateDevice(void)
       device_info.pEnabledFeatures = 0;
       device_info.pNext = &vulkan13_features;
 
+      LOG_INFO("%s\n", properties.deviceName);
       _r_vk_state.device.physical = *device;
       VK_CHECK(vkCreateDevice(*device, &device_info, 0, &_r_vk_state.device.logical))
-
-      vkGetDeviceQueue(_r_vk_state.device.logical, _r_vk_state.device.graphics_queue_index, 0, &_r_vk_state.device.graphics_queue);
-
-      LOG_INFO("%s\n", properties.deviceName);
+			if(_r_vk_state.device.logical)
+			{
+				vkGetDeviceQueue(_r_vk_state.device.logical, _r_vk_state.device.graphics_queue_index, 0, &_r_vk_state.device.graphics_queue);
+				break;
+				// @TODO Choose GPU by parameters
+			}
     }
   }
   FreeArena(tmp_arena);
@@ -357,7 +359,16 @@ R_VK_DestorySurface(void)
 func void
 R_VK_CreateSwapchain(OS_Window* window)
 {
-#if IGNIS_PLATFORM_LINUX
+#if IGNIS_PLATFORM_WIN32
+  VkWin32SurfaceCreateInfoKHR surface_info = {0};
+  surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+  surface_info.hinstance = window->handle->instance;
+  surface_info.hwnd = window->handle->handle;
+
+  VK_CHECK(vkCreateWin32SurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
+#endif // IGNIS_PLATFORM_WIN32
+
+#if IGNIS_PLATFORM_LINUX_WAYLAND
   VkWaylandSurfaceCreateInfoKHR surface_info = {
     .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
     .display = window->handle->display,
@@ -367,14 +378,14 @@ R_VK_CreateSwapchain(OS_Window* window)
   VK_CHECK(vkCreateWaylandSurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_LINUX
 
-#if IGNIS_PLATFORM_WIN32
-  VkWin32SurfaceCreateInfoKHR surface_info = {0};
-  surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-  surface_info.hinstance = window->handle->instance;
-  surface_info.hwnd = window->handle->handle;
-
-  VK_CHECK(vkCreateWin32SurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
-#endif // IGNIS_PLATFORM_WIN32
+#if IGNIS_PLATFORM_LINUX_X11
+	VkXlibSurfaceCreateInfoKHR surface_info = {
+    .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+		.dpy = window->handle->display,
+		.window = window->handle->window,
+	};
+	VK_CHECK(vkCreateXlibSurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
+#endif // IGNIS_PLATFORM_LINUX_X11
 
   R_VK_Swapchain swapchain = {0};
   
@@ -409,7 +420,7 @@ R_VK_CreateSwapchain(OS_Window* window)
     swapchain.size.h = capabilities.currentExtent.height;
   }
 
-  VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+  VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
 
   U32 image_count = capabilities.minImageCount + 1;
   if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount))
@@ -435,6 +446,7 @@ R_VK_CreateSwapchain(OS_Window* window)
   };
 
   VK_CHECK(vkCreateSwapchainKHR(_r_vk_state.device.logical, &swapchain_info, 0, &swapchain.handle));
+	swapchain.window = window;
 
   VK_CHECK(vkGetSwapchainImagesKHR(_r_vk_state.device.logical, swapchain.handle, &swapchain.image_count, 0));
   swapchain.image_arena = AllocateArena(Megabytes(8));
@@ -548,22 +560,6 @@ R_VK_RecreateSwapchain(OS_Window* window)
   R_VK_CreateSwapchain(window);
 }
 
-func B32
-R_VK_SwapchainAcquireNextImage(U32 *image_index)
-{
-  VkResult acquire_result = vkAcquireNextImageKHR(
-    _r_vk_state.device.logical, _r_vk_state.swapchain.handle, U64_MAX,
-    _r_vk_state.swapchain.frame_resources[_r_vk_state.current_frame].acquire_semaphore, 0,
-    image_index
-  );
-  
-  if (acquire_result != VK_SUCCESS) {
-    return false;
-  }
-
-  return true;
-}
-
 func R_TextureTest*
 R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 {
@@ -571,11 +567,21 @@ R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 
   vkWaitForFences(_r_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _r_vk_state.current_frame, VK_TRUE, U64_MAX);
 
-  VkResult acquire_result = vkAcquireNextImageKHR(
-    _r_vk_state.device.logical, _r_vk_state.swapchain.handle, U64_MAX,
-    vk_command_buffer->acquire_semaphore[_r_vk_state.current_frame], 0,
-    &_r_vk_state.current_target
-  );
+	while(1)
+	{
+		VkResult acquire_result = vkAcquireNextImageKHR(
+			_r_vk_state.device.logical, _r_vk_state.swapchain.handle, U64_MAX,
+			vk_command_buffer->acquire_semaphore[_r_vk_state.current_frame], 0,
+			&_r_vk_state.current_target
+		);
+
+		if (acquire_result == VK_SUCCESS||acquire_result == VK_SUBOPTIMAL_KHR)
+		{
+			break;
+		}
+
+		R_VK_RecreateSwapchain(_r_vk_state.swapchain.window);
+	}
 
 	vkResetFences(_r_vk_state.device.logical, 1, &vk_command_buffer->submit_fence[_r_vk_state.current_frame]);
 
@@ -607,7 +613,7 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 		attribute_descriptions[i].format = R_VK_GetVkFormatAttribute(vertex_attribute->format),
 		attribute_descriptions[i].offset = vertex_attribute->offset,
 
-		stride += vertex_attribute->offset;
+		stride += sizeof(Vec3F32);
   }
 
   VkVertexInputBindingDescription binding_description = {
@@ -1118,12 +1124,15 @@ R_VK_Init(OS_Window* window)
   const char* extension_names[] = {
     VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
     "VK_KHR_surface",
-  #if IGNIS_PLATFORM_LINUX
-    "VK_KHR_wayland_surface",
-  #endif // IGNIS_PLATFORM_LINUX
   #if IGNIS_PLATFORM_WIN32
     "VK_KHR_win32_surface",
   #endif // IGNIS_PLATFORM_WIN32
+  #if IGNIS_PLATFORM_LINUX_WAYLAND
+    "VK_KHR_wayland_surface",
+  #endif // IGNIS_PLATFORM_LINUX
+  #if IGNIS_PLATFORM_LINUX_X11
+    "VK_KHR_xlib_surface",
+  #endif // IGNIS_PLATFORM_LINUX
   };
 
 #if IGNIS_DEBUG

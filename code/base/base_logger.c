@@ -9,7 +9,7 @@
 func void
 LogOutput(LogMessageType message_type, const char* message, ...)
 {
-  const char* type_strings[LOG_MESSAGE_TYPE_COUNT] = { "[NONE]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: " };
+  const char* type_strings[LOG_MESSAGE_TYPE_COUNT] = { "[NONE]: ", "[ERROR]: ", "[WARN]: ", "[INFO]: ", "[DEBUG]: "};
 
   const U32 output_message_size = 16000;
   char output_message[output_message_size];
