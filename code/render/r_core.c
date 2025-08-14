@@ -142,7 +142,7 @@ _R_GlslangStageFromShaderType(R_ShaderType type)
 }
 
 func R_Shader
-R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type)
+R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count)
 {
 	R_Shader out_shader = {0};
 
@@ -215,6 +215,7 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type)
   out_shader.language    = R_SHADER_LANGUAGE_SPIRV;
   out_shader.code_size   = 4 * glslang_program_SPIRV_get_size(program);
   out_shader.code        = (U8*)PushArena(arena, out_shader.code_size * sizeof(U8));
+	out_shader.global_uniform_count = global_uniform_count;
   glslang_program_SPIRV_get(program, (U32*)out_shader.code);
 
   const char* spirv_messages = glslang_program_SPIRV_get_messages(program);

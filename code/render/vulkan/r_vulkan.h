@@ -36,25 +36,6 @@ func void R_VK_ResetBuffer(R_Buffer* buffer);
 func void R_VK_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
 func void R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
 
-// -------------------------------------------------------------------
-// Descriptor Sets
-#define R_VK_MAX_POOL_COUNT 4
-#define R_VK_SETS_PER_POOL 8
-#define R_VK_UNIFORM_BUFFERS_PER_SET 1
-
-typedef struct R_VK_DescriptorPool R_VK_DescriptorPool;
-struct R_VK_DescriptorPool
-{
-	VkDescriptorPool vk_pools[R_VK_MAX_POOL_COUNT];
-	VkDescriptorSet vk_sets[R_VK_MAX_POOL_COUNT][R_VK_SETS_PER_POOL];
-	VkDescriptorSetLayout vertex_set_layout;
-	I32 pool_count;
-	I32 sets_count;
-};
-
-func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-
 // --------------------------------------------------
 // Device
 typedef struct R_VK_Device R_VK_Device;
@@ -123,6 +104,27 @@ func R_TextureTest* R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer
 func R_RenderPass* R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment); // @TODO Returns 0. There is no RenderPass, VK extension is used
 func void R_VK_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass);
 
+// -------------------------------------------------------------------
+// Descriptor Sets
+#define R_VK_MAX_POOL_COUNT 4
+#define R_VK_SETS_PER_POOL 8
+#define R_VK_MAX_UNIFORM_BUFFERS_PER_SET 1
+
+#define R_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT 0
+#define R_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT 1
+
+typedef struct R_VK_DescriptorPool R_VK_DescriptorPool;
+struct R_VK_DescriptorPool
+{
+	VkDescriptorPool vk_pools[R_VK_MAX_POOL_COUNT];
+	VkDescriptorSet vk_sets[R_VK_MAX_POOL_COUNT][R_VK_SETS_PER_POOL];
+	I32 pool_count;
+	I32 sets_count;
+};
+
+func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+
 // --------------------------------------------------
 // Pipeline
 #define R_VK_MAX_OBJECTS 1024
@@ -132,7 +134,10 @@ struct R_VK_GraphicsPipeline
 {
   VkPipeline handle;
   VkPipelineLayout layout;
+	U32 vertex_global_uniform_count;
+	U32 fragment_global_uniform_count;
 	VkDescriptorSetLayout vertex_shader_set_layout;
+	VkDescriptorSetLayout fragment_shader_set_layout;
 };
 
 func R_GraphicsPipeline* R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);

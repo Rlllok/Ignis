@@ -66,8 +66,8 @@ I32 main(void)
 	R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX|R_BUFFER_USAGE_FLAG_UNIFORM;
 	R_Buffer* triangle_buffer = R_CreateBuffer(Megabytes(4), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
 
-	R_Shader vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.vs.glsl"), R_SHADER_TYPE_VERTEX);
-	R_Shader fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.fs.glsl"), R_SHADER_TYPE_FRAGMENT);
+	R_Shader vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.vs.glsl"), R_SHADER_TYPE_VERTEX, 1);
+	R_Shader fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/triangle.fs.glsl"), R_SHADER_TYPE_FRAGMENT, 1);
 
 	R_GraphicsPipelineCreateInfo triangle_pipeline_info = {
 		.vertex_shader = vertex_shader,
@@ -91,12 +91,24 @@ I32 main(void)
 			Mat4 scale_matrix;
 			Mat4 transpose_matrix;
 		};
-#define TRIANGLE_COUNT 10
+		typedef struct FragmentGlobalData FragmentGlobalData;
+		struct FragmentGlobalData
+		{
+			Vec3 color;
+			U8 padding[4];
+		};
+
+#define TRIANGLE_COUNT 9
 		GlobalData triangles_data[TRIANGLE_COUNT];
 		for (I32 i = 0; i < TRIANGLE_COUNT; i += 1)
 		{
 			triangles_data[i].scale_matrix = MakeMat4(0.2f);
 			triangles_data[i].transpose_matrix = MakeTransposeMat4(MakeVec3(0.1f*i, 0.1f*i, 0.1f*i));
+		}
+		FragmentGlobalData fragment_triangles_data[TRIANGLE_COUNT];
+		for (I32 i = 0; i < TRIANGLE_COUNT; i += 1)
+		{
+			fragment_triangles_data[i].color = MakeVec3(0.05f*i, 0.0f, 0.0f);
 		}
 
 		// Prepare Data
@@ -124,7 +136,9 @@ I32 main(void)
 				for (I32 i = 0; i < TRIANGLE_COUNT; i += 1)
 				{
 					U64 triangle_global_data_offset = R_PushBuffer(triangle_buffer, (U8*)(triangles_data + i), sizeof(triangles_data[i]));
+					U64 triangle_fragment_global_data_offset = R_PushBuffer(triangle_buffer, (U8*)(fragment_triangles_data + i), sizeof(fragment_triangles_data[i]));
 					R_BindGlobalVertexUniformData(command_buffer, triangle_buffer, triangle_global_data_offset, sizeof(triangles_data[0]));
+					R_BindGlobalFragmentUniformData(command_buffer, triangle_buffer, triangle_fragment_global_data_offset, sizeof(fragment_triangles_data[i]));
 					R_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, 0);
 				}
 			}

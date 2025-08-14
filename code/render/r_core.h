@@ -5,7 +5,7 @@
 
 #include "r_texture.h"
 
-#define R_FRAMES_IN_FLIGHT 3
+#define R_FRAMES_IN_FLIGHT 1
 #define R_MAX_BINDINGS 4
 #define R_MAX_VERTEX_ATTRIBUTES 8
 
@@ -131,6 +131,8 @@ struct R_Shader
   R_ShaderLanguage  language; // --AlNov: Only SPIRV for now
   U32               code_size;
   U8*               code;
+
+	U32 global_uniform_count;
 };
 
 typedef U8 R_VertexAttributeFormat;
@@ -195,7 +197,7 @@ struct R_GraphicsPipelineCreateInfo
 
 typedef struct R_GraphicsPipeline R_GraphicsPipeline;
 
-func R_Shader R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type);
+func R_Shader R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count);
 func R_GraphicsPipeline* R_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
 func void R_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipeline);
 
