@@ -244,7 +244,19 @@ R_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipe
 }
 
 // -------------------------------------------------------------------
-// Ddaw
+// Draw
+func void
+R_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport)
+{
+	_r_state.device.SetViewport(command_buffer, viewport);
+}
+
+func void
+R_SetScissor(R_CommandBuffer* command_buffer, RectI32 scissor)
+{
+	_r_state.device.SetScissor(command_buffer, scissor);
+}
+
 func void
 R_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance)
 {

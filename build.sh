@@ -23,7 +23,7 @@ include_flags="-Icode/"
 vulkan_links="-lvulkan -lglslang -lglslang-default-resource-limits"
 linux_links="-lX11 -lXext -lwayland-client"
 default_links="-lm"
-defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_WAYLAND"
+defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_X11"
 
 echo "Building Main"
 clang -g code/app/main.c -o build/main $defines $include_flags $default_links $linux_links $vulkan_links

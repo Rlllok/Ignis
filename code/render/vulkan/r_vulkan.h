@@ -145,6 +145,9 @@ func void R_VK_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsP
 
 // -------------------------------------------------------------------
 // Draw
+func void R_VK_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport);
+func void R_VK_SetScissor(R_CommandBuffer* command_buffer, RectI32 scissor);
+
 func void R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 func void R_VK_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 

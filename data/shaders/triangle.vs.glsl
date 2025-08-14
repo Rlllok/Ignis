@@ -15,6 +15,5 @@ layout(location = 0) out vec4 out_color;
 
 void main() {
 	out_color = color;
-	gl_Position = view_matrix*transpose_matrix*rotation_matrix*scale_matrix*vec4(position, 1.0f);
 	gl_Position = view_matrix*transpose_matrix*vec4(position, 1.0f);
 }

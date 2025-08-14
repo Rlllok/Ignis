@@ -115,7 +115,7 @@ I32 main(void)
 			triangles_data[i].transpose_matrix = MakeTransposeMat4(ScaleVec3(MakeVec3(1.0f, 1.0f, 1.0f), 0.1f*i));
 			triangles_data[i].rotation_matrix = MakeRotationMat4(MakeVec3(0.1f, 1.0f, 0.3f), 0.5f*begin_time);
 #endif
-			triangles_data[i].view_matrix = MakePerspectiveMat4(80.0f, 16.0f/9.0f, 0.001, 1000.0f);
+			triangles_data[i].view_matrix = MakePerspectiveMat4(80.0f, aspect_ratio, 0.001, 1000.0f);
 			triangles_data[i].scale_matrix = MakeMat4(1.0f);
 			triangles_data[i].transpose_matrix = MakeTransposeMat4(MakeVec3(.0f, .0f, -5.0f));
 			triangles_data[i].rotation_matrix = MakeMat4(1.0f);
@@ -142,6 +142,15 @@ I32 main(void)
 			};
 			R_BeginRenderPass(command_buffer, &color_attachment);
 			{
+				RectI32 viewport = {
+					.x = 0,
+					.y = 0,
+					.w = app_state.window.size.w,
+					.h = app_state.window.size.h,
+				};
+				RectI32 scissor = viewport;
+				R_SetViewport(command_buffer, viewport);
+				R_SetScissor(command_buffer, scissor);
 				R_BindGraphicsPipeline(command_buffer, triangle_pipeline);
 				R_BindIndexBuffer(command_buffer, triangle_buffer, triangle_index_data_offset, R_INDEX_SIZE_U16);
 				R_BindVertexBuffer(command_buffer, triangle_buffer, triangle_vertex_data_offset);

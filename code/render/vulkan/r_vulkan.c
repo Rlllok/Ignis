@@ -880,8 +880,8 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
   };
 
   VkDynamicState dynamic_states[] = {
-    // VK_DYNAMIC_STATE_VIEWPORT,
-    // VK_DYNAMIC_STATE_SCISSOR
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
   };
 
   VkPipelineColorBlendAttachmentState blend_attachment = {
@@ -901,28 +901,12 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
     .pAttachments = &blend_attachment
   };
 
-	VkViewport viewport = {
-		.x = 0,
-		.y = 0,
-		.width = (F32)_r_vk_state.swapchain.size.x,
-		.height = (F32)_r_vk_state.swapchain.size.y,
-		.minDepth = 0.0f,
-		.maxDepth = 1.0f,
-	};
-
-	VkRect2D scissor = {
-		.offset.x = 0,
-		.offset.y = 0,
-		.extent.width = _r_vk_state.swapchain.size.x,
-		.extent.height = _r_vk_state.swapchain.size.y,
-	};
-
   VkPipelineViewportStateCreateInfo viewport_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
     .viewportCount = 1,
-		.pViewports = &viewport,
+		.pViewports = 0,
 		.scissorCount = 1,
-		.pScissors = &scissor,
+		.pScissors = 0,
   };
 
   VkPipelineDepthStencilStateCreateInfo depth_state = {
@@ -1101,6 +1085,32 @@ R_VK_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass)
 
 // -------------------------------------------------------------------
 // Draw
+func void
+R_VK_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport)
+{
+	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
+	VkViewport vk_viewport = {
+		.x = viewport.x,
+		.y = viewport.y,
+		.width = viewport.w,
+		.height = viewport.h,
+	};
+	vkCmdSetViewport(vk_command_buffer->handle[_r_vk_state.current_frame], 0, 1, &vk_viewport);
+}
+
+func void
+R_VK_SetScissor(R_CommandBuffer* command_buffer, RectI32 scissor)
+{
+	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
+	VkRect2D vk_scissor = {
+		.offset.x = scissor.x,
+		.offset.y = scissor.y,
+		.extent.width = scissor.w,
+		.extent.height = scissor.h,
+	};
+	vkCmdSetScissor(vk_command_buffer->handle[_r_vk_state.current_frame], 0, 1, &vk_scissor);
+}
+
 func void
 R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance)
 {

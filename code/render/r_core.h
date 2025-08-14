@@ -203,6 +203,9 @@ func void R_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipe
 
 // -------------------------------------------------------------------
 // Draw
+func void R_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport);
+func void R_SetScissor(R_CommandBuffer* command_buffer, RectI32 scissor);
+
 func void R_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 func void R_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 
@@ -241,6 +244,8 @@ struct R_Device
 	void (*BindGraphicsPipeline)(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipeline);
 
 	// Draw
+	void (*SetViewport)(R_CommandBuffer* command_buffer, RectI32 viewport);
+	void (*SetScissor)(R_CommandBuffer* command_buffer, RectI32 scissor);
 	void (*DrawPrimitives)(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 	void (*DrawIndexedPrimitives)(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 };
@@ -263,6 +268,8 @@ struct R_Device
 	AssignDeviceFunction(api_name, EndRenderPass) \
 	AssignDeviceFunction(api_name, CreateGraphicsPipeline) \
 	AssignDeviceFunction(api_name, BindGraphicsPipeline) \
+	AssignDeviceFunction(api_name, SetViewport) \
+	AssignDeviceFunction(api_name, SetScissor) \
 	AssignDeviceFunction(api_name, DrawPrimitives) \
 	AssignDeviceFunction(api_name, DrawIndexedPrimitives) \
 
