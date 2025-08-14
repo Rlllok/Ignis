@@ -11,5 +11,5 @@ layout(location = 0) out vec4 frag_color;
 
 void main()
 {
-	frag_color = vec4(color.rgb * color_shift, color.a);
+	frag_color = vec4(color.rgb + color_shift*0.3f, color.a);
 }

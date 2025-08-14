@@ -1,6 +1,7 @@
 #include "os_linux_x11_gfx.h"
 
 #include <X11/Xlib.h>
+#include <time.h>
 
 func void OS_Init(U64 arena_size)
 {
@@ -19,6 +20,8 @@ func void OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 	}
 
 	out->handle->delete_window_atom = XInternAtom(out->handle->display, "WM_DELETE_WINDOW", 0);
+	out->handle->sync_request_atom = XInternAtom(out->handle->display, "_NET_WM_SYNC_REQUEST", 0);
+	out->handle->sync_request_counter_atom = XInternAtom(out->handle->display, "_NET_WM_SYNC_REQUEST_COUNTER", 0);
 	out->handle->xim = XOpenIM(out->handle->display, 0, 0, 0);
 
 	out->handle->window = XCreateWindow(
@@ -30,18 +33,23 @@ func void OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 	XSelectInput(
 		out->handle->display, out->handle->window,
 		ExposureMask|
-		PointerMotionMask|
-		ButtonPressMask|
-		ButtonReleaseMask|
-		KeyPressMask|
-		KeyReleaseMask|
-		FocusChangeMask
+		StructureNotifyMask
 	);
 
 	Atom protocols[] = {
 		out->handle->delete_window_atom,
+		out->handle->sync_request_atom,
 	};
 	XSetWMProtocols(out->handle->display, out->handle->window, protocols, CountArrayElements(protocols));
+	{
+		XSyncValue initial_sync_value;
+		XSyncIntToValue(&initial_sync_value, 0);
+		out->handle->sync_counter_xid = XSyncCreateCounter(out->handle->display, initial_sync_value);
+	}
+	XChangeProperty(
+			out->handle->display, out->handle->window,
+			out->handle->sync_request_counter_atom, XA_CARDINAL,
+			32, PropModeReplace, (U8*)&out->handle->sync_counter_xid, 1);
 
 	out->handle->xic = XCreateIC(
 		out->handle->xim,
@@ -77,7 +85,7 @@ func void OS_UnlockCursor(OS_Window* window)
 func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 {
 	_os_state.event_list = CreateListOS_Event(arena);
-	while(XPending(window->handle->display) > 0)
+	while(XPending(window->handle->display))
 	{
 		XEvent x_event = {0};
 		XNextEvent(window->handle->display, &x_event);
@@ -95,7 +103,31 @@ func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 					};
 					PushListOS_Event(&_os_state.event_list, event);
 				}
-			}
+				else if ((Atom)x_event.xclient.data.l[0] == window->handle->sync_request_atom)
+				{
+					window->handle->sync_counter_value = 0;
+					window->handle->sync_counter_value |= x_event.xclient.data.l[2];
+					window->handle->sync_counter_value |= (x_event.xclient.data.l[3] << 32);
+
+					XSyncValue sync_value;
+					XSyncIntToValue(&sync_value, window->handle->sync_counter_value);
+					XSyncSetCounter(window->handle->display, window->handle->sync_counter_xid, sync_value);
+					LOG_DEBUG("Sync updated\n");
+				}
+			} break;
+
+			case ConfigureNotify:
+			{
+				Vec2U32 event_window_size = MakeVec2U32((U32)x_event.xconfigure.width, (U32)x_event.xconfigure.height);
+				if ((event_window_size.w != window->size.w) || (event_window_size.h != window->size.h))
+				{
+					OS_Event event = {
+						.type = OS_EVENT_TYPE_RESIZE,
+						.window_size = event_window_size,
+					};
+					PushListOS_Event(&_os_state.event_list, event);
+				}
+			} break;
 		}
 	}
 	return _os_state.event_list;
@@ -103,8 +135,9 @@ func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 
 func F32 OS_CurrentTimeSeconds(void)
 {
-	// --AlNov: @TODO
-	return 0;
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+	return now.tv_sec + now.tv_nsec*0.000000001;
 }
 
 func Vec2F32 OS_MousePosition(OS_Window window)

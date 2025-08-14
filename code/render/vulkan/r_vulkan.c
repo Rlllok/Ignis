@@ -447,6 +447,7 @@ R_VK_CreateSwapchain(OS_Window* window)
     swapchain.size.w = capabilities.currentExtent.width;
     swapchain.size.h = capabilities.currentExtent.height;
   }
+	LOG_WARNING("NEW SWAPCHAIN SIZE: %d / %d\n", swapchain.size.w, swapchain.size.h);
 
   VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
 
@@ -603,12 +604,22 @@ R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 			&_r_vk_state.current_target
 		);
 
-		if (acquire_result == VK_SUCCESS||acquire_result == VK_SUBOPTIMAL_KHR)
+		if (acquire_result == VK_SUCCESS)
 		{
 			break;
 		}
-
-		R_VK_RecreateSwapchain(_r_vk_state.swapchain.window);
+		else if (acquire_result == VK_SUBOPTIMAL_KHR || acquire_result == VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			R_VK_RecreateSwapchain(_r_vk_state.swapchain.window);
+		}
+		else if (acquire_result == VK_NOT_READY || acquire_result == VK_TIMEOUT)
+		{
+			continue;
+		}
+		else
+		{
+			Assert(acquire_result != VK_SUCCESS);
+		}
 	}
 
 	vkResetFences(_r_vk_state.device.logical, 1, &vk_command_buffer->submit_fence[_r_vk_state.current_frame]);

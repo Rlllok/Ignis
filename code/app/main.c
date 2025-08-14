@@ -41,10 +41,11 @@ I32 main(void)
 		Vec4 color;
 	};
 
-	Vertex vertecies[3] = {
-		{.position = MakeVec3(0.0f, 1.0f, 0.0f), .color = MakeVec4(1.0f, 0.0f, 0.0f, 1.0f)},
-		{.position = MakeVec3(-1.0f, -1.0f, 0.0f), .color = MakeVec4(0.0f, 1.0f, 0.0f, 1.0f)},
-		{.position = MakeVec3(-1.0f, 1.0f, 0.0f), .color = MakeVec4(0.0f, 0.0f, 1.0f, 1.0f)},
+	Vertex vertecies[] = {
+		{.position = MakeVec3(-1.0f, 1.0f, 0.0f), .color = MakeVec4(1.0f, 0.0f, 0.0f, 1.0f)},
+		{.position = MakeVec3(1.0f, 1.0f, 0.0f), .color = MakeVec4(0.0f, 1.0f, 0.0f, 1.0f)},
+		{.position = MakeVec3(-1.0f, -1.0f, 0.0f), .color = MakeVec4(0.0f, 0.0f, 1.0f, 1.0f)},
+		{.position = MakeVec3(1.0f, -1.0f, 0.0f), .color = MakeVec4(0.0f, 0.0f, 1.0f, 1.0f)},
 	};
 	// @NOTE @TODO RenderDoc doesnt accept second vertex attribute.
 	// It can see data, but not name. Maybe, because there is no alignment
@@ -61,7 +62,10 @@ I32 main(void)
 		},
 	};
 
-	U16 indecies[] = {0, 1, 2};
+	U16 indecies[] = {
+		0, 1, 2,
+		2, 1, 3
+	};
 
 	R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX|R_BUFFER_USAGE_FLAG_UNIFORM;
 	R_Buffer* triangle_buffer = R_CreateBuffer(Megabytes(4), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
@@ -88,8 +92,10 @@ I32 main(void)
 		typedef struct GlobalData GlobalData;
 		struct GlobalData
 		{
+			Mat4 view_matrix;
 			Mat4 scale_matrix;
 			Mat4 transpose_matrix;
+			Mat4 rotation_matrix;
 		};
 		typedef struct FragmentGlobalData FragmentGlobalData;
 		struct FragmentGlobalData
@@ -98,20 +104,27 @@ I32 main(void)
 			U8 padding[4];
 		};
 
-#define TRIANGLE_COUNT 9
+#define TRIANGLE_COUNT 1
 		GlobalData triangles_data[TRIANGLE_COUNT];
 		for (I32 i = 0; i < TRIANGLE_COUNT; i += 1)
 		{
-			triangles_data[i].scale_matrix = MakeMat4(0.2f);
-			triangles_data[i].transpose_matrix = MakeTransposeMat4(MakeVec3(0.1f*i, 0.1f*i, 0.1f*i));
+			F32 aspect_ratio = (F32)app_state.window.size.w/(F32)app_state.window.size.h;
+#if 0
+			triangles_data[i].view_matrix = MakePerspectiveMat4(45.0f, 1280.0f/720.0f, 0.001, 100.0f);
+			triangles_data[i].scale_matrix = MakeMat4(0.1f);
+			triangles_data[i].transpose_matrix = MakeTransposeMat4(ScaleVec3(MakeVec3(1.0f, 1.0f, 1.0f), 0.1f*i));
+			triangles_data[i].rotation_matrix = MakeRotationMat4(MakeVec3(0.1f, 1.0f, 0.3f), 0.5f*begin_time);
+#endif
+			triangles_data[i].view_matrix = MakePerspectiveMat4(80.0f, 16.0f/9.0f, 0.001, 1000.0f);
+			triangles_data[i].scale_matrix = MakeMat4(1.0f);
+			triangles_data[i].transpose_matrix = MakeTransposeMat4(MakeVec3(.0f, .0f, -5.0f));
+			triangles_data[i].rotation_matrix = MakeMat4(1.0f);
 		}
 		FragmentGlobalData fragment_triangles_data[TRIANGLE_COUNT];
 		for (I32 i = 0; i < TRIANGLE_COUNT; i += 1)
 		{
-			fragment_triangles_data[i].color = MakeVec3(0.05f*i, 0.0f, 0.0f);
+			fragment_triangles_data[i].color = MakeVec3(fabs(sin(begin_time*(i+5))), fabs(1.0f - sin(begin_time / (i+1))), fabs(cos(begin_time)));
 		}
-
-		// Prepare Data
 
 		// Draw
 		R_TextureTest* swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
@@ -139,10 +152,11 @@ I32 main(void)
 					U64 triangle_fragment_global_data_offset = R_PushBuffer(triangle_buffer, (U8*)(fragment_triangles_data + i), sizeof(fragment_triangles_data[i]));
 					R_BindGlobalVertexUniformData(command_buffer, triangle_buffer, triangle_global_data_offset, sizeof(triangles_data[0]));
 					R_BindGlobalFragmentUniformData(command_buffer, triangle_buffer, triangle_fragment_global_data_offset, sizeof(fragment_triangles_data[i]));
-					R_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, 0);
+					R_DrawIndexedPrimitives(command_buffer, 6, 1, 0, 0, 0);
 				}
 			}
 			R_EndRenderPass(command_buffer, 0);
+					//LOG_DEBUG("Old Window Size: %d\t%d\n", app_state.window.size.w, app_state.window.size.h);
 		}
 		R_SubmitCommandBuffer(command_buffer);
 
@@ -178,15 +192,21 @@ HandleEvents(Arena* arena, AppState* state)
       {
         // @TODO Window recreated multiple time.
         // I guess, resize event is triggered multiple time. It should be handled only once, after last resizing
-        state->window.size = event->window_size;
+				if ((state->window.size.w != event->window_size.w) || (state->window.size.h != event->window_size.h))
+				{
+					LOG_DEBUG("Old Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
+					state->window.size = event->window_size;
+					LOG_DEBUG("New Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
+					R_VK_HandleResize(&state->window);
+				}
         // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
         // Renderer.HandleResize(&state->window);
       } break;
 
       case OS_EVENT_TYPE_MOUSE_MOVE:
       {
-        LOG_INFO("MousePosition: %.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
-        LOG_INFO("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
+        // LOG_DEBUG("MousePosition: %.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
+        // LOG_DEBUG("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
         Vec2F32 d_position = SubVec2F32(state->window.virtual_cursor_position, state->last_mouse_position);
         Vec2F32 mouse_direction = NormalizeVec2F32(d_position);
 
