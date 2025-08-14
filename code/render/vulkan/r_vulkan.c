@@ -96,14 +96,24 @@ R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferProperty
 func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
 {
 	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+
+	Assert((vk_buffer->size + size) > vk_buffer->capacity);
 	U32 offset = vk_buffer->size;
 
 	memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
 	vk_buffer->size += size;
+	U64 padding = 64 - (vk_buffer->size + 64)%64;
+	vk_buffer->size += padding;
 
 	return offset;
 }
 
+func void
+R_VK_ResetBuffer(R_Buffer* buffer)
+{
+	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	vk_buffer->size = 0;
+}
 func void
 R_VK_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
 {
@@ -174,7 +184,16 @@ func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer)
 {
 	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
 
+#if 0
 	vkResetCommandBuffer(vk_command_buffer->handle[_r_vk_state.current_frame], 0);
+	for (I32 i = 0; i < vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count; i += 1)
+	{
+		vkDestroyDescriptorPool(_r_vk_state.device.logical, vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[i], 0);
+	}
+
+	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count = 0;
+#endif
+	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count = 0;
 
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -217,6 +236,89 @@ R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
 	VkResult present_result = vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info);
 
 	_r_vk_state.current_frame = (_r_vk_state.current_frame + 1)%R_FRAMES_IN_FLIGHT;
+}
+
+// -------------------------------------------------------------------
+// Descriptor Sets
+func void
+R_VK_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
+
+	U32 num_sets = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count*R_VK_SETS_PER_POOL;
+	if (num_sets <= vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count)
+	{
+		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
+
+		LOG_DEBUG("CreateDescriptroPool number %d\n", vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count);
+
+		VkDescriptorPoolSize uniform_pool_size = {
+			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = R_VK_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
+		};
+
+		VkDescriptorPoolSize pool_sizes[] = {
+			uniform_pool_size,
+		};
+
+		VkDescriptorPoolCreateInfo pool_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = 0,
+			.maxSets = R_VK_SETS_PER_POOL,
+			.poolSizeCount = CountArrayElements(pool_sizes),
+			.pPoolSizes = pool_sizes,
+		};
+		VK_CHECK(vkCreateDescriptorPool(_r_vk_state.device.logical, &pool_info, 0, vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools + vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count));
+
+		VkDescriptorSetLayout layouts[R_VK_SETS_PER_POOL] = {0};
+		for (I32 i = 0; i < R_VK_SETS_PER_POOL; i += 1)
+		{
+			layouts[i] = vk_command_buffer->binded_graphics_pipeline->vertex_shader_set_layout;
+		}
+
+		VkDescriptorSetAllocateInfo sets_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count],
+			.descriptorSetCount = R_VK_SETS_PER_POOL,
+			.pSetLayouts = layouts,
+		};
+		VK_CHECK(vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count][0]));
+
+		vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count += 1;
+	}
+
+	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	VkDescriptorBufferInfo buffer_info = {
+		.buffer = vk_buffer->handle,
+		.offset = offset,
+		.range = data_size,
+	};
+	
+	I32 pool_id = (U32)(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count/R_VK_SETS_PER_POOL);
+	I32 set_id = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count%R_VK_SETS_PER_POOL;
+	VkWriteDescriptorSet write_info = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+		.dstBinding = 0, // @TODO Add more bindings
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.pBufferInfo = &buffer_info,
+	};
+	vkUpdateDescriptorSets(_r_vk_state.device.logical, 1, &write_info, 0, 0);
+
+	vkCmdBindDescriptorSets(
+			vk_command_buffer->handle[_r_vk_state.current_frame],
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vk_command_buffer->binded_graphics_pipeline->layout,
+			0, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+
+	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
+}
+
+func void
+R_VK_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
 }
 
 // --------------------------------------------------
@@ -607,10 +709,27 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 {
 	R_VK_GraphicsPipeline* pipeline = _r_vk_state.graphics_pipelines + _r_vk_state.graphics_pipelines_count;
 
+	// AlNov: @TODO Create Set Layouts based on pipeline_info 
+	VkDescriptorSetLayoutBinding binding = {
+		.binding = 0, // @TODO Add more bindings
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.descriptorCount = 1,
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+		.pImmutableSamplers = 0,
+	};
+
+	VkDescriptorSetLayoutCreateInfo set_layout_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.flags = 0,
+		.bindingCount = 1,
+		.pBindings = &binding,
+	};
+	VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &set_layout_info, 0, &pipeline->vertex_shader_set_layout));
+
   VkPipelineLayoutCreateInfo layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount = 0,
-    .pSetLayouts = 0,
+    .setLayoutCount = 1,
+    .pSetLayouts = &pipeline->vertex_shader_set_layout,
   };
   VK_CHECK(vkCreatePipelineLayout(_r_vk_state.device.logical, &layout_info, 0, &pipeline->layout));
 
@@ -802,57 +921,8 @@ R_VK_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* p
 	R_VK_GraphicsPipeline* vk_pipeline = (R_VK_GraphicsPipeline*)pipeline;
 
 	vkCmdBindPipeline(vk_command_buffer->handle[_r_vk_state.current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->handle);
+	vk_command_buffer->binded_graphics_pipeline = vk_pipeline;
 }
-
-#if 0
-func void
-R_VK_BindGraphicsPipeline(R_Pipeline* pipeline, U8* global_data, U32 global_data_size)
-{
-  R_VK_GraphicsPipeline vk_pipeline = _r_vk_state.graphics_pipelines[pipeline->backend_handle];
-  VkCommandBuffer cmd = _r_vk_state.swapchain.frame_resources[_r_vk_state.current_frame].cmd_buffer;
-  vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.handle);
-
-	U64 global_data_buffer_offset = 0;
-
-  void* data;
-  vkMapMemory(_r_vk_state.device.logical, _r_vk_state.geometry_buffer.memory, _r_vk_state.geometry_buffer.size, VK_WHOLE_SIZE, 0, &data);
-  {
-		global_data_buffer_offset = _r_vk_state.geometry_buffer.size;
-    memcpy((U8*)data, global_data, global_data_size);
-    U32 offset = (global_data_size + 64) - (global_data_size%64);
-    _r_vk_state.geometry_buffer.size += offset;
-	}
-  vkUnmapMemory(_r_vk_state.device.logical, _r_vk_state.geometry_buffer.memory);
-
-	VkDescriptorSet current_set = vk_pipeline.global_sets[_r_vk_state.current_frame];
-
-	// --AlNov: @TODO There is no Free
-	VkDescriptorSetAllocateInfo allocate_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-		.descriptorPool = vk_pipeline.global_set_pool[_r_vk_state.current_frame],
-		.descriptorSetCount = 1,
-		.pSetLayouts = &vk_pipeline.global_set_layout
-	};
-	vkAllocateDescriptorSets(_r_vk_state.device.logical, &allocate_info, &current_set);
-
-	VkDescriptorBufferInfo buffer_info = {
-		.buffer = _r_vk_state.geometry_buffer.handle,
-		.offset = global_data_buffer_offset,
-		.range = global_data_size 
-	};
-
-	VkWriteDescriptorSet write_info = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = current_set,
-		.dstBinding = 0,
-		.descriptorCount = 1,
-		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		.pBufferInfo = &buffer_info
-	};
-	vkUpdateDescriptorSets(_r_vk_state.device.logical, 1, &write_info, 0, 0);
-	vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline.layout, 1, 1, &current_set, 0, 0);
-}
-#endif
 
 // --------------------------------------------------
 // Render Pass
@@ -945,46 +1015,6 @@ R_VK_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32
 	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
 
 	vkCmdDrawIndexed(vk_command_buffer->handle[_r_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
-}
-
-
-// -------------------------------------------------------------------
-// Command Buffer
-func VkCommandBuffer
-R_VK_BeginSingleCmd(void)
-{
-  VkCommandBufferAllocateInfo allocate_info = {0};
-  allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocate_info.commandPool = _r_vk_state.command_pool;
-  allocate_info.commandBufferCount = 1;
-
-  VkCommandBuffer command_buffer;
-  VK_CHECK(vkAllocateCommandBuffers(_r_vk_state.device.logical, &allocate_info, &command_buffer));
-
-  VkCommandBufferBeginInfo begin_info = {0};
-  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-  VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
-
-  return command_buffer; 
-}
-
-func void
-R_VK_EndSingleCmd(VkCommandBuffer cmd)
-{
-  VK_CHECK(vkEndCommandBuffer(cmd));
-
-  VkSubmitInfo submit_info = {0};
-  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submit_info.commandBufferCount = 1;
-  submit_info.pCommandBuffers = &cmd;
-
-  VK_CHECK(vkQueueSubmit(_r_vk_state.device.graphics_queue, 1, &submit_info, 0));
-  VK_CHECK(vkQueueWaitIdle(_r_vk_state.device.graphics_queue));
-
-  vkFreeCommandBuffers(_r_vk_state.device.logical, _r_vk_state.command_pool, 1, &cmd);
 }
 
 // -------------------------------------------------------------------
@@ -1127,6 +1157,46 @@ R_VK_CreateTexture(Str8 path)
 
   return texture;  
 }
+
+// -------------------------------------------------------------------
+// Command Buffer
+func VkCommandBuffer
+R_VK_BeginSingleCmd(void)
+{
+  VkCommandBufferAllocateInfo allocate_info = {0};
+  allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocate_info.commandPool = _r_vk_state.command_pool;
+  allocate_info.commandBufferCount = 1;
+
+  VkCommandBuffer command_buffer;
+  VK_CHECK(vkAllocateCommandBuffers(_r_vk_state.device.logical, &allocate_info, &command_buffer));
+
+  VkCommandBufferBeginInfo begin_info = {0};
+  begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info));
+
+  return command_buffer; 
+}
+
+func void
+R_VK_EndSingleCmd(VkCommandBuffer cmd)
+{
+  VK_CHECK(vkEndCommandBuffer(cmd));
+
+  VkSubmitInfo submit_info = {0};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.commandBufferCount = 1;
+  submit_info.pCommandBuffers = &cmd;
+
+  VK_CHECK(vkQueueSubmit(_r_vk_state.device.graphics_queue, 1, &submit_info, 0));
+  VK_CHECK(vkQueueWaitIdle(_r_vk_state.device.graphics_queue));
+
+  vkFreeCommandBuffers(_r_vk_state.device.logical, _r_vk_state.command_pool, 1, &cmd);
+}
+
 
 // --------------------------------------------------
 // Global State

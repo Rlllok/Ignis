@@ -46,6 +46,7 @@ typedef struct R_Buffer R_Buffer;
 
 func R_Buffer* R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
 func U64 R_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
+func void R_ResetBuffer(R_Buffer* buffer);
 
 typedef U8 R_IndexSize;
 typedef enum R_IndexSizeEnum
@@ -62,6 +63,11 @@ func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, 
 // -------------------------------------------------------------------
 // Texture
 typedef struct R_TextureTest R_TextureTest;
+
+// -------------------------------------------------------------------
+// Uniform Data
+func void R_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
 // -------------------------------------------------------------------
 // Swapchain
@@ -208,8 +214,13 @@ struct R_Device
 	// Buffer
 	R_Buffer* (*CreateBuffer)(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
 	U64 (*PushBuffer)(R_Buffer* buffer, U8* data, U64 size);
+	void (*ResetBuffer)(R_Buffer* buffer);
 	void (*BindIndexBuffer)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
 	void (*BindVertexBuffer)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
+
+	// Uniform Data
+	void (*BindGlobalVertexUniformData)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+	void (*BindGlobalFragmentUniformData)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
 	// Command Buffer
 	R_CommandBuffer* (*GetCommandBuffer)(void);
@@ -237,8 +248,11 @@ struct R_Device
 	AssignDeviceFunction(api_name, Init) \
 	AssignDeviceFunction(api_name, CreateBuffer) \
 	AssignDeviceFunction(api_name, PushBuffer) \
+	AssignDeviceFunction(api_name, ResetBuffer) \
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
+	AssignDeviceFunction(api_name, BindGlobalVertexUniformData) \
+	AssignDeviceFunction(api_name, BindGlobalFragmentUniformData) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \
 	AssignDeviceFunction(api_name, SubmitCommandBuffer) \

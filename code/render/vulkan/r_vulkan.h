@@ -32,26 +32,28 @@ struct R_VK_Buffer
 
 func R_Buffer* R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
 func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
+func void R_VK_ResetBuffer(R_Buffer* buffer);
 func void R_VK_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
 func void R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
 
 // -------------------------------------------------------------------
-// Command Buffer
-typedef struct R_VK_CommandBuffer R_VK_CommandBuffer;
-struct R_VK_CommandBuffer
+// Descriptor Sets
+#define R_VK_MAX_POOL_COUNT 4
+#define R_VK_SETS_PER_POOL 8
+#define R_VK_UNIFORM_BUFFERS_PER_SET 1
+
+typedef struct R_VK_DescriptorPool R_VK_DescriptorPool;
+struct R_VK_DescriptorPool
 {
-	VkCommandBuffer handle[R_FRAMES_IN_FLIGHT];
-	VkFence submit_fence[R_FRAMES_IN_FLIGHT];
-	VkSemaphore acquire_semaphore[R_FRAMES_IN_FLIGHT];
-	VkSemaphore release_semaphore[R_FRAMES_IN_FLIGHT];
+	VkDescriptorPool vk_pools[R_VK_MAX_POOL_COUNT];
+	VkDescriptorSet vk_sets[R_VK_MAX_POOL_COUNT][R_VK_SETS_PER_POOL];
+	VkDescriptorSetLayout vertex_set_layout;
+	I32 pool_count;
+	I32 sets_count;
 };
 
-func R_CommandBuffer* R_VK_GetCommandBuffer(void);
-func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer);
-func void R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer);
-
-func VkCommandBuffer R_VK_BeginSingleCmd(void);
-func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
+func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
 // --------------------------------------------------
 // Device
@@ -130,6 +132,7 @@ struct R_VK_GraphicsPipeline
 {
   VkPipeline handle;
   VkPipelineLayout layout;
+	VkDescriptorSetLayout vertex_shader_set_layout;
 };
 
 func R_GraphicsPipeline* R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
@@ -151,6 +154,28 @@ struct R_VK_Texture
 };
 
 func R_Texture R_VK_CreateTexture(Str8 path);
+
+// -------------------------------------------------------------------
+// Command Buffer
+typedef struct R_VK_CommandBuffer R_VK_CommandBuffer;
+struct R_VK_CommandBuffer
+{
+	VkCommandBuffer handle[R_FRAMES_IN_FLIGHT];
+	VkFence submit_fence[R_FRAMES_IN_FLIGHT];
+	VkSemaphore acquire_semaphore[R_FRAMES_IN_FLIGHT];
+	VkSemaphore release_semaphore[R_FRAMES_IN_FLIGHT];
+
+	R_VK_DescriptorPool descriptor_pool[R_FRAMES_IN_FLIGHT];
+
+	struct R_VK_GraphicsPipeline* binded_graphics_pipeline;
+};
+
+func R_CommandBuffer* R_VK_GetCommandBuffer(void);
+func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer);
+func void R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer);
+
+func VkCommandBuffer R_VK_BeginSingleCmd(void);
+func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
 
 // --------------------------------------------------
 // Global State

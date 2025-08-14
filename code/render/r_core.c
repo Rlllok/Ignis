@@ -39,6 +39,12 @@ R_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
 }
 
 func void
+R_ResetBuffer(R_Buffer* buffer)
+{
+	_r_state.device.ResetBuffer(buffer);
+}
+
+func void
 R_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
 {
 	_r_state.device.BindIndexBuffer(command_buffer, buffer, offset, index_size);
@@ -47,6 +53,20 @@ R_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset,
 func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset)
 {
 	_r_state.device.BindVertexBuffer(command_buffer, buffer, offset);
+}
+
+// -------------------------------------------------------------------
+// Uniform Data
+func void
+R_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	_r_state.device.BindGlobalVertexUniformData(command_buffer, buffer, offset, data_size);
+}
+
+func void
+R_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	_r_state.device.BindGlobalFragmentUniformData(command_buffer, buffer, offset, data_size);
 }
 
 // -------------------------------------------------------------------
