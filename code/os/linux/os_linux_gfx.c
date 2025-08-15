@@ -160,7 +160,7 @@ _ShellSurfaceHandleConfigure(void* data, xdg_surface* shell_surface, U32 serial)
       .window_size = handle->new_size,
     };
 
-    // @NOTE Configure occures before GetEventList, so event_list is not initialized
+    // --AlNov: @NOTE Configure occures before GetEventList, so event_list is not initialized
     if (_os_state.event_list.arena)
     {
       PushListOS_Event(&_os_state.event_list, event);

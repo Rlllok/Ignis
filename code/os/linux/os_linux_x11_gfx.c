@@ -119,14 +119,11 @@ func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 			case ConfigureNotify:
 			{
 				Vec2U32 event_window_size = MakeVec2U32((U32)x_event.xconfigure.width, (U32)x_event.xconfigure.height);
-				if ((event_window_size.w != window->size.w) || (event_window_size.h != window->size.h))
-				{
-					OS_Event event = {
-						.type = OS_EVENT_TYPE_RESIZE,
-						.window_size = event_window_size,
-					};
-					PushListOS_Event(&_os_state.event_list, event);
-				}
+				OS_Event event = {
+					.type = OS_EVENT_TYPE_RESIZE,
+					.window_size = event_window_size,
+				};
+				PushListOS_Event(&_os_state.event_list, event);
 			} break;
 		}
 	}

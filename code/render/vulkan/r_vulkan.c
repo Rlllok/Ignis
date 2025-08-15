@@ -446,8 +446,8 @@ R_VK_CreateSwapchain(OS_Window* window)
   {
     swapchain.size.w = capabilities.currentExtent.width;
     swapchain.size.h = capabilities.currentExtent.height;
+		LOG_WARNING("NEW SWAPCHAIN SIZE: %d / %d\n", swapchain.size.w, swapchain.size.h);
   }
-	LOG_WARNING("NEW SWAPCHAIN SIZE: %d / %d\n", swapchain.size.w, swapchain.size.h);
 
   VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
 
