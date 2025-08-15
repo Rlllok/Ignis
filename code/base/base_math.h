@@ -132,7 +132,7 @@ struct Mat4F32
 
 func Mat4F32 MakeMat4F32(F32 diagonal_value);
 func Mat4F32 MulMat4F32(Mat4F32 a, Mat4F32 b);
-func Mat4F32 MakeLookAt(Vec3F32 position, Vec3F32 target, Vec3F32 up);
+func Mat4F32 MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up);
 func Mat4F32 MakeOrthographicMat4F32(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z);
 func Mat4F32 MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z);
 func Mat4F32 MakeTransposeMat4F32(Vec3F32 v);
@@ -237,5 +237,6 @@ typedef Mat4F32 Mat4;
 #define MakeMat4(diagonal_value) MakeMat4F32(diagonal_value)
 #define MakeOrthographicsMat4(left, right, bottom, top, near_z, far_z) MakeOrthographicsMat4F32(left, right, bottm, top, near_z, far_z)
 #define MakePerspectiveMat4(fov, aspect, near_z, far_z) MakePerspectiveMat4F32(fov, aspect, near_z, far_z)
+#define MakeLookAtMat4(position, target, up) MakeLookAtMat4F32(position, target, up);
 #define MakeTransposeMat4(v) MakeTransposeMat4F32(v)
 #define MakeRotationMat4(axis, angle) MakeRotationMat4F32(axis, angle)

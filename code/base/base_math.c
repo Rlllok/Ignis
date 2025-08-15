@@ -127,7 +127,7 @@ MulMat4F32(Mat4F32 a, Mat4F32 b)
 }
 
 func Mat4F32
-MakeLookAt(Vec3F32 position, Vec3F32 target, Vec3F32 up)
+MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up)
 {
   Mat4F32 result = MakeMat4F32(1.0f);
   
