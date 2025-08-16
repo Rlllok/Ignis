@@ -144,21 +144,26 @@ HandleEvents(Arena* arena, AppState* state)
 {
   ListOS_Event event_list = OS_GetEventList(arena, &app_state.window);
 
+	F32 speed = 2.0f;
 	if (OS_IsKeyDown(OS_KEY_W))
 	{
-		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.front, 1.5f*state->delta_time));
+		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.front, speed*state->delta_time));
+		LOG_DEBUG("W is down\n");
 	}
 	if (OS_IsKeyDown(OS_KEY_S))
 	{
-		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.front, 0.5f*state->delta_time));
+		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.front, speed*state->delta_time));
+		LOG_DEBUG("S is down\n");
 	}
 	if (OS_IsKeyDown(OS_KEY_D))
 	{
-		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.right, 0.5f*state->delta_time));
+		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.right, speed*state->delta_time));
+		LOG_DEBUG("D is down\n");
 	}
 	if (OS_IsKeyDown(OS_KEY_A))
 	{
-		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.right, 0.5f*state->delta_time));
+		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.right, speed*state->delta_time));
+		LOG_DEBUG("A is down\n");
 	}
 	state->grid_scale += OS_IsKeyDown(OS_KEY_ARROW_UP)*(1.0f*state->delta_time);
 	state->grid_scale -= OS_IsKeyDown(OS_KEY_ARROW_DOWN)*(1.0f*state->delta_time);

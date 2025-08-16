@@ -98,7 +98,7 @@ _HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 tim
 {
 	OS_WindowHandle* handle = (OS_WindowHandle*)data;
 
-	B32 key_pressed = (state == WL_KEYBOARD_KEY_STATE_PRESSED);
+	B32 key_pressed = (state == WL_KEYBOARD_KEY_STATE_PRESSED) || (state == WL_KEYBOARD_KEY_STATE_REPEATED);
 	B32 key_released = (state == WL_KEYBOARD_KEY_STATE_RELEASED);
 	if (key_pressed || key_released)
 	{
