@@ -9,36 +9,23 @@ layout(location = 0) in vec3 world_position;
 
 layout(location = 0) out vec4 frag_color;
 
+float DrawGrid(float cell_size, float line_width)
+{
+	float cell_halfsize = cell_size*0.5f;
+	vec2 xzdd = fwidth(world_position.xz);
+	vec2 grid = 1.0f - abs(mod(world_position.xz, cell_size)*2.0f - 1.0f);
+	grid = smoothstep(max(vec2(line_width), xzdd) + xzdd*1.5f, max(vec2(line_width), xzdd) - xzdd*1.5f, grid);
+	grid *= clamp(line_width / max(vec2(line_width), xzdd), 0.0f, 1.0f);
+	float grid_value = mix(grid.x, 1.0f, grid.y);
+	return grid_value;
+}
+
 void main(void)
 {
-	float cell_size = 1.0f;
-	float cell_halfsize = cell_size*0.5f;
-	float grid_line_width = 0.01f;
-
-	float subcell_size = cell_size/10.0f;
-	float subcell_halfsize = subcell_size*0.5f;
-	float subgrid_line_width = 0.007f;
-
-	vec3 grid = vec3(0.0f);
-	grid = mod(world_position - cell_halfsize, cell_size);
-	grid = abs(grid - cell_halfsize);
-	grid = smoothstep(grid_line_width, 0.0f, grid);
-
-	float subgrid_x = 0;
-	subgrid_x = mod(world_position.x - subcell_halfsize, subcell_size);
-	subgrid_x = abs(subgrid_x - subcell_halfsize);
-	subgrid_x = smoothstep(subgrid_line_width, 0.0f, subgrid_x);
-	float subgrid_z = 0;
-	subgrid_z = mod(world_position.z - subcell_halfsize, subcell_size);
-	subgrid_z = abs(subgrid_z - subcell_halfsize);
-	subgrid_z = smoothstep(subgrid_line_width, 0.0f, subgrid_z);
-	vec3 subgrid = vec3(0.0f);
-	subgrid = mod(world_position - subcell_halfsize, subcell_size);
-	subgrid = abs(subgrid - subcell_halfsize);
-	subgrid = smoothstep(subgrid_line_width, 0.0f, subgrid);
-	
-	float grid_value = max(max(grid.x, grid.z), max(subgrid.x, subgrid.z)*0.5f);
+	// --AlNov: @TODO To understand what is going on there :)
+	float grid_value = DrawGrid(1.0f, .02f);
+	float subgrid_value = DrawGrid(0.1f, .01f);
 
 	frag_color = grid_color;
-	frag_color.a = grid_value;
+	frag_color.a = max(grid_value, subgrid_value*0.8f);
 }

@@ -37,10 +37,10 @@ I32 main(void)
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = false;
-	app_state.grid_scale = 1.0f;
+	app_state.grid_scale = 100.0f;
 	app_state.camera.position = MakeVec3(0.0f, 1.0f, 1.0f);
-	app_state.camera.front = MakeVec3(0.0f, 0.0f, -1.0f);
-	app_state.camera.right = MakeVec3(1.0f, 0.0f, 0.0f);
+	app_state.camera.front = MakeVec3(1.0f, 0.0f, -1.0f);
+	app_state.camera.right = MakeVec3(1.0f, 0.0f, 1.0f);
 	app_state.camera.up = MakeVec3(0.0f, 1.0f, 0.0f);
 
   F32 new_variable = 0;
@@ -73,10 +73,11 @@ I32 main(void)
   {
     HandleEvents(app_state.frame_arena, &app_state);
 
-		struct
+		struct GlobalDataTest
 		{
 			Mat4 view_matrix;
 			Mat4 projection_matrix;
+			Vec3 position;
 			F32 grid_scale;
 		} global_data;
 		global_data.view_matrix = MakeLookAtMat4(
@@ -87,12 +88,13 @@ I32 main(void)
 				45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
 				0.0001f, 1000.0f);
 		global_data.grid_scale = app_state.grid_scale;
+		global_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
 
 		struct
 		{
 			Vec4 color;
 		} grid_global_fragment_data;
-		grid_global_fragment_data.color = MakeVec4(0.4f, 0.4f, 0.4f, 0.8f);
+		grid_global_fragment_data.color = MakeVec4(0.5f, 0.5f, 0.5f, 0.8f);
 
 		U64 grid_global_data_offset = R_PushBuffer(data_buffer, (U8*)&global_data, sizeof(global_data));
 		U64 grid_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_fragment_data, sizeof(grid_global_fragment_data));
@@ -107,7 +109,7 @@ I32 main(void)
 				.texture = swapchain_texture,
 				.load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
 				.store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-				.clear_color = MakeVec4(0.0f, 0.07f, 0.12f, 1.0f),
+				.clear_color = MakeVec4(0.1f, 0.1f, 0.1f, 1.0f),
 			};
 			R_BeginRenderPass(command_buffer, &color_attachment);
 			{
@@ -168,8 +170,6 @@ HandleEvents(Arena* arena, AppState* state)
 		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.right, speed*state->delta_time));
 		LOG_DEBUG("A is down\n");
 	}
-	state->grid_scale += OS_IsKeyDown(OS_KEY_ARROW_UP)*(1.0f*state->delta_time);
-	state->grid_scale -= OS_IsKeyDown(OS_KEY_ARROW_DOWN)*(1.0f*state->delta_time);
   
   for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
   {
