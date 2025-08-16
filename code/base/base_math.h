@@ -233,6 +233,8 @@ typedef Mat4F32 Mat4;
 #define MakeVec4(x, y, z, w) MakeVec4F32(x, y, z, w)
 #define MakeMat3(diagonal_value) MakeMat3F32(diagonal_value)
 #define ScaleVec3(v, n) ScaleVec3F32(v, n)
+#define AddVec3(a, b) AddVec3F32(a, b)
+#define SubVec3(a, b) SubVec3F32(a, b)
 #define MakeTransposeMat3(v) MakeTransposeMat3F32(v)
 #define MakeMat4(diagonal_value) MakeMat4F32(diagonal_value)
 #define MakeOrthographicsMat4(left, right, bottom, top, near_z, far_z) MakeOrthographicsMat4F32(left, right, bottm, top, near_z, far_z)

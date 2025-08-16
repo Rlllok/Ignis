@@ -38,6 +38,10 @@ I32 main(void)
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = false;
 	app_state.grid_scale = 1.0f;
+	app_state.camera.position = MakeVec3(0.0f, 1.0f, 1.0f);
+	app_state.camera.front = MakeVec3(0.0f, 0.0f, -1.0f);
+	app_state.camera.right = MakeVec3(1.0f, 0.0f, 0.0f);
+	app_state.camera.up = MakeVec3(0.0f, 1.0f, 0.0f);
 
   F32 new_variable = 0;
  
@@ -75,7 +79,7 @@ I32 main(void)
 			Mat4 projection_matrix;
 			F32 grid_scale;
 		} global_data;
-		global_data.view_matrix = MakeLookAtMat4(MakeVec3(0.0f, 1.0f, 1.0f), MakeVec3(0.0f, 0.0f, 0.0f), MakeVec3(0.0f, 1.0f, 0.0f));
+		global_data.view_matrix = MakeLookAtMat4(app_state.camera.position, MakeVec3(0.0f, 0.0f, 0.0f), app_state.camera.up);
 		global_data.projection_matrix = MakePerspectiveMat4(
 				45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
 				0.0001f, 1000.0f);
@@ -139,6 +143,25 @@ func void
 HandleEvents(Arena* arena, AppState* state)
 {
   ListOS_Event event_list = OS_GetEventList(arena, &app_state.window);
+
+	if (OS_IsKeyDown(OS_KEY_W))
+	{
+		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.front, 1.5f*state->delta_time));
+	}
+	if (OS_IsKeyDown(OS_KEY_S))
+	{
+		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.front, 0.5f*state->delta_time));
+	}
+	if (OS_IsKeyDown(OS_KEY_D))
+	{
+		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.right, 0.5f*state->delta_time));
+	}
+	if (OS_IsKeyDown(OS_KEY_A))
+	{
+		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.right, 0.5f*state->delta_time));
+	}
+	state->grid_scale += OS_IsKeyDown(OS_KEY_ARROW_UP)*(1.0f*state->delta_time);
+	state->grid_scale -= OS_IsKeyDown(OS_KEY_ARROW_DOWN)*(1.0f*state->delta_time);
   
   for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
   {
@@ -175,32 +198,6 @@ HandleEvents(Arena* arena, AppState* state)
 
         state->last_mouse_position = state->window.virtual_cursor_position;
       } break;
-
-      case OS_EVENT_TYPE_KEYBOARD:
-      {
-        if (event->key == OS_KEY_ARROW_UP)
-        {
-          {
-						app_state.grid_scale += 1.0f;
-          }
-        }
-        if (event->key == OS_KEY_ARROW_DOWN)
-        {
-          {
-						app_state.grid_scale -= 1.0f;
-          }
-        }
-        if (event->key == OS_KEY_ARROW_RIGHT)
-        {
-          {
-          }
-        }
-        if (event->key == OS_KEY_ARROW_LEFT)
-        {
-          {
-          }
-        }
-      }
       
       default: break;
     }

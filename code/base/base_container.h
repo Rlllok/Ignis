@@ -27,6 +27,7 @@ struct ListNode##Type \
 { \
   Type data; \
   ListNode##Type* next; \
+	ListNode##Type* previous; \
 }; \
 \
 typedef struct List##Type List##Type; \
@@ -58,6 +59,7 @@ func void PushList##Type(List##Type* list, Type data) \
   { \
     list->last->next = (ListNode##Type*)PushArena(list->arena, sizeof(Type)); \
     list->last->next->data = data; \
+		list->last->previous = list->last; \
     list->last = list->last->next; \
     list->count += 1; \
   } \
@@ -83,6 +85,12 @@ func Type GetList##Type##Item(List##Type* list, U64 index) \
     node = node->next; \
   } \
   return result; \
+} \
+\
+func Type RemoveList##Type##Item(List##Type* list, ListNode##Type* node) \
+{ \
+	node->previous->next = node->next; \
+	return node->data; \
 }
 // End DefineList
  

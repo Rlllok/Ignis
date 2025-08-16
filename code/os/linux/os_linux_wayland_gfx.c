@@ -1,13 +1,8 @@
-#include "os_linux_gfx.h"
+#include "os_linux_wayland_gfx.h"
 
-#include "os/linux/xdg_shell.h"
-
-#include "third_party/wayland/pointer_constraints_unstable_v1.h"
-#include "third_party/wayland/relative_pointer_unstable_v1.h"
+#include <sys/mman.h>
+#include <unistd.h>
 #include <time.h>
-#include <wayland-client-core.h>
-#include <wayland-client-protocol.h>
-#include <wayland-cursor.h>
 
 func void
 OS_Init(U64 arena_size)
@@ -43,12 +38,10 @@ _PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I
 {
   OS_WindowHandle* handle = (OS_WindowHandle*)data;
 
-  // LOG_ERROR("pointer %p (%.3f, %.3f)\t", pointer, wl_fixed_to_double(surface_x), wl_fixed_to_double(surface_y));
   OS_Event event = {
     .type = OS_EVENT_TYPE_MOUSE_MOVE,
     .mouse_position = { (F32)wl_fixed_to_double(surface_x), (F32)wl_fixed_to_double(surface_y) }
   };
-
   PushListOS_Event(&_os_state.event_list, event);
 }
 
@@ -78,6 +71,155 @@ struct wl_pointer_listener _pointer_listener = {
 };
 
 func void
+_HandleKeyboardKeymap(void* data, struct wl_keyboard* keyboard, U32 format, I32 fd, U32 size)
+{
+	OS_WindowHandle* handle = (OS_WindowHandle*)data;
+	char* keymap_string = mmap(0, size, PROT_READ, MAP_SHARED, fd, 0);
+	xkb_keymap_unref(handle->kb_keymap);
+	handle->kb_keymap = xkb_keymap_new_from_string(handle->kb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	munmap(keymap_string, size);
+	close(fd);
+	xkb_state_unref(handle->kb_state);
+	handle->kb_state = xkb_state_new(handle->kb_keymap);
+}
+
+func void
+_HandleKeyboardEnter(void* data, struct wl_keyboard* keyboard, U32 serial, struct wl_surface* surface, struct wl_array* keys)
+{
+}
+
+func void
+_HandleKeyboardLeave(void* data, struct wl_keyboard* keyboard, U32 serial, struct wl_surface* surface)
+{
+}
+
+func void
+_HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 time, U32 key, U32 state)
+{
+	OS_WindowHandle* handle = (OS_WindowHandle*)data;
+
+	B32 key_pressed = (state == WL_KEYBOARD_KEY_STATE_PRESSED);
+	B32 key_released = (state == WL_KEYBOARD_KEY_STATE_RELEASED);
+	if (key_pressed || key_released)
+	{
+		xkb_keysym_t keysym = xkb_state_key_get_one_sym(handle->kb_state, key+8);
+		char name[64];
+		xkb_keysym_get_name(keysym, name, 64);
+
+		OS_Event event = {0};
+		event.type = OS_EVENT_TYPE_KEYBOARD;
+		switch (keysym)
+		{
+			default: {}; break;
+			
+			case XKB_KEY_Escape: {event.key = OS_KEY_ESC;};break;
+			case XKB_KEY_F1: {event.key = OS_KEY_F1;};break;
+			case XKB_KEY_F2: {event.key = OS_KEY_F2;};break;
+			case XKB_KEY_F3: {event.key = OS_KEY_F3;};break;
+			case XKB_KEY_F4: {event.key = OS_KEY_F4;};break;
+			case XKB_KEY_F5: {event.key = OS_KEY_F5;};break;
+			case XKB_KEY_F6: {event.key = OS_KEY_F6;};break;
+			case XKB_KEY_F7: {event.key = OS_KEY_F7;};break;
+			case XKB_KEY_F8: {event.key = OS_KEY_F8;};break;
+			case XKB_KEY_F9: {event.key = OS_KEY_F9;};break;
+			case XKB_KEY_F10: {event.key = OS_KEY_F10;};break;
+			case XKB_KEY_F11: {event.key = OS_KEY_F11;};break;
+			case XKB_KEY_F12: {event.key = OS_KEY_F12;};break;
+			case XKB_KEY_grave: {event.key = OS_KEY_BACKTICK;};break;
+			case XKB_KEY_0: {event.key = OS_KEY_0;};break;
+			case XKB_KEY_1: {event.key = OS_KEY_1;};break;
+			case XKB_KEY_2: {event.key = OS_KEY_2;};break;
+			case XKB_KEY_3: {event.key = OS_KEY_3;};break;
+			case XKB_KEY_4: {event.key = OS_KEY_4;};break;
+			case XKB_KEY_5: {event.key = OS_KEY_5;};break;
+			case XKB_KEY_6: {event.key = OS_KEY_6;};break;
+			case XKB_KEY_7: {event.key = OS_KEY_7;};break;
+			case XKB_KEY_8: {event.key = OS_KEY_8;};break;
+			case XKB_KEY_9: {event.key = OS_KEY_9;};break;
+			case XKB_KEY_minus: {event.key = OS_KEY_MINUS;};break;
+			case XKB_KEY_equal: {event.key = OS_KEY_EQUAL;};break;
+			case XKB_KEY_BackSpace: {event.key = OS_KEY_BACKSPACE;};break;
+			case XKB_KEY_Tab: {event.key = OS_KEY_TAB;};break;
+			case XKB_KEY_q: {event.key = OS_KEY_Q;};break;
+			case XKB_KEY_w: {event.key = OS_KEY_W;};break;
+			case XKB_KEY_e: {event.key = OS_KEY_E;};break;
+			case XKB_KEY_r: {event.key = OS_KEY_R;};break;
+			case XKB_KEY_t: {event.key = OS_KEY_T;};break;
+			case XKB_KEY_y: {event.key = OS_KEY_Y;};break;
+			case XKB_KEY_u: {event.key = OS_KEY_U;};break;
+			case XKB_KEY_i: {event.key = OS_KEY_I;};break;
+			case XKB_KEY_o: {event.key = OS_KEY_O;};break;
+			case XKB_KEY_p: {event.key = OS_KEY_P;};break;
+			case XKB_KEY_bracketleft: {event.key = OS_KEY_LEFT_BRACKET;};break;
+			case XKB_KEY_bracketright: {event.key = OS_KEY_RIGHT_BRACKET;};break;
+			case XKB_KEY_backslash: {event.key = OS_KEY_BACK_SLASH;};break;
+			case XKB_KEY_Caps_Lock: {event.key = OS_KEY_CAPS_LOCK;};break;
+			case XKB_KEY_a: {event.key = OS_KEY_A;};break;
+			case XKB_KEY_s: {event.key = OS_KEY_S;};break;
+			case XKB_KEY_d: {event.key = OS_KEY_D;};break;
+			case XKB_KEY_f: {event.key = OS_KEY_F;};break;
+			case XKB_KEY_g: {event.key = OS_KEY_G;};break;
+			case XKB_KEY_h: {event.key = OS_KEY_H;};break;
+			case XKB_KEY_j: {event.key = OS_KEY_J;};break;
+			case XKB_KEY_k: {event.key = OS_KEY_K;};break;
+			case XKB_KEY_l: {event.key = OS_KEY_L;};break;
+			case XKB_KEY_semicolon: {event.key = OS_KEY_SEMICOLON;};break;
+			case XKB_KEY_apostrophe: {event.key = OS_KEY_QUOTE;};break;
+			case XKB_KEY_Return: {event.key = OS_KEY_RETURN;};break;
+			case XKB_KEY_Shift_L: {event.key = OS_KEY_SHIFT;};break;
+			case XKB_KEY_Shift_R: {event.key = OS_KEY_SHIFT;};break;
+			case XKB_KEY_z: {event.key = OS_KEY_Z;};break;
+			case XKB_KEY_x: {event.key = OS_KEY_X;};break;
+			case XKB_KEY_c: {event.key = OS_KEY_C;};break;
+			case XKB_KEY_v: {event.key = OS_KEY_V;};break;
+			case XKB_KEY_b: {event.key = OS_KEY_B;};break;
+			case XKB_KEY_n: {event.key = OS_KEY_N;};break;
+			case XKB_KEY_m: {event.key = OS_KEY_M;};break;
+			case XKB_KEY_comma: {event.key = OS_KEY_COMMA;};break;
+			case XKB_KEY_period: {event.key = OS_KEY_PERIOD;};break;
+			case XKB_KEY_slash: {event.key = OS_KEY_SLASH;};break;
+			case XKB_KEY_Control_L: {event.key = OS_KEY_CTRL;};break;
+			case XKB_KEY_Control_R: {event.key = OS_KEY_CTRL;};break;
+			case XKB_KEY_Alt_L: {event.key = OS_KEY_ALT;};break;
+			case XKB_KEY_Alt_R: {event.key = OS_KEY_ALT;};break;
+			case XKB_KEY_space: {event.key = OS_KEY_SPACE;};break;
+			case XKB_KEY_Up: {event.key = OS_KEY_ARROW_UP;};break;
+			case XKB_KEY_Down: {event.key = OS_KEY_ARROW_DOWN;};break;
+			case XKB_KEY_Left: {event.key = OS_KEY_ARROW_LEFT;};break;
+			case XKB_KEY_Right: {event.key = OS_KEY_ARROW_RIGHT;};break;
+		}
+
+		event.pressed = key_pressed;
+		event.released = key_released;
+
+		PushListOS_Event(&_os_state.keyboard_event_list, event);
+	}
+}
+
+func void
+_HandleKeyboardModifiers(void* data, struct wl_keyboard* keyboard, U32 serial, U32 mods_depressed, U32 mods_latched, U32 mods_locked, U32 group)
+{
+	OS_WindowHandle* handle = (OS_WindowHandle*)data;
+
+	xkb_state_update_mask(handle->kb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+}
+
+func void
+_HandleKeyboardRepeat(void* data, struct wl_keyboard* keyboard, I32 rate, I32 delay)
+{
+	LOG_DEBUG("REPEAT INFO\n");
+}
+
+struct wl_keyboard_listener _keyboard_listener = {
+	.keymap = _HandleKeyboardKeymap,
+	.enter = _HandleKeyboardEnter,
+	.leave = _HandleKeyboardLeave,
+	.key = _HandleKeyboardKey,
+	.modifiers = _HandleKeyboardModifiers,
+	.repeat_info = _HandleKeyboardRepeat,
+};
+
+func void
 _SeatHandleCapabilities(void* data, wl_seat* seat, U32 capabilities)
 {
   OS_WindowHandle* handle = (OS_WindowHandle*)data;
@@ -95,6 +237,11 @@ _SeatHandleCapabilities(void* data, wl_seat* seat, U32 capabilities)
     wl_pointer_release(handle->pointer);
     handle->pointer = 0;
   }
+	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD)
+	{
+		handle->keyboard = wl_seat_get_keyboard(handle->seat);
+		wl_keyboard_add_listener(handle->keyboard, &_keyboard_listener, data);
+	}
 }
 
 func void
@@ -251,6 +398,8 @@ OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
     out
   );
 
+	out->handle->kb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
   LOG_INFO("Window Created\n");
 }
 
@@ -334,10 +483,25 @@ func ListOS_Event
 OS_GetEventList(Arena* arena, OS_Window* window)
 {
   _os_state.event_list = CreateListOS_Event(arena);
-  
+	_os_state.keyboard_event_list = CreateListOS_Event(arena);
+
   wl_display_dispatch_pending(window->handle->display);
 
-  // ResetArena(_os_state.event_arena);
+	for (I32 i = 0; i < OS_KEY_COUNT; i += 1)
+	{
+		OS_KeyState* key = _os_state.keyboard.keys + i;
+		key->pressed = 0;
+		key->released = 0;
+		key->time_down += key->is_down * (0.0f); // AlNov: @TODO Add delta time
+	}
+
+  for (ListNodeOS_Event *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
+	{
+		OS_Event* event = &event_node->data;
+		_os_state.keyboard.keys[event->key].pressed = event->pressed;
+		_os_state.keyboard.keys[event->key].is_down = event->pressed;
+		_os_state.keyboard.keys[event->key].released = event->released;
+	}
 
   return _os_state.event_list;
 }

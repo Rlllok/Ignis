@@ -7,7 +7,7 @@
 #include "linux/os_linux_x11_gfx.c"
 #endif
 #ifdef IGNIS_PLATFORM_LINUX_WAYLAND
-#include "linux/os_linux_gfx.c"
+#include "linux/os_linux_wayland_gfx.c"
 #endif
 
 #ifdef IGNIS_PLATFORM_WIN32

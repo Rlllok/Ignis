@@ -2,8 +2,11 @@
 
 #include "../os_gfx.h"
 
-#include "wayland-client-protocol.h"
-#include "wayland-client.h"
+#include <wayland-client.h>
+#include <wayland-client-protocol.h>
+#include <wayland-cursor.h>
+#include <xkbcommon/xkbcommon.h>
+
 #include "third_party/wayland/xdg_shell.h"
 #include "third_party/wayland/xdg_shell.cpp"
 #include "third_party/wayland/relative_pointer_unstable_v1.h"
@@ -43,6 +46,10 @@ struct OS_WindowHandle
   zwp_pointer_constraints_v1* pointer_constraints;
   zwp_locked_pointer_v1* locked_pointer;
   zwp_confined_pointer_v1* confined_pointer;
+	struct wl_keyboard* keyboard;
+	struct xkb_context* kb_context;
+	struct xkb_keymap* kb_keymap;
+	struct xkb_state* kb_state;
 
   U32 pointer_enter_serial;
 
