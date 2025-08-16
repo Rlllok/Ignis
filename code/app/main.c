@@ -79,7 +79,10 @@ I32 main(void)
 			Mat4 projection_matrix;
 			F32 grid_scale;
 		} global_data;
-		global_data.view_matrix = MakeLookAtMat4(app_state.camera.position, MakeVec3(0.0f, 0.0f, 0.0f), app_state.camera.up);
+		global_data.view_matrix = MakeLookAtMat4(
+				app_state.camera.position,
+				AddVec3(app_state.camera.position, app_state.camera.front),
+				app_state.camera.up);
 		global_data.projection_matrix = MakePerspectiveMat4(
 				45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
 				0.0001f, 1000.0f);

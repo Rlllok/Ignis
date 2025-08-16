@@ -46,6 +46,7 @@ func void
 ResetArena(Arena* arena)
 {
   arena->position = sizeof(Arena);
+	OS_ZeroMemory((U8*)arena + arena->position, arena->size - arena->position);
 }
 
   func void

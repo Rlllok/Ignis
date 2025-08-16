@@ -189,6 +189,18 @@ _HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 tim
 			case XKB_KEY_Right: {event.key = OS_KEY_ARROW_RIGHT;};break;
 		}
 
+		if (state == WL_KEYBOARD_KEY_STATE_REPEATED)
+		LOG_DEBUG("(XKB) Repeat\n");
+
+		if (key_pressed)
+		{
+			LOG_DEBUG("(XKB) %s is pressed\n", name);
+		}
+		if (key_released)
+		{
+			LOG_DEBUG("(XKB) %s is released\n", name);
+		}
+
 		event.pressed = key_pressed;
 		event.released = key_released;
 
@@ -495,13 +507,31 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 		key->time_down += key->is_down * (0.0f); // AlNov: @TODO Add delta time
 	}
 
+	I32 count = 0;
   for (ListNodeOS_Event *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
 	{
 		OS_Event* event = &event_node->data;
 		_os_state.keyboard.keys[event->key].pressed = event->pressed;
-		_os_state.keyboard.keys[event->key].is_down = event->pressed;
-		_os_state.keyboard.keys[event->key].released = event->released;
+		_os_state.keyboard.keys[event->key].released = !event->pressed;
+		if (event->pressed)
+		{
+			_os_state.keyboard.keys[event->key].is_down = 1;
+		}
+		if (event->released)
+		{
+			_os_state.keyboard.keys[event->key].is_down = 0;
+		}
+		LOG_DEBUG(
+				"%i) Keyboard Event! Code: %d, pressed: %d, released: %d, down %d\n",
+				count,
+				event->key,
+				_os_state.keyboard.keys[event->key].pressed,
+				_os_state.keyboard.keys[event->key].released,
+				_os_state.keyboard.keys[event->key].is_down
+				);
+		count += 1;
 	}
+	if (_os_state.keyboard_event_list.count) LOG_DEBUG("List Count: %d\n", _os_state.keyboard_event_list.count);
 
   return _os_state.event_list;
 }
