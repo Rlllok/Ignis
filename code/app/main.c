@@ -38,7 +38,7 @@ I32 main(void)
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = false;
 	app_state.grid_scale = 100.0f;
-	app_state.camera.position = MakeVec3(0.0f, 1.0f, 1.0f);
+	app_state.camera.position = MakeVec3(0.0f, 2.0f, 2.0f);
 	app_state.camera.front = MakeVec3(1.0f, 0.0f, -1.0f);
 	app_state.camera.right = MakeVec3(1.0f, 0.0f, 1.0f);
 	app_state.camera.up = MakeVec3(0.0f, 1.0f, 0.0f);
@@ -73,22 +73,22 @@ I32 main(void)
   {
     HandleEvents(app_state.frame_arena, &app_state);
 
-		struct GlobalDataTest
+		struct
 		{
 			Mat4 view_matrix;
 			Mat4 projection_matrix;
 			Vec3 position;
 			F32 grid_scale;
-		} global_data;
-		global_data.view_matrix = MakeLookAtMat4(
+		} grid_global_vertex_data;
+		grid_global_vertex_data.view_matrix = MakeLookAtMat4(
 				app_state.camera.position,
 				AddVec3(app_state.camera.position, app_state.camera.front),
 				app_state.camera.up);
-		global_data.projection_matrix = MakePerspectiveMat4(
+		grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
 				45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
 				0.0001f, 1000.0f);
-		global_data.grid_scale = app_state.grid_scale;
-		global_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
+		grid_global_vertex_data.grid_scale = app_state.grid_scale;
+		grid_global_vertex_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
 
 		struct
 		{
@@ -96,7 +96,7 @@ I32 main(void)
 		} grid_global_fragment_data;
 		grid_global_fragment_data.color = MakeVec4(0.5f, 0.5f, 0.5f, 0.8f);
 
-		U64 grid_global_data_offset = R_PushBuffer(data_buffer, (U8*)&global_data, sizeof(global_data));
+		U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
 		U64 grid_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_fragment_data, sizeof(grid_global_fragment_data));
 
 		// Draw
@@ -124,7 +124,7 @@ I32 main(void)
 				R_SetScissor(command_buffer, scissor);
 
 				R_BindGraphicsPipeline(command_buffer, grid_pipeline);
-				R_BindGlobalVertexUniformData(command_buffer, data_buffer, grid_global_data_offset, sizeof(global_data));
+				R_BindGlobalVertexUniformData(command_buffer, data_buffer, grid_global_vertex_data_offset, sizeof(grid_global_vertex_data));
 				R_BindGlobalFragmentUniformData(command_buffer, data_buffer, grid_global_fragment_data_offset, sizeof(grid_global_fragment_data));
 				R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 			}
@@ -147,7 +147,7 @@ I32 main(void)
 func void
 HandleEvents(Arena* arena, AppState* state)
 {
-  ListOS_Event event_list = OS_GetEventList(arena, &app_state.window);
+  ListOS_Event event_list = OS_GetEventList(arena, &state->window);
 
 	F32 speed = 2.0f;
 	if (OS_IsKeyDown(OS_KEY_W))
