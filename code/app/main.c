@@ -13,6 +13,8 @@ struct Camera
 	Vec3 front;
 	Vec3 right;
 	Vec3 up;
+  F32 yaw;
+  F32 pitch;
 };
 
 typedef struct AppState AppState;
@@ -37,7 +39,7 @@ I32 main(void)
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = false;
-	app_state.grid_scale = 100.0f;
+	app_state.grid_scale = 1000.0f;
 	app_state.camera.position = MakeVec3(0.0f, 2.0f, 2.0f);
 	app_state.camera.front = MakeVec3(1.0f, 0.0f, -1.0f);
 	app_state.camera.right = MakeVec3(1.0f, 0.0f, 1.0f);
@@ -149,27 +151,50 @@ HandleEvents(Arena* arena, AppState* state)
 {
   ListOS_Event event_list = OS_GetEventList(arena, &state->window);
 
+  Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
 	F32 speed = 2.0f;
 	if (OS_IsKeyDown(OS_KEY_W))
 	{
-		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.front, speed*state->delta_time));
-		LOG_DEBUG("W is down\n");
+		direction = AddVec3(direction, state->camera.front);
 	}
 	if (OS_IsKeyDown(OS_KEY_S))
 	{
-		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.front, speed*state->delta_time));
-		LOG_DEBUG("S is down\n");
+		direction = SubVec3(direction, state->camera.front);
 	}
 	if (OS_IsKeyDown(OS_KEY_D))
 	{
-		state->camera.position = AddVec3(state->camera.position, ScaleVec3(state->camera.right, speed*state->delta_time));
-		LOG_DEBUG("D is down\n");
+		direction = AddVec3(direction, state->camera.right);
 	}
 	if (OS_IsKeyDown(OS_KEY_A))
 	{
-		state->camera.position = SubVec3(state->camera.position, ScaleVec3(state->camera.right, speed*state->delta_time));
-		LOG_DEBUG("A is down\n");
+		direction = SubVec3(direction, state->camera.right);
 	}
+  state->camera.position = AddVec3(state->camera.position, ScaleVec3(NormalizeVec3(direction), speed*state->delta_time));
+
+  if (OS_IsKeyDown(OS_KEY_ARROW_LEFT))
+  {
+    state->camera.yaw -= 25.0f*state->delta_time;
+  }
+  if (OS_IsKeyDown(OS_KEY_ARROW_RIGHT))
+  {
+    state->camera.yaw += 25.0f*state->delta_time;
+  }
+  if (OS_IsKeyDown(OS_KEY_ARROW_UP))
+  {
+    state->camera.pitch += 25.0f*state->delta_time;
+  }
+  if (OS_IsKeyDown(OS_KEY_ARROW_DOWN))
+  {
+    state->camera.pitch -= 25.0f*state->delta_time;
+  }
+  Vec3 rotation = {0};
+  rotation.x = cos(RadiansFromDegrees(state->camera.yaw))*cos(RadiansFromDegrees(state->camera.pitch));
+  rotation.y = sin(RadiansFromDegrees(state->camera.pitch));
+  rotation.z = sin(RadiansFromDegrees(state->camera.yaw))*cos(RadiansFromDegrees(state->camera.pitch));
+  state->camera.front = rotation;
+
+  state->camera.right = NormalizeVec3(CrossVec3(state->camera.front, MakeVec3(0.0f, 1.0f, 0.0f)));
+  state->camera.up = CrossVec3(state->camera.right, state->camera.front);
   
   for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
   {

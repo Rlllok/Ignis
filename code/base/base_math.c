@@ -20,7 +20,7 @@ func F32 DotVec2F32(Vec2F32 a, Vec2F32 b) {return a.x*b.x + a.y*b.y;}
 func F32 CrossVec2F32(Vec2F32 a, Vec2F32 b) {return a.x*b.y - a.y*b.x;}
 func F32 MagnitudeSquareVec2F32(Vec2F32 v) {return v.x*v.x + v.y*v.y;}
 func F32 MagnitudeVec2F32(Vec2F32 v) {return sqrt(MagnitudeSquareVec2F32(v));}
-func Vec2F32 NormalizeVec2F32(Vec2F32 v) {return ScaleVec2F32(v, 1.0f/MagnitudeVec2F32(v));}
+func Vec2F32 NormalizeVec2F32(Vec2F32 v) {F32 magnitude = MagnitudeVec2F32(v); return ScaleVec2F32(v, (1.0f/(magnitude + !magnitude)));}
 func Vec2F32 GetNormalToVec2F32(Vec2F32 v) {return NormalizeVec2F32(MakeVec2F32(v.y, -v.x));}
 
 func Vec3F32 MakeVec3F32(F32 x, F32 y, F32 z) {Vec3F32 result = {x,y,z}; return result;}
@@ -33,7 +33,7 @@ func F32 DotVec3F32(Vec3F32 a, Vec3F32 b) {return a.x*b.x + a.y*b.y + a.z*b.z;}
 func Vec3F32 CrossVec3F32(Vec3F32 a, Vec3F32 b) {return MakeVec3F32(a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x);}
 func F32 MagnitudeSquareVec3F32(Vec3F32 v) {return v.x*v.x + v.y*v.y + v.z*v.z;}
 func F32 MagnitudeVec3F32(Vec3F32 v) {return sqrt(MagnitudeSquareVec3F32(v));}
-func Vec3F32 NormalizeVec3F32(Vec3F32 v) {return ScaleVec3F32(v, 1.0f/MagnitudeVec3F32(v));}
+func Vec3F32 NormalizeVec3F32(Vec3F32 v) {F32 magnitude = MagnitudeVec3F32(v); return ScaleVec3F32(v, (1.0f/(magnitude + !magnitude)));}
 func Vec3F32
 TransformVec3F32(Vec3F32 v, Mat3F32 m)
 {

@@ -227,6 +227,8 @@ typedef Vec4F32 Vec4;
 typedef Mat3F32 Mat3;
 typedef Mat4F32 Mat4;
 
+#define RadiansFromDegrees(d) ((PI/180.0f)*d)
+
 // Constructors
 #define MakeVec2(x, y) MakeVec2F32(x, y)
 #define MakeVec3(x, y, z) MakeVec3F32(x, y, z)
@@ -235,6 +237,8 @@ typedef Mat4F32 Mat4;
 #define ScaleVec3(v, n) ScaleVec3F32(v, n)
 #define AddVec3(a, b) AddVec3F32(a, b)
 #define SubVec3(a, b) SubVec3F32(a, b)
+#define CrossVec3(a, b) CrossVec3F32(a, b)
+#define NormalizeVec3(v) NormalizeVec3F32(v)
 #define MakeTransposeMat3(v) MakeTransposeMat3F32(v)
 #define MakeMat4(diagonal_value) MakeMat4F32(diagonal_value)
 #define MakeOrthographicsMat4(left, right, bottom, top, near_z, far_z) MakeOrthographicsMat4F32(left, right, bottm, top, near_z, far_z)
