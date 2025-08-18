@@ -13,12 +13,14 @@ R_VK_GetVkIndexTypeFrom(R_IndexSize index_size)
 }
 
 func VkAttachmentLoadOp
-R_VK_GetVkAttachmentLoadOperation(R_AttachmentLoadOperation operation)
+R_VK_GetVkAttachmentLoadOperation(R_LoadOperation operation)
 {
   VkAttachmentLoadOp result = VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
 
   switch (operation)
   {
+    default: Assert(1); break;
+
     case (R_ATTACHMENT_LOAD_OPERATION_DONT_CARE):
     {
       result = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -31,6 +33,22 @@ R_VK_GetVkAttachmentLoadOperation(R_AttachmentLoadOperation operation)
     {
       result = VK_ATTACHMENT_LOAD_OP_CLEAR;
     } break;
+  }
+
+  return result;
+}
+
+func VkAttachmentStoreOp
+R_VK_GetVkAttachmentStoreOperation(R_StoreOperation operation)
+{
+  VkAttachmentStoreOp result = VK_ATTACHMENT_STORE_OP_MAX_ENUM;
+
+  switch (operation)
+  {
+    default: Assert(1); break;
+
+    case R_ATTACHMENT_STORE_OPERATION_DONT_CARE: result = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
+    case R_ATTACHMENT_STORE_OPERATION_STORE: result = VK_ATTACHMENT_STORE_OP_STORE; break;
   }
 
   return result;
@@ -119,4 +137,85 @@ R_VK_TransitImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout layout
   };
 
   vkCmdPipelineBarrier(cmd, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, &image_barrier);
+}
+
+func VkImageType
+R_VK_GetVkImageType(VkImageType image_type)
+{
+  VkImageType vk_image_type = 0;
+
+  switch (image_type)
+  {
+    default: Assert(1); break;
+
+    case R_TEXTURE_TYPE_2D: vk_image_type =  VK_IMAGE_TYPE_2D; break;
+  }
+
+  return vk_image_type;
+}
+
+func R_TextureFormat R_VK_TextureFormatFromVkFormat(VkFormat format)
+{
+  R_TextureFormat texture_format = 0;
+
+  switch (format)
+  {
+    default: Assert(1); break;
+
+    case VK_FORMAT_R8G8B8A8_SRGB: texture_format = R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB; break; 
+    case VK_FORMAT_B8G8R8A8_UNORM: texture_format = R_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
+    case VK_FORMAT_D16_UNORM: texture_format = R_TEXTURE_FORMAT_D16_UNORM; break;
+  }
+
+  return texture_format;
+}
+
+func VkFormat
+R_VK_GetVkFormat(R_TextureFormat format)
+{
+  VkFormat vk_format = 0;
+
+  switch (format)
+  {
+    default: Assert(1); break;
+
+    case R_TEXTURE_FORMAT_NONE: vk_format = VK_FORMAT_UNDEFINED; break;
+    case R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
+    case R_TEXTURE_FORMAT_B8G8R8A8_UNORM: vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
+    case R_TEXTURE_FORMAT_D16_UNORM: vk_format = VK_FORMAT_D16_UNORM; break;
+  }
+
+  return vk_format;
+}
+
+func VkImageUsageFlags
+R_VK_GetVkImageUsageFlags(R_TextureUsageFlags flags)
+{
+  VkImageUsageFlags vk_flags = 0;
+  if ((flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
+  {
+    vk_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  }
+
+  return vk_flags;
+}
+
+func VkCompareOp
+R_VK_GetVkFromCompareOperation(R_CompareOperation operation)
+{
+  VkCompareOp vk_operation = 0;
+  
+  switch (operation)
+  {
+    default: Assert(1); break;
+
+    case R_COMPARE_OPERATION_EQUAL: vk_operation = VK_COMPARE_OP_EQUAL; break;
+    case R_COMPARE_OPERATION_NOT_EQUAL: vk_operation = VK_COMPARE_OP_NOT_EQUAL; break;
+    case R_COMPARE_OPERATION_LESS: vk_operation = VK_COMPARE_OP_LESS; break;
+    case R_COMPARE_OPERATION_LESS_OR_EQUAL: vk_operation = VK_COMPARE_OP_LESS_OR_EQUAL; break;
+    case R_COMPARE_OPERATION_GREATER: vk_operation = VK_COMPARE_OP_GREATER; break;
+    case R_COMPARE_OPERATION_GREATER_OR_EQUAL: vk_operation = VK_COMPARE_OP_GREATER_OR_EQUAL; break;
+  }
+
+  return vk_operation;
 }

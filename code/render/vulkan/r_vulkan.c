@@ -473,6 +473,7 @@ R_VK_CreateSwapchain(OS_Window* window)
     .clipped = true,
     .oldSwapchain = 0
   };
+  LOG_DEBUG("SWAPCHAIN FORMAT: %d\n", swapchain_info.imageFormat);
 
   VK_CHECK(vkCreateSwapchainKHR(_r_vk_state.device.logical, &swapchain_info, 0, &swapchain.handle));
 	swapchain.window = window;
@@ -589,7 +590,13 @@ R_VK_RecreateSwapchain(OS_Window* window)
   R_VK_CreateSwapchain(window);
 }
 
-func R_TextureTest*
+func R_TextureFormat
+R_VK_GetSwapchainTextureFormat()
+{
+  return R_VK_TextureFormatFromVkFormat(_r_vk_state.swapchain.surface_format.format);
+}
+
+func R_Texture*
 R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 {
 	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
@@ -624,7 +631,7 @@ R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 
 	vkResetFences(_r_vk_state.device.logical, 1, &vk_command_buffer->submit_fence[_r_vk_state.current_frame]);
 
-  return (R_TextureTest*)(_r_vk_state.swapchain.images_texture + _r_vk_state.current_target);
+  return (R_Texture*)(_r_vk_state.swapchain.images_texture + _r_vk_state.current_target);
 }
 
 // -------------------------------------------------------------------
@@ -911,9 +918,9 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 
   VkPipelineDepthStencilStateCreateInfo depth_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-    .depthTestEnable = VK_FALSE,
-    .depthWriteEnable = VK_FALSE,
-    .depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL
+    .depthTestEnable = pipeline_info->depth_stencil_state.depth_test_enable,
+    .depthWriteEnable = pipeline_info->depth_stencil_state.depth_write_enable,
+    .depthCompareOp = R_VK_GetVkFromCompareOperation(pipeline_info->depth_stencil_state.depth_compare_operation),
   };
 
   VkPipelineMultisampleStateCreateInfo multisample = {
@@ -964,11 +971,16 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
     fragment_shader
   };
 
+  VkFormat color_attachment_formats[8] = {0};
+  for (I32 i = 0; i < pipeline_info->target_info.color_targets_count; i += 1)
+  {
+    color_attachment_formats[i] = R_VK_GetVkFormat(pipeline_info->target_info.color_targets_formats[i]);
+  }
   VkPipelineRenderingCreateInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-    .colorAttachmentCount = 1,
-    .pColorAttachmentFormats = &_r_vk_state.swapchain.surface_format.format,
-    .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT
+    .colorAttachmentCount = pipeline_info->target_info.color_targets_count,
+    .pColorAttachmentFormats = color_attachment_formats,
+    .depthAttachmentFormat = R_VK_GetVkFormat(pipeline_info->target_info.depth_target_format),
   };
 
   VkGraphicsPipelineCreateInfo vk_pipeline_info = {
@@ -1011,24 +1023,35 @@ R_VK_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* p
 // --------------------------------------------------
 // Render Pass
 func R_RenderPass*
-R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment)
+R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target)
 {
 	R_VK_CommandBuffer* vk_command_buffer = (R_VK_CommandBuffer*)command_buffer;
-	R_VK_Texture* vk_attachment_texture = (R_VK_Texture*)color_attachment->texture;
+	R_VK_Texture* vk_attachment_texture = (R_VK_Texture*)color_targets[0].texture;
+  R_VK_Texture* vk_depth_texture = (R_VK_Texture*)depth_stencil_target->texture;
 
+  // --AlNov: @TODO Only one now
   VkClearValue clear_value = {0};
-  clear_value.color.float32[0] = color_attachment->clear_color.r;
-  clear_value.color.float32[1] = color_attachment->clear_color.g;
-  clear_value.color.float32[2] = color_attachment->clear_color.b;
-  clear_value.color.float32[3] = color_attachment->clear_color.a;
+  clear_value.color.float32[0] = color_targets[0].clear_color.r;
+  clear_value.color.float32[1] = color_targets[0].clear_color.g;
+  clear_value.color.float32[2] = color_targets[0].clear_color.b;
+  clear_value.color.float32[3] = color_targets[0].clear_color.a;
 
   VkRenderingAttachmentInfo vk_color_attachment_info = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
     .imageView = vk_attachment_texture->view,
     .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .loadOp = R_VK_GetVkAttachmentLoadOperation(color_attachment->load_operation),
-    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-    .clearValue = clear_value
+    .loadOp = R_VK_GetVkAttachmentLoadOperation(color_targets[0].load_operation),
+    .storeOp = R_VK_GetVkAttachmentStoreOperation(color_targets[0].store_operation),
+    .clearValue = clear_value,
+  };
+
+  VkRenderingAttachmentInfo vk_depth_attachment_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+    .imageView = vk_depth_texture->view,
+    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    .loadOp = R_VK_GetVkAttachmentLoadOperation(depth_stencil_target->depth_load_operation),
+    .storeOp = R_VK_GetVkAttachmentStoreOperation(depth_stencil_target->depth_store_operation),
+    .clearValue = {.depthStencil = depth_stencil_target->clear_depth,},
   };
 
   VkExtent2D render_area = {
@@ -1044,6 +1067,7 @@ R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_a
     .layerCount = 1,
     .colorAttachmentCount = 1,
     .pColorAttachments = &vk_color_attachment_info,
+    .pDepthAttachment = &vk_depth_attachment_info,
   };
   
   R_VK_TransitImageLayout(
@@ -1094,6 +1118,8 @@ R_VK_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport)
 		.y = viewport.y,
 		.width = viewport.w,
 		.height = viewport.h,
+    .minDepth = 0.0f,
+    .maxDepth = 1.0f,
 	};
 	vkCmdSetViewport(vk_command_buffer->handle[_r_vk_state.current_frame], 0, 1, &vk_viewport);
 }
@@ -1129,11 +1155,11 @@ R_VK_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32
 
 // -------------------------------------------------------------------
 // Texture
-func R_Texture
-R_VK_CreateTexture(Str8 path)
+func R_Texture*
+R_VK_CreateTexture(R_TextureCreateInfo* info)
 {
-  R_Texture texture = {0};
-
+  R_VK_Texture* texture = _r_vk_state.textures + _r_vk_state.textures_count;
+#if 0
   I32 tex_width    = 0;
   I32 tex_height   = 0;
   I32 tex_channels = 0;
@@ -1152,45 +1178,53 @@ R_VK_CreateTexture(Str8 path)
   vkUnmapMemory(_r_vk_state.device.logical, _r_vk_state.staging_buffer.memory);
 
   stbi_image_free(tex_pixels);
+#endif
 
   VkImageCreateInfo image_info = {0};
   image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
-  image_info.imageType     = VK_IMAGE_TYPE_2D;
-  image_info.extent.width  = tex_width;
-  image_info.extent.height = tex_height;
-  image_info.extent.depth  = 1;
+  image_info.imageType     = R_VK_GetVkImageType(info->type);
+  image_info.extent.width  = info->width;
+  image_info.extent.height = info->height;
+  image_info.extent.depth  = info->depth;
   image_info.mipLevels     = 1;
   image_info.arrayLayers   = 1;
-  image_info.format        = VK_FORMAT_R8G8B8A8_SRGB;
+  image_info.format        = R_VK_GetVkFormat(info->format);
   image_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
   image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  image_info.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+  image_info.usage         = R_VK_GetVkImageUsageFlags(info->usage_flags);
   image_info.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
   image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
-  if (vkCreateImage(_r_vk_state.device.logical, &image_info, 0, &_r_vk_state.default_texture.image) != VK_SUCCESS)
+  if (vkCreateImage(_r_vk_state.device.logical, &image_info, 0, &texture->image) != VK_SUCCESS)
   {
     LOG_ERROR("Cannot create Image for Texture.\n");
-    return texture;
+    return (R_Texture*)texture;
   }
 
   VkMemoryRequirements mem_requirements = {0};
-  vkGetImageMemoryRequirements(_r_vk_state.device.logical, _r_vk_state.default_texture.image, &mem_requirements);
+  vkGetImageMemoryRequirements(_r_vk_state.device.logical, texture->image, &mem_requirements);
 
   VkMemoryAllocateInfo mem_info = {0};
-  mem_info.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   mem_info.allocationSize  = mem_requirements.size;
   mem_info.memoryTypeIndex = R_VK_FindMemoryTypeIndex(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-  VK_CHECK(vkAllocateMemory(_r_vk_state.device.logical, &mem_info, 0, &_r_vk_state.default_texture.memory));
+  VK_CHECK(vkAllocateMemory(_r_vk_state.device.logical, &mem_info, 0, &texture->memory));
 
-  VK_CHECK(vkBindImageMemory(_r_vk_state.device.logical, _r_vk_state.default_texture.image, _r_vk_state.default_texture.memory, 0));
+  VK_CHECK(vkBindImageMemory(_r_vk_state.device.logical, texture->image, texture->memory, 0));
+
+  VkImageAspectFlags texture_aspect = 0;
+  if ((info->usage_flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
+  {
+    texture_aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+  }
 
   VkCommandBuffer cmd = R_VK_BeginSingleCmd();
   {
+#if 0
     R_VK_TransitImageLayout(
       cmd,
-      _r_vk_state.default_texture.image,
+      texture->image,
       VK_IMAGE_LAYOUT_UNDEFINED,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       0,
@@ -1211,22 +1245,34 @@ R_VK_CreateTexture(Str8 path)
 		copy_info.imageOffset.x = 0;
 		copy_info.imageOffset.y = 0;
 		copy_info.imageOffset.z = 0;
-    copy_info.imageExtent.width = (U32)tex_width;
-		copy_info.imageExtent.height = (U32)tex_height;
+    copy_info.imageExtent.width = info->width;
+		copy_info.imageExtent.height = info->height;
 		copy_info.imageExtent.depth = 1;
 
-    vkCmdCopyBufferToImage(cmd, _r_vk_state.staging_buffer.handle, _r_vk_state.default_texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
+    vkCmdCopyBufferToImage(cmd, _r_vk_state.staging_buffer.handle, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
+#endif
     
+    VkImageLayout new_layout = 0;
+    VkAccessFlags new_access = 0;
+    VkPipelineStageFlags dst_stage = 0;
+
+    if ((info->usage_flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
+    {
+      new_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      new_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+      dst_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    }
+
     R_VK_TransitImageLayout(
       cmd,
-      _r_vk_state.default_texture.image,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_ACCESS_TRANSFER_WRITE_BIT,
-      VK_ACCESS_SHADER_READ_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-      VK_IMAGE_ASPECT_COLOR_BIT
+      texture->image,
+      VK_IMAGE_LAYOUT_UNDEFINED,
+      new_layout,
+      0,
+      VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+      dst_stage,
+      texture_aspect
     );
     R_VK_EndSingleCmd(cmd);
   }
@@ -1234,38 +1280,32 @@ R_VK_CreateTexture(Str8 path)
   // AlNov: Create Texture Image View
   VkImageViewCreateInfo view_info = {0};
   view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  view_info.image                           = _r_vk_state.default_texture.image;
-  view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
-  view_info.format                          = VK_FORMAT_R8G8B8A8_SRGB;
-  view_info.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+  view_info.image                           = texture->image;
+  view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D; // @TODO
+  view_info.format = R_VK_GetVkFormat(info->format);
+  view_info.subresourceRange.aspectMask     = texture_aspect;
   view_info.subresourceRange.baseMipLevel   = 0;
   view_info.subresourceRange.levelCount     = 1;
   view_info.subresourceRange.baseArrayLayer = 0;
   view_info.subresourceRange.layerCount     = 1;
 
-  VK_CHECK(vkCreateImageView(_r_vk_state.device.logical, &view_info, 0, &_r_vk_state.default_texture.view));
+  VK_CHECK(vkCreateImageView(_r_vk_state.device.logical, &view_info, 0, &texture->view));
 
-  // AlNov: Create Texture Sampler
-  VkSamplerCreateInfo sampler_info = {0};
-  sampler_info.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  sampler_info.magFilter               = VK_FILTER_LINEAR;
-  sampler_info.minFilter               = VK_FILTER_LINEAR;
-  sampler_info.addressModeU            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  sampler_info.addressModeV            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  sampler_info.addressModeW            = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-  sampler_info.anisotropyEnable        = VK_FALSE;
-  sampler_info.borderColor             = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-  sampler_info.unnormalizedCoordinates = VK_FALSE;
-  sampler_info.compareEnable           = VK_FALSE;
-  sampler_info.compareOp               = VK_COMPARE_OP_ALWAYS;
-  sampler_info.mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  sampler_info.mipLodBias              = 0.0f;
-  sampler_info.minLod                  = 0.0f;
-  sampler_info.maxLod                  = 0.0f;
+  _r_vk_state.textures_count += 1;
+  return (R_Texture*)texture;  
+}
 
-  VK_CHECK(vkCreateSampler(_r_vk_state.device.logical, &sampler_info, 0, &_r_vk_state.default_sampler));
+func B32
+R_VK_DestroyTexture(R_Texture* texture)
+{
+  R_VK_Texture* vk_texture = (R_VK_Texture*)texture;
 
-  return texture;  
+  vkFreeMemory(_r_vk_state.device.logical, vk_texture->memory, 0);
+  vkDestroyImageView(_r_vk_state.device.logical, vk_texture->view, 0);
+  vkDestroyImage(_r_vk_state.device.logical, vk_texture->image, 0);
+  _r_vk_state.textures_count -= 1;
+
+  return 1;
 }
 
 // -------------------------------------------------------------------
@@ -1395,7 +1435,7 @@ R_VK_HandleResize(OS_Window* window)
 VKAPI_ATTR VkBool32 VKAPI_CALL
 R_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
-  LOG_INFO("VK_VALIDATION: %s\n", pCallbackData->pMessage);
+  LOG_WARNING("VK_VALIDATION: %s\n", pCallbackData->pMessage);
 
   return VK_FALSE;
 }

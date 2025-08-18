@@ -3,8 +3,6 @@
 #include "../base/base_include.h"
 #include "base/base_math.h"
 
-#include "r_texture.h"
-
 #define R_FRAMES_IN_FLIGHT 1
 #define R_MAX_BINDINGS 4
 #define R_MAX_VERTEX_ATTRIBUTES 8
@@ -62,7 +60,42 @@ func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, 
 
 // -------------------------------------------------------------------
 // Texture
-typedef struct R_TextureTest R_TextureTest;
+typedef U8 R_TextureType;
+enum R_TextureTypeEnum
+{
+  R_TEXTURE_TYPE_2D,
+} R_TextureTypeEnum;
+
+typedef U8 R_TextureFormat;
+enum R_TextureFormatEnum
+{
+  R_TEXTURE_FORMAT_NONE,
+  R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB,
+  R_TEXTURE_FORMAT_B8G8R8A8_UNORM,
+  R_TEXTURE_FORMAT_D16_UNORM,
+} R_TextureFormatEnum;
+
+typedef U16 R_TextureUsageFlags;
+enum
+{
+  R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT = 1 << 1,
+};
+
+typedef struct R_TextureCreateInfo R_TextureCreateInfo;
+struct R_TextureCreateInfo
+{
+  R_TextureType type;
+  R_TextureFormat format;
+  R_TextureUsageFlags usage_flags;
+  U32 width;
+  U32 height;
+  U32 depth;
+  U32 num_levels;
+  // sample_count
+};
+typedef struct R_Texture R_Texture;
+
+func R_Texture* R_CreateTexture(R_TextureCreateInfo* info);
 
 // -------------------------------------------------------------------
 // Uniform Data
@@ -71,38 +104,47 @@ func void R_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buf
 
 // -------------------------------------------------------------------
 // Swapchain
-func R_TextureTest* R_AcquireSwapchainTexture(R_CommandBuffer* command_buffer);
+func R_TextureFormat R_GetSwapchainTextureFormat();
+func R_Texture* R_AcquireSwapchainTexture(R_CommandBuffer* command_buffer);
 
 // -------------------------------------------------------------------
 // Render Pass
-typedef U8 R_AttachmentLoadOperation;
-typedef enum R_AttachmentLoadOperationEnum
+typedef U8 R_LoadOperation;
+typedef enum R_LoadOperation
 {
 	R_ATTACHMENT_LOAD_OPERATION_DONT_CARE,
 	R_ATTACHMENT_LOAD_OPERATION_CLEAR,
 	R_ATTACHMENT_LOAD_OPERATION_LOAD,
-}
-R_AttachmentLoadOperationEnum;
+} R_LoadOperationEnum;
 
-typedef U8 R_AttachmentStoreOperation;
-typedef enum R_AttachmentStoreOperationEnum
+typedef U8 R_StoreOperation;
+typedef enum R_StoreOperationEnum
 {
 	R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
 	R_ATTACHMENT_STORE_OPERATION_STORE,
-} R_AttachmentStoreOperationEnum;
+} R_StoreOperationEnum;
 
-typedef struct R_ColorAttachment R_ColorAttachment;
-struct R_ColorAttachment
+typedef struct R_ColorTarget R_ColorTarget;
+struct R_ColorTarget
 {
-	R_TextureTest* texture;
-	R_AttachmentLoadOperation load_operation;
-	R_AttachmentStoreOperation store_operation;
+	R_Texture* texture;
+	R_LoadOperation load_operation;
+	R_StoreOperation store_operation;
 	Vec4F32 clear_color;
+};
+
+typedef struct R_DepthStencilTarget R_DepthStencilTarget;
+struct R_DepthStencilTarget
+{
+  R_Texture* texture;
+  R_LoadOperation depth_load_operation;
+  R_StoreOperation depth_store_operation;
+  F32 clear_depth;
 };
 
 typedef struct R_RenderPass R_RenderPass;
 
-func R_RenderPass* R_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment);
+func R_RenderPass* R_BeginRenderPass(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target);
 func void R_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass);
 
 // -------------------------------------------------------------------
@@ -182,6 +224,37 @@ typedef enum R_PipelineCullingModeEnum
   R_PIPELINE_CULLING_MODE_COUNT
 } R_PipelineCullingModeEnum;
 
+typedef U8 R_CompareOperation;
+typedef enum R_CompareOperationEnum
+{
+  R_COMPARE_OPERATION_EQUAL,
+  R_COMPARE_OPERATION_NOT_EQUAL,
+  R_COMPARE_OPERATION_LESS,
+  R_COMPARE_OPERATION_LESS_OR_EQUAL,
+  R_COMPARE_OPERATION_GREATER,
+  R_COMPARE_OPERATION_GREATER_OR_EQUAL,
+
+  R_COMPARE_OPERATION_COUNT
+} R_CompareOperationEnum;
+
+
+typedef struct R_PipelineDepthStencilState R_PipelineDepthStencilState;
+struct R_PipelineDepthStencilState
+{
+  B32 depth_test_enable;
+  B32 depth_write_enable;
+  R_CompareOperation depth_compare_operation;
+  // @TODO Without Stencil for now
+};
+
+typedef struct R_GraphicsPipelineTargetInfo R_GraphicsPipelineTargetInfo;
+struct R_GraphicsPipelineTargetInfo
+{
+  U32 color_targets_count;
+  R_TextureFormat* color_targets_formats;
+  R_TextureFormat depth_target_format;
+};
+
 typedef struct R_GraphicsPipelineCreateInfo R_GraphicsPipelineCreateInfo;
 struct R_GraphicsPipelineCreateInfo
 {
@@ -189,10 +262,8 @@ struct R_GraphicsPipelineCreateInfo
 	R_Shader fragment_shader;
 	U32 vertex_attributes_count;
 	R_VertexAttribute* vertex_attributes;
-	R_BindingInfo global_bindings[R_MAX_BINDINGS];
-	U32 global_bindings_count;
-	R_BindingInfo instance_bindings[R_MAX_BINDINGS];
-	U32 instance_bindings_count;
+  R_PipelineDepthStencilState depth_stencil_state;
+  R_GraphicsPipelineTargetInfo target_info;
 };
 
 typedef struct R_GraphicsPipeline R_GraphicsPipeline;
@@ -227,16 +298,20 @@ struct R_Device
 	void (*BindGlobalVertexUniformData)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 	void (*BindGlobalFragmentUniformData)(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
+  // Texture
+  R_Texture* (*CreateTexture)(R_TextureCreateInfo* info);
+
 	// Command Buffer
 	R_CommandBuffer* (*GetCommandBuffer)(void);
 	void (*BeginCommandBuffer)(R_CommandBuffer* command_buffer);
 	void (*SubmitCommandBuffer)(R_CommandBuffer* command_buffer);
 
 	// Swapchain
-	R_TextureTest* (*AcquireSwapchainTexture)(R_CommandBuffer* command_buffer);
+  R_TextureFormat (*GetSwapchainTextureFormat)();
+	R_Texture* (*AcquireSwapchainTexture)(R_CommandBuffer* command_buffer);
 
 	// Render Pass
-	R_RenderPass* (*BeginRenderPass)(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment);
+	R_RenderPass* (*BeginRenderPass)(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target);
 	void (*EndRenderPass)(R_CommandBuffer* command_buffer, R_RenderPass* render_pass);
 	
 	// Graphics Pipeline
@@ -260,9 +335,11 @@ struct R_Device
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
 	AssignDeviceFunction(api_name, BindGlobalVertexUniformData) \
 	AssignDeviceFunction(api_name, BindGlobalFragmentUniformData) \
+  AssignDeviceFunction(api_name, CreateTexture) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \
 	AssignDeviceFunction(api_name, SubmitCommandBuffer) \
+  AssignDeviceFunction(api_name, GetSwapchainTextureFormat) \
 	AssignDeviceFunction(api_name, AcquireSwapchainTexture) \
 	AssignDeviceFunction(api_name, BeginRenderPass) \
 	AssignDeviceFunction(api_name, EndRenderPass) \

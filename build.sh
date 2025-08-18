@@ -27,4 +27,5 @@ default_links="-lm"
 defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_WAYLAND"
 
 echo "Building Main"
+
 clang -g code/app/main.c -o build/main $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links

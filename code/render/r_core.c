@@ -56,6 +56,14 @@ func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, 
 }
 
 // -------------------------------------------------------------------
+// Texture
+func R_Texture*
+R_CreateTexture(R_TextureCreateInfo* info)
+{
+  return _r_state.device.CreateTexture(info);
+}
+
+// -------------------------------------------------------------------
 // Uniform Data
 func void
 R_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
@@ -71,7 +79,13 @@ R_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffe
 
 // -------------------------------------------------------------------
 // Swapchain
-func R_TextureTest*
+func R_TextureFormat
+R_GetSwapchainTextureFormat()
+{
+  return _r_state.device.GetSwapchainTextureFormat();
+}
+
+func R_Texture*
 R_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 {
 	return _r_state.device.AcquireSwapchainTexture(command_buffer);
@@ -80,9 +94,9 @@ R_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 // -------------------------------------------------------------------
 // Render Pass
 func R_RenderPass*
-R_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment)
+R_BeginRenderPass(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target)
 {
-	return _r_state.device.BeginRenderPass(command_buffer, color_attachment);
+	return _r_state.device.BeginRenderPass(command_buffer, color_targets_count, color_targets, depth_stencil_target);
 }
 
 func void

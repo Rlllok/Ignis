@@ -2,8 +2,7 @@
 
 #include "mesh.h"
 
-#include "base/base_include.h"
-#include "gltf.cpp"
+#include "gltf.c"
 
 func AST_Geometry
 AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name)

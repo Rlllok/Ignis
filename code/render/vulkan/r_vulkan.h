@@ -97,11 +97,12 @@ func void R_VK_DestroySwapchain(void);
 func void R_VK_RecreateSwapchain(OS_Window* window);
 func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 
-func R_TextureTest* R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer);
+func R_TextureFormat R_VK_GetSwapchainTextureFormat();
+func R_Texture* R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer);
 
 // -------------------------------------------------------------------
 // Render Pass
-func R_RenderPass* R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, R_ColorAttachment* color_attachment); // @TODO Returns 0. There is no RenderPass, VK extension is used
+func R_RenderPass* R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target);
 func void R_VK_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass);
 
 // -------------------------------------------------------------------
@@ -161,7 +162,8 @@ struct R_VK_Texture
 	VkDeviceMemory memory;
 };
 
-func R_Texture R_VK_CreateTexture(Str8 path);
+func R_Texture* R_VK_CreateTexture(R_TextureCreateInfo* info);
+func B32 R_VK_DestroyTexture(R_Texture* texture);
 
 // -------------------------------------------------------------------
 // Command Buffer
@@ -207,8 +209,8 @@ struct R_VK_State
   R_VK_Buffer geometry_buffer;
   R_VK_Buffer staging_buffer;
 
-	R_VK_Texture default_texture;
-	VkSampler default_sampler;
+  R_VK_Texture textures[32];
+  U32 textures_count;
   
   U32 current_frame;
   U32 current_target;

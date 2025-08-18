@@ -2,8 +2,6 @@
 
 #include "base/base_include.h"
 
-#include "base/base_include.cpp"
-
 typedef Str8 Buffer;
 
 func Buffer AllocateBuffer(U64 size);
