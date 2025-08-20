@@ -637,7 +637,7 @@ R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffe
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[pool_id],
 		.descriptorSetCount = 1, // --AlNov: @TODO Only Global Set for now
-		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->vertex_shader_set_layout,
+		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->vertex_global_set_layout,
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
@@ -664,6 +664,75 @@ R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffe
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			vk_command_buffer->binded_graphics_pipeline->layout,
 			R_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+
+	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
+}
+
+func void
+R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
+
+	U32 num_sets = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count*R_VK_SETS_PER_POOL;
+	if (num_sets <= vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count)
+	{
+		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
+
+		VkDescriptorPoolSize uniform_pool_size = {
+			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = R_VK_MAX_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
+		};
+
+		VkDescriptorPoolSize pool_sizes[] = {
+			uniform_pool_size,
+		};
+
+		VkDescriptorPoolCreateInfo pool_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = 0,
+			.maxSets = R_VK_SETS_PER_POOL,
+			.poolSizeCount = CountArrayElements(pool_sizes),
+			.pPoolSizes = pool_sizes,
+		};
+		VK_CHECK(vkCreateDescriptorPool(_r_vk_state.device.logical, &pool_info, 0, vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools + vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count));
+
+		vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count += 1;
+	}
+
+	I32 pool_id = (I32)(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count/R_VK_SETS_PER_POOL);
+	I32 set_id = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count%R_VK_SETS_PER_POOL;
+
+	VkDescriptorSetAllocateInfo sets_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[pool_id],
+		.descriptorSetCount = 1, // --AlNov: @TODO Only Global Set for now
+		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->vertex_instance_set_layout,
+	};
+	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
+
+	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	VkDescriptorBufferInfo buffer_info = {
+		.buffer = vk_buffer->handle,
+		.offset = offset,
+		.range = data_size,
+	};
+
+	VkWriteDescriptorSet write_info = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+		.dstBinding = 0, // @TODO Add more bindings
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.pBufferInfo = &buffer_info,
+	};
+	vkUpdateDescriptorSets(_r_vk_state.device.logical, 1, &write_info, 0, 0);
+
+	vkCmdBindDescriptorSets(
+			vk_command_buffer->handle[_r_vk_state.current_frame],
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vk_command_buffer->binded_graphics_pipeline->layout,
+			R_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
 
 	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
 }
@@ -706,7 +775,7 @@ R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buf
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[pool_id],
 		.descriptorSetCount = 1, // --AlNov: @TODO Only Global Set for now
-		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->fragment_shader_set_layout,
+		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->fragment_global_set_layout,
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
@@ -735,7 +804,75 @@ R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buf
 			R_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
 
 	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
+}
 
+func void
+R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
+
+	U32 num_sets = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count*R_VK_SETS_PER_POOL;
+	if (num_sets <= vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count)
+	{
+		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
+
+		VkDescriptorPoolSize uniform_pool_size = {
+			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.descriptorCount = R_VK_MAX_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
+		};
+
+		VkDescriptorPoolSize pool_sizes[] = {
+			uniform_pool_size,
+		};
+
+		VkDescriptorPoolCreateInfo pool_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = 0,
+			.maxSets = R_VK_SETS_PER_POOL,
+			.poolSizeCount = CountArrayElements(pool_sizes),
+			.pPoolSizes = pool_sizes,
+		};
+		VK_CHECK(vkCreateDescriptorPool(_r_vk_state.device.logical, &pool_info, 0, vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools + vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count));
+
+		vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count += 1;
+	}
+
+	I32 pool_id = (I32)(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count/R_VK_SETS_PER_POOL);
+	I32 set_id = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count%R_VK_SETS_PER_POOL;
+
+	VkDescriptorSetAllocateInfo sets_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[pool_id],
+		.descriptorSetCount = 1,
+		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->fragment_instance_set_layout,
+	};
+	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
+
+	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	VkDescriptorBufferInfo buffer_info = {
+		.buffer = vk_buffer->handle,
+		.offset = offset,
+		.range = data_size,
+	};
+
+	VkWriteDescriptorSet write_info = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+		.dstBinding = 0, // @TODO Add more bindings
+		.dstArrayElement = 0,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		.pBufferInfo = &buffer_info,
+	};
+	vkUpdateDescriptorSets(_r_vk_state.device.logical, 1, &write_info, 0, 0);
+
+	vkCmdBindDescriptorSets(
+			vk_command_buffer->handle[_r_vk_state.current_frame],
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vk_command_buffer->binded_graphics_pipeline->layout,
+			R_VK_FRAGMENT_SHADER_INSTANCE_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+
+	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
 }
 
 // --------------------------------------------------
@@ -751,12 +888,14 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 {
   R_VK_GraphicsPipeline pipeline = {0};
 	pipeline.vertex_global_uniform_count = pipeline_info->vertex_shader.global_uniform_count;
-	pipeline.fragment_global_uniform_count = pipeline_info->fragment_shader.global_uniform_count;
+  pipeline.vertex_instance_uniform_count = pipeline_info->vertex_shader.instance_uniform_count;
+  pipeline.fragment_global_uniform_count = pipeline_info->fragment_shader.global_uniform_count;
+	pipeline.fragment_instance_uniform_count = pipeline_info->fragment_shader.instance_uniform_count;
+  LOG_DEBUG("INSTANCE %d\n", pipeline_info->vertex_shader.instance_uniform_count);
 
-	VkDescriptorSetLayout set_layouts[2] = {0};
+	VkDescriptorSetLayout set_layouts[4] = {0};
 	I32 set_layouts_count = 0;
 
-	if (pipeline.vertex_global_uniform_count > 0)
 	{
 		VkDescriptorSetLayoutBinding vertex_global_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
 		for (I32 i = 0; i < pipeline.vertex_global_uniform_count; i += 1)
@@ -774,12 +913,33 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 			.bindingCount = pipeline.vertex_global_uniform_count,
 			.pBindings = vertex_global_bindings,
 		};
-		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &vertex_global_set_layout_info, 0, &pipeline.vertex_shader_set_layout));
-		set_layouts[set_layouts_count] = pipeline.vertex_shader_set_layout;
+		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &vertex_global_set_layout_info, 0, &pipeline.vertex_global_set_layout));
+		set_layouts[set_layouts_count] = pipeline.vertex_global_set_layout;
 		set_layouts_count += 1;
 	}
 
-	if (pipeline.fragment_global_uniform_count > 0)
+	{
+		VkDescriptorSetLayoutBinding vertex_instance_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
+		for (I32 i = 0; i < pipeline.vertex_instance_uniform_count; i += 1)
+		{
+			vertex_instance_bindings[i].binding = 0; // @TODO Add more bindings
+			vertex_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			vertex_instance_bindings[i].descriptorCount = 1;
+			vertex_instance_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+			vertex_instance_bindings[i].pImmutableSamplers = 0;
+		};
+
+		VkDescriptorSetLayoutCreateInfo vertex_instance_set_layout_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.flags = 0,
+			.bindingCount = pipeline.vertex_instance_uniform_count,
+			.pBindings = vertex_instance_bindings,
+		};
+		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &vertex_instance_set_layout_info, 0, &pipeline.vertex_instance_set_layout));
+		set_layouts[set_layouts_count] = pipeline.vertex_instance_set_layout;
+		set_layouts_count += 1;
+	}
+
 	{
 		VkDescriptorSetLayoutBinding fragment_global_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
 		for (I32 i = 0; i < pipeline.fragment_global_uniform_count; i += 1)
@@ -797,11 +957,32 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 			.bindingCount = pipeline.fragment_global_uniform_count,
 			.pBindings = fragment_global_bindings,
 		};
-		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &fragment_global_set_layout_info, 0, &pipeline.fragment_shader_set_layout));
-		set_layouts[set_layouts_count] = pipeline.fragment_shader_set_layout;
+		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &fragment_global_set_layout_info, 0, &pipeline.fragment_global_set_layout));
+		set_layouts[set_layouts_count] = pipeline.fragment_global_set_layout;
 		set_layouts_count += 1;
 	}
 
+	{
+		VkDescriptorSetLayoutBinding fragment_instance_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
+		for (I32 i = 0; i < pipeline.fragment_instance_uniform_count; i += 1)
+		{
+			fragment_instance_bindings[i].binding = 0; // @TODO Add more bindings
+			fragment_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			fragment_instance_bindings[i].descriptorCount = 1;
+			fragment_instance_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+			fragment_instance_bindings[i].pImmutableSamplers = 0;
+		};
+
+		VkDescriptorSetLayoutCreateInfo fragment_instance_set_layout_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.flags = 0,
+			.bindingCount = pipeline.fragment_instance_uniform_count,
+			.pBindings = fragment_instance_bindings,
+		};
+		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &fragment_instance_set_layout_info, 0, &pipeline.fragment_instance_set_layout));
+		set_layouts[set_layouts_count] = pipeline.fragment_instance_set_layout;
+		set_layouts_count += 1;
+	}
 
   VkPipelineLayoutCreateInfo layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -983,8 +1164,8 @@ func void
 R_VK_DestroyGraphicsPipeline(R_GraphicsPipeline pipeline)
 {
   R_VK_GraphicsPipeline* vk_pipeline = R_VK_GraphicsPipelineFromHandle(pipeline);
-  vkDestroyDescriptorSetLayout(_r_vk_state.device.logical, vk_pipeline->vertex_shader_set_layout, 0);
-  vkDestroyDescriptorSetLayout(_r_vk_state.device.logical, vk_pipeline->fragment_shader_set_layout, 0);
+  vkDestroyDescriptorSetLayout(_r_vk_state.device.logical, vk_pipeline->vertex_global_set_layout, 0);
+  vkDestroyDescriptorSetLayout(_r_vk_state.device.logical, vk_pipeline->fragment_global_set_layout, 0);
   vkDestroyPipelineLayout(_r_vk_state.device.logical, vk_pipeline->layout, 0);
   vkDestroyPipeline(_r_vk_state.device.logical, vk_pipeline->handle, 0);
 }

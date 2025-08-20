@@ -1,6 +1,6 @@
 #version 460
 
-layout(set = 1, binding = 0) uniform GlobalData
+layout(set = 2, binding = 0) uniform GlobalData
 {
 	vec4 grid_color;
 };

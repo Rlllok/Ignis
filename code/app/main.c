@@ -41,8 +41,8 @@ I32 main(void)
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = false;
-	app_state.grid_scale = 1000.0f;
-	app_state.camera.position = MakeVec3(0.0f, 1.0f, 6.0f);
+	app_state.grid_scale = 2000.0f;
+	app_state.camera.position = MakeVec3(0.0f, 3.0f, 6.0f);
 	app_state.camera.front = MakeVec3(1.0f, 0.0f, -1.0f);
 	app_state.camera.right = MakeVec3(1.0f, 0.0f, 1.0f);
 	app_state.camera.up = MakeVec3(0.0f, 1.0f, 0.0f);
@@ -62,8 +62,8 @@ I32 main(void)
 	R_Buffer* data_buffer = R_CreateBuffer(Megabytes(4), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
 
 	// --AlNov: Word Grid
-	R_Shader grid_vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/grid.vs.glsl"), R_SHADER_TYPE_VERTEX, 1);
-	R_Shader grid_fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/grid.fs.glsl"), R_SHADER_TYPE_FRAGMENT, 1);
+	R_Shader grid_vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/grid.vs.glsl"), R_SHADER_TYPE_VERTEX, 1, 1);
+	R_Shader grid_fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/grid.fs.glsl"), R_SHADER_TYPE_FRAGMENT, 1, 0);
 
   R_TextureFormat grid_pipeline_color_target_format = R_GetSwapchainTextureFormat();
 	R_GraphicsPipelineCreateInfo grid_pipeline_info = {
@@ -133,8 +133,8 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
-  R_Shader mesh_vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/mesh.vs.glsl"), R_SHADER_TYPE_VERTEX, 1);
-  R_Shader mesh_fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/mesh.fs.glsl"), R_SHADER_TYPE_FRAGMENT, 0);
+  R_Shader mesh_vertex_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/mesh.vs.glsl"), R_SHADER_TYPE_VERTEX, 1, 0);
+  R_Shader mesh_fragment_shader = R_CreateShader(app_state.arena, Str8C("./data/shaders/mesh.fs.glsl"), R_SHADER_TYPE_FRAGMENT, 0, 0);
 
   R_VertexAttribute mesh_vertex_attributes[] = {
     {
@@ -193,8 +193,6 @@ I32 main(void)
 		{
 			Mat4 view_matrix;
 			Mat4 projection_matrix;
-			Vec3 position;
-			F32 grid_scale;
 		} grid_global_vertex_data;
 		grid_global_vertex_data.view_matrix = MakeLookAtMat4(
 				app_state.camera.position,
@@ -203,8 +201,13 @@ I32 main(void)
 		grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
 				45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
 				0.1f, 100.0f);
-		grid_global_vertex_data.grid_scale = app_state.grid_scale;
-		grid_global_vertex_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
+    struct
+    {
+			Vec3 position;
+			F32 grid_scale;
+    } grid_instance_vertex_data;
+		grid_instance_vertex_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
+		grid_instance_vertex_data.grid_scale = app_state.grid_scale;
 
 		struct
 		{
@@ -213,6 +216,7 @@ I32 main(void)
 		grid_global_fragment_data.color = MakeVec4(0.5f, 0.5f, 0.5f, 0.8f);
 
 		U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
+		U64 grid_instance_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_instance_vertex_data, sizeof(grid_instance_vertex_data));
 		U64 grid_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_fragment_data, sizeof(grid_global_fragment_data));
 
     U64 mesh_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)cube_vertecies, sizeof(cube_vertecies[0])*CountArrayElements(cube_vertecies));
@@ -251,6 +255,8 @@ I32 main(void)
         R_DrawPrimitives(command_buffer, CountArrayElements(cube_vertecies), 1, 0, 0);
 
 				R_BindGraphicsPipeline(command_buffer, grid_pipeline);
+				R_BindGlobalVertexUniformData(command_buffer, data_buffer, grid_global_vertex_data_offset, sizeof(grid_global_vertex_data));
+				R_BindInstanceVertexUniformData(command_buffer, data_buffer, grid_instance_vertex_data_offset, sizeof(grid_instance_vertex_data));
 				R_BindGlobalFragmentUniformData(command_buffer, data_buffer, grid_global_fragment_data_offset, sizeof(grid_global_fragment_data));
 				R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 			}

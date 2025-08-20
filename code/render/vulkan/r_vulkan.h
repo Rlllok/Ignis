@@ -101,10 +101,12 @@ func void R_VK_EndRenderPass(R_CommandBuffer command_buffer, R_RenderPass* rende
 // Descriptor Sets
 #define R_VK_MAX_POOL_COUNT 4
 #define R_VK_SETS_PER_POOL 8
-#define R_VK_MAX_UNIFORM_BUFFERS_PER_SET 1
+#define R_VK_MAX_UNIFORM_BUFFERS_PER_SET 4
 
 #define R_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT 0
-#define R_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT 1
+#define R_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT 1
+#define R_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT 2
+#define R_VK_FRAGMENT_SHADER_INSTANCE_UNIFORM_SET_SLOT 3
 
 typedef struct R_VK_DescriptorPool R_VK_DescriptorPool;
 struct R_VK_DescriptorPool
@@ -116,7 +118,9 @@ struct R_VK_DescriptorPool
 };
 
 func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
 // --------------------------------------------------
 // Pipeline
@@ -128,9 +132,13 @@ struct R_VK_GraphicsPipeline
   VkPipeline handle;
   VkPipelineLayout layout;
 	U32 vertex_global_uniform_count;
+  U32 vertex_instance_uniform_count;
 	U32 fragment_global_uniform_count;
-	VkDescriptorSetLayout vertex_shader_set_layout;
-	VkDescriptorSetLayout fragment_shader_set_layout;
+  U32 fragment_instance_uniform_count;
+	VkDescriptorSetLayout vertex_global_set_layout;
+	VkDescriptorSetLayout vertex_instance_set_layout;
+	VkDescriptorSetLayout fragment_global_set_layout;
+	VkDescriptorSetLayout fragment_instance_set_layout;
 };
 DefineArray(R_VK_GraphicsPipeline, R_VK_GraphicsPipelineArray)
 

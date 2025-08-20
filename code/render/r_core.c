@@ -72,10 +72,23 @@ R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, 
 }
 
 func void
+R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	_r_state.device.BindInstanceVertexUniformData(command_buffer, buffer, offset, data_size);
+}
+
+func void
 R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindGlobalFragmentUniformData(command_buffer, buffer, offset, data_size);
 }
+
+func void
+R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+{
+	_r_state.device.BindInstanceFragmentUniformData(command_buffer, buffer, offset, data_size);
+}
+
 
 // -------------------------------------------------------------------
 // Swapchain
@@ -133,7 +146,7 @@ _R_GlslangStageFromShaderType(R_ShaderType type)
 }
 
 func R_Shader
-R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count)
+R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count, U32 instance_uniform_count)
 {
 	R_Shader out_shader = {0};
 
@@ -207,6 +220,9 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_unifo
   out_shader.code_size   = 4 * glslang_program_SPIRV_get_size(program);
   out_shader.code        = (U8*)PushArena(arena, out_shader.code_size * sizeof(U8));
 	out_shader.global_uniform_count = global_uniform_count;
+	out_shader.instance_uniform_count = instance_uniform_count;
+
+	LOG_DEBUG("Create Shader instance: %d\n", out_shader.instance_uniform_count);
   glslang_program_SPIRV_get(program, (U32*)out_shader.code);
 
   const char* spirv_messages = glslang_program_SPIRV_get_messages(program);

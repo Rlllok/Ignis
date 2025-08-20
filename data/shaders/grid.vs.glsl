@@ -8,10 +8,13 @@ vec3 vertecies[4] = {
 };
 int indecies[6] = {0,2,1,2,0,3};
 
-layout(std140, set = 0, binding = 0) uniform GlobaData
+layout(set = 0, binding = 0) uniform GlobaData
 {
 	mat4 view_matrix;
 	mat4 projection_matrix;
+};
+layout(std140, set = 1, binding = 0) uniform InstanceData
+{
 	vec3 position;
 	float grid_scale;
 };

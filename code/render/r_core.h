@@ -104,7 +104,9 @@ func B32 R_DestroyTexture(R_Texture texture);
 // -------------------------------------------------------------------
 // Uniform Data
 func void R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 func void R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
 // -------------------------------------------------------------------
 // Swapchain
@@ -179,6 +181,7 @@ struct R_Shader
   U8*               code;
 
 	U32 global_uniform_count;
+  U32 instance_uniform_count;
 };
 
 typedef U8 R_VertexAttributeFormat;
@@ -272,7 +275,7 @@ struct R_GraphicsPipelineCreateInfo
 
 typedef R_Handle R_GraphicsPipeline;
 
-func R_Shader R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count);
+func R_Shader R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count, U32 instancce_uniform_count);
 func R_GraphicsPipeline R_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
 func void R_BindGraphicsPipeline(R_CommandBuffer command_buffer, R_GraphicsPipeline pipeline);
 
@@ -301,7 +304,9 @@ struct R_Device
 
 	// Uniform Data
 	void (*BindGlobalVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+	void (*BindInstanceVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 	void (*BindGlobalFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+	void (*BindInstanceFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
   // Texture
   R_Texture (*CreateTexture)(R_TextureCreateInfo* info);
@@ -341,7 +346,9 @@ struct R_Device
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
 	AssignDeviceFunction(api_name, BindGlobalVertexUniformData) \
+	AssignDeviceFunction(api_name, BindInstanceVertexUniformData) \
 	AssignDeviceFunction(api_name, BindGlobalFragmentUniformData) \
+	AssignDeviceFunction(api_name, BindInstanceFragmentUniformData) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
