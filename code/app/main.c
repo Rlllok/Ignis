@@ -27,7 +27,7 @@ struct AppState
 	B32 is_window_closed;
 	Vec2F32 last_mouse_position;
 
-  R_Texture* depth_texture;
+  R_Texture depth_texture; // -AlNov: @TODO should it be created for R_VK_Swapchain?
 
 	Camera camera;
 	
@@ -80,7 +80,7 @@ I32 main(void)
       .depth_target_format = R_TEXTURE_FORMAT_D16_UNORM,
     },
 	};
-	R_GraphicsPipeline* grid_pipeline = R_CreateGraphicsPipeline(&grid_pipeline_info);
+	R_GraphicsPipeline grid_pipeline = R_CreateGraphicsPipeline(&grid_pipeline_info);
 
   typedef struct Vertex Vertex;
   struct Vertex
@@ -166,7 +166,7 @@ I32 main(void)
       .depth_target_format = R_TEXTURE_FORMAT_D16_UNORM,
     },
   };
-  R_GraphicsPipeline* mesh_pipeline = R_CreateGraphicsPipeline(&mesh_pipeline_info);
+  R_GraphicsPipeline mesh_pipeline = R_CreateGraphicsPipeline(&mesh_pipeline_info);
 
   R_TextureCreateInfo depth_texture_info = {
     .type = R_TEXTURE_TYPE_2D,
@@ -179,7 +179,7 @@ I32 main(void)
   };
   app_state.depth_texture = R_CreateTexture(&depth_texture_info);
   
-	R_CommandBuffer* command_buffer = R_GetCommandBuffer();
+	R_CommandBuffer command_buffer = R_GetCommandBuffer();
 
   // AlNov: AppLoop
   F32 begin_time = OS_CurrentTimeSeconds();
@@ -218,7 +218,7 @@ I32 main(void)
     U64 mesh_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)cube_vertecies, sizeof(cube_vertecies[0])*CountArrayElements(cube_vertecies));
 
 		// Draw
-		R_Texture* swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
+		R_Texture swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
 		R_BeginCommandBuffer(command_buffer);
 		{
 			R_ColorTarget color_target = {
@@ -265,7 +265,8 @@ I32 main(void)
     begin_time = end_time;
   }
 
-  // R_Shutdown(); // -AlNov: @BUG Driver Timeout (Vulkan Shutdown is not implemented)
+  R_VK_DestroyBuffer(data_buffer);
+  R_Shutdown(); // -AlNov: @BUG Driver Timeout (Vulkan Shutdown is not implemented)
   
   return 0;
 }
@@ -273,7 +274,12 @@ I32 main(void)
 func void
 HandleEvents(Arena* arena, AppState* state)
 {
-  ListOS_Event event_list = OS_GetEventList(arena, &state->window);
+  OS_EventList event_list = OS_GetEventList(arena, &state->window);
+
+  if (OS_IsKeyPressed(OS_KEY_ESC))
+  {
+    state->is_window_closed = true;
+  }
 
   Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
 	F32 speed = 2.0f;
@@ -320,7 +326,7 @@ HandleEvents(Arena* arena, AppState* state)
   state->camera.right = NormalizeVec3(CrossVec3(state->camera.front, MakeVec3(0.0f, 1.0f, 0.0f)));
   state->camera.up = CrossVec3(state->camera.right, state->camera.front);
   
-  for (ListNodeOS_Event *event_node = event_list.first; event_node; event_node = event_node->next)
+  for (OS_EventListNode *event_node = event_list.first; event_node; event_node = event_node->next)
   {
     OS_Event* event = &event_node->data;
 

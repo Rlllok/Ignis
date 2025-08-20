@@ -30,11 +30,13 @@ struct R_VK_Buffer
   U64 capacity;
 };
 
+func R_VK_Buffer* R_VK_BufferFromHandle(R_Buffer handle);
 func R_Buffer* R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
+func void R_VK_DestroyBuffer(R_Buffer* buffer);
 func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
 func void R_VK_ResetBuffer(R_Buffer* buffer);
-func void R_VK_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
-func void R_VK_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset);
+func void R_VK_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
+func void R_VK_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset);
 
 // --------------------------------------------------
 // Device
@@ -78,19 +80,9 @@ struct R_VK_Swapchain
   VkSurfaceFormatKHR surface_format;
   Vec2U32 size;
   U32 image_count;
-  VkImage* images;
-  VkImageView* image_views;
-  VkImage depth_image;
-  VkDeviceMemory depth_image_memory;
-  VkImageView depth_image_view;
+  R_Texture* textures;
   FrameResources* frame_resources; // @TODO It is per Image for now
-	
-	struct R_VK_Texture* images_texture;
 };
-
-// --AlNov: @TODO Remove. Created in CreateSwapchain
-func void R_VK_CreateSurface(OS_Window* window);
-func void R_VK_DestroySurface(void);
 
 func void R_VK_CreateSwapchain(OS_Window* window);
 func void R_VK_DestroySwapchain(void);
@@ -98,12 +90,12 @@ func void R_VK_RecreateSwapchain(OS_Window* window);
 func B32 R_VK_SwapchainAcquireNextImage(U32 *image_index);
 
 func R_TextureFormat R_VK_GetSwapchainTextureFormat();
-func R_Texture* R_VK_AcquireSwapchainTexture(R_CommandBuffer* command_buffer);
+func R_Texture R_VK_AcquireSwapchainTexture(R_CommandBuffer command_buffer);
 
 // -------------------------------------------------------------------
 // Render Pass
-func R_RenderPass* R_VK_BeginRenderPass(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target);
-func void R_VK_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass);
+func R_RenderPass* R_VK_BeginRenderPass(R_CommandBuffer command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target);
+func void R_VK_EndRenderPass(R_CommandBuffer command_buffer, R_RenderPass* render_pass);
 
 // -------------------------------------------------------------------
 // Descriptor Sets
@@ -123,8 +115,8 @@ struct R_VK_DescriptorPool
 	I32 sets_count;
 };
 
-func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
 
 // --------------------------------------------------
 // Pipeline
@@ -140,17 +132,20 @@ struct R_VK_GraphicsPipeline
 	VkDescriptorSetLayout vertex_shader_set_layout;
 	VkDescriptorSetLayout fragment_shader_set_layout;
 };
+DefineArray(R_VK_GraphicsPipeline, R_VK_GraphicsPipelineArray)
 
-func R_GraphicsPipeline* R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
-func void R_VK_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipeline);
+func R_VK_GraphicsPipeline* R_VK_GraphicsPipelineFromHandle(R_GraphicsPipeline pipeline);
+func R_GraphicsPipeline R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
+func void R_VK_DestroyGraphicsPipeline(R_GraphicsPipeline pipeline);
+func void R_VK_BindGraphicsPipeline(R_CommandBuffer command_buffer, R_GraphicsPipeline pipeline);
 
 // -------------------------------------------------------------------
 // Draw
-func void R_VK_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport);
-func void R_VK_SetScissor(R_CommandBuffer* command_buffer, RectI32 scissor);
+func void R_VK_SetViewport(R_CommandBuffer command_buffer, RectI32 viewport);
+func void R_VK_SetScissor(R_CommandBuffer command_buffer, RectI32 scissor);
 
-func void R_VK_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
-func void R_VK_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
+func void R_VK_DrawPrimitives(R_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
+func void R_VK_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 
 // -------------------------------------------------------------------
 // Texture
@@ -160,10 +155,14 @@ struct R_VK_Texture
 	VkImage image;
 	VkImageView view;
 	VkDeviceMemory memory;
+  B32 from_swapchain; // --AlNov: If image created by swapchain, it have to be destroyed by swapchain
 };
+DefineArray(R_VK_Texture, R_VK_TextureArray)
+DefineArray(I32, R_VK_TextureFreeList)
 
-func R_Texture* R_VK_CreateTexture(R_TextureCreateInfo* info);
-func B32 R_VK_DestroyTexture(R_Texture* texture);
+func R_VK_Texture* R_VK_TextureFromHandle(R_Texture handle);
+func R_Texture R_VK_CreateTexture(R_TextureCreateInfo* info);
+func B32 R_VK_DestroyTexture(R_Texture texture);
 
 // -------------------------------------------------------------------
 // Command Buffer
@@ -179,10 +178,13 @@ struct R_VK_CommandBuffer
 
 	struct R_VK_GraphicsPipeline* binded_graphics_pipeline;
 };
+DefineArray(R_VK_CommandBuffer, R_VK_CommandBufferArray)
 
-func R_CommandBuffer* R_VK_GetCommandBuffer(void);
-func void R_VK_BeginCommandBuffer(R_CommandBuffer* command_buffer);
-func void R_VK_SubmitCommandBuffer(R_CommandBuffer* command_buffer);
+func R_VK_CommandBuffer* R_VK_CommandBufferFromHandle(R_CommandBuffer command_buffer);
+func R_CommandBuffer R_VK_GetCommandBuffer(void);
+func void R_VK_ReleaseCommandBuffer(R_CommandBuffer command_buffer);
+func void R_VK_BeginCommandBuffer(R_CommandBuffer command_buffer);
+func void R_VK_SubmitCommandBuffer(R_CommandBuffer command_buffer);
 
 func VkCommandBuffer R_VK_BeginSingleCmd(void);
 func void R_VK_EndSingleCmd(VkCommandBuffer cmd);
@@ -203,15 +205,11 @@ struct R_VK_State
   VkDebugUtilsMessengerEXT debug_messenger;
 #endif // IGNIS_DEBUG
 	
-  R_VK_GraphicsPipeline graphics_pipelines[32];
-  U32 graphics_pipelines_count;
+  R_VK_GraphicsPipelineArray graphics_pipelines;
+  R_VK_CommandBufferArray command_buffers;
+  R_VK_TextureArray textures;
+  R_VK_TextureFreeList textures_free_list;
 
-  R_VK_Buffer geometry_buffer;
-  R_VK_Buffer staging_buffer;
-
-  R_VK_Texture textures[32];
-  U32 textures_count;
-  
   U32 current_frame;
   U32 current_target;
 } _r_vk_state;

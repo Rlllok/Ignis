@@ -19,45 +19,110 @@
 // Metaprogram can be used to solve this problem, if such list usage
 // (function creation for specific Type) is desired.
 
-// --------------------------------------------------
+// -------------------------------------------------------------------
+// Array
+#define ArrayRangeCheck(index, length) (index < length && index >= 0)
+#define DefineArray(TypeName, ArrayName)\
+TypeName TypeName##DefaultValue = {0};\
+\
+typedef struct ArrayName ArrayName;\
+struct ArrayName\
+{\
+  I32 length;\
+  I32 capacity;\
+  TypeName* elements;\
+};\
+\
+func ArrayName ArrayName##Allocate(Arena* arena, I32 capacity)\
+{\
+  ArrayName array = {\
+    .length = 0,\
+    .capacity = capacity,\
+    .elements = (TypeName*)PushArena(arena, sizeof(TypeName)*capacity),\
+  };\
+  return array;\
+}\
+\
+func I32 ArrayName##Add(ArrayName* array, TypeName element)\
+{\
+  if (array->length < array->capacity)\
+  {\
+    array->elements[array->length] = element;\
+    array->length += 1;\
+    return array->length - 1;\
+  }\
+  return -1;\
+}\
+\
+func TypeName ArrayName##Get(ArrayName* array, I32 index)\
+{\
+  return (ArrayRangeCheck(index, array->length) ? array->elements[index]: TypeName##DefaultValue);\
+}\
+\
+func TypeName* ArrayName##GetPointer(ArrayName* array, I32 index)\
+{\
+  return (ArrayRangeCheck(index, array->length) ? array->elements + index : &TypeName##DefaultValue);\
+}\
+\
+func TypeName ArrayName##RemoveSwapback(ArrayName* array, I32 index)\
+{\
+  if (array->length < array->capacity)\
+  {\
+    array->length -= 1;\
+    TypeName removed_element = array->elements[index];\
+    array->elements[index] = array->elements[array->length];\
+    return removed_element;\
+  }\
+  return TypeName##DefaultValue;\
+}\
+\
+func void ArrayName##Set(ArrayName* array, I32 index, TypeName element)\
+{\
+  if ((index < array->length) && (array->length < array->capacity))\
+  {\
+    array->elements[index] = element;\
+  }\
+}
+
+// -------------------------------------------------------------------
 // List
-#define DefineList(Type) \
-typedef struct ListNode##Type ListNode##Type; \
-struct ListNode##Type \
+#define DefineList(type_name, list_name) \
+typedef struct list_name##Node list_name##Node; \
+struct list_name##Node \
 { \
-  Type data; \
-  ListNode##Type* next; \
-	ListNode##Type* previous; \
+  type_name data; \
+  list_name##Node* next; \
+	list_name##Node* previous; \
 }; \
 \
-typedef struct List##Type List##Type; \
-struct List##Type \
+typedef struct list_name list_name; \
+struct list_name \
 { \
   Arena* arena; \
-  ListNode##Type* first; \
-  ListNode##Type* last; \
+  list_name##Node* first; \
+  list_name##Node* last; \
   U64 count; \
 };\
 \
-func List##Type CreateList##Type(Arena* arena) \
+func list_name list_name##Create(Arena* arena) \
 { \
-  List##Type result = {0}; \
+  list_name result = {0}; \
   result.arena = arena; \
   return result; \
 } \
 \
-func void PushList##Type(List##Type* list, Type data) \
+func void list_name##Push(list_name* list, type_name data) \
 { \
   if (list->count == 0) \
   { \
-    list->first = (ListNode##Type*)PushArena(list->arena, sizeof(Type)); \
+    list->first = (list_name##Node*)PushArena(list->arena, sizeof(list_name##Node)); \
     list->first->data = data; \
     list->last = list->first; \
     list->count = 1; \
   } \
   else \
   { \
-    list->last->next = (ListNode##Type*)PushArena(list->arena, sizeof(Type)); \
+    list->last->next = (list_name##Node*)PushArena(list->arena, sizeof(list_name##Node)); \
     list->last->next->data = data; \
 		list->last->previous = list->last; \
     list->last = list->last->next; \
@@ -65,16 +130,16 @@ func void PushList##Type(List##Type* list, Type data) \
   } \
 } \
 \
-func Type GetList##Type##Item(List##Type* list, U64 index) \
+func type_name list_name##GetItem(list_name* list, U64 index) \
 { \
-  Type result = {0}; \
+  type_name result = {0}; \
   if (list->count < index) \
   { \
     LOG_ERROR("Out of list."); \
     return result; \
   } \
   \
-  ListNode##Type* node = list->first; \
+  list_name##Node* node = list->first; \
   for (U64 i = 0; i < list->count; i += 1) \
   { \
     if (i == index) \
@@ -87,12 +152,11 @@ func Type GetList##Type##Item(List##Type* list, U64 index) \
   return result; \
 } \
 \
-func Type RemoveList##Type##Item(List##Type* list, ListNode##Type* node) \
+func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) \
 { \
 	node->previous->next = node->next; \
 	return node->data; \
 }
-// End DefineList
  
 // --------------------------------------------------
 // HashMap
@@ -105,36 +169,36 @@ inline I32 CalculateHash(Str8 word)
   return result;
 }
 
-#define DefineHashMap(Type) \
-typedef struct HashMapElement##Type HashMapElement##Type; \
-struct HashMapElement##Type \
+#define DefineHashMap(type_name) \
+typedef struct HashMapElement##type_name HashMapElement##type_name; \
+struct HashMapElement##type_name \
 { \
-  HashMapElement##Type* next; \
+  HashMapElement##type_name* next; \
   Str8 key; \
-  Type value; \
+  type_name value; \
 }; \
 \
-typedef struct HashMap##Type HashMap##Type; \
-struct HashMap##Type \
+typedef struct HashMap##type_name HashMap##type_name; \
+struct HashMap##type_name \
 { \
   Arena* arena; \
-  HashMapElement##Type* elements; \
+  HashMapElement##type_name* elements; \
    \
   U32 capacity; \
 }; \
 \
-func HashMap##Type HashMap##Type##Create(Arena* arena, U32 capacity) \
+func HashMap##type_name HashMap##type_name##Create(Arena* arena, U32 capacity) \
 { \
-  HashMap##Type map = {0}; \
+  HashMap##type_name map = {0}; \
    \
   map.arena = arena; \
-  map.elements = (HashMapElement##Type*)PushArena(arena, capacity*sizeof(HashMapElement##Type)); \
+  map.elements = (HashMapElement##type_name*)PushArena(arena, capacity*sizeof(HashMapElement##type_name)); \
   map.capacity = capacity; \
    \
   return map; \
 } \
  \
-func void HashMap##Type##Put(HashMap##Type* map, Str8 key, Type value) \
+func void HashMap##type_name##Put(HashMap##type_name* map, Str8 key, type_name value) \
 { \
   I32 hash_value = CalculateHash(key); \
   I32 hash_slot = hash_slot%map->capacity; \
@@ -148,7 +212,7 @@ func void HashMap##Type##Put(HashMap##Type* map, Str8 key, Type value) \
   { \
     if (map->elements[hash_slot].next == 0) \
     { \
-      HashMapElement##Type* new_element = (HashMapElement##Type*)PushArena(map->arena, sizeof(HashMapElement##Type)); \
+      HashMapElement##type_name* new_element = (HashMapElement##type_name*)PushArena(map->arena, sizeof(HashMapElement##type_name)); \
       new_element->key = key; \
       new_element->value = value; \
        \
@@ -156,7 +220,7 @@ func void HashMap##Type##Put(HashMap##Type* map, Str8 key, Type value) \
     } \
     else \
     { \
-      HashMapElement##Type* current_element = map->elements[hash_slot].next; \
+      HashMapElement##type_name* current_element = map->elements[hash_slot].next; \
       while (current_element) \
       { \
         if (Str8Equal(map->elements[hash_slot].key, key)) \
@@ -170,7 +234,7 @@ func void HashMap##Type##Put(HashMap##Type* map, Str8 key, Type value) \
         { \
           if (current_element->next == 0) \
           { \
-            HashMapElement##Type* new_element = (HashMapElement##Type*)PushArena(map->arena, sizeof(HashMapElement##Type)); \
+            HashMapElement##type_name* new_element = (HashMapElement##type_name*)PushArena(map->arena, sizeof(HashMapElement##type_name)); \
             new_element->key = key; \
             new_element->value = value; \
              \
@@ -185,9 +249,9 @@ func void HashMap##Type##Put(HashMap##Type* map, Str8 key, Type value) \
   } \
 } \
  \
-func Type HashMap##Type##Get(HashMap##Type map, Str8 key) \
+func type_name HashMap##type_name##Get(HashMap##type_name map, Str8 key) \
 { \
-  Type value = {0}; \
+  type_name value = {0}; \
    \
   I32 hash_value = CalculateHash(key); \
   I32 hash_slot = hash_slot % map.capacity; \
@@ -198,7 +262,7 @@ func Type HashMap##Type##Get(HashMap##Type map, Str8 key) \
   } \
   else \
   { \
-    HashMapElement##Type* current_element = map.elements[hash_slot].next; \
+    HashMapElement##type_name* current_element = map.elements[hash_slot].next; \
     while (current_element) \
     { \
       if (Str8Equal(current_element->key, key)) \
@@ -211,5 +275,3 @@ func Type HashMap##Type##Get(HashMap##Type map, Str8 key) \
      \
   return value; \
 } 
-
-// End HashMap

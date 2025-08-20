@@ -42,7 +42,7 @@ _PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I
     .type = OS_EVENT_TYPE_MOUSE_MOVE,
     .mouse_position = { (F32)wl_fixed_to_double(surface_x), (F32)wl_fixed_to_double(surface_y) }
   };
-  PushListOS_Event(&_os_state.event_list, event);
+  OS_EventListPush(&_os_state.event_list, event);
 }
 
 func void
@@ -201,7 +201,7 @@ _HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 tim
 		event.pressed = key_pressed;
 		event.released = key_released;
 
-		PushListOS_Event(&_os_state.keyboard_event_list, event);
+		OS_EventListPush(&_os_state.keyboard_event_list, event);
 	}
 }
 
@@ -319,7 +319,7 @@ _ShellSurfaceHandleConfigure(void* data, xdg_surface* shell_surface, U32 serial)
     // --AlNov: @NOTE Configure occures before GetEventList, so event_list is not initialized
     if (_os_state.event_list.arena)
     {
-      PushListOS_Event(&_os_state.event_list, event);
+      OS_EventListPush(&_os_state.event_list, event);
     }
 
     handle->request_resize = false;
@@ -348,7 +348,7 @@ _ToplevelHandleClose(void* data, xdg_toplevel* toplevel)
     .type = OS_EVENT_TYPE_EXIT,
   };
 
-  PushListOS_Event(&_os_state.event_list, event);
+  OS_EventListPush(&_os_state.event_list, event);
 }
 
 struct xdg_toplevel_listener _toplevel_listener = {
@@ -488,11 +488,11 @@ OS_UnlockCursor(OS_Window* window)
   window->handle->confined_pointer = 0;
 }
 
-func ListOS_Event
+func OS_EventList
 OS_GetEventList(Arena* arena, OS_Window* window)
 {
-  _os_state.event_list = CreateListOS_Event(arena);
-	_os_state.keyboard_event_list = CreateListOS_Event(arena);
+  _os_state.event_list = OS_EventListCreate(arena);
+	_os_state.keyboard_event_list = OS_EventListCreate(arena);
 
   wl_display_dispatch_pending(window->handle->display);
 
@@ -504,7 +504,7 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 		key->time_down += key->is_down * (0.0f); // AlNov: @TODO Add delta time
 	}
 
-  for (ListNodeOS_Event *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
+  for (OS_EventListNode *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
 	{
 		OS_Event* event = &event_node->data;
 		_os_state.keyboard.keys[event->key].pressed = event->pressed;

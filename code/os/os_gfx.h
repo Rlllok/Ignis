@@ -160,15 +160,15 @@ struct OS_Event
     B32 pressed;
 		B32 released;
 };
-DefineList(OS_Event)
+DefineList(OS_Event, OS_EventList)
 
 typedef struct OS_State OS_State;
 struct OS_State
 {
     Arena* arena;
 		OS_Keyboard keyboard;
-    ListOS_Event event_list;
-		ListOS_Event keyboard_event_list;
+    OS_EventList event_list;
+		OS_EventList keyboard_event_list;
 } _os_state;
 
 func void OS_Init(U64 arena_size);
@@ -180,7 +180,7 @@ func void OS_ShowWindow(OS_Window* window);
 func void OS_LockCursor(OS_Window* window);
 func void OS_UnlockCursor(OS_Window* window);
 
-func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window);
+func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window);
 
 func F32 OS_GetMonitorHZ(void);
 

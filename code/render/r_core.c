@@ -7,20 +7,20 @@
 
 // -------------------------------------------------------------------
 // Command Buffer
-func R_CommandBuffer*
+func R_CommandBuffer
 R_GetCommandBuffer(void)
 {
 	return _r_state.device.GetCommandBuffer();
 }
 
 func void
-R_BeginCommandBuffer(R_CommandBuffer* command_buffer)
+R_BeginCommandBuffer(R_CommandBuffer command_buffer)
 {
 	_r_state.device.BeginCommandBuffer(command_buffer);
 }
 
 func void
-R_SubmitCommandBuffer(R_CommandBuffer* command_buffer)
+R_SubmitCommandBuffer(R_CommandBuffer command_buffer)
 {
 	_r_state.device.SubmitCommandBuffer(command_buffer);
 }
@@ -45,19 +45,19 @@ R_ResetBuffer(R_Buffer* buffer)
 }
 
 func void
-R_BindIndexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
+R_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
 {
 	_r_state.device.BindIndexBuffer(command_buffer, buffer, offset, index_size);
 }
 
-func void R_BindVertexBuffer(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset)
+func void R_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset)
 {
 	_r_state.device.BindVertexBuffer(command_buffer, buffer, offset);
 }
 
 // -------------------------------------------------------------------
 // Texture
-func R_Texture*
+func R_Texture
 R_CreateTexture(R_TextureCreateInfo* info)
 {
   return _r_state.device.CreateTexture(info);
@@ -66,13 +66,13 @@ R_CreateTexture(R_TextureCreateInfo* info)
 // -------------------------------------------------------------------
 // Uniform Data
 func void
-R_BindGlobalVertexUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindGlobalVertexUniformData(command_buffer, buffer, offset, data_size);
 }
 
 func void
-R_BindGlobalFragmentUniformData(R_CommandBuffer* command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindGlobalFragmentUniformData(command_buffer, buffer, offset, data_size);
 }
@@ -85,8 +85,8 @@ R_GetSwapchainTextureFormat()
   return _r_state.device.GetSwapchainTextureFormat();
 }
 
-func R_Texture*
-R_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
+func R_Texture
+R_AcquireSwapchainTexture(R_CommandBuffer command_buffer)
 {
 	return _r_state.device.AcquireSwapchainTexture(command_buffer);
 }
@@ -94,38 +94,15 @@ R_AcquireSwapchainTexture(R_CommandBuffer* command_buffer)
 // -------------------------------------------------------------------
 // Render Pass
 func R_RenderPass*
-R_BeginRenderPass(R_CommandBuffer* command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target)
+R_BeginRenderPass(R_CommandBuffer command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target)
 {
 	return _r_state.device.BeginRenderPass(command_buffer, color_targets_count, color_targets, depth_stencil_target);
 }
 
 func void
-R_EndRenderPass(R_CommandBuffer* command_buffer, R_RenderPass* render_pass)
+R_EndRenderPass(R_CommandBuffer command_buffer, R_RenderPass* render_pass)
 {
 	_r_state.device.EndRenderPass(command_buffer, render_pass);
-}
-
-func B32 
-R_Init(R_RendererType type, OS_Window* window)
-{
-	if ( type == R_RENDERER_TYPE_VK)
-	{
-		AssignDeviceFunctions(VK);
-	}
-	else
-	{
-		AssertMessage(0, "Wrong type of rendering backend\n");
-	}
-
-	_r_state.device.Init(window);
-
-  return true;
-}
-
-func B32
-R_Shutdown(void)
-{
-	return false;
 }
 
 // -------------------------------------------------------------------
@@ -245,14 +222,14 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_unifo
 	return out_shader;
 }
 
-func R_GraphicsPipeline*
+func R_GraphicsPipeline
 R_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info)
 {
 	return _r_state.device.CreateGraphicsPipeline(info);
 }
 
 func void
-R_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipeline)
+R_BindGraphicsPipeline(R_CommandBuffer command_buffer, R_GraphicsPipeline pipeline)
 {
 	_r_state.device.BindGraphicsPipeline(command_buffer, pipeline);
 }
@@ -260,25 +237,52 @@ R_BindGraphicsPipeline(R_CommandBuffer* command_buffer, R_GraphicsPipeline* pipe
 // -------------------------------------------------------------------
 // Draw
 func void
-R_SetViewport(R_CommandBuffer* command_buffer, RectI32 viewport)
+R_SetViewport(R_CommandBuffer command_buffer, RectI32 viewport)
 {
 	_r_state.device.SetViewport(command_buffer, viewport);
 }
 
 func void
-R_SetScissor(R_CommandBuffer* command_buffer, RectI32 scissor)
+R_SetScissor(R_CommandBuffer command_buffer, RectI32 scissor)
 {
 	_r_state.device.SetScissor(command_buffer, scissor);
 }
 
 func void
-R_DrawPrimitives(R_CommandBuffer* command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance)
+R_DrawPrimitives(R_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance)
 {
 	_r_state.device.DrawPrimitives(command_buffer, vertex_count, instance_count, first_vertex, first_instance);
 }
 
 func void
-R_DrawIndexedPrimitives(R_CommandBuffer* command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance)
+R_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance)
 {
 	_r_state.device.DrawIndexedPrimitives(command_buffer, index_count, instance_count, first_index, vertex_offset, first_instance);
 }
+
+// -------------------------------------------------------------------
+// State
+func B32 
+R_Init(R_RendererType type, OS_Window* window)
+{
+	if ( type == R_RENDERER_TYPE_VK)
+	{
+		AssignDeviceFunctions(VK);
+	}
+	else
+	{
+		AssertMessage(0, "Wrong type of rendering backend\n");
+	}
+
+	_r_state.device.Init(window);
+
+  return true;
+}
+
+func B32
+R_Shutdown(void)
+{
+  // --AlNov: @TODO Zero out _r_state.device struct
+	return _r_state.device.Shutdown();
+}
+
