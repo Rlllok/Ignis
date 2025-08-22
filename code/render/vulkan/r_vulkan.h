@@ -29,14 +29,17 @@ struct R_VK_Buffer
   U64 size;
   U64 capacity;
 };
+DefineArray(R_VK_Buffer, R_VK_BufferArray);
 
 func R_VK_Buffer* R_VK_BufferFromHandle(R_Buffer handle);
-func R_Buffer* R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
-func void R_VK_DestroyBuffer(R_Buffer* buffer);
-func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
-func void R_VK_ResetBuffer(R_Buffer* buffer);
-func void R_VK_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
-func void R_VK_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset);
+func R_Buffer R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
+func void R_VK_DestroyBuffer(R_Buffer buffer);
+func U64 R_VK_PushBuffer(R_Buffer buffer, U8* data, U64 size);
+func void R_VK_ResetBuffer(R_Buffer buffer);
+func void R_VK_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, R_IndexSize index_size);
+func void R_VK_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset);
+
+func void R_VK_BufferGetData(R_Buffer buffer, U64 offset, void* dst, U64 data_size);
 
 // --------------------------------------------------
 // Device
@@ -117,10 +120,10 @@ struct R_VK_DescriptorPool
 	I32 sets_count;
 };
 
-func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
 
 // --------------------------------------------------
 // Pipeline
@@ -154,15 +157,21 @@ func void R_VK_SetScissor(R_CommandBuffer command_buffer, RectI32 scissor);
 
 func void R_VK_DrawPrimitives(R_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 func void R_VK_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
+func void R_VK_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture);
 
 // -------------------------------------------------------------------
 // Texture
 typedef struct R_VK_Texture R_VK_Texture;
 struct R_VK_Texture
 {
+  R_TextureFormat format;
+
 	VkImage image;
 	VkImageView view;
 	VkDeviceMemory memory;
+  VkImageLayout layout;
+  VkImageAspectFlagBits aspect_mask;
+  Vec2I32 size;
   B32 from_swapchain; // --AlNov: If image created by swapchain, it have to be destroyed by swapchain
 };
 DefineArray(R_VK_Texture, R_VK_TextureArray)
@@ -171,6 +180,12 @@ DefineArray(I32, R_VK_TextureFreeList)
 func R_VK_Texture* R_VK_TextureFromHandle(R_Texture handle);
 func R_Texture R_VK_CreateTexture(R_TextureCreateInfo* info);
 func B32 R_VK_DestroyTexture(R_Texture texture);
+func void R_VK_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination);
+func U64 R_VK_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
+func R_TextureFormat R_VK_GetTextureFormat(R_Texture texture);
+
+func void R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayout new_layout);
+
 
 // -------------------------------------------------------------------
 // Command Buffer
@@ -213,6 +228,7 @@ struct R_VK_State
   VkDebugUtilsMessengerEXT debug_messenger;
 #endif // IGNIS_DEBUG
 	
+  R_VK_BufferArray buffers;
   R_VK_GraphicsPipelineArray graphics_pipelines;
   R_VK_CommandBufferArray command_buffers;
   R_VK_TextureArray textures;

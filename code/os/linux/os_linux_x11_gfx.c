@@ -82,9 +82,9 @@ func void OS_UnlockCursor(OS_Window* window)
 	// @TODO
 }
 
-func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
+func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window)
 {
-	_os_state.event_list = CreateListOS_Event(arena);
+	_os_state.event_list = OS_EventListCreate(arena);
 	while(XPending(window->handle->display))
 	{
 		XEvent x_event = {0};
@@ -101,7 +101,7 @@ func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 					OS_Event event = {
 						.type = OS_EVENT_TYPE_EXIT,
 					};
-					PushListOS_Event(&_os_state.event_list, event);
+					OS_EventListPush(&_os_state.event_list, event);
 				}
 				else if ((Atom)x_event.xclient.data.l[0] == window->handle->sync_request_atom)
 				{
@@ -123,7 +123,7 @@ func ListOS_Event OS_GetEventList(Arena* arena, OS_Window* window)
 					.type = OS_EVENT_TYPE_RESIZE,
 					.window_size = event_window_size,
 				};
-				PushListOS_Event(&_os_state.event_list, event);
+				OS_EventListPush(&_os_state.event_list, event);
 			} break;
 		}
 	}

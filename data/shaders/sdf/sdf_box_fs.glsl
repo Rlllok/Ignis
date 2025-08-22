@@ -18,24 +18,23 @@ float SDF2D_Box(vec2 in_position, vec2 size, float corner_radius)
 
 layout(location = 0) in vec2 in_uv;
 
-layout(location = 1) in struct DataTransfer
+layout(set = 2, binding = 0) uniform GlobalData
 {
   vec3 color;
+  float rotation;
   vec2 position;
   vec2 size;
-  float rotation;
-} DT;
-
+};
 
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-  float corner_radius = 10.0f;
-  vec2 position = SDF2D_Rotate(gl_FragCoord.xy - DT.position - DT.size*0.5f, DT.rotation);
+  float corner_radius = 0.0f;
+  vec2 position = SDF2D_Rotate(gl_FragCoord.xy - position - size*0.5f, rotation);
 
-  float d = SDF2D_Box(position, DT.size*0.5, corner_radius);
+  float d = SDF2D_Box(position, size*0.5, corner_radius);
   float smooth_alpha = 1.0f - smoothstep(0.0f, 2.0f, d);
 
-  out_color = vec4(DT.color, smooth_alpha);
+  out_color = vec4(color, smooth_alpha);
 }

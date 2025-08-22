@@ -21,9 +21,10 @@ _VkFromBufferUsageFlags(R_BufferUsageFlags flags)
   {
     result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
   }
-  if((flags & R_BUFFER_USAGE_FLAG_TRANSFER_SRC) == R_BUFFER_USAGE_FLAG_TRANSFER_SRC)
+  if((flags & R_BUFFER_USAGE_FLAG_TRANSFER) == R_BUFFER_USAGE_FLAG_TRANSFER)
   {
     result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
   }
 
   return result;
@@ -46,12 +47,18 @@ _VkFromBufferPropertyFlags(R_BufferPropertyFlags flags)
   return result;
 }
 
-func R_Buffer*
+func R_VK_Buffer*
+R_VK_BufferFromHandle(R_Buffer buffer)
+{
+  return R_VK_BufferArrayGetPointer(&_r_vk_state.buffers, buffer);
+}
+
+func R_Buffer
 R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags)
 {
   // @NOTE This is to create Vulkan Buffer and Memory
-  R_VK_Buffer* buffer = (R_VK_Buffer*)PushArena(_r_vk_state.arena, sizeof(R_VK_Buffer));
-	buffer->capacity = capacity;
+  R_VK_Buffer buffer = {0};
+	buffer.capacity = capacity;
   
   VkBufferCreateInfo buffer_info = {
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -60,10 +67,10 @@ R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferProperty
     .sharingMode = VK_SHARING_MODE_EXCLUSIVE
   };
 
-  VK_CHECK(vkCreateBuffer(_r_vk_state.device.logical, &buffer_info, 0, &buffer->handle));
+  VK_CHECK(vkCreateBuffer(_r_vk_state.device.logical, &buffer_info, 0, &buffer.handle));
 
   VkMemoryRequirements memory_requirements;
-  vkGetBufferMemoryRequirements(_r_vk_state.device.logical, buffer->handle, &memory_requirements);
+  vkGetBufferMemoryRequirements(_r_vk_state.device.logical, buffer.handle, &memory_requirements);
   
   VkPhysicalDeviceMemoryProperties mem_properties = {0};
   vkGetPhysicalDeviceMemoryProperties(_r_vk_state.device.physical, &mem_properties);
@@ -84,19 +91,19 @@ R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferProperty
     .allocationSize = memory_requirements.size,
     .memoryTypeIndex = memory_type_index
   };
-  VK_CHECK(vkAllocateMemory(_r_vk_state.device.logical, &allocation_info , 0, &buffer->memory));
+  VK_CHECK(vkAllocateMemory(_r_vk_state.device.logical, &allocation_info , 0, &buffer.memory));
 
-  VK_CHECK(vkBindBufferMemory(_r_vk_state.device.logical, buffer->handle, buffer->memory, 0));
+  VK_CHECK(vkBindBufferMemory(_r_vk_state.device.logical, buffer.handle, buffer.memory, 0));
 
-  vkMapMemory(_r_vk_state.device.logical, buffer->memory, 0, VK_WHOLE_SIZE, 0, &buffer->mapped);
+  vkMapMemory(_r_vk_state.device.logical, buffer.memory, 0, VK_WHOLE_SIZE, 0, &buffer.mapped);
 
-  return (R_Buffer*)buffer;
+  return R_VK_BufferArrayAdd(&_r_vk_state.buffers, buffer);
 }
 
 func void
-R_VK_DestroyBuffer(R_Buffer* buffer)
+R_VK_DestroyBuffer(R_Buffer buffer)
 {
-  R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 
   vkDeviceWaitIdle(_r_vk_state.device.logical);
   vkUnmapMemory(_r_vk_state.device.logical, vk_buffer->memory);
@@ -106,9 +113,9 @@ R_VK_DestroyBuffer(R_Buffer* buffer)
   *vk_buffer = (R_VK_Buffer){0};
 }
 
-func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
+func U64 R_VK_PushBuffer(R_Buffer buffer, U8* data, U64 size)
 {
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 
 	Assert((vk_buffer->size + size) > vk_buffer->capacity);
 	U32 offset = vk_buffer->size;
@@ -122,16 +129,16 @@ func U64 R_VK_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
 }
 
 func void
-R_VK_ResetBuffer(R_Buffer* buffer)
+R_VK_ResetBuffer(R_Buffer buffer)
 {
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 	vk_buffer->size = 0;
 }
 func void
-R_VK_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
+R_VK_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, R_IndexSize index_size)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 
 	vkCmdBindIndexBuffer(
 			vk_command_buffer->handle[_r_vk_state.current_frame],
@@ -140,13 +147,20 @@ R_VK_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offse
 }
 
 func void
-R_VK_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset)
+R_VK_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 
 	VkDeviceSize vk_offset = offset;
 	vkCmdBindVertexBuffers(vk_command_buffer->handle[_r_vk_state.current_frame], 0, 1, &vk_buffer->handle, &vk_offset);
+}
+
+func void
+R_VK_BufferGetData(R_Buffer buffer, U64 offset, void* dst, U64 data_size)
+{
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
+  memcpy(dst, (U8*)vk_buffer->mapped + offset, data_size);
 }
 
 // -------------------------------------------------------------------
@@ -248,18 +262,6 @@ R_VK_SubmitCommandBuffer(R_CommandBuffer command_buffer)
 
   VK_CHECK(vkQueueSubmit(_r_vk_state.device.graphics_queue, 1, &submit_info, vk_command_buffer->submit_fence[_r_vk_state.current_frame]));
 
-	// @TODO There is not always should be Present command
-	VkPresentInfoKHR present_info = {
-		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-		.waitSemaphoreCount = 0,
-    .pWaitSemaphores = &_r_vk_state.swapchain.frame_resources[_r_vk_state.current_target].release_semaphore, // @TODO change location of release_semaphore
-		.swapchainCount = 1,
-		.pSwapchains = &_r_vk_state.swapchain.handle,
-    .pImageIndices = &_r_vk_state.current_target,
-	};
-
-	VkResult present_result = vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info);
-
 	_r_vk_state.current_frame = (_r_vk_state.current_frame + 1)%R_FRAMES_IN_FLIGHT;
 }
 
@@ -320,13 +322,17 @@ R_VK_CreateDevice(void)
       queue_info.queueCount = 1;
       queue_info.pQueuePriorities = &queue_priority;
 
+      VkPhysicalDeviceFeatures enabled_features = {
+        .independentBlend = 1,
+      };
+
       VkDeviceCreateInfo device_info = {0};
       device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       device_info.queueCreateInfoCount = 1;
       device_info.pQueueCreateInfos = &queue_info;
       device_info.enabledExtensionCount = CountArrayElements(required_extensions);
       device_info.ppEnabledExtensionNames = required_extensions;
-      device_info.pEnabledFeatures = 0;
+      device_info.pEnabledFeatures = &enabled_features;
       device_info.pNext = &vulkan13_features;
 
       LOG_INFO("%s\n", properties.deviceName);
@@ -478,7 +484,7 @@ R_VK_CreateSwapchain(OS_Window* window)
     .imageColorSpace = _r_vk_state.swapchain.surface_format.colorSpace,
     .imageExtent = {.width = _r_vk_state.swapchain.size.w, .height = _r_vk_state.swapchain.size.h},
     .imageArrayLayers = 1,
-    .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
     .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
     .preTransform = capabilities.currentTransform,
     .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
@@ -522,6 +528,7 @@ R_VK_CreateSwapchain(OS_Window* window)
     R_VK_Texture vk_texture = {
       .image = images[i],
       .view = image_view,
+      .aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
       .from_swapchain = 1,
     };
 
@@ -600,7 +607,7 @@ R_VK_AcquireSwapchainTexture(R_CommandBuffer command_buffer)
 // -------------------------------------------------------------------
 // Descriptor Sets
 func void
-R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -641,7 +648,7 @@ R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffe
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 	VkDescriptorBufferInfo buffer_info = {
 		.buffer = vk_buffer->handle,
 		.offset = offset,
@@ -669,7 +676,7 @@ R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffe
 }
 
 func void
-R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -710,7 +717,7 @@ R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buf
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 	VkDescriptorBufferInfo buffer_info = {
 		.buffer = vk_buffer->handle,
 		.offset = offset,
@@ -738,7 +745,7 @@ R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buf
 }
 
 func void
-R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -779,7 +786,7 @@ R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buf
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 	VkDescriptorBufferInfo buffer_info = {
 		.buffer = vk_buffer->handle,
 		.offset = offset,
@@ -807,7 +814,7 @@ R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buf
 }
 
 func void
-R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -848,7 +855,7 @@ R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* b
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = (R_VK_Buffer*)buffer;
+	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 	VkDescriptorBufferInfo buffer_info = {
 		.buffer = vk_buffer->handle,
 		.offset = offset,
@@ -891,7 +898,6 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
   pipeline.vertex_instance_uniform_count = pipeline_info->vertex_shader.instance_uniform_count;
   pipeline.fragment_global_uniform_count = pipeline_info->fragment_shader.global_uniform_count;
 	pipeline.fragment_instance_uniform_count = pipeline_info->fragment_shader.instance_uniform_count;
-  LOG_DEBUG("INSTANCE %d\n", pipeline_info->vertex_shader.instance_uniform_count);
 
 	VkDescriptorSetLayout set_layouts[4] = {0};
 	I32 set_layouts_count = 0;
@@ -1041,21 +1047,24 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
     VK_DYNAMIC_STATE_SCISSOR
   };
 
-  VkPipelineColorBlendAttachmentState blend_attachment = {
-    .blendEnable = VK_TRUE,
-    .srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA,
-    .dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-    .colorBlendOp=VK_BLEND_OP_ADD,
-    .srcAlphaBlendFactor=VK_BLEND_FACTOR_ONE,
-    .dstAlphaBlendFactor=VK_BLEND_FACTOR_ZERO,
-    .alphaBlendOp=VK_BLEND_OP_ADD,
-    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
-  };
+  // @TODO Support multiple attachments
+  VkPipelineColorBlendAttachmentState blend_attachments[8] = {};
+  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1)
+  {
+    blend_attachments[i].blendEnable = pipeline_info->color_target_infos[i].blend_enable;
+    blend_attachments[i].srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA;
+    blend_attachments[i].dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blend_attachments[i].colorBlendOp=VK_BLEND_OP_ADD;
+    blend_attachments[i].srcAlphaBlendFactor=VK_BLEND_FACTOR_ONE;
+    blend_attachments[i].dstAlphaBlendFactor=VK_BLEND_FACTOR_ZERO;
+    blend_attachments[i].alphaBlendOp=VK_BLEND_OP_ADD;
+    blend_attachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+  }
 
   VkPipelineColorBlendStateCreateInfo blend = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-    .attachmentCount = 1,
-    .pAttachments = &blend_attachment
+    .attachmentCount = pipeline_info->color_targets_count,
+    .pAttachments = blend_attachments,
   };
 
   VkPipelineViewportStateCreateInfo viewport_state = {
@@ -1122,15 +1131,15 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
   };
 
   VkFormat color_attachment_formats[8] = {0};
-  for (I32 i = 0; i < pipeline_info->target_info.color_targets_count; i += 1)
+  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1)
   {
-    color_attachment_formats[i] = R_VK_GetVkFormat(pipeline_info->target_info.color_targets_formats[i]);
+    color_attachment_formats[i] = R_VK_GetVkFormat(pipeline_info->color_target_infos[i].format);
   }
   VkPipelineRenderingCreateInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-    .colorAttachmentCount = pipeline_info->target_info.color_targets_count,
+    .colorAttachmentCount = pipeline_info->color_targets_count,
     .pColorAttachmentFormats = color_attachment_formats,
-    .depthAttachmentFormat = R_VK_GetVkFormat(pipeline_info->target_info.depth_target_format),
+    .depthAttachmentFormat = R_VK_GetVkFormat(pipeline_info->depth_stencil_state.depth_target_format),
   };
 
   VkGraphicsPipelineCreateInfo vk_pipeline_info = {
@@ -1186,24 +1195,29 @@ func R_RenderPass*
 R_VK_BeginRenderPass(R_CommandBuffer command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
-	R_VK_Texture* vk_attachment_texture = R_VK_TextureFromHandle(color_targets[0].texture);
   R_VK_Texture* vk_depth_texture = R_VK_TextureFromHandle(depth_stencil_target->texture);
 
   // --AlNov: @TODO Only one now
-  VkClearValue clear_value = {0};
-  clear_value.color.float32[0] = color_targets[0].clear_color.r;
-  clear_value.color.float32[1] = color_targets[0].clear_color.g;
-  clear_value.color.float32[2] = color_targets[0].clear_color.b;
-  clear_value.color.float32[3] = color_targets[0].clear_color.a;
+  VkRenderingAttachmentInfo vk_color_attachment_infos[2] = {0};
+  for (I32 i = 0; i < color_targets_count; i += 1)
+  {
+    R_VK_Texture* vk_attachment_texture = R_VK_TextureFromHandle(color_targets[i].texture);
 
-  VkRenderingAttachmentInfo vk_color_attachment_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .imageView = vk_attachment_texture->view,
-    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    .loadOp = R_VK_GetVkAttachmentLoadOperation(color_targets[0].load_operation),
-    .storeOp = R_VK_GetVkAttachmentStoreOperation(color_targets[0].store_operation),
-    .clearValue = clear_value,
-  };
+    VkClearValue clear_value = {0};
+    clear_value.color.float32[0] = color_targets[i].clear_color.r;
+    clear_value.color.float32[1] = color_targets[i].clear_color.g;
+    clear_value.color.float32[2] = color_targets[i].clear_color.b;
+    clear_value.color.float32[3] = color_targets[i].clear_color.a;
+
+    vk_color_attachment_infos[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    vk_color_attachment_infos[i].imageView = vk_attachment_texture->view;
+    vk_color_attachment_infos[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    vk_color_attachment_infos[i].loadOp = R_VK_GetVkAttachmentLoadOperation(color_targets[0].load_operation);
+    vk_color_attachment_infos[i].storeOp = R_VK_GetVkAttachmentStoreOperation(color_targets[0].store_operation);
+    vk_color_attachment_infos[i].clearValue = clear_value;
+
+    R_VK_ChangeTextureLayout(vk_command_buffer->handle[_r_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+  }
 
   VkRenderingAttachmentInfo vk_depth_attachment_info = {
     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -1225,23 +1239,11 @@ R_VK_BeginRenderPass(R_CommandBuffer command_buffer, U32 color_targets_count, R_
       .extent = render_area
     },
     .layerCount = 1,
-    .colorAttachmentCount = 1,
-    .pColorAttachments = &vk_color_attachment_info,
+    .colorAttachmentCount = color_targets_count,
+    .pColorAttachments = vk_color_attachment_infos,
     .pDepthAttachment = &vk_depth_attachment_info,
   };
   
-  R_VK_TransitImageLayout(
-    vk_command_buffer->handle[_r_vk_state.current_frame],
-		vk_attachment_texture->image,
-    VK_IMAGE_LAYOUT_UNDEFINED,
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    0,
-    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_IMAGE_ASPECT_COLOR_BIT
-  );
-
   vkCmdBeginRendering(vk_command_buffer->handle[_r_vk_state.current_frame], &rendering_info);
 
 	return 0; // @TODO
@@ -1253,18 +1255,6 @@ R_VK_EndRenderPass(R_CommandBuffer command_buffer, R_RenderPass* render_pass)
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
   vkCmdEndRendering(vk_command_buffer->handle[_r_vk_state.current_frame]);
-
-  R_VK_TransitImageLayout(
-    vk_command_buffer->handle[_r_vk_state.current_frame],
-    R_VK_TextureFromHandle(_r_vk_state.swapchain.textures[_r_vk_state.current_target])->image,
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-    0,
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-    VK_IMAGE_ASPECT_COLOR_BIT
-  );
 }
 
 // -------------------------------------------------------------------
@@ -1314,6 +1304,39 @@ R_VK_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 
 	vkCmdDrawIndexed(vk_command_buffer->handle[_r_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
+func void
+R_VK_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture)
+{
+  R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
+  R_VK_Texture* vk_texture = R_VK_TextureFromHandle(texture);
+
+  if (vk_texture->from_swapchain)
+  {
+    VkCommandBuffer single_cmd = R_VK_BeginSingleCmd();
+    {
+      R_VK_ChangeTextureLayout(single_cmd, R_VK_TextureFromHandle(_r_vk_state.swapchain.textures[_r_vk_state.current_target]), VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    }
+    R_VK_EndSingleCmd(single_cmd);
+
+    VkPresentInfoKHR present_info = {
+      .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+      .waitSemaphoreCount = 0,
+      .pWaitSemaphores = &_r_vk_state.swapchain.frame_resources[_r_vk_state.current_target].release_semaphore, // @TODO change location of release_semaphore
+      .swapchainCount = 1,
+      .pSwapchains = &_r_vk_state.swapchain.handle,
+      .pImageIndices = &_r_vk_state.current_target,
+    };
+
+    VkResult present_result = vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info);
+  }
+  else
+  {
+    LOG_WARNING("Trying to present image not from swapchain\n");
+    return;
+  }
+
+}
+
 // -------------------------------------------------------------------
 // Texture
 func R_VK_Texture*
@@ -1326,6 +1349,9 @@ func R_Texture
 R_VK_CreateTexture(R_TextureCreateInfo* info)
 {
   R_VK_Texture texture = {0};
+  texture.format = info->format;
+  texture.size.x = info->width;
+  texture.size.y = info->height;
 #if 0
   I32 tex_width    = 0;
   I32 tex_height   = 0;
@@ -1381,68 +1407,30 @@ R_VK_CreateTexture(R_TextureCreateInfo* info)
   VK_CHECK(vkBindImageMemory(_r_vk_state.device.logical, texture.image, texture.memory, 0));
 
   VkImageAspectFlags texture_aspect = 0;
-  if ((info->usage_flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
+  if((info->usage_flags & R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT)
+  {
+    texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    texture.aspect_mask = texture_aspect;
+  }
+  else if ((info->usage_flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
   {
     texture_aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    texture.aspect_mask = texture_aspect;
+  }
+  else 
+  {
+    texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    texture.aspect_mask = texture_aspect;
   }
 
   VkCommandBuffer cmd = R_VK_BeginSingleCmd();
   {
-#if 0
-    R_VK_TransitImageLayout(
-      cmd,
-      texture.image,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      0,
-      VK_ACCESS_TRANSFER_WRITE_BIT,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      VK_PIPELINE_STAGE_TRANSFER_BIT,
-      VK_IMAGE_ASPECT_COLOR_BIT
-    );
-    
-    VkBufferImageCopy copy_info = {0};
-    copy_info.bufferOffset                    = 0;
-    copy_info.bufferRowLength                 = 0;
-    copy_info.bufferImageHeight               = 0;
-    copy_info.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
-    copy_info.imageSubresource.mipLevel       = 0;
-    copy_info.imageSubresource.baseArrayLayer = 0;
-    copy_info.imageSubresource.layerCount     = 1;
-		copy_info.imageOffset.x = 0;
-		copy_info.imageOffset.y = 0;
-		copy_info.imageOffset.z = 0;
-    copy_info.imageExtent.width = info->width;
-		copy_info.imageExtent.height = info->height;
-		copy_info.imageExtent.depth = 1;
-
-    vkCmdCopyBufferToImage(cmd, _r_vk_state.staging_buffer.handle, texture.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
-#endif
-    
-    VkImageLayout new_layout = 0;
-    VkAccessFlags new_access = 0;
-    VkPipelineStageFlags dst_stage = 0;
-
     if ((info->usage_flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
     {
-      new_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-      new_access = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-      dst_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+      R_VK_ChangeTextureLayout(cmd, &texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     }
-
-    R_VK_TransitImageLayout(
-      cmd,
-      texture.image,
-      VK_IMAGE_LAYOUT_UNDEFINED,
-      new_layout,
-      0,
-      VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-      dst_stage,
-      texture_aspect
-    );
-    R_VK_EndSingleCmd(cmd);
   }
+  R_VK_EndSingleCmd(cmd);
   
   // AlNov: Create Texture Image View
   VkImageViewCreateInfo view_info = {0};
@@ -1486,6 +1474,189 @@ R_VK_DestroyTexture(R_Texture texture)
   R_VK_TextureFreeListAdd(&_r_vk_state.textures_free_list, texture);
 
   return 1;
+}
+
+func void
+R_VK_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination)
+{
+  R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
+  R_VK_Texture* vk_source = R_VK_TextureFromHandle(source);
+  R_VK_Texture* vk_destination = R_VK_TextureFromHandle(destination);
+
+  R_VK_ChangeTextureLayout(vk_command_buffer->handle[_r_vk_state.current_frame], vk_source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  R_VK_ChangeTextureLayout(vk_command_buffer->handle[_r_vk_state.current_frame], vk_destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+  VkImageBlit blit_info = {
+    .srcSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+      .mipLevel = 0,
+    },
+    .srcOffsets[1] = {
+      .x = vk_source->size.x,
+      .y = vk_source->size.y,
+      .z = 1,
+    },
+    .dstSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+      .mipLevel = 0,
+    },
+    .dstOffsets[1] = {
+      .x = vk_destination->size.x,
+      .y = vk_destination->size.y,
+      .z = 1,
+    },
+  };
+  vkCmdBlitImage(
+      vk_command_buffer->handle[_r_vk_state.current_frame],
+      vk_source->image,
+      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      vk_destination->image,
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      1, &blit_info, VK_FILTER_LINEAR);
+}
+
+func U64
+R_VK_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer)
+{
+  R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
+  R_VK_Texture* vk_texture = R_VK_TextureFromHandle(texture);
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
+
+  R_VK_ChangeTextureLayout(vk_command_buffer->handle[_r_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+  VkBufferImageCopy copy_info = {
+    .bufferOffset = vk_buffer->size,
+    .imageSubresource = {
+      .aspectMask = vk_texture->aspect_mask,
+      .mipLevel = 0,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    },
+    .imageOffset = {
+      .x = 0,
+      .y = 0,
+      .z = 0,
+    },
+    .imageExtent = {
+      .width = vk_texture->size.x,
+      .height = vk_texture->size.y,
+      .depth = 1,
+    },
+  };
+
+  vkCmdCopyImageToBuffer(
+      vk_command_buffer->handle[_r_vk_state.current_frame],
+      vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+      vk_buffer->handle, 1, &copy_info);
+
+  return vk_buffer->size;
+}
+
+func R_TextureFormat
+R_VK_GetTextureFormat(R_Texture texture)
+{
+  return R_VK_TextureFromHandle(texture)->format;
+}
+
+func void
+R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayout new_layout)
+{
+  VkPipelineStageFlags source_stages = 0;
+  VkPipelineStageFlags destination_stages = 0;
+  VkImageMemoryBarrier image_barrier = {0};
+  image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  image_barrier.image = texture->image;
+  image_barrier.subresourceRange.aspectMask = texture->aspect_mask;
+  image_barrier.subresourceRange.baseMipLevel = 0;
+  image_barrier.subresourceRange.levelCount = 1;
+  image_barrier.subresourceRange.baseArrayLayer = 0;
+  image_barrier.subresourceRange.layerCount = 1;
+
+  if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED)
+  {
+    source_stages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    image_barrier.srcAccessMask = 0;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+  {
+    source_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+  {
+    source_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    image_barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+  {
+    source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+  {
+    source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if(texture->layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+  {
+    source_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    image_barrier.srcAccessMask = 0;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else
+  {
+    Assert(1); // Layout is not supported
+  }
+
+  if (new_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+  {
+    destination_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+  {
+    destination_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+  {
+    destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+  {
+    destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+  {
+    destination_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    image_barrier.dstAccessMask = 0;
+    image_barrier.newLayout = new_layout;
+  }
+  else
+  {
+    Assert(1); // Layout is not supported
+  }
+
+  vkCmdPipelineBarrier(cmd, source_stages, destination_stages, 0, 0, 0, 0, 0, 1, &image_barrier);
+
+  texture->layout = new_layout;
 }
 
 // -------------------------------------------------------------------
@@ -1534,6 +1705,7 @@ func B32
 R_VK_Init(OS_Window* window)
 {
   _r_vk_state.arena = AllocateArena(Megabytes(64));
+  _r_vk_state.buffers = R_VK_BufferArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.graphics_pipelines = R_VK_GraphicsPipelineArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.command_buffers = R_VK_CommandBufferArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.textures = R_VK_TextureArrayAllocate(_r_vk_state.arena, 32);

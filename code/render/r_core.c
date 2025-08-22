@@ -27,30 +27,30 @@ R_SubmitCommandBuffer(R_CommandBuffer command_buffer)
 
 // -------------------------------------------------------------------
 // Buffer
-func R_Buffer* R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags)
+func R_Buffer R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags)
 {
 	return _r_state.device.CreateBuffer(capacity, usage_flags, property_flags);
 }
 
 func U64
-R_PushBuffer(R_Buffer* buffer, U8* data, U64 size)
+R_PushBuffer(R_Buffer buffer, U8* data, U64 size)
 {
 	return _r_state.device.PushBuffer(buffer, data, size);
 }
 
 func void
-R_ResetBuffer(R_Buffer* buffer)
+R_ResetBuffer(R_Buffer buffer)
 {
 	_r_state.device.ResetBuffer(buffer);
 }
 
 func void
-R_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size)
+R_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, R_IndexSize index_size)
 {
 	_r_state.device.BindIndexBuffer(command_buffer, buffer, offset, index_size);
 }
 
-func void R_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset)
+func void R_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset)
 {
 	_r_state.device.BindVertexBuffer(command_buffer, buffer, offset);
 }
@@ -63,28 +63,46 @@ R_CreateTexture(R_TextureCreateInfo* info)
   return _r_state.device.CreateTexture(info);
 }
 
+func void
+R_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination)
+{
+  return _r_state.device.CopyTexture(command_buffer, source, destination);
+}
+
+func U64
+R_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer)
+{
+  return _r_state.device.CopyTextureToBuffer(command_buffer, texture, buffer);
+}
+
+func R_TextureFormat
+R_GetTextureFormat(R_Texture texture)
+{
+  return _r_state.device.GetTextureFormat(texture);
+}
+
 // -------------------------------------------------------------------
 // Uniform Data
 func void
-R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindGlobalVertexUniformData(command_buffer, buffer, offset, data_size);
 }
 
 func void
-R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindInstanceVertexUniformData(command_buffer, buffer, offset, data_size);
 }
 
 func void
-R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindGlobalFragmentUniformData(command_buffer, buffer, offset, data_size);
 }
 
 func void
-R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size)
+R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
 {
 	_r_state.device.BindInstanceFragmentUniformData(command_buffer, buffer, offset, data_size);
 }
@@ -274,6 +292,12 @@ func void
 R_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance)
 {
 	_r_state.device.DrawIndexedPrimitives(command_buffer, index_count, instance_count, first_index, vertex_offset, first_instance);
+}
+
+func void
+R_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture)
+{
+  _r_state.device.PresentTexture(command_buffer, texture);
 }
 
 // -------------------------------------------------------------------

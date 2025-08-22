@@ -28,7 +28,7 @@ enum
   R_BUFFER_USAGE_FLAG_VERTEX  = 1 << 0,
   R_BUFFER_USAGE_FLAG_INDEX   = 1 << 1,
   R_BUFFER_USAGE_FLAG_UNIFORM = 1 << 2,
-  R_BUFFER_USAGE_FLAG_TRANSFER_SRC = 1 << 3,
+  R_BUFFER_USAGE_FLAG_TRANSFER = 1 << 3,
 
   R_BUFFER_USAGE_FLAG_COUNT
 };
@@ -45,9 +45,9 @@ enum
 
 typedef R_Handle R_Buffer;
 
-func R_Buffer* R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
-func U64 R_PushBuffer(R_Buffer* buffer, U8* data, U64 size);
-func void R_ResetBuffer(R_Buffer* buffer);
+func R_Buffer R_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
+func U64 R_PushBuffer(R_Buffer buffer, U8* data, U64 size);
+func void R_ResetBuffer(R_Buffer buffer);
 
 typedef U8 R_IndexSize;
 typedef enum R_IndexSizeEnum
@@ -58,8 +58,8 @@ typedef enum R_IndexSizeEnum
 	R_INDEX_SIZE_COUNT
 } R_IndexSizeEnum;
 
-func void R_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
-func void R_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset);
+func void R_BindIndexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, R_IndexSize index_size);
+func void R_BindVertexBuffer(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset);
 
 // -------------------------------------------------------------------
 // Texture
@@ -75,13 +75,18 @@ enum R_TextureFormatEnum
   R_TEXTURE_FORMAT_NONE,
   R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB,
   R_TEXTURE_FORMAT_B8G8R8A8_UNORM,
+  R_TEXTURE_FORMAT_R16G16B16A16_SFLOAT,
   R_TEXTURE_FORMAT_D16_UNORM,
+  R_TEXTURE_FORMAT_R16_UINT,
 } R_TextureFormatEnum;
 
 typedef U16 R_TextureUsageFlags;
 enum
 {
+  R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT = 1 << 0,
   R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT = 1 << 1,
+  R_TEXTURE_USAGE_FLAG_TRANSFER_SRC = 1 << 2,
+  R_TEXTURE_USAGE_FLAG_TRANSFER_DST = 1 << 3,
 };
 
 typedef struct R_TextureCreateInfo R_TextureCreateInfo;
@@ -100,13 +105,16 @@ typedef R_Handle R_Texture;
 
 func R_Texture R_CreateTexture(R_TextureCreateInfo* info);
 func B32 R_DestroyTexture(R_Texture texture);
+func void R_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination);
+func U64 R_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
+func R_TextureFormat R_GetTextureFormat(R_Texture texture);
 
 // -------------------------------------------------------------------
 // Uniform Data
-func void R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-func void R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+func void R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
 
 // -------------------------------------------------------------------
 // Swapchain
@@ -115,6 +123,8 @@ func R_Texture R_AcquireSwapchainTexture(R_CommandBuffer command_buffer);
 
 // -------------------------------------------------------------------
 // Render Pass
+#define R_MAX_COLOR_ATTACHMENTS 4
+
 typedef U8 R_LoadOperation;
 typedef enum R_LoadOperation
 {
@@ -244,22 +254,21 @@ typedef enum R_CompareOperationEnum
   R_COMPARE_OPERATION_COUNT
 } R_CompareOperationEnum;
 
-
 typedef struct R_PipelineDepthStencilState R_PipelineDepthStencilState;
 struct R_PipelineDepthStencilState
 {
   B32 depth_test_enable;
   B32 depth_write_enable;
   R_CompareOperation depth_compare_operation;
+  R_TextureFormat depth_target_format;
   // @TODO Without Stencil for now
 };
 
-typedef struct R_GraphicsPipelineTargetInfo R_GraphicsPipelineTargetInfo;
-struct R_GraphicsPipelineTargetInfo
+typedef struct R_GraphicsPipelineColorTargetInfo R_GraphicsPipelineColorTargetInfo;
+struct R_GraphicsPipelineColorTargetInfo
 {
-  U32 color_targets_count;
-  R_TextureFormat* color_targets_formats;
-  R_TextureFormat depth_target_format;
+  R_TextureFormat format;
+  B32 blend_enable;
 };
 
 typedef struct R_GraphicsPipelineCreateInfo R_GraphicsPipelineCreateInfo;
@@ -269,8 +278,9 @@ struct R_GraphicsPipelineCreateInfo
 	R_Shader fragment_shader;
 	U32 vertex_attributes_count;
 	R_VertexAttribute* vertex_attributes;
+  U32 color_targets_count;
+  R_GraphicsPipelineColorTargetInfo* color_target_infos;
   R_PipelineDepthStencilState depth_stencil_state;
-  R_GraphicsPipelineTargetInfo target_info;
 };
 
 typedef R_Handle R_GraphicsPipeline;
@@ -287,6 +297,8 @@ func void R_SetScissor(R_CommandBuffer command_buffer, RectI32 scissor);
 func void R_DrawPrimitives(R_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 func void R_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 
+func void R_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture);
+
 // -------------------------------------------------------------------
 // Device
 typedef struct R_Device R_Device;
@@ -296,21 +308,24 @@ struct R_Device
   B32 (*Shutdown)(void);
 
 	// Buffer
-	R_Buffer* (*CreateBuffer)(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
-	U64 (*PushBuffer)(R_Buffer* buffer, U8* data, U64 size);
-	void (*ResetBuffer)(R_Buffer* buffer);
-	void (*BindIndexBuffer)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, R_IndexSize index_size);
-	void (*BindVertexBuffer)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset);
+	R_Buffer (*CreateBuffer)(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
+	U64 (*PushBuffer)(R_Buffer buffer, U8* data, U64 size);
+	void (*ResetBuffer)(R_Buffer buffer);
+	void (*BindIndexBuffer)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, R_IndexSize index_size);
+	void (*BindVertexBuffer)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset);
 
 	// Uniform Data
-	void (*BindGlobalVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-	void (*BindInstanceVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-	void (*BindGlobalFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
-	void (*BindInstanceFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer* buffer, U64 offset, U64 data_size);
+	void (*BindGlobalVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+	void (*BindInstanceVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+	void (*BindGlobalFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+	void (*BindInstanceFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
 
   // Texture
   R_Texture (*CreateTexture)(R_TextureCreateInfo* info);
   B32 (*DestroyTexture)(R_Texture texture);
+  void (*CopyTexture)(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination);
+  U64 (*CopyTextureToBuffer)(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
+  R_TextureFormat (*GetTextureFormat)(R_Texture texture);
 
 	// Command Buffer
 	R_CommandBuffer (*GetCommandBuffer)(void);
@@ -334,6 +349,7 @@ struct R_Device
 	void (*SetScissor)(R_CommandBuffer command_buffer, RectI32 scissor);
 	void (*DrawPrimitives)(R_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 	void (*DrawIndexedPrimitives)(R_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
+  void (*PresentTexture)(R_CommandBuffer command_buffer, R_Texture texture);
 };
 
 #define AssignDeviceFunction(api_name, function_name) _r_state.device.function_name = R_##api_name##_##function_name;
@@ -351,6 +367,9 @@ struct R_Device
 	AssignDeviceFunction(api_name, BindInstanceFragmentUniformData) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
+  AssignDeviceFunction(api_name, CopyTexture) \
+  AssignDeviceFunction(api_name, CopyTextureToBuffer) \
+  AssignDeviceFunction(api_name, GetTextureFormat) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \
 	AssignDeviceFunction(api_name, SubmitCommandBuffer) \
@@ -364,6 +383,7 @@ struct R_Device
 	AssignDeviceFunction(api_name, SetScissor) \
 	AssignDeviceFunction(api_name, DrawPrimitives) \
 	AssignDeviceFunction(api_name, DrawIndexedPrimitives) \
+  AssignDeviceFunction(api_name, PresentTexture) \
 
 // -------------------------------------------------------------------
 // State

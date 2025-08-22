@@ -165,6 +165,7 @@ func R_TextureFormat R_VK_TextureFormatFromVkFormat(VkFormat format)
     case VK_FORMAT_R8G8B8A8_SRGB: texture_format = R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB; break; 
     case VK_FORMAT_B8G8R8A8_UNORM: texture_format = R_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
     case VK_FORMAT_D16_UNORM: texture_format = R_TEXTURE_FORMAT_D16_UNORM; break;
+    case VK_FORMAT_R16_UINT: texture_format = R_TEXTURE_FORMAT_R16_UINT; break;
   }
 
   return texture_format;
@@ -182,7 +183,9 @@ R_VK_GetVkFormat(R_TextureFormat format)
     case R_TEXTURE_FORMAT_NONE: vk_format = VK_FORMAT_UNDEFINED; break;
     case R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
     case R_TEXTURE_FORMAT_B8G8R8A8_UNORM: vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
+    case R_TEXTURE_FORMAT_R16G16B16A16_SFLOAT: vk_format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
     case R_TEXTURE_FORMAT_D16_UNORM: vk_format = VK_FORMAT_D16_UNORM; break;
+    case R_TEXTURE_FORMAT_R16_UINT: vk_format = VK_FORMAT_R16_UINT; break;
   }
 
   return vk_format;
@@ -192,9 +195,21 @@ func VkImageUsageFlags
 R_VK_GetVkImageUsageFlags(R_TextureUsageFlags flags)
 {
   VkImageUsageFlags vk_flags = 0;
+  if ((flags & R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT)
+  {
+    vk_flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  }
   if ((flags & R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
   {
     vk_flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  }
+  if ((flags & R_TEXTURE_USAGE_FLAG_TRANSFER_SRC) == R_TEXTURE_USAGE_FLAG_TRANSFER_SRC)
+  {
+    vk_flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  }
+  if ((flags & R_TEXTURE_USAGE_FLAG_TRANSFER_DST) == R_TEXTURE_USAGE_FLAG_TRANSFER_DST)
+  {
+    vk_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   }
 
   return vk_flags;
