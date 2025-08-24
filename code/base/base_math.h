@@ -246,3 +246,8 @@ typedef Mat4F32 Mat4;
 #define MakeLookAtMat4(position, target, up) MakeLookAtMat4F32(position, target, up);
 #define MakeTransposeMat4(v) MakeTransposeMat4F32(v)
 #define MakeRotationMat4(axis, angle) MakeRotationMat4F32(axis, angle)
+
+// -------------------------------------------------------------------
+// Color
+#define RGBFromHex(hex) ScaleVec3F32(MakeVec3F32(((hex>>16)&0xFF), ((hex>>8)&0xFF), ((hex)&0xFF)), 1.0f/255.0f)
+#define RGBAFromHex(hex) ScaleVec4F32(MakeVec4F32(((hex>>24)&0xFF), ((hex>>16)&0xFF), ((hex>>8)&0xFF), ((hex)&0xFF)), 1.0f/255.0f)

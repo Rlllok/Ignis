@@ -45,5 +45,5 @@ void main(void)
   frag_color = vec4(axis_color, axis_value);
 
 	frag_color.rgb = mix(grid_color.rgb, axis_color, axis_value);
-	frag_color.a = max(grid_value, subgrid_value*.5f);
+	frag_color.a = grid_color.a*max(grid_value, subgrid_value*0.5f);
 }

@@ -261,7 +261,8 @@ I32 main(void)
 		{
 			Vec4 color;
 		} grid_global_fragment_data;
-		grid_global_fragment_data.color = MakeVec4(0.5f, 0.5f, 0.5f, 0.8f);
+		grid_global_fragment_data.color = RGBAFromHex(0x95B8D177);
+    LOG_DEBUG("R: %f, G: %f, B: %f, A: %f", grid_global_fragment_data.color.r, grid_global_fragment_data.color.g, grid_global_fragment_data.color.b, grid_global_fragment_data.color.a);
 
 		U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
 		U64 grid_instance_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_instance_vertex_data, sizeof(grid_instance_vertex_data));
@@ -308,7 +309,7 @@ I32 main(void)
 				.texture = swapchain_texture,
 				.load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
 				.store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-				.clear_color = MakeVec4(0.1f, 0.1f, 0.1f, 1.0f),
+				.clear_color = RGBAFromHex(0x1A1D26FF),
         },
         {
 				.texture = app_state.test_texture,
