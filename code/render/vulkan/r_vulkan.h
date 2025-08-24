@@ -29,7 +29,8 @@ struct R_VK_Buffer
   U64 size;
   U64 capacity;
 };
-DefineArray(R_VK_Buffer, R_VK_BufferArray);
+R_VK_Buffer R_VK_BufferDefaultValue = {0};
+DefineArray(R_VK_Buffer, R_VK_BufferArray, R_VK_BufferDefaultValue);
 
 func R_VK_Buffer* R_VK_BufferFromHandle(R_Buffer handle);
 func R_Buffer R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);
@@ -105,6 +106,7 @@ func void R_VK_EndRenderPass(R_CommandBuffer command_buffer, R_RenderPass* rende
 #define R_VK_MAX_POOL_COUNT 4
 #define R_VK_SETS_PER_POOL 8
 #define R_VK_MAX_UNIFORM_BUFFERS_PER_SET 4
+#define R_VK_MAX_SAMPLERS_PER_SET 4
 
 #define R_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT 0
 #define R_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT 1
@@ -120,10 +122,13 @@ struct R_VK_DescriptorPool
 	I32 sets_count;
 };
 
-func void R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-func void R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-func void R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-func void R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+func void R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, R_SamplerBindingInfo* sampler_info);
+func void R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, R_SamplerBindingInfo* sampler_info);
+
+func void R_VK_BindGlobalVertexShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info);
+func void R_VK_BindInstanceVertexShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info);
+func void R_VK_BindGlobalFragmentShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info);
+func void R_VK_BindInstanceFragmentShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info);
 
 // --------------------------------------------------
 // Pipeline
@@ -134,16 +139,21 @@ struct R_VK_GraphicsPipeline
 {
   VkPipeline handle;
   VkPipelineLayout layout;
-	U32 vertex_global_uniform_count;
-  U32 vertex_instance_uniform_count;
-	U32 fragment_global_uniform_count;
-  U32 fragment_instance_uniform_count;
+	U32 vertex_global_uniforms_count;
+  U32 vertex_global_samplers_count;
+  U32 vertex_instance_uniforms_count;
+  U32 vertex_instance_samplers_count;
+	U32 fragment_global_uniforms_count;
+	U32 fragment_global_samplers_count;
+  U32 fragment_instance_uniforms_count;
+  U32 fragment_instance_samplers_count;
 	VkDescriptorSetLayout vertex_global_set_layout;
 	VkDescriptorSetLayout vertex_instance_set_layout;
 	VkDescriptorSetLayout fragment_global_set_layout;
 	VkDescriptorSetLayout fragment_instance_set_layout;
 };
-DefineArray(R_VK_GraphicsPipeline, R_VK_GraphicsPipelineArray)
+R_VK_GraphicsPipeline R_VK_GraphicsPipelineDefaultValue = {0};
+DefineArray(R_VK_GraphicsPipeline, R_VK_GraphicsPipelineArray, R_VK_GraphicsPipelineDefaultValue)
 
 func R_VK_GraphicsPipeline* R_VK_GraphicsPipelineFromHandle(R_GraphicsPipeline pipeline);
 func R_GraphicsPipeline R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
@@ -172,20 +182,34 @@ struct R_VK_Texture
   VkImageLayout layout;
   VkImageAspectFlagBits aspect_mask;
   Vec2I32 size;
-  B32 from_swapchain; // --AlNov: If image created by swapchain, it have to be destroyed by swapchain
+  B32 from_swapchain; // --AlNov: If image created by swapchain, it has to be destroyed by swapchain
 };
-DefineArray(R_VK_Texture, R_VK_TextureArray)
-DefineArray(I32, R_VK_TextureFreeList)
+R_VK_Texture R_VK_TextureDefaultValue = {0};
+DefineArray(R_VK_Texture, R_VK_TextureArray, R_VK_TextureDefaultValue)
+U32 R_VK_TextureFreeListDefaultValue = R_NIL;
+DefineArray(U32, R_VK_TextureFreeList, R_VK_TextureFreeListDefaultValue)
 
 func R_VK_Texture* R_VK_TextureFromHandle(R_Texture handle);
 func R_Texture R_VK_CreateTexture(R_TextureCreateInfo* info);
 func B32 R_VK_DestroyTexture(R_Texture texture);
+func void R_VK_LoadDataToTexture(U8* data, U64 data_size, R_Texture texture);
 func void R_VK_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination);
 func U64 R_VK_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
+func void R_VK_CopyBufferToTexture(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture);
 func R_TextureFormat R_VK_GetTextureFormat(R_Texture texture);
 
 func void R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayout new_layout);
 
+typedef struct R_VK_TextureSampler R_VK_TextureSampler;
+struct R_VK_TextureSampler
+{
+  VkSampler handle;
+};
+R_VK_TextureSampler R_VK_TextureSamplerDefaultValue = {0};
+DefineArray(R_VK_TextureSampler, R_VK_TextureSamplerArray, R_VK_TextureSamplerDefaultValue)
+
+func R_VK_TextureSampler* R_VK_TextureSamplerFromHandle(R_TextureSampler sampler);
+func R_TextureSampler R_VK_CreateTextureSampler(R_TextureSamplerCreateInfo* info);
 
 // -------------------------------------------------------------------
 // Command Buffer
@@ -201,7 +225,8 @@ struct R_VK_CommandBuffer
 
 	struct R_VK_GraphicsPipeline* binded_graphics_pipeline;
 };
-DefineArray(R_VK_CommandBuffer, R_VK_CommandBufferArray)
+R_VK_CommandBuffer R_VK_CommandBufferDefaultValue = {0};
+DefineArray(R_VK_CommandBuffer, R_VK_CommandBufferArray, R_VK_CommandBufferDefaultValue)
 
 func R_VK_CommandBuffer* R_VK_CommandBufferFromHandle(R_CommandBuffer command_buffer);
 func R_CommandBuffer R_VK_GetCommandBuffer(void);
@@ -231,6 +256,7 @@ struct R_VK_State
   R_VK_BufferArray buffers;
   R_VK_GraphicsPipelineArray graphics_pipelines;
   R_VK_CommandBufferArray command_buffers;
+  R_VK_TextureSamplerArray samplers;
   R_VK_TextureArray textures;
   R_VK_TextureFreeList textures_free_list;
 

@@ -10,6 +10,20 @@
 typedef U32 R_Handle;
 #define R_NIL 0;
 
+typedef U8 R_CompareOperation;
+typedef enum R_CompareOperationEnum
+{
+  R_COMPARE_OPERATION_EQUAL,
+  R_COMPARE_OPERATION_NOT_EQUAL,
+  R_COMPARE_OPERATION_LESS,
+  R_COMPARE_OPERATION_LESS_OR_EQUAL,
+  R_COMPARE_OPERATION_GREATER,
+  R_COMPARE_OPERATION_GREATER_OR_EQUAL,
+
+  R_COMPARE_OPERATION_COUNT
+} R_CompareOperationEnum;
+
+
 // -------------------------------------------------------------------
 // Command Buffer
 typedef R_Handle R_CommandBuffer;
@@ -73,7 +87,7 @@ typedef U8 R_TextureFormat;
 enum R_TextureFormatEnum
 {
   R_TEXTURE_FORMAT_NONE,
-  R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB,
+  R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
   R_TEXTURE_FORMAT_B8G8R8A8_UNORM,
   R_TEXTURE_FORMAT_R16G16B16A16_SFLOAT,
   R_TEXTURE_FORMAT_D16_UNORM,
@@ -87,6 +101,7 @@ enum
   R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT = 1 << 1,
   R_TEXTURE_USAGE_FLAG_TRANSFER_SRC = 1 << 2,
   R_TEXTURE_USAGE_FLAG_TRANSFER_DST = 1 << 3,
+  R_TEXTURE_USAGE_FLAG_SAMPLED = 1 << 4,
 };
 
 typedef struct R_TextureCreateInfo R_TextureCreateInfo;
@@ -105,16 +120,78 @@ typedef R_Handle R_Texture;
 
 func R_Texture R_CreateTexture(R_TextureCreateInfo* info);
 func B32 R_DestroyTexture(R_Texture texture);
+func void R_LoadImageToTexture(Str8 image_path, R_Texture texture);
 func void R_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination);
 func U64 R_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
+func void R_CopyBufferToTexture(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture);
 func R_TextureFormat R_GetTextureFormat(R_Texture texture);
+
+typedef U8 R_FilterType;
+enum R_FilterTypeEnum
+{
+  R_FILTER_TYPE_NEAREST,
+  R_FILTER_TYPE_LINEAR,
+} R_FilterTypeEnum;
+
+typedef U8 R_SamplerMipmapMode;
+enum R_SamplerMipmapModeEnum
+{
+  R_SAMPLER_MIPMAP_MODE_NEAREST,
+  R_SAMPLER_MIPMAP_MODE_LINEAR,
+} R_SamplerMimapModeEnum;
+
+typedef U8 R_SamplerAddressMode;
+enum R_SamplerAddressModeEnum
+{
+  R_SAMPLER_ADDRESS_MODE_REPEAT,
+  R_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT,
+  R_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+  R_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+} R_SamplerAddressModeEnum;
+
+typedef struct R_TextureSamplerCreateInfo R_TextureSamplerCreateInfo;
+struct R_TextureSamplerCreateInfo
+{
+  R_FilterType mag_filter;
+  R_FilterType min_filter;
+  R_SamplerMipmapMode mipmap_mode;
+  R_SamplerAddressMode address_mode_u;
+  R_SamplerAddressMode address_mode_v;
+  R_SamplerAddressMode address_mode_w;
+  F32 mip_lod_bias;
+  B32 anisotropy_enable;
+  F32 max_anisotropy;
+  F32 compare_enable;
+  R_CompareOperation compare_operation;
+  F32 min_lod;
+  F32 max_lod;
+};
+
+typedef R_Handle R_TextureSampler;
+
+func R_TextureSampler R_CreateTextureSampler(R_TextureSamplerCreateInfo* info);
 
 // -------------------------------------------------------------------
 // Uniform Data
-func void R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-func void R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-func void R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-func void R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+typedef struct R_UniformBufferBindingInfo R_UniformBufferBindingInfo;
+struct R_UniformBufferBindingInfo
+{
+  R_Buffer buffer;
+  U64 offset;
+  U64 size;
+};
+
+typedef struct R_SamplerBindingInfo R_SamplerBindingInfo;
+struct R_SamplerBindingInfo
+{
+  R_TextureSampler sampler;
+  R_Texture texture;
+};
+
+func void R_BindGlobalVertexShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info);
+func void R_BindInstanceVertexShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info);
+func void R_BindGlobalFragmentShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info);
+func void R_BindInstanceFragmentShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info);
 
 // -------------------------------------------------------------------
 // Swapchain
@@ -190,8 +267,10 @@ struct R_Shader
   U32               code_size;
   U8*               code;
 
-	U32 global_uniform_count;
-  U32 instance_uniform_count;
+	I32 global_uniforms_count;
+  I32 global_samplers_count;
+  I32 instance_uniforms_count;
+  I32 instance_samplers_count;
 };
 
 typedef U8 R_VertexAttributeFormat;
@@ -241,19 +320,6 @@ typedef enum R_PipelineCullingModeEnum
   R_PIPELINE_CULLING_MODE_COUNT
 } R_PipelineCullingModeEnum;
 
-typedef U8 R_CompareOperation;
-typedef enum R_CompareOperationEnum
-{
-  R_COMPARE_OPERATION_EQUAL,
-  R_COMPARE_OPERATION_NOT_EQUAL,
-  R_COMPARE_OPERATION_LESS,
-  R_COMPARE_OPERATION_LESS_OR_EQUAL,
-  R_COMPARE_OPERATION_GREATER,
-  R_COMPARE_OPERATION_GREATER_OR_EQUAL,
-
-  R_COMPARE_OPERATION_COUNT
-} R_CompareOperationEnum;
-
 typedef struct R_PipelineDepthStencilState R_PipelineDepthStencilState;
 struct R_PipelineDepthStencilState
 {
@@ -285,7 +351,17 @@ struct R_GraphicsPipelineCreateInfo
 
 typedef R_Handle R_GraphicsPipeline;
 
-func R_Shader R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count, U32 instancce_uniform_count);
+typedef struct R_ShaderCreateInfo R_ShaderCreateInfo;
+struct R_ShaderCreateInfo
+{
+  Str8 file_name;
+  R_ShaderType type;
+  I32 global_uniforms_count;
+  I32 global_samplers_count;
+  I32 instance_uniforms_count;
+  I32 instance_samplers_count;
+};
+func R_Shader R_CreateShader(Arena* arena, R_ShaderCreateInfo* info);
 func R_GraphicsPipeline R_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* info);
 func void R_BindGraphicsPipeline(R_CommandBuffer command_buffer, R_GraphicsPipeline pipeline);
 
@@ -315,17 +391,19 @@ struct R_Device
 	void (*BindVertexBuffer)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset);
 
 	// Uniform Data
-	void (*BindGlobalVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-	void (*BindInstanceVertexUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-	void (*BindGlobalFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
-	void (*BindInstanceFragmentUniformData)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size);
+	void (*BindGlobalShaderData)(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info);
+	void (*BindInstanceShaderData)(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info);
 
   // Texture
   R_Texture (*CreateTexture)(R_TextureCreateInfo* info);
   B32 (*DestroyTexture)(R_Texture texture);
+  void (*LoadDataToTexture)(U8* data, U64 data_size, R_Texture texture);
   void (*CopyTexture)(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination);
   U64 (*CopyTextureToBuffer)(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
+  void (*CopyBufferToTexture)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture);
   R_TextureFormat (*GetTextureFormat)(R_Texture texture);
+
+  R_TextureSampler (*CreateTextureSampler)(R_TextureSamplerCreateInfo* info);
 
 	// Command Buffer
 	R_CommandBuffer (*GetCommandBuffer)(void);
@@ -361,15 +439,16 @@ struct R_Device
 	AssignDeviceFunction(api_name, ResetBuffer) \
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
-	AssignDeviceFunction(api_name, BindGlobalVertexUniformData) \
-	AssignDeviceFunction(api_name, BindInstanceVertexUniformData) \
-	AssignDeviceFunction(api_name, BindGlobalFragmentUniformData) \
-	AssignDeviceFunction(api_name, BindInstanceFragmentUniformData) \
+	AssignDeviceFunction(api_name, BindGlobalShaderData) \
+	AssignDeviceFunction(api_name, BindInstanceShaderData) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
+  AssignDeviceFunction(api_name, LoadDataToTexture) \
   AssignDeviceFunction(api_name, CopyTexture) \
   AssignDeviceFunction(api_name, CopyTextureToBuffer) \
+  AssignDeviceFunction(api_name, CopyBufferToTexture) \
   AssignDeviceFunction(api_name, GetTextureFormat) \
+  AssignDeviceFunction(api_name, CreateTextureSampler) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \
 	AssignDeviceFunction(api_name, SubmitCommandBuffer) \

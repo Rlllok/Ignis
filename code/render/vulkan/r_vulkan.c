@@ -606,8 +606,9 @@ R_VK_AcquireSwapchainTexture(R_CommandBuffer command_buffer)
 
 // -------------------------------------------------------------------
 // Descriptor Sets
+#if 0
 func void
-R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_VK_BindGlobalVertexShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -648,11 +649,11 @@ R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
+	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(uniform_info.buffer);
 	VkDescriptorBufferInfo buffer_info = {
 		.buffer = vk_buffer->handle,
-		.offset = offset,
-		.range = data_size,
+		.offset = uniform_info.offset,
+		.range = uniform_info.size,
 	};
 
 	VkWriteDescriptorSet write_info = {
@@ -676,7 +677,7 @@ R_VK_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer
 }
 
 func void
-R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_VK_BindInstanceVertexShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -717,11 +718,11 @@ R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buff
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
+	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(uniform_info.buffer);
 	VkDescriptorBufferInfo buffer_info = {
 		.buffer = vk_buffer->handle,
-		.offset = offset,
-		.range = data_size,
+		.offset = uniform_info.offset,
+		.range = uniform_info.size,
 	};
 
 	VkWriteDescriptorSet write_info = {
@@ -739,13 +740,15 @@ R_VK_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buff
 			vk_command_buffer->handle[_r_vk_state.current_frame],
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			vk_command_buffer->binded_graphics_pipeline->layout,
+
 			R_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
 
 	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
 }
+#endif
 
 func void
-R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -754,13 +757,15 @@ R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buff
 	{
 		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
 
-		VkDescriptorPoolSize uniform_pool_size = {
-			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			.descriptorCount = R_VK_MAX_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
-		};
-
 		VkDescriptorPoolSize pool_sizes[] = {
-			uniform_pool_size,
+      {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = R_VK_MAX_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
+      },
+      {
+        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = R_VK_MAX_SAMPLERS_PER_SET*R_VK_SETS_PER_POOL,
+      }
 		};
 
 		VkDescriptorPoolCreateInfo pool_info = {
@@ -777,44 +782,92 @@ R_VK_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buff
 
 	I32 pool_id = (I32)(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count/R_VK_SETS_PER_POOL);
 	I32 set_id = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count%R_VK_SETS_PER_POOL;
+
+  I32 set_slot = 0;
+  VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+  if (shader_type == R_SHADER_TYPE_VERTEX)
+  {
+    set_slot = R_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT;
+		set_layout = vk_command_buffer->binded_graphics_pipeline->vertex_global_set_layout;
+  }
+  else if (shader_type == R_SHADER_TYPE_FRAGMENT)
+  {
+    set_slot = R_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT;
+		set_layout = vk_command_buffer->binded_graphics_pipeline->fragment_global_set_layout;
+  }
 
 	VkDescriptorSetAllocateInfo sets_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[pool_id],
 		.descriptorSetCount = 1, // --AlNov: @TODO Only Global Set for now
-		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->fragment_global_set_layout,
+		.pSetLayouts = &set_layout,
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
-	VkDescriptorBufferInfo buffer_info = {
-		.buffer = vk_buffer->handle,
-		.offset = offset,
-		.range = data_size,
-	};
+  VkWriteDescriptorSet write_infos[R_VK_MAX_UNIFORM_BUFFERS_PER_SET+R_VK_MAX_SAMPLERS_PER_SET] = {0};
+  I32 writes_count = 0;
 
-	VkWriteDescriptorSet write_info = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
-		.dstBinding = 0, // @TODO Add more bindings
-		.dstArrayElement = 0,
-		.descriptorCount = 1,
-		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		.pBufferInfo = &buffer_info,
-	};
-	vkUpdateDescriptorSets(_r_vk_state.device.logical, 1, &write_info, 0, 0);
+  for (I32 i = 0; i < uniform_buffers_count; i += 1)
+  {
+    R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(uniform_info->buffer);
+    VkDescriptorBufferInfo buffer_info = {
+      .buffer = vk_buffer->handle,
+      .offset = uniform_info->offset,
+      .range = uniform_info->size,
+    };
 
-	vkCmdBindDescriptorSets(
+    VkWriteDescriptorSet write_info = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+      .dstBinding = 0, // @TODO Add more bindings
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo = &buffer_info,
+    };
+    write_infos[writes_count] = write_info;
+
+    writes_count += 1;
+  }
+
+  for (I32 i = 0; i < samplers_count; i += 1)
+  {
+    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_info[0].sampler);
+    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_info[0].texture);
+
+    VkDescriptorImageInfo image_info = 
+    {
+      .sampler = vk_sampler->handle,
+      .imageView = vk_texture->view,
+      .imageLayout = vk_texture->layout,
+    };
+
+    VkWriteDescriptorSet write_info = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+      .dstBinding = 1, // @TODO Add more bindings
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = &image_info,
+    };
+    write_infos[writes_count] = write_info;
+
+    writes_count += 1;
+  }
+	vkUpdateDescriptorSets(_r_vk_state.device.logical, writes_count, write_infos, 0, 0);
+
+	vkCmdBindDescriptorSets( 
 			vk_command_buffer->handle[_r_vk_state.current_frame],
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			vk_command_buffer->binded_graphics_pipeline->layout,
-			R_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+			set_slot, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
 
 	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
 }
 
 func void
-R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -823,13 +876,15 @@ R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer bu
 	{
 		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
 
-		VkDescriptorPoolSize uniform_pool_size = {
-			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			.descriptorCount = R_VK_MAX_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
-		};
-
 		VkDescriptorPoolSize pool_sizes[] = {
-			uniform_pool_size,
+      {
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = R_VK_MAX_UNIFORM_BUFFERS_PER_SET*R_VK_SETS_PER_POOL,
+      },
+      {
+        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .descriptorCount = R_VK_MAX_SAMPLERS_PER_SET*R_VK_SETS_PER_POOL,
+      }
 		};
 
 		VkDescriptorPoolCreateInfo pool_info = {
@@ -847,37 +902,91 @@ R_VK_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer bu
 	I32 pool_id = (I32)(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count/R_VK_SETS_PER_POOL);
 	I32 set_id = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count%R_VK_SETS_PER_POOL;
 
+  I32 set_slot = 0;
+  VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
+  if (shader_type == R_SHADER_TYPE_VERTEX)
+  {
+    set_slot = R_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT;
+		set_layout = vk_command_buffer->binded_graphics_pipeline->vertex_instance_set_layout;
+  }
+  else if (shader_type == R_SHADER_TYPE_FRAGMENT)
+  {
+    set_slot = R_VK_FRAGMENT_SHADER_INSTANCE_UNIFORM_SET_SLOT;
+		set_layout = vk_command_buffer->binded_graphics_pipeline->fragment_instance_set_layout;
+  }
+
 	VkDescriptorSetAllocateInfo sets_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_pools[pool_id],
 		.descriptorSetCount = 1,
-		.pSetLayouts = &vk_command_buffer->binded_graphics_pipeline->fragment_instance_set_layout,
+		.pSetLayouts = &set_layout,
 	};
 	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
 
-	R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
-	VkDescriptorBufferInfo buffer_info = {
-		.buffer = vk_buffer->handle,
-		.offset = offset,
-		.range = data_size,
-	};
+  VkWriteDescriptorSet write_infos[R_VK_MAX_UNIFORM_BUFFERS_PER_SET+R_VK_MAX_SAMPLERS_PER_SET] = {0};
+  I32 writes_count = 0;
 
-	VkWriteDescriptorSet write_info = {
-		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-		.dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
-		.dstBinding = 0, // @TODO Add more bindings
-		.dstArrayElement = 0,
-		.descriptorCount = 1,
-		.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-		.pBufferInfo = &buffer_info,
-	};
-	vkUpdateDescriptorSets(_r_vk_state.device.logical, 1, &write_info, 0, 0);
+  for (I32 i = 0; i < uniform_buffers_count; i += 1)
+  {
+    R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(uniform_info->buffer);
+    VkDescriptorBufferInfo buffer_info = {
+      .buffer = vk_buffer->handle,
+      .offset = uniform_info->offset,
+      .range = uniform_info->size,
+    };
 
-	vkCmdBindDescriptorSets(
+    VkWriteDescriptorSet write_info = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+      .dstBinding = 0, // @TODO Add more bindings
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo = &buffer_info,
+    };
+    write_infos[writes_count] = write_info;
+
+    writes_count += 1;
+  }
+
+  for (I32 i = 0; i < samplers_count; i += 1)
+  {
+    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_info[0].sampler);
+    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_info[0].texture);
+
+    VkCommandBuffer single_cmd = R_VK_BeginSingleCmd();
+    {
+      R_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+    R_VK_EndSingleCmd(single_cmd);
+
+    VkDescriptorImageInfo image_info = 
+    {
+      .sampler = vk_sampler->handle,
+      .imageView = vk_texture->view,
+      .imageLayout = vk_texture->layout,
+    };
+
+    VkWriteDescriptorSet write_info = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
+      .dstBinding = 1, // @TODO Add more bindings
+      .dstArrayElement = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = &image_info,
+    };
+    write_infos[writes_count] = write_info;
+
+    writes_count += 1;
+  }
+	vkUpdateDescriptorSets(_r_vk_state.device.logical, writes_count, write_infos, 0, 0);
+
+	vkCmdBindDescriptorSets( 
 			vk_command_buffer->handle[_r_vk_state.current_frame],
 			VK_PIPELINE_BIND_POINT_GRAPHICS,
 			vk_command_buffer->binded_graphics_pipeline->layout,
-			R_VK_FRAGMENT_SHADER_INSTANCE_UNIFORM_SET_SLOT, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+			set_slot, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
 
 	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
 }
@@ -894,29 +1003,40 @@ func R_GraphicsPipeline
 R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 {
   R_VK_GraphicsPipeline pipeline = {0};
-	pipeline.vertex_global_uniform_count = pipeline_info->vertex_shader.global_uniform_count;
-  pipeline.vertex_instance_uniform_count = pipeline_info->vertex_shader.instance_uniform_count;
-  pipeline.fragment_global_uniform_count = pipeline_info->fragment_shader.global_uniform_count;
-	pipeline.fragment_instance_uniform_count = pipeline_info->fragment_shader.instance_uniform_count;
+	pipeline.vertex_global_uniforms_count = pipeline_info->vertex_shader.global_uniforms_count;
+  pipeline.vertex_global_samplers_count = pipeline_info->vertex_shader.global_samplers_count;
+  pipeline.vertex_instance_uniforms_count = pipeline_info->vertex_shader.instance_uniforms_count;
+  pipeline.vertex_instance_samplers_count = pipeline_info->vertex_shader.instance_samplers_count;
+  pipeline.fragment_global_uniforms_count = pipeline_info->fragment_shader.global_uniforms_count;
+  pipeline.fragment_global_samplers_count = pipeline_info->fragment_shader.global_samplers_count;
+	pipeline.fragment_instance_uniforms_count = pipeline_info->fragment_shader.instance_uniforms_count;
+  pipeline.fragment_instance_samplers_count = pipeline_info->fragment_shader.instance_samplers_count;
 
 	VkDescriptorSetLayout set_layouts[4] = {0};
 	I32 set_layouts_count = 0;
-
 	{
-		VkDescriptorSetLayoutBinding vertex_global_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.vertex_global_uniform_count; i += 1)
+		VkDescriptorSetLayoutBinding vertex_global_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET + R_VK_MAX_SAMPLERS_PER_SET] = {0};
+		for (I32 i = 0; i < pipeline.vertex_global_uniforms_count; i += 1)
 		{
-			vertex_global_bindings[i].binding = 0; // @TODO Add more bindings
+			vertex_global_bindings[i].binding = i; // @TODO Add more bindings
 			vertex_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			vertex_global_bindings[i].descriptorCount = 1;
 			vertex_global_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 			vertex_global_bindings[i].pImmutableSamplers = 0;
 		};
+    for (I32 i = pipeline.vertex_global_uniforms_count; i < pipeline.vertex_global_uniforms_count + pipeline.vertex_global_samplers_count; i += 1)
+    {
+			vertex_global_bindings[i].binding = i; // @TODO Add more bindings
+			vertex_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			vertex_global_bindings[i].descriptorCount = 1;
+			vertex_global_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+			vertex_global_bindings[i].pImmutableSamplers = 0;
+    }
 
 		VkDescriptorSetLayoutCreateInfo vertex_global_set_layout_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.flags = 0,
-			.bindingCount = pipeline.vertex_global_uniform_count,
+			.bindingCount = pipeline.vertex_global_uniforms_count + pipeline.vertex_global_samplers_count,
 			.pBindings = vertex_global_bindings,
 		};
 		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &vertex_global_set_layout_info, 0, &pipeline.vertex_global_set_layout));
@@ -925,20 +1045,28 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 	}
 
 	{
-		VkDescriptorSetLayoutBinding vertex_instance_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.vertex_instance_uniform_count; i += 1)
+		VkDescriptorSetLayoutBinding vertex_instance_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET + R_VK_MAX_SAMPLERS_PER_SET] = {0};
+		for (I32 i = 0; i < pipeline.vertex_instance_uniforms_count; i += 1)
 		{
-			vertex_instance_bindings[i].binding = 0; // @TODO Add more bindings
+			vertex_instance_bindings[i].binding = i; // @TODO Add more bindings
 			vertex_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			vertex_instance_bindings[i].descriptorCount = 1;
 			vertex_instance_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 			vertex_instance_bindings[i].pImmutableSamplers = 0;
 		};
+    for (I32 i = pipeline.vertex_instance_uniforms_count; i < pipeline.vertex_instance_uniforms_count + pipeline.vertex_instance_samplers_count; i += 1)
+    {
+			vertex_instance_bindings[i].binding = i; // @TODO Add more bindings
+			vertex_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			vertex_instance_bindings[i].descriptorCount = 1;
+			vertex_instance_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+			vertex_instance_bindings[i].pImmutableSamplers = 0;
+    }
 
 		VkDescriptorSetLayoutCreateInfo vertex_instance_set_layout_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.flags = 0,
-			.bindingCount = pipeline.vertex_instance_uniform_count,
+			.bindingCount = pipeline.vertex_instance_uniforms_count + pipeline.vertex_instance_samplers_count,
 			.pBindings = vertex_instance_bindings,
 		};
 		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &vertex_instance_set_layout_info, 0, &pipeline.vertex_instance_set_layout));
@@ -947,20 +1075,28 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 	}
 
 	{
-		VkDescriptorSetLayoutBinding fragment_global_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.fragment_global_uniform_count; i += 1)
+		VkDescriptorSetLayoutBinding fragment_global_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET + R_VK_MAX_SAMPLERS_PER_SET] = {0};
+		for (I32 i = 0; i < pipeline.fragment_global_uniforms_count; i += 1)
 		{
-			fragment_global_bindings[i].binding = 0; // @TODO Add more bindings
+			fragment_global_bindings[i].binding = i; // @TODO Add more bindings
 			fragment_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			fragment_global_bindings[i].descriptorCount = 1;
 			fragment_global_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 			fragment_global_bindings[i].pImmutableSamplers = 0;
 		};
+    for (I32 i = pipeline.fragment_global_uniforms_count; i < pipeline.fragment_global_uniforms_count + pipeline.fragment_global_samplers_count; i += 1)
+    {
+			fragment_global_bindings[i].binding = i; // @TODO Add more bindings
+			fragment_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			fragment_global_bindings[i].descriptorCount = 1;
+			fragment_global_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+			fragment_global_bindings[i].pImmutableSamplers = 0;
+    }
 
 		VkDescriptorSetLayoutCreateInfo fragment_global_set_layout_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.flags = 0,
-			.bindingCount = pipeline.fragment_global_uniform_count,
+			.bindingCount = pipeline.fragment_global_uniforms_count + pipeline.fragment_global_samplers_count,
 			.pBindings = fragment_global_bindings,
 		};
 		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &fragment_global_set_layout_info, 0, &pipeline.fragment_global_set_layout));
@@ -969,20 +1105,28 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
 	}
 
 	{
-		VkDescriptorSetLayoutBinding fragment_instance_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.fragment_instance_uniform_count; i += 1)
+		VkDescriptorSetLayoutBinding fragment_instance_bindings[R_VK_MAX_UNIFORM_BUFFERS_PER_SET + R_VK_MAX_SAMPLERS_PER_SET] = {0};
+		for (I32 i = 0; i < pipeline.fragment_instance_uniforms_count; i += 1)
 		{
-			fragment_instance_bindings[i].binding = 0; // @TODO Add more bindings
+			fragment_instance_bindings[i].binding = i; // @TODO Add more bindings
 			fragment_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			fragment_instance_bindings[i].descriptorCount = 1;
 			fragment_instance_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 			fragment_instance_bindings[i].pImmutableSamplers = 0;
 		};
+    for (I32 i = pipeline.fragment_instance_uniforms_count; i < pipeline.fragment_instance_uniforms_count + pipeline.fragment_instance_samplers_count; i += 1)
+    {
+			fragment_instance_bindings[i].binding = i; // @TODO Add more bindings
+			fragment_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			fragment_instance_bindings[i].descriptorCount = 1;
+			fragment_instance_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+			fragment_instance_bindings[i].pImmutableSamplers = 0;
+    }
 
 		VkDescriptorSetLayoutCreateInfo fragment_instance_set_layout_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 			.flags = 0,
-			.bindingCount = pipeline.fragment_instance_uniform_count,
+			.bindingCount = pipeline.fragment_instance_uniforms_count + pipeline.fragment_instance_samplers_count,
 			.pBindings = fragment_instance_bindings,
 		};
 		VK_CHECK(vkCreateDescriptorSetLayout(_r_vk_state.device.logical, &fragment_instance_set_layout_info, 0, &pipeline.fragment_instance_set_layout));
@@ -1353,24 +1497,6 @@ R_VK_CreateTexture(R_TextureCreateInfo* info)
   texture.size.x = info->width;
   texture.size.y = info->height;
 #if 0
-  I32 tex_width    = 0;
-  I32 tex_height   = 0;
-  I32 tex_channels = 0;
-  U8* tex_pixels   = stbi_load(CFromStr8(path), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
-
-  if (!tex_pixels)
-  {
-    LOG_ERROR("Cannot load texture %s\n", path);
-  }
-
-  texture.size = tex_width * tex_height * 4;
-
-  void* data;
-  vkMapMemory(_r_vk_state.device.logical, _r_vk_state.staging_buffer.memory, 0, VK_WHOLE_SIZE, 0, &data);
-    memcpy(data, tex_pixels, texture.size);
-  vkUnmapMemory(_r_vk_state.device.logical, _r_vk_state.staging_buffer.memory);
-
-  stbi_image_free(tex_pixels);
 #endif
 
   VkImageCreateInfo image_info = {0};
@@ -1477,6 +1603,12 @@ R_VK_DestroyTexture(R_Texture texture)
 }
 
 func void
+R_VK_LoadDataToTexture(U8* data, U64 data_size, R_Texture texture)
+{
+  R_VK_Texture* vk_texture = R_VK_TextureFromHandle(texture);
+}
+
+func void
 R_VK_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination)
 {
   R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
@@ -1556,6 +1688,42 @@ R_VK_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Bu
   return vk_buffer->size;
 }
 
+func void
+R_VK_CopyBufferToTexture(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture)
+{
+  R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
+  R_VK_Texture* vk_texture = R_VK_TextureFromHandle(texture);
+
+  VkCommandBuffer single_cmd = R_VK_BeginSingleCmd();
+  {
+    R_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    VkBufferImageCopy copy_info = {
+      .bufferOffset = offset,
+      .imageSubresource = {
+        .aspectMask = vk_texture->aspect_mask,
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .imageOffset = {
+        .x = 0,
+        .y = 0,
+        .z = 0,
+      },
+      .imageExtent = {
+        .width = vk_texture->size.x,
+        .height = vk_texture->size.y,
+        .depth = 1,
+      },
+    };
+    vkCmdCopyBufferToImage(single_cmd, vk_buffer->handle, vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
+
+    R_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  }
+  R_VK_EndSingleCmd(single_cmd);
+}
+
 func R_TextureFormat
 R_VK_GetTextureFormat(R_Texture texture)
 {
@@ -1588,6 +1756,12 @@ R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayo
   {
     source_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+  {
+    source_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
     image_barrier.oldLayout = texture->layout;
   }
   else if (texture->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
@@ -1625,6 +1799,12 @@ R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayo
     image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     image_barrier.newLayout = new_layout;
   }
+  else if (new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+  {
+    destination_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    image_barrier.newLayout = new_layout;
+  }
   else if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
   {
     destination_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
@@ -1657,6 +1837,39 @@ R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayo
   vkCmdPipelineBarrier(cmd, source_stages, destination_stages, 0, 0, 0, 0, 0, 1, &image_barrier);
 
   texture->layout = new_layout;
+}
+
+func R_VK_TextureSampler*
+R_VK_TextureSamplerFromHandle(R_TextureSampler sampler)
+{
+  return R_VK_TextureSamplerArrayGetPointer(&_r_vk_state.samplers, sampler);
+}
+
+func R_TextureSampler
+R_VK_CreateTextureSampler(R_TextureSamplerCreateInfo* info)
+{
+  R_VK_TextureSampler sampler = {0};
+
+  VkSamplerCreateInfo sampler_info = 
+  {
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter = R_VK_GetVkFilter(info->mag_filter),
+    .minFilter = R_VK_GetVkFilter(info->min_filter),
+    .mipmapMode = R_VK_GetVkSamplerMipmapMode(info->mipmap_mode),
+    .addressModeU = R_VK_GetVkSamplerAddressMode(info->address_mode_u),
+    .addressModeV = R_VK_GetVkSamplerAddressMode(info->address_mode_v),
+    .addressModeW = R_VK_GetVkSamplerAddressMode(info->address_mode_w),
+    .mipLodBias = info->mip_lod_bias,
+    .anisotropyEnable = info->anisotropy_enable,
+    .maxAnisotropy = info->max_anisotropy,
+    .compareEnable = info->compare_enable,
+    .compareOp = R_VK_GetVkFromCompareOperation(info->compare_operation),
+    .minLod = info->min_lod,
+    .maxLod = info->max_lod,
+  };
+  VK_CHECK(vkCreateSampler(_r_vk_state.device.logical, &sampler_info, 0, &sampler.handle));
+
+  return R_VK_TextureSamplerArrayAdd(&_r_vk_state.samplers, sampler);
 }
 
 // -------------------------------------------------------------------
@@ -1708,6 +1921,7 @@ R_VK_Init(OS_Window* window)
   _r_vk_state.buffers = R_VK_BufferArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.graphics_pipelines = R_VK_GraphicsPipelineArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.command_buffers = R_VK_CommandBufferArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.samplers = R_VK_TextureSamplerArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.textures = R_VK_TextureArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.textures_free_list = R_VK_TextureFreeListAllocate(_r_vk_state.arena, 32);
 

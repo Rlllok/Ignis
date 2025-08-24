@@ -22,8 +22,7 @@
 // -------------------------------------------------------------------
 // Array
 #define ArrayRangeCheck(index, length) (index < length && index >= 0)
-#define DefineArray(TypeName, ArrayName)\
-TypeName TypeName##DefaultValue = {0};\
+#define DefineArray(TypeName, ArrayName, DefaultValue)\
 \
 typedef struct ArrayName ArrayName;\
 struct ArrayName\
@@ -56,12 +55,12 @@ func I32 ArrayName##Add(ArrayName* array, TypeName element)\
 \
 func TypeName ArrayName##Get(ArrayName* array, I32 index)\
 {\
-  return (ArrayRangeCheck(index, array->length) ? array->elements[index]: TypeName##DefaultValue);\
+  return (ArrayRangeCheck(index, array->length) ? array->elements[index]: DefaultValue);\
 }\
 \
 func TypeName* ArrayName##GetPointer(ArrayName* array, I32 index)\
 {\
-  return (ArrayRangeCheck(index, array->length) ? array->elements + index : &TypeName##DefaultValue);\
+  return (ArrayRangeCheck(index, array->length) ? array->elements + index : &DefaultValue);\
 }\
 \
 func TypeName ArrayName##RemoveSwapback(ArrayName* array, I32 index)\
@@ -73,7 +72,7 @@ func TypeName ArrayName##RemoveSwapback(ArrayName* array, I32 index)\
     array->elements[index] = array->elements[array->length];\
     return removed_element;\
   }\
-  return TypeName##DefaultValue;\
+  return DefaultValue;\
 }\
 \
 func void ArrayName##Set(ArrayName* array, I32 index, TypeName element)\

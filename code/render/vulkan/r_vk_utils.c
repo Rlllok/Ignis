@@ -162,7 +162,7 @@ func R_TextureFormat R_VK_TextureFormatFromVkFormat(VkFormat format)
   {
     default: Assert(1); break;
 
-    case VK_FORMAT_R8G8B8A8_SRGB: texture_format = R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB; break; 
+    case VK_FORMAT_R8G8B8A8_SRGB: texture_format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB; break; 
     case VK_FORMAT_B8G8R8A8_UNORM: texture_format = R_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
     case VK_FORMAT_D16_UNORM: texture_format = R_TEXTURE_FORMAT_D16_UNORM; break;
     case VK_FORMAT_R16_UINT: texture_format = R_TEXTURE_FORMAT_R16_UINT; break;
@@ -181,7 +181,7 @@ R_VK_GetVkFormat(R_TextureFormat format)
     default: Assert(1); break;
 
     case R_TEXTURE_FORMAT_NONE: vk_format = VK_FORMAT_UNDEFINED; break;
-    case R_TEXTURE_FORMAT_R8G8B8A8_UNORM_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
+    case R_TEXTURE_FORMAT_R8G8B8A8_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
     case R_TEXTURE_FORMAT_B8G8R8A8_UNORM: vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
     case R_TEXTURE_FORMAT_R16G16B16A16_SFLOAT: vk_format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
     case R_TEXTURE_FORMAT_D16_UNORM: vk_format = VK_FORMAT_D16_UNORM; break;
@@ -211,8 +211,50 @@ R_VK_GetVkImageUsageFlags(R_TextureUsageFlags flags)
   {
     vk_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
   }
+  if ((flags & R_TEXTURE_USAGE_FLAG_SAMPLED) == R_TEXTURE_USAGE_FLAG_SAMPLED)
+  {
+    vk_flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+  }
 
   return vk_flags;
+}
+
+func VkFilter
+R_VK_GetVkFilter(R_FilterType filter)
+{
+  switch (filter)
+  {
+    default: Assert(1); return 0;
+
+    case R_FILTER_TYPE_NEAREST: return VK_FILTER_NEAREST;
+    case R_FILTER_TYPE_LINEAR: return VK_FILTER_LINEAR;
+  }
+}
+
+func VkSamplerMipmapMode
+R_VK_GetVkSamplerMipmapMode(R_SamplerMipmapMode mode)
+{
+  switch (mode)
+  {
+    default: Assert(1); return 0;
+
+    case R_SAMPLER_MIPMAP_MODE_NEAREST: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    case R_SAMPLER_MIPMAP_MODE_LINEAR: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  }
+}
+
+func VkSamplerAddressMode
+R_VK_GetVkSamplerAddressMode(R_SamplerAddressMode mode)
+{
+  switch (mode)
+  {
+    default: Assert(1); return 0;
+
+    case R_SAMPLER_ADDRESS_MODE_REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    case R_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    case R_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    case R_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  }
 }
 
 func VkCompareOp

@@ -63,6 +63,17 @@ R_CreateTexture(R_TextureCreateInfo* info)
   return _r_state.device.CreateTexture(info);
 }
 
+func B32
+R_DestroyTexture(R_Texture texture)
+{
+  return _r_state.device.DestroyTexture(texture);
+}
+
+func void R_LoadImageToTexture(Str8 image_path, R_Texture texture)
+{
+  _r_state.device.LoadDataToTexture(0, 0, texture);
+}
+
 func void
 R_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination)
 {
@@ -75,36 +86,48 @@ R_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffe
   return _r_state.device.CopyTextureToBuffer(command_buffer, texture, buffer);
 }
 
+func void
+R_CopyBufferToTexture(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture)
+{
+  _r_state.device.CopyBufferToTexture(command_buffer, buffer, offset, size, texture);
+}
+
 func R_TextureFormat
 R_GetTextureFormat(R_Texture texture)
 {
   return _r_state.device.GetTextureFormat(texture);
 }
 
+func R_TextureSampler
+R_CreateTextureSampler(R_TextureSamplerCreateInfo* info)
+{
+  return _r_state.device.CreateTextureSampler(info);
+}
+
 // -------------------------------------------------------------------
 // Uniform Data
 func void
-R_BindGlobalVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_BindGlobalVertexShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindGlobalVertexUniformData(command_buffer, buffer, offset, data_size);
+	_r_state.device.BindGlobalShaderData(command_buffer, R_SHADER_TYPE_VERTEX, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 func void
-R_BindInstanceVertexUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_BindInstanceVertexShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindInstanceVertexUniformData(command_buffer, buffer, offset, data_size);
+	_r_state.device.BindInstanceShaderData(command_buffer, R_SHADER_TYPE_VERTEX, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 func void
-R_BindGlobalFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_BindGlobalFragmentShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindGlobalFragmentUniformData(command_buffer, buffer, offset, data_size);
+	_r_state.device.BindGlobalShaderData(command_buffer, R_SHADER_TYPE_FRAGMENT, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 func void
-R_BindInstanceFragmentUniformData(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 data_size)
+R_BindInstanceFragmentShaderData(R_CommandBuffer command_buffer, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindInstanceFragmentUniformData(command_buffer, buffer, offset, data_size);
+	_r_state.device.BindInstanceShaderData(command_buffer, R_SHADER_TYPE_FRAGMENT, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 
@@ -164,11 +187,11 @@ _R_GlslangStageFromShaderType(R_ShaderType type)
 }
 
 func R_Shader
-R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_uniform_count, U32 instance_uniform_count)
+R_CreateShader(Arena* arena, R_ShaderCreateInfo* info)
 {
 	R_Shader out_shader = {0};
 
-  FILE* file = fopen(CFromStr8(file_name), "r");
+  FILE* file = fopen(CFromStr8(info->file_name), "r");
   Assert(!file);
 
   fseek(file, 0L, SEEK_END);
@@ -182,7 +205,7 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_unifo
 
   glslang_input_t input = {0};
   input.language                          = GLSLANG_SOURCE_GLSL,
-  input.stage                             = (glslang_stage_t)_R_GlslangStageFromShaderType(type);
+  input.stage                             = (glslang_stage_t)_R_GlslangStageFromShaderType(info->type);
   input.client                            = GLSLANG_CLIENT_VULKAN;
   input.client_version                    = GLSLANG_TARGET_VULKAN_1_3;
   input.target_language                   = GLSLANG_TARGET_SPV;
@@ -195,7 +218,7 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_unifo
   input.messages                          = GLSLANG_MSG_DEFAULT_BIT;
   input.resource                          = glslang_default_resource();
 
-  LOG_INFO("Compiling shader \"%s\" ...\n", CFromStr8(file_name));
+  LOG_INFO("Compiling shader \"%s\" ...\n", CFromStr8(info->file_name));
 
   glslang_shader_t* shader = glslang_shader_create(&input);
 
@@ -233,14 +256,15 @@ R_CreateShader(Arena* arena, Str8 file_name, R_ShaderType type, U32 global_unifo
 
   glslang_program_SPIRV_generate(program, input.stage);
   
-  out_shader.type        = type;
+  out_shader.type        = info->type;
   out_shader.language    = R_SHADER_LANGUAGE_SPIRV;
   out_shader.code_size   = 4 * glslang_program_SPIRV_get_size(program);
   out_shader.code        = (U8*)PushArena(arena, out_shader.code_size * sizeof(U8));
-	out_shader.global_uniform_count = global_uniform_count;
-	out_shader.instance_uniform_count = instance_uniform_count;
+	out_shader.global_uniforms_count = info->global_uniforms_count;
+  out_shader.global_samplers_count = info->global_uniforms_count;
+	out_shader.instance_uniforms_count = info->instance_uniforms_count;
+	out_shader.instance_samplers_count = info->instance_samplers_count;
 
-	LOG_DEBUG("Create Shader instance: %d\n", out_shader.instance_uniform_count);
   glslang_program_SPIRV_get(program, (U32*)out_shader.code);
 
   const char* spirv_messages = glslang_program_SPIRV_get_messages(program);

@@ -23,4 +23,9 @@ func VkFormat R_VK_GetVkFormat(R_TextureFormat format);
 func R_TextureFormat R_VK_TextureFormatFromVkFormat(VkFormat format);
 func VkImageUsageFlags R_VK_GetVkImageUsageFlags(R_TextureUsageFlags flags);
 
+func VkFilter R_VK_GetVkFilter(R_FilterType filter);
+
+func VkSamplerMipmapMode R_VK_GetVkSamplerMipmapMode(R_SamplerMipmapMode mode);
+func VkSamplerAddressMode R_VK_GetVkSamplerAddressMode(R_SamplerAddressMode mode);
+
 func VkCompareOp R_VK_GetVkFromCompareOperation(R_CompareOperation operation);

@@ -241,6 +241,7 @@ typedef Mat4F32 Mat4;
 #define NormalizeVec3(v) NormalizeVec3F32(v)
 #define MakeTransposeMat3(v) MakeTransposeMat3F32(v)
 #define MakeMat4(diagonal_value) MakeMat4F32(diagonal_value)
+#define MulMat4(a, b) MulMat4F32(a, b)
 #define MakeOrthographicsMat4(left, right, bottom, top, near_z, far_z) MakeOrthographicsMat4F32(left, right, bottm, top, near_z, far_z)
 #define MakePerspectiveMat4(fov, aspect, near_z, far_z) MakePerspectiveMat4F32(fov, aspect, near_z, far_z)
 #define MakeLookAtMat4(position, target, up) MakeLookAtMat4F32(position, target, up);

@@ -26,11 +26,20 @@ _PointerHandleEnter(void* data, wl_pointer* pointer, U32 serial, wl_surface* sur
   handle->pointer_enter_serial = serial;
 
   wl_pointer_set_cursor(handle->pointer, handle->pointer_enter_serial, 0, 0, 0);
+
+  OS_Event event = {
+    .type = OS_EVENT_TYPE_MOUSE_ENTER,
+  };
+  OS_EventListPush(&_os_state.event_list, event);
 }
 
 func void
 _PointerHandleLeave(void*data, wl_pointer* pointer, U32 serial, wl_surface* surface)
 {
+  OS_Event event = {
+    .type = OS_EVENT_TYPE_MOUSE_LEAVE,
+  };
+  OS_EventListPush(&_os_state.event_list, event);
 }
 
 func void
