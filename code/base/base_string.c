@@ -7,7 +7,7 @@ AllocateStr8(Arena* arena, U64 size)
   
   result.data = (U8*)PushArena(arena, size + 1);
   result.data[size + 1] = 0;
-  result.size = size;
+  result.length = size;
 
   return result;
 }
@@ -17,7 +17,7 @@ MakeStr8(U8* str, U64 size)
 {
 	Str8 result = {0};
 	result.data = str;
-	result.size = size;
+	result.length = size;
 	return result;
 }
 
@@ -42,10 +42,10 @@ SubStr8(Arena* arena, Str8 str, U64 position, U64 length)
 func Str8
 ConcatStr8(Arena* arena, Str8 str_a, Str8 str_b)
 {
-  Str8 result = AllocateStr8(arena, str_a.size + str_b.size);
+  Str8 result = AllocateStr8(arena, str_a.length + str_b.length);
 
-  memcpy(result.data, str_a.data, str_a.size);
-  memcpy(result.data + str_a.size, str_b.data, str_b.size);
+  memcpy(result.data, str_a.data, str_a.length);
+  memcpy(result.data + str_a.length, str_b.data, str_b.length);
 
   return result;
 }
@@ -55,7 +55,7 @@ GetSymbolPosition(Str8 str, U8 symbol)
 {
   U64 result = 0;
 
-  while ((str.data[result] != symbol) && (str.size > result)) result += 1;
+  while ((str.data[result] != symbol) && (str.length > result)) result += 1;
 
   return result;
 }
@@ -65,7 +65,7 @@ GetSymbolPositionLast(Str8 str, U8 symbol)
 {
   U64 result = U64_MAX;
 
-  for (U64 i = 0; i < str.size; i += 1)
+  for (U64 i = 0; i < str.length; i += 1)
   {
     if (str.data[i] == symbol)
     {
@@ -81,10 +81,10 @@ Str8Equal(Str8 a, Str8 b)
 {
   B32 result = 0;
 
-  if (a.size == b.size)
+  if (a.length == b.length)
   {
     result = 1;
-    for (U64 i = 0; i < a.size; i += 1)
+    for (U64 i = 0; i < a.length; i += 1)
     {
       if (a.data[i] != b.data[i])
       {

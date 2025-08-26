@@ -7,7 +7,7 @@ typedef struct Str8 Str8;
 struct Str8
 {
   U8* data;
-  U64 size;
+  U64 length;
 };
 
 func Str8 AllocateStr8(Arena* arena, U64 size);

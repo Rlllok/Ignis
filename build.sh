@@ -19,6 +19,7 @@ if [ ! -f ./code/third_party/wayland/pointer_constraints_unstable_v1.h ] || [ ! 
     wayland-scanner private-code ./code/third_party/wayland/protocols/pointer-constraints-unstable-v1.xml ./code/third_party/wayland/pointer_constraints_unstable_v1.cpp
 fi
 
+#warnings="-Wconversion"
 include_flags="-Icode/"
 vulkan_links="-lvulkan -lglslang -lglslang-default-resource-limits"
 x11_links="-lX11 -lXext"
@@ -28,4 +29,4 @@ defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_WAYLAND"
 
 echo "Building Main"
 
-clang -g code/app/main.c -o build/main $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links
+clang -g code/app/main.c -o build/main $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links

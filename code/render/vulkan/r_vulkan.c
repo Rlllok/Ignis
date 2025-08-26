@@ -1339,7 +1339,6 @@ func R_RenderPass*
 R_VK_BeginRenderPass(R_CommandBuffer command_buffer, U32 color_targets_count, R_ColorTarget* color_targets, R_DepthStencilTarget* depth_stencil_target)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
-  R_VK_Texture* vk_depth_texture = R_VK_TextureFromHandle(depth_stencil_target->texture);
 
   // --AlNov: @TODO Only one now
   VkRenderingAttachmentInfo vk_color_attachment_infos[2] = {0};
@@ -1363,14 +1362,17 @@ R_VK_BeginRenderPass(R_CommandBuffer command_buffer, U32 color_targets_count, R_
     R_VK_ChangeTextureLayout(vk_command_buffer->handle[_r_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
   }
 
-  VkRenderingAttachmentInfo vk_depth_attachment_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-    .imageView = vk_depth_texture->view,
-    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    .loadOp = R_VK_GetVkAttachmentLoadOperation(depth_stencil_target->depth_load_operation),
-    .storeOp = R_VK_GetVkAttachmentStoreOperation(depth_stencil_target->depth_store_operation),
-    .clearValue = {.depthStencil = depth_stencil_target->clear_depth,},
-  };
+  VkRenderingAttachmentInfo vk_depth_attachment_info = {0};
+  vk_depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+  if (depth_stencil_target != 0)
+  {
+    R_VK_Texture* vk_depth_texture = R_VK_TextureFromHandle(depth_stencil_target->texture);
+    vk_depth_attachment_info.imageView = vk_depth_texture->view;
+    vk_depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    vk_depth_attachment_info.loadOp = R_VK_GetVkAttachmentLoadOperation(depth_stencil_target->depth_load_operation);
+    vk_depth_attachment_info.storeOp = R_VK_GetVkAttachmentStoreOperation(depth_stencil_target->depth_store_operation);
+    vk_depth_attachment_info.clearValue.depthStencil.depth = depth_stencil_target->clear_depth;
+  }
 
   VkExtent2D render_area = {
     .width = _r_vk_state.swapchain.size.w,

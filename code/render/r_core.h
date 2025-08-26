@@ -8,7 +8,7 @@
 #define R_MAX_VERTEX_ATTRIBUTES 8
 
 typedef U32 R_Handle;
-#define R_NIL 0;
+#define R_NIL 0
 
 typedef U8 R_CompareOperation;
 typedef enum R_CompareOperationEnum

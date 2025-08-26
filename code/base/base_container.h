@@ -163,7 +163,7 @@ inline I32 CalculateHash(Str8 word)
 {
   I32 result = 0;
 
-  result = (word.data[0]*57423 + word.data[word.size-1]*2344)*word.size;
+  result = (word.data[0]*57423 + word.data[word.length-1]*2344)*word.length;
 
   return result;
 }

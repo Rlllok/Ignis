@@ -103,8 +103,8 @@ func void R_VK_EndRenderPass(R_CommandBuffer command_buffer, R_RenderPass* rende
 
 // -------------------------------------------------------------------
 // Descriptor Sets
-#define R_VK_MAX_POOL_COUNT 4
-#define R_VK_SETS_PER_POOL 8
+#define R_VK_MAX_POOL_COUNT 64
+#define R_VK_SETS_PER_POOL 128
 #define R_VK_MAX_UNIFORM_BUFFERS_PER_SET 4
 #define R_VK_MAX_SAMPLERS_PER_SET 4
 
