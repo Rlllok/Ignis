@@ -819,7 +819,7 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
     VkWriteDescriptorSet write_info = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = 0, // @TODO Add more bindings
+      .dstBinding = i, // @TODO Add more bindings
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -830,7 +830,7 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
     writes_count += 1;
   }
 
-  for (I32 i = 0; i < samplers_count; i += 1)
+  for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
   {
     R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_info[0].sampler);
     R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_info[0].texture);
@@ -845,7 +845,7 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
     VkWriteDescriptorSet write_info = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = 1, // @TODO Add more bindings
+      .dstBinding = i, // @TODO Add more bindings
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -938,7 +938,7 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
     VkWriteDescriptorSet write_info = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = 0, // @TODO Add more bindings
+      .dstBinding = i,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -949,7 +949,7 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
     writes_count += 1;
   }
 
-  for (I32 i = 0; i < samplers_count; i += 1)
+  for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
   {
     R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_info[0].sampler);
     R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_info[0].texture);
@@ -970,7 +970,7 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
     VkWriteDescriptorSet write_info = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = 1, // @TODO Add more bindings
+      .dstBinding = i,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,

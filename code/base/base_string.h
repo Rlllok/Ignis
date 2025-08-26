@@ -3,6 +3,8 @@
 #include "base_core.h"
 #include "base_memory.h"
 
+#include <string.h>
+
 typedef struct Str8 Str8;
 struct Str8
 {

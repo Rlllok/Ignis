@@ -261,7 +261,7 @@ R_CreateShader(Arena* arena, R_ShaderCreateInfo* info)
   out_shader.code_size   = 4 * glslang_program_SPIRV_get_size(program);
   out_shader.code        = (U8*)PushArena(arena, out_shader.code_size * sizeof(U8));
 	out_shader.global_uniforms_count = info->global_uniforms_count;
-  out_shader.global_samplers_count = info->global_uniforms_count;
+  out_shader.global_samplers_count = info->global_samplers_count;
 	out_shader.instance_uniforms_count = info->instance_uniforms_count;
 	out_shader.instance_samplers_count = info->instance_samplers_count;
 

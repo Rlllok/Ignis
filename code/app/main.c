@@ -16,6 +16,13 @@ struct Vertex
   Vec2 uv;
 };
 
+typedef struct TextVertex TextVertex;
+struct TextVertex
+{
+  Vec2 position;
+  Vec2 uv;
+};
+
 typedef U32 EntityID;
 #define EntityID_NIL 0
 
@@ -80,7 +87,7 @@ struct AppState
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
-func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_size);
+func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
 
 I32 main(void)
 {
@@ -246,19 +253,28 @@ I32 main(void)
       .file_name = Str8C("./data/shaders/font.vs.glsl"),
       .type = R_SHADER_TYPE_VERTEX,
       .global_uniforms_count = 1,
-      .instance_uniforms_count = 1,
     };
     R_Shader font_vertex_shader = R_CreateShader(app_state.arena, &font_vertex_shader_info);
 
     R_ShaderCreateInfo font_fragment_shader_info = {
       .file_name = Str8C("./data/shaders/font.fs.glsl"),
       .type = R_SHADER_TYPE_FRAGMENT,
-      .global_uniforms_count = 0,
-      .instance_uniforms_count = 1,
-      .instance_samplers_count = 1,
+      .global_samplers_count = 1,
     };
     R_Shader font_fragment_shader = R_CreateShader(app_state.arena, &font_fragment_shader_info);
 
+    R_VertexAttribute font_vertex_attributes[] = {
+      {
+        .location = 0,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .offset = offsetof(TextVertex, position),
+      },
+      {
+        .location = 1,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .offset = offsetof(TextVertex, uv),
+      },
+    };
     R_GraphicsPipelineColorTargetInfo font_pipeline_color_target = {
       .format = R_GetSwapchainTextureFormat(),
       .blend_enable = 1,
@@ -266,6 +282,8 @@ I32 main(void)
     R_GraphicsPipelineCreateInfo font_pipeline_info = {
       .vertex_shader = font_vertex_shader,
       .fragment_shader = font_fragment_shader,
+      .vertex_attributes_count = CountArrayElements(font_vertex_attributes),
+      .vertex_attributes = font_vertex_attributes,
       .color_targets_count = 1,
       .color_target_infos = &font_pipeline_color_target,
       .depth_stencil_state = {
@@ -609,7 +627,11 @@ I32 main(void)
       };
       R_BeginRenderPass(command_buffer, 1, &font_pass_color_target, 0);
       {
-        DrawText(command_buffer, data_buffer, Str8C("Hi tHeRe!\nNew Line :)"), 64);
+        char frame_time_cstring[128] = {0};
+        sprintf(frame_time_cstring, "%.3f", app_state.delta_time*1000.0f);
+        LOG_DEBUG("%.3f\n", app_state.delta_time*1000.0f);
+        DrawText(command_buffer, data_buffer, Str8C(frame_time_cstring), 24, MakeVec2(0.0f, 0.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
+        DrawText(command_buffer, data_buffer, Str8C("Testing Text Rendering."), 40, MakeVec2(0.0f, 50.0f), RGBAFromHex(0x9ABBD1FF));
       }
       R_EndRenderPass(command_buffer, 0);
 
@@ -835,26 +857,17 @@ HandleEvents(Arena* arena, AppState* state)
   }
 }
 
-func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_size)
+func void
+DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
 {
-  R_BindGraphicsPipeline(command_buffer, app_state.font_pipeline);
-
-  struct
-  {
-    Mat4 projection;
-  } font_vertex_shader_global_uniform_data;
-  font_vertex_shader_global_uniform_data.projection = MakeOrthographicMat4(0.0f, app_state.window.size.x, 0.0f, app_state.window.size.y, -1.0f, 1.0f);
-  U64 font_vertex_shader_global_uniform_data_offset = R_PushBuffer(buffer, (U8*)&font_vertex_shader_global_uniform_data, sizeof(font_vertex_shader_global_uniform_data));
-  R_UniformBufferBindingInfo font_vertex_shader_global_uniform = 
-  {
-    .buffer = buffer,
-    .offset = font_vertex_shader_global_uniform_data_offset,
-    .size = sizeof(font_vertex_shader_global_uniform_data),
-  };
-  R_BindGlobalVertexShaderData(command_buffer, 1, &font_vertex_shader_global_uniform, 0, 0);
+  TextVertex vertecies[1028] = {0};
+  U32 vertecies_count = 0;
+  U16 indecies[1028] = {0};
+  U32 indecies_count = 0;
 
   I32 line_count = 0;
   I32 symbols_on_line = 0;
+
   for (I32 i = 0; i < text.length; i += 1)
   {
     if (text.data[i] == '\n')
@@ -864,37 +877,71 @@ func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U
       continue;
     }
 
-    struct
-    {
-      Vec2 glyph_position;
-      Vec2 glyph_size;
-      Vec2 glyph_uv_offset;
-      Vec2 glyph_uv_size;
-    } font_vertex_shader_instance_uniform_data;
-    Vec2 glyph_uv_size = DivVec2(MakeVec2(30.0f, 30.0f), MakeVec2(app_state.font_texture_size.x, app_state.font_texture_size.y));
     I32 glyph_id = text.data[i] - '!' + 1;
     I32 glyphs_per_row = 19;
+    
+    Vec2 glyph_position = AddVec2(position, MakeVec2(symbols_on_line*(F32)font_size*0.5f, line_count*font_size*0.7f));
     Vec2 glyph_grid_xy = MakeVec2(glyph_id%glyphs_per_row, glyph_id/glyphs_per_row);
-    font_vertex_shader_instance_uniform_data.glyph_position = MakeVec2(symbols_on_line*(F32)font_size*0.5f, line_count*font_size*0.6f);
-    font_vertex_shader_instance_uniform_data.glyph_size = MakeVec2((F32)font_size, (F32)font_size);
-    font_vertex_shader_instance_uniform_data.glyph_uv_offset = MulVec2(glyph_grid_xy, glyph_uv_size);// MakeVec2(60.0f/app_state.font_texture_size.x, 60.0/app_state.font_texture_size.y);
-    font_vertex_shader_instance_uniform_data.glyph_uv_size = glyph_uv_size;
-    U64 font_vertex_shader_instance_data_offset = R_PushBuffer(buffer, (U8*)&font_vertex_shader_instance_uniform_data, sizeof(font_vertex_shader_instance_uniform_data));
-    R_UniformBufferBindingInfo font_vertex_shader_instance_uniform = {
-      .buffer = buffer,
-      .offset = font_vertex_shader_instance_data_offset,
-      .size = sizeof(font_vertex_shader_instance_uniform_data),
-    };
-    R_BindInstanceVertexShaderData(command_buffer, 1, &font_vertex_shader_instance_uniform, 0, 0);
+    Vec2 glyph_uv_size = DivVec2(MakeVec2(30.0f, 30.0f), MakeVec2(app_state.font_texture_size.x, app_state.font_texture_size.y));
+    
+    vertecies[vertecies_count].position = glyph_position;;
+    vertecies[vertecies_count].uv = MulVec2(glyph_grid_xy, glyph_uv_size);
+    vertecies_count += 1;
+    vertecies[vertecies_count].position = AddVec2(glyph_position, MakeVec2(font_size, 0.0f));
+    vertecies[vertecies_count].uv = AddVec2(MulVec2(glyph_grid_xy, glyph_uv_size), MakeVec2(glyph_uv_size.x, 0.0f));
+    vertecies_count += 1;
+    vertecies[vertecies_count].position = AddVec2(glyph_position, MakeVec2(font_size, font_size));
+    vertecies[vertecies_count].uv = AddVec2(MulVec2(glyph_grid_xy, glyph_uv_size), glyph_uv_size);
+    vertecies_count += 1;
+    vertecies[vertecies_count].position = AddVec2(glyph_position, MakeVec2(0.0f, font_size));
+    vertecies[vertecies_count].uv = AddVec2(MulVec2(glyph_grid_xy, glyph_uv_size), MakeVec2(0.0f, glyph_uv_size.y));
+    vertecies_count += 1;
 
-    R_SamplerBindingInfo font_sampler = {
-      .sampler = app_state.texture_sampler,
-      .texture = app_state.font_texture,
-    };
-    R_BindInstanceFragmentShaderData(command_buffer, 0, 0, 1, &font_sampler);
-
-    R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+    U16 offset = i*4;
+    indecies[indecies_count] = 0 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 2 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 1 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 2 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 0 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 3 + offset;
+    indecies_count += 1;
 
     symbols_on_line += 1;
   }
+  U64 vertex_buffer_offset = R_PushBuffer(buffer, (U8*)vertecies, sizeof(vertecies[0])*vertecies_count);
+  U64 index_buffer_offset = R_PushBuffer(buffer, (U8*)indecies, sizeof(indecies[0])*indecies_count);
+
+  R_BindGraphicsPipeline(command_buffer, app_state.font_pipeline);
+
+  struct
+  {
+    Mat4 projection;
+    Vec4 text_color;
+  } font_vertex_shader_global_uniform_data;
+  font_vertex_shader_global_uniform_data.projection = MakeOrthographicMat4(0.0f, app_state.window.size.x, 0.0f, app_state.window.size.y, -1.0f, 1.0f);
+  font_vertex_shader_global_uniform_data.text_color = color;
+  U64 font_vertex_shader_global_uniform_data_offset = R_PushBuffer(buffer, (U8*)&font_vertex_shader_global_uniform_data, sizeof(font_vertex_shader_global_uniform_data));
+  R_UniformBufferBindingInfo font_vertex_shader_global_uniform = 
+  {
+    .buffer = buffer,
+    .offset = font_vertex_shader_global_uniform_data_offset,
+    .size = sizeof(font_vertex_shader_global_uniform_data),
+  };
+  R_BindGlobalVertexShaderData(command_buffer, 1, &font_vertex_shader_global_uniform, 0, 0);
+
+  R_SamplerBindingInfo font_sampler = {
+    .sampler = app_state.texture_sampler,
+    .texture = app_state.font_texture,
+  };
+  R_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1, &font_sampler);
+
+  R_BindVertexBuffer(command_buffer, buffer, vertex_buffer_offset);
+  R_BindIndexBuffer(command_buffer, buffer, index_buffer_offset, R_INDEX_SIZE_U16);
+  // R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+  R_DrawIndexedPrimitives(command_buffer, indecies_count, 1, 0, 0, 0);
 }
