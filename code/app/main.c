@@ -36,6 +36,13 @@ enum UI_PositionTypeEnum
   UI_Position
 } UI_PositionTypeEnum;
 
+typedef U8 UI_LayoutDirection;
+enum UI_LayoutDirectionEnum
+{
+  UI_LayoutDirection_TopToBottom,
+  UI_LayoutDirection_LeftToRight,
+} UI_LayoutDirectionEnum;
+
 typedef U8 UI_SizeType;
 enum UI_SizeTypeEnum
 {
@@ -54,6 +61,26 @@ struct UI_Size
   F32 value;
 };
 
+#define UI_FixedSize(coordinate) ((UI_Size){.type = UI_SizeType_Fixed, .value = coordinate})
+#define UI_WrapLabelSize() ((UI_Size){.type = UI_SizeType_WrapLabel})
+#define UI_ParentPercentSize(percent) ((UI_Size){.type = UI_SizeType_ParentPercent, .value = percent})
+
+typedef struct UI_BorderRadius UI_BorderRadius;
+struct UI_BorderRadius
+{
+  union
+  {
+    Vec4F32 values;
+    struct 
+    {
+      F32 top_left;
+      F32 top_right;
+      F32 bottom_left;
+      F32 bottom_right;
+    };
+  };
+};
+
 typedef U16 UI_ElementFlags;
 enum UI_ElementFlagEnum
 {
@@ -69,15 +96,17 @@ struct UI_Element
   UI_Element* previous;
   UI_Element* parent;
 
-  Vec2 next_child_position;
-
+  Str8 label;
   UI_ElementFlags flags;
   FontBitmap font;
-  Str8 label;
-  RectF32 rect;
-  U32 font_size;
   Vec4 text_color;
+  U32 font_size;
+  RectF32 rect;
+  UI_LayoutDirection layout;
+  F32 child_gap;
+  Vec2 child_offset;
   Vec4 background_color;
+  UI_BorderRadius border_radius;
 };
 UI_Element UI_ElementDefaultValue = {0};
 DefineArray(UI_Element, UI_ElementArray, UI_ElementDefaultValue)
@@ -100,6 +129,7 @@ struct UI_State
 
 func void UI_BeginFrame(Vec2 mouse_position)
 {
+  ui_state = (UI_State){0};
   ui_state.mouse_position = mouse_position;
 }
 
@@ -115,15 +145,28 @@ func void UI_SetTextColor(Vec4 color) {ui_state.text_color = color;}
 func void UI_SetBackgrouncColor(Vec4 color) {ui_state.background_color = color;}
 func void UI_SetFixedPosition(Vec2 position) {ui_state.fixed_position = position;}
 
-func UI_Element
-UI_BuildElement(Str8 label, UI_ElementFlags flags)
+typedef struct UI_ElementDescription UI_ElementDescription;
+struct UI_ElementDescription
+{
+  Str8 label;
+  UI_ElementFlags flags;
+  UI_LayoutDirection layout;
+  F32 child_gap;
+  UI_BorderRadius border_radius;
+};
+
+func UI_Element*
+UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 {
   UI_Element element = {0};
+  element.label = description.label;
+  element.flags = description.flags;
   element.parent = ui_state.parent;
-  element.flags = flags;
+  element.layout = description.layout;
+  element.child_gap = description.child_gap;
   element.font = ui_state.font;
   element.font_size = ui_state.font_size;
-  element.label = label;
+  element.border_radius = description.border_radius;
 
   switch (ui_state.size_x.type)
   {
@@ -170,10 +213,21 @@ UI_BuildElement(Str8 label, UI_ElementFlags flags)
     } break;
   }
 
-  if (ui_state.parent)
+  if (element.parent)
   {
-    element.rect.position = ui_state.parent->next_child_position;
-    ui_state.parent->next_child_position.y += element.rect.size.y;
+    switch (element.parent->layout)
+    {
+      case UI_LayoutDirection_TopToBottom:
+      {
+        element.rect.position = AddVec2(element.parent->rect.position,element.parent->child_offset);
+        element.parent->child_offset.y += element.rect.size.y + element.parent->child_gap;
+      } break;
+      case UI_LayoutDirection_LeftToRight:
+      {
+        element.rect.position = AddVec2(element.parent->rect.position,element.parent->child_offset);
+        element.parent->child_offset.x += element.rect.size.x + element.parent->child_gap;
+      } break;
+    }
   }
   else
   {
@@ -183,34 +237,38 @@ UI_BuildElement(Str8 label, UI_ElementFlags flags)
   element.text_color = ui_state.text_color;
   element.background_color = ui_state.background_color;
 
-  return element;
+  I32 index = UI_ElementArrayAdd(array, element);
+  return UI_ElementArrayGetPointer(array, index);
 }
 
 func UI_Element*
-UI_Layout(UI_ElementArray* array)
+UI_Layout(UI_ElementArray* array, Str8 label)
 {
-  UI_Element layout = UI_BuildElement(
-    Str8C("Layout"),
-    UI_ElementFlag_DrawBackground
+  UI_Element* layout = UI_BuildElement(
+    array,
+    (UI_ElementDescription){
+      .label = label,
+      .flags = UI_ElementFlag_DrawBackground,
+    }
   );
-  I32 index = UI_ElementArrayAdd(array, layout);
-  return UI_ElementArrayGetPointer(array, index);
+  return layout;
 }
 
 func B32
 UI_Button(UI_ElementArray* array, Str8 label)
 {
-  UI_Element button = UI_BuildElement(
-    label,
-    UI_ElementFlag_DrawLabel|
-    UI_ElementFlag_DrawBackground
+  UI_Element* button = UI_BuildElement(
+    array,
+    (UI_ElementDescription){
+      .label = label,
+      .flags = UI_ElementFlag_DrawLabel|UI_ElementFlag_DrawBackground,
+    }
   );
-  UI_ElementArrayAdd(array, button);
 
-  return InsideRectF32(button.rect, ui_state.mouse_position);
+  return InsideRectF32(button->rect, ui_state.mouse_position);
 }
 
-func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 color);
+func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color);
 
 // -------------------------------------------------------------------
 // Main
@@ -291,6 +349,10 @@ func void HandleEvents(Arena* arena, AppState* state);
 
 I32 main(void)
 {
+  UI_BorderRadius test_border = {
+    .top_left = 5.0f
+  };
+
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = 0;
@@ -303,7 +365,7 @@ I32 main(void)
   app_state.camera.pitch = -30.0f;
   app_state.entities = EntityArrayAllocate(app_state.arena, 128);
   app_state.selected_entity = &EntityDefaultValue;
-  app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 8);
+  app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 64);
   app_state.draw_ui = 1;
 
   F32 new_variable = 0;
@@ -697,29 +759,67 @@ I32 main(void)
     UI_ElementArrayReset(&app_state.ui_elements);
     if (app_state.draw_ui)
     {
-      UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.4f));
-      UI_SetFixedPosition(MakeVec2(0.0f, 0.0f));
-      UI_SetSizeX((UI_Size){.type = UI_SizeType_Fixed, .value = 400.0f});
-      UI_SetSizeY((UI_Size){.type = UI_SizeType_Fixed, .value = app_state.window.size.y});
-      UI_Element* layout = UI_Layout(&app_state.ui_elements);
-      UI_SetParent(layout);
-
-      UI_SetFont(app_state.font, 24);
-      UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.6f));
+      UI_SetFont(app_state.font, 20);
       UI_SetTextColor(MakeVec4(1.0f, 1.0f, 0.2f, 1.0f));
 
-      UI_SetFixedPosition(MakeVec2(100.0f, 100.0f));
-      UI_SetSizeX((UI_Size){.type = UI_SizeType_ParentPercent, .value = 1.0f});
-      UI_SetSizeY((UI_Size){.type = UI_SizeType_WrapLabel,});
-      if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
+      UI_SetFixedPosition(MakeVec2(0.0f, 0.0));
+      UI_SetSizeX(UI_FixedSize(app_state.window.size.x));
+      UI_SetSizeY(UI_FixedSize(30.0f));
+      UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.4f));
+      UI_Element* top_bar = UI_BuildElement(
+        &app_state.ui_elements,
+        (UI_ElementDescription){
+          .label = Str8C("Top Bar"),
+          .flags = UI_ElementFlag_DrawBackground,
+          .layout = UI_LayoutDirection_LeftToRight,
+        }
+      );
+      UI_SetParent(top_bar);
       {
-        if (OS_IsMousePressed(OS_MouseButton_Left))
+        UI_SetSizeX(UI_WrapLabelSize());
+        UI_SetSizeY(UI_ParentPercentSize(1.0f));
+        UI_Button(&app_state.ui_elements, Str8C("Top"));
+      }
+      UI_SetParent(0);
+
+      UI_SetFixedPosition(MakeVec2(0.0f, app_state.window.size.y*0.5f));
+      UI_SetSizeX(UI_FixedSize(200.0f));
+      UI_SetSizeY(UI_FixedSize(app_state.window.size.y*0.5f));
+      UI_Element* right_box = UI_BuildElement(
+        &app_state.ui_elements,
+        (UI_ElementDescription){
+          .label = Str8C("Right Box"),
+          .flags = UI_ElementFlag_DrawBackground,
+          .layout = UI_LayoutDirection_TopToBottom,
+          .child_gap = 5.0f,
+          .border_radius = {
+            .top_left = 0.0f,
+            .top_right = 20.0f,
+            .bottom_left = 0.0f,
+            .bottom_right = 20.0f,
+          }
+        }
+      );
+      UI_SetParent(right_box);
+      {
+        UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.6f));
+
+        UI_SetSizeX((UI_Size){.type = UI_SizeType_ParentPercent, .value = 1.0f});
+        UI_SetSizeY((UI_Size){.type = UI_SizeType_WrapLabel,});
+        if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
         {
-          LOG_DEBUG("BUTTON 1 Pressed\n");
+          if (OS_IsMousePressed(OS_MouseButton_Left))
+          {
+            LOG_DEBUG("BUTTON 1 Pressed\n");
+          }
+        }
+        for (I32 i = 0; i < 8; i += 1)
+        {
+          UI_Button(&app_state.ui_elements, Str8C("Test Button 2"));
+        // UI_Button(&app_state.ui_elements, Str8C("Test Button 3"));
         }
       }
-      UI_Button(&app_state.ui_elements, Str8C("Test Button 2"));
-      UI_Button(&app_state.ui_elements, Str8C("Test Button 3"));
+      UI_SetParent(0);
     }
 
     R_ResetBuffer(data_buffer);
@@ -853,7 +953,7 @@ I32 main(void)
 
           if ((ui_element->flags & UI_ElementFlag_DrawBackground) == UI_ElementFlag_DrawBackground)
           {
-            DrawRect(command_buffer, data_buffer, ui_element->rect, ui_element->background_color);
+            DrawRect(command_buffer, data_buffer, ui_element->rect, ui_element->border_radius.values, ui_element->background_color);
           }
 
           if ((ui_element->flags & UI_ElementFlag_DrawLabel) == UI_ElementFlag_DrawLabel)
@@ -866,9 +966,9 @@ I32 main(void)
         {
           RectF32 cursor = {
             .position = app_state.last_mouse_position,
-            .size = MakeVec2(30.0f, 30.0f),
+            .size = MakeVec2(20.0f, 20.0f),
           };
-          DrawRect(command_buffer, data_buffer, cursor, MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
+          DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
         }
       }
       R_EndRenderPass(command_buffer, 0);
@@ -880,8 +980,11 @@ I32 main(void)
 
     R_PresentTexture(command_buffer, swapchain_texture);
 
-    U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
-    R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
+    if (app_state.last_mouse_position.x >= 0.0f && app_state.last_mouse_position.y >= 0)
+    {
+      U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
+      R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
+    }
     // LOG_DEBUG("MOUSE: %.1fx, %.1fy\tOFFSET: %d, PIXEL VALUE: %d\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y, pixel_offset, app_state.hover_entity_id);
 
     ResetArena(app_state.frame_arena);
@@ -1207,9 +1310,8 @@ DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 
 }
 
 func void
-DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 color)
+DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color)
 {
-
   R_BindGraphicsPipeline(command_buffer,app_state.square_pipeline);
   struct
   {
@@ -1242,8 +1344,10 @@ DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 col
   struct
   {
     Vec4 color;
+    Vec4 border_radius;
   } square_instance_fragment_data;
   square_instance_fragment_data.color = color;
+  square_instance_fragment_data.border_radius = border_radius;
   U64 square_instance_fragment_shader_data_offset = R_PushBuffer(buffer, (U8*)&square_instance_fragment_data, sizeof(square_instance_fragment_data));
   R_UniformBufferBindingInfo square_fragment_shader_instance_uniform = {
     .buffer = buffer,

@@ -235,6 +235,7 @@ typedef Mat4F32 Mat4;
 #define MakeVec2(x, y) MakeVec2F32(x, y)
 #define MakeVec3(x, y, z) MakeVec3F32(x, y, z)
 #define MakeVec4(x, y, z, w) MakeVec4F32(x, y, z, w)
+#define ZeroVec4() MakeVec4(0.0f, 0.0f, 0.0f, 0.0f)
 #define MakeMat3(diagonal_value) MakeMat3F32(diagonal_value)
 #define ScaleVec2(v, n) ScaleVec2F32(v, n)
 #define AddVec2(a, b) AddVec2F32(a, b)

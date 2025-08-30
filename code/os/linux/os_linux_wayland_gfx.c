@@ -554,19 +554,16 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 
   for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next)
   {
-    LOG_DEBUG("MOUSE event\n");
     OS_Event* event = &event_node->data;
     _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
     _os_state.mouse.buttons[event->mouse_button].released = event->released;
     if (event->pressed)
     {
       _os_state.mouse.buttons[event->mouse_button].is_down = 1;
-      LOG_DEBUG("MOUSE event Pressed\n");
     }
     if (event->released)
     {
       _os_state.mouse.buttons[event->mouse_button].is_down = 0;
-      LOG_DEBUG("MOUSE event Released\n");
     }
   }
 
