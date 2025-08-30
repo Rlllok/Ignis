@@ -9,17 +9,215 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
 
-typedef struct Vertex Vertex;
-struct Vertex
+// -------------------------------------------------------------------
+// UI
+typedef struct FontBitmap FontBitmap;
+struct FontBitmap
 {
-  Vec3 position;
-  Vec2 uv;
+  R_Texture bitmap;
+  Vec2U32 bitmap_size; // --AlNov: @TODO Should be in texture
+  Vec2U32 glyph_size;
+  U32 glyphs_per_row;
 };
 
 typedef struct TextVertex TextVertex;
 struct TextVertex
 {
   Vec2 position;
+  Vec2 uv;
+};
+
+func Vec2 GetTextSize(FontBitmap font, Str8 text, U32 font_size);
+func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
+
+typedef U8 UI_PositionType;
+enum UI_PositionTypeEnum
+{
+  UI_Position
+} UI_PositionTypeEnum;
+
+typedef U8 UI_SizeType;
+enum UI_SizeTypeEnum
+{
+  UI_SizeType_None,
+  UI_SizeType_Fixed,
+  UI_SizeType_WrapLabel,
+  UI_SizeType_WrapChildren,
+  UI_SizeType_ParentPercent,
+  UI_SizeType_Count,
+} UI_SizeTypeEnum;
+
+typedef struct UI_Size UI_Size;
+struct UI_Size
+{
+  UI_SizeType type;
+  F32 value;
+};
+
+typedef U16 UI_ElementFlags;
+enum UI_ElementFlagEnum
+{
+  // Draw Flags
+  UI_ElementFlag_DrawBackground = 1 << 0,
+  UI_ElementFlag_DrawLabel = 1 << 1,
+} UI_ElementFlagEnum;
+
+typedef struct UI_Element UI_Element;
+struct UI_Element
+{
+  UI_Element* next;
+  UI_Element* previous;
+  UI_Element* parent;
+
+  Vec2 next_child_position;
+
+  UI_ElementFlags flags;
+  FontBitmap font;
+  Str8 label;
+  RectF32 rect;
+  U32 font_size;
+  Vec4 text_color;
+  Vec4 background_color;
+};
+UI_Element UI_ElementDefaultValue = {0};
+DefineArray(UI_Element, UI_ElementArray, UI_ElementDefaultValue)
+
+typedef struct UI_State UI_State;
+struct UI_State
+{
+  UI_Element* parent;
+
+  Vec2 mouse_position;
+
+  UI_Size size_x;
+  UI_Size size_y;
+  Vec2 fixed_position;
+  U32 font_size;
+  FontBitmap font;
+  Vec4 text_color;
+  Vec4 background_color;
+} ui_state;
+
+func void UI_BeginFrame(Vec2 mouse_position)
+{
+  ui_state.mouse_position = mouse_position;
+}
+
+func void UI_EndFrame()
+{
+}
+
+func void UI_SetParent(UI_Element* parent) {ui_state.parent = parent;}
+func void UI_SetSizeX(UI_Size size) {ui_state.size_x = size;}
+func void UI_SetSizeY(UI_Size size) {ui_state.size_y = size;}
+func void UI_SetFont(FontBitmap font, U32 font_size) {ui_state.font = font; ui_state.font_size = font_size;}
+func void UI_SetTextColor(Vec4 color) {ui_state.text_color = color;}
+func void UI_SetBackgrouncColor(Vec4 color) {ui_state.background_color = color;}
+func void UI_SetFixedPosition(Vec2 position) {ui_state.fixed_position = position;}
+
+func UI_Element
+UI_BuildElement(Str8 label, UI_ElementFlags flags)
+{
+  UI_Element element = {0};
+  element.parent = ui_state.parent;
+  element.flags = flags;
+  element.font = ui_state.font;
+  element.font_size = ui_state.font_size;
+  element.label = label;
+
+  switch (ui_state.size_x.type)
+  {
+    default: Assert(0); break;
+
+    case UI_SizeType_Fixed:
+    {
+      element.rect.size.x = ui_state.size_x.value;
+    } break;
+    case UI_SizeType_WrapLabel:
+    {
+      element.rect.size.x = GetTextSize(ui_state.font, element.label, element.font_size).x;
+    } break;
+    case UI_SizeType_WrapChildren:
+    {
+      // --AlNov: @TODO
+      Assert(0);
+    } break;
+    case UI_SizeType_ParentPercent:
+    {
+      element.rect.size.x = element.parent->rect.size.x*ui_state.size_x.value;
+    } break;
+  }
+  switch (ui_state.size_y.type)
+  {
+    default: Assert(0); break;
+
+    case UI_SizeType_Fixed:
+    {
+      element.rect.size.y = ui_state.size_y.value;
+    } break;
+    case UI_SizeType_WrapLabel:
+    {
+      element.rect.size.y = GetTextSize(ui_state.font, element.label, element.font_size).y;
+    } break;
+    case UI_SizeType_WrapChildren:
+    {
+      // --AlNov: @TODO
+      Assert(0);
+    } break;
+    case UI_SizeType_ParentPercent:
+    {
+      element.rect.size.y = element.parent->rect.size.y*ui_state.size_y.value;
+    } break;
+  }
+
+  if (ui_state.parent)
+  {
+    element.rect.position = ui_state.parent->next_child_position;
+    ui_state.parent->next_child_position.y += element.rect.size.y;
+  }
+  else
+  {
+    element.rect.position = ui_state.fixed_position;
+  }
+
+  element.text_color = ui_state.text_color;
+  element.background_color = ui_state.background_color;
+
+  return element;
+}
+
+func UI_Element*
+UI_Layout(UI_ElementArray* array)
+{
+  UI_Element layout = UI_BuildElement(
+    Str8C("Layout"),
+    UI_ElementFlag_DrawBackground
+  );
+  I32 index = UI_ElementArrayAdd(array, layout);
+  return UI_ElementArrayGetPointer(array, index);
+}
+
+func B32
+UI_Button(UI_ElementArray* array, Str8 label)
+{
+  UI_Element button = UI_BuildElement(
+    label,
+    UI_ElementFlag_DrawLabel|
+    UI_ElementFlag_DrawBackground
+  );
+  UI_ElementArrayAdd(array, button);
+
+  return InsideRectF32(button.rect, ui_state.mouse_position);
+}
+
+func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 color);
+
+// -------------------------------------------------------------------
+// Main
+typedef struct Vertex Vertex;
+struct Vertex
+{
+  Vec3 position;
   Vec2 uv;
 };
 
@@ -70,8 +268,8 @@ struct AppState
 
   R_TextureSampler texture_sampler;
   R_Texture mesh_texture;
-  R_Texture font_texture;
-  Vec2I32 font_texture_size;
+
+  FontBitmap font;
 
   R_Texture depth_texture; // -AlNov: @TODO should it be created for R_VK_Swapchain?
   R_Texture test_texture;
@@ -84,10 +282,12 @@ struct AppState
 
   EntityArray entities;
   const Entity* selected_entity;
+
+  UI_ElementArray ui_elements;
+  B32 draw_ui;
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
-func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
 
 I32 main(void)
 {
@@ -103,6 +303,8 @@ I32 main(void)
   app_state.camera.pitch = -30.0f;
   app_state.entities = EntityArrayAllocate(app_state.arena, 128);
   app_state.selected_entity = &EntityDefaultValue;
+  app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 8);
+  app_state.draw_ui = 1;
 
   F32 new_variable = 0;
 
@@ -119,38 +321,40 @@ I32 main(void)
   R_Buffer data_buffer = R_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
   R_Buffer transfer_buffer = R_CreateBuffer(Megabytes(64), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
 
-  R_TextureSamplerCreateInfo sampler_info = {
-    .mag_filter = R_FILTER_TYPE_LINEAR,
-    .min_filter = R_FILTER_TYPE_LINEAR,
-    .address_mode_u = R_SAMPLER_ADDRESS_MODE_REPEAT,
-    .address_mode_v = R_SAMPLER_ADDRESS_MODE_REPEAT,
-    .address_mode_w = R_SAMPLER_ADDRESS_MODE_REPEAT,
-    .mipmap_mode = R_SAMPLER_MIPMAP_MODE_LINEAR,
-  };
-  app_state.texture_sampler = R_CreateTextureSampler(&sampler_info);
+  app_state.texture_sampler = R_CreateTextureSampler(
+    &(R_TextureSamplerCreateInfo){
+      .mag_filter = R_FILTER_TYPE_LINEAR,
+      .min_filter = R_FILTER_TYPE_LINEAR,
+      .address_mode_u = R_SAMPLER_ADDRESS_MODE_REPEAT,
+      .address_mode_v = R_SAMPLER_ADDRESS_MODE_REPEAT,
+      .address_mode_w = R_SAMPLER_ADDRESS_MODE_REPEAT,
+      .mipmap_mode = R_SAMPLER_MIPMAP_MODE_LINEAR,
+    }
+  );
 
-  R_TextureCreateInfo test_texture_info = {
-    .type = R_TEXTURE_TYPE_2D,
-    .format = R_TEXTURE_FORMAT_R16_UINT,
-    .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC,
-    .width = app_state.window.size.w,
-    .height = app_state.window.size.h,
-    .depth = 1,
-    .num_levels = 1
-  };
-  app_state.test_texture = R_CreateTexture(&test_texture_info);
+  app_state.test_texture = R_CreateTexture(
+    &(R_TextureCreateInfo){
+      .type = R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_R16_UINT,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC,
+      .width = app_state.window.size.w,
+      .height = app_state.window.size.h,
+      .depth = 1,
+      .num_levels = 1
+    }
+  );
 
-  R_TextureCreateInfo depth_texture_info = {
-    .type = R_TEXTURE_TYPE_2D,
-    .format = R_TEXTURE_FORMAT_D16_UNORM,
-    .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
-    .width = app_state.window.size.w,
-    .height = app_state.window.size.h,
-    .depth = 1,
-    .num_levels = 1
-  };
-  app_state.depth_texture = R_CreateTexture(&depth_texture_info);
-
+  app_state.depth_texture = R_CreateTexture(
+    &(R_TextureCreateInfo){
+      .type = R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_D16_UNORM,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+      .width = app_state.window.size.w,
+      .height = app_state.window.size.h,
+      .depth = 1,
+      .num_levels = 1,
+    }
+  );
 
   // Mesh Texture
   {
@@ -166,20 +370,22 @@ I32 main(void)
     }
     I32 texture_size = tex_width * tex_height * 4;
 
-    R_TextureCreateInfo mesh_texture_info = {
-      .type = R_TEXTURE_TYPE_2D,
-      .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
-      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-      .width = tex_width,
-      .height = tex_height,
-      .depth = 1,
-      .num_levels = 1,
-    };
-    app_state.mesh_texture = R_CreateTexture(&mesh_texture_info);
+    app_state.mesh_texture = R_CreateTexture(
+      &(R_TextureCreateInfo){
+        .type = R_TEXTURE_TYPE_2D,
+        .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+        .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+        .width = tex_width,
+        .height = tex_height,
+        .depth = 1,
+        .num_levels = 1,
+      }
+    );
+
     U64 mesh_texture_offset = R_PushBuffer(data_buffer, tex_pixels, texture_size);
     R_CopyBufferToTexture(0, data_buffer, mesh_texture_offset, texture_size, app_state.mesh_texture);
   }
-  
+
   // Font Texture
   {
     Str8 texture_path = Str8C("./data/fonts/RobotoMonoBitmap.png");
@@ -194,74 +400,89 @@ I32 main(void)
     }
     I32 texture_size = tex_width * tex_height * 4;
 
-    R_TextureCreateInfo font_texture_info = {
-      .type = R_TEXTURE_TYPE_2D,
-      .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
-      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-      .width = tex_width,
-      .height = tex_height,
-      .depth = 1,
-      .num_levels = 1,
-    };
-    app_state.font_texture = R_CreateTexture(&font_texture_info);
-    app_state.font_texture_size = MakeVec2I32(tex_width, tex_height);
+    app_state.font.bitmap = R_CreateTexture(
+      &(R_TextureCreateInfo){
+        .type = R_TEXTURE_TYPE_2D,
+        .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+        .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+        .width = tex_width,
+        .height = tex_height,
+        .depth = 1,
+        .num_levels = 1,
+      }
+    );
+    app_state.font.bitmap_size = MakeVec2U32(tex_width, tex_height);
+    app_state.font.glyph_size = MakeVec2U32(30, 30);
+    app_state.font.glyphs_per_row = 19;
     U64 font_texture_offset = R_PushBuffer(data_buffer, tex_pixels, texture_size);
-    R_CopyBufferToTexture(0, data_buffer, font_texture_offset, texture_size, app_state.font_texture);
+    R_CopyBufferToTexture(0, data_buffer, font_texture_offset, texture_size, app_state.font.bitmap);
   }
 
   // --AlNov: Word Grid
   {
-    R_ShaderCreateInfo grid_vertex_shader_info = {
-      .file_name = Str8C("./data/shaders/grid.vs.glsl"),
-      .type = R_SHADER_TYPE_VERTEX,
-      .global_uniforms_count = 1,
-      .instance_uniforms_count = 1,
-    };
-    R_Shader grid_vertex_shader = R_CreateShader(app_state.arena, &grid_vertex_shader_info);
-    R_ShaderCreateInfo grid_fragment_shader_info = {
-      .file_name = Str8C("./data/shaders/grid.fs.glsl"),
-      .type = R_SHADER_TYPE_FRAGMENT,
-      .global_uniforms_count = 1,
-      .instance_uniforms_count = 0,
-    };
-    R_Shader grid_fragment_shader = R_CreateShader(app_state.arena, &grid_fragment_shader_info);
+    R_Shader grid_vertex_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/grid.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 1,
+      }
+    );
 
-    R_GraphicsPipelineColorTargetInfo grid_pipeline_color_target_infos[] = {
-      {
-        .format = R_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      },
-    };
-    R_GraphicsPipelineCreateInfo grid_pipeline_info = {
-      .vertex_shader = grid_vertex_shader,
-      .fragment_shader = grid_fragment_shader,
-      .color_targets_count = CountArrayElements(grid_pipeline_color_target_infos),
-      .color_target_infos = grid_pipeline_color_target_infos,
-      .depth_stencil_state = {
-        .depth_test_enable = 1,
-        .depth_write_enable = 0,
-        .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-        .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
-      },
-    };
-    app_state.grid_pipeline = R_CreateGraphicsPipeline(&grid_pipeline_info);
+    R_Shader grid_fragment_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/grid.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 0,
+      }
+    );
+
+    app_state.grid_pipeline = R_CreateGraphicsPipeline(
+      &(R_GraphicsPipelineCreateInfo){
+        .vertex_shader = grid_vertex_shader,
+        .fragment_shader = grid_fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
+          .format = R_GetSwapchainTextureFormat(),
+          .blend_enable = 1,
+        },
+        .depth_stencil_state = {
+          .depth_test_enable = 1,
+          .depth_write_enable = 0,
+          .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
+          .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
+        },
+      }
+    );
   }
 
   // Font Pipeline
   {
-    R_ShaderCreateInfo font_vertex_shader_info = {
-      .file_name = Str8C("./data/shaders/font.vs.glsl"),
-      .type = R_SHADER_TYPE_VERTEX,
-      .global_uniforms_count = 1,
-    };
-    R_Shader font_vertex_shader = R_CreateShader(app_state.arena, &font_vertex_shader_info);
+    R_Shader font_vertex_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/font.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+      }
+    );
 
     R_ShaderCreateInfo font_fragment_shader_info = {
       .file_name = Str8C("./data/shaders/font.fs.glsl"),
       .type = R_SHADER_TYPE_FRAGMENT,
       .global_samplers_count = 1,
     };
-    R_Shader font_fragment_shader = R_CreateShader(app_state.arena, &font_fragment_shader_info);
+    R_Shader font_fragment_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/font.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .global_samplers_count = 1,
+      }
+    );
 
     R_VertexAttribute font_vertex_attributes[] = {
       {
@@ -295,20 +516,24 @@ I32 main(void)
 
   // Square Pipeline
   {
-    R_ShaderCreateInfo square_vertex_shader_info = {
-      .file_name = Str8C("./data/shaders/sdf/sdf_vs.glsl"),
-      .type = R_SHADER_TYPE_VERTEX,
-      .global_uniforms_count = 1,
-      .instance_uniforms_count = 0,
-    };
-    R_Shader square_vertex_shader = R_CreateShader(app_state.arena, &square_vertex_shader_info);
-    R_ShaderCreateInfo square_fragment_shader_info = {
-      .file_name = Str8C("./data/shaders/sdf/sdf_box_fs.glsl"),
-      .type = R_SHADER_TYPE_FRAGMENT,
-      .global_uniforms_count = 1,
-      .instance_uniforms_count = 0,
-    };
-    R_Shader square_fragment_shader = R_CreateShader(app_state.arena, &square_fragment_shader_info);
+    R_Shader square_vertex_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/square.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 1,
+      }
+    );
+    R_Shader square_fragment_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/square.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .global_uniforms_count = 0,
+        .instance_uniforms_count = 1,
+      }
+    );
 
     R_GraphicsPipelineColorTargetInfo square_pipeline_color_target_infos[] = {
       {
@@ -467,29 +692,34 @@ I32 main(void)
       }
     }
 
-    R_ResetBuffer(data_buffer);
-    struct
+    // UI
+    UI_BeginFrame(app_state.last_mouse_position);
+    UI_ElementArrayReset(&app_state.ui_elements);
+    if (app_state.draw_ui)
     {
-      Mat4 projection;
-    } square_global_vertex_data;
-    U64 square_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&square_global_vertex_data, sizeof(square_global_vertex_data));
+      UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.4f));
+      UI_SetFixedPosition(MakeVec2(0.0f, 0.0f));
+      UI_SetSizeX((UI_Size){.type = UI_SizeType_Fixed, .value = 400.0f});
+      UI_SetSizeY((UI_Size){.type = UI_SizeType_Fixed, .value = app_state.window.size.y});
+      UI_Element* layout = UI_Layout(&app_state.ui_elements);
+      UI_SetParent(layout);
 
-    struct
-    {
-      Vec3 color;
-      F32 rotation;
-      Vec2 position;
-      Vec2 size;
-    } square_global_fragment_data;
-    square_global_fragment_data.color = MakeVec3(0.7f, 0.8f, 0.7f);
-    if (app_state.hover_entity_id != 0)
-    {
-      square_global_fragment_data.color = MakeVec3(0.7f, 0.2f, 0.3f);
+      UI_SetFont(app_state.font, 24);
+      UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.6f));
+      UI_SetTextColor(MakeVec4(1.0f, 1.0f, 0.2f, 1.0f));
+
+      UI_SetFixedPosition(MakeVec2(100.0f, 100.0f));
+      UI_SetSizeX((UI_Size){.type = UI_SizeType_ParentPercent, .value = 1.0f});
+      UI_SetSizeY((UI_Size){.type = UI_SizeType_WrapLabel,});
+      if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
+      {
+        LOG_DEBUG("BUTTON 1\n");
+      }
+      UI_Button(&app_state.ui_elements, Str8C("Test Button 2"));
+      UI_Button(&app_state.ui_elements, Str8C("Test Button 3"));
     }
-    square_global_fragment_data.rotation = 0.0f;
-    square_global_fragment_data.position = app_state.last_mouse_position;
-    square_global_fragment_data.size = MakeVec2(15.0f, 15.0f);
-    U64 square_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&square_global_fragment_data, sizeof(square_global_fragment_data));
+
+    R_ResetBuffer(data_buffer);
 
     // Draw
     R_Texture swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
@@ -599,24 +829,6 @@ I32 main(void)
         R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
         R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
         R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
-
-        if (app_state.mouse_inside)
-        {
-          R_UniformBufferBindingInfo square_vertex_shader_global_uniform = {
-            .buffer = data_buffer,
-            .offset = square_global_vertex_data_offset,
-            .size = sizeof(square_global_vertex_data),
-          };
-          R_UniformBufferBindingInfo square_fragment_shader_global_uniform = {
-            .buffer = data_buffer,
-            .offset = square_global_fragment_data_offset,
-            .size = sizeof(square_global_fragment_data),
-          };
-          R_BindGraphicsPipeline(command_buffer,app_state.square_pipeline);
-          R_BindGlobalVertexShaderData(command_buffer, 1, &square_vertex_shader_global_uniform, 0, 0);
-          R_BindGlobalFragmentShaderData(command_buffer, 1, &square_fragment_shader_global_uniform, 0, 0);
-          R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
-        }
       }
       R_EndRenderPass(command_buffer, 0);
 
@@ -629,9 +841,32 @@ I32 main(void)
       {
         char frame_time_cstring[128] = {0};
         sprintf(frame_time_cstring, "%.3f", app_state.delta_time*1000.0f);
-        LOG_DEBUG("%.3f\n", app_state.delta_time*1000.0f);
-        DrawText(command_buffer, data_buffer, Str8C(frame_time_cstring), 24, MakeVec2(0.0f, 0.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
-        DrawText(command_buffer, data_buffer, Str8C("Testing Text Rendering."), 40, MakeVec2(0.0f, 50.0f), RGBAFromHex(0x9ABBD1FF));
+        DrawText(command_buffer, data_buffer, app_state.font, Str8C(frame_time_cstring), 24, MakeVec2(0.0f, 0.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
+        DrawText(command_buffer, data_buffer, app_state.font, Str8C("Testing Text Rendering."), 40, MakeVec2(0.0f, 50.0f), RGBAFromHex(0x9ABBD1FF));
+
+        for (I32 i = 0; i < app_state.ui_elements.length; i += 1)
+        {
+          UI_Element* ui_element = UI_ElementArrayGetPointer(&app_state.ui_elements, i);
+
+          if ((ui_element->flags & UI_ElementFlag_DrawBackground) == UI_ElementFlag_DrawBackground)
+          {
+            DrawRect(command_buffer, data_buffer, ui_element->rect, ui_element->background_color);
+          }
+
+          if ((ui_element->flags & UI_ElementFlag_DrawLabel) == UI_ElementFlag_DrawLabel)
+          {
+            DrawText(command_buffer, data_buffer, ui_element->font, ui_element->label, ui_element->font_size, ui_element->rect.position, MakeVec4(1.0f, 0.0f, 1.0f, 1.0f));
+          }
+        }
+
+        if (app_state.mouse_inside)
+        {
+          RectF32 cursor = {
+            .position = app_state.last_mouse_position,
+            .size = MakeVec2(30.0f, 30.0f),
+          };
+          DrawRect(command_buffer, data_buffer, cursor, MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
+        }
       }
       R_EndRenderPass(command_buffer, 0);
 
@@ -735,6 +970,10 @@ HandleEvents(Arena* arena, AppState* state)
   {
     state->is_window_closed = 1;
   }
+  if (OS_IsKeyPressed(OS_KEY_TAB))
+  {
+    state->draw_ui = !state->draw_ui;
+  }
 
   Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
   F32 speed = 2.0f;
@@ -788,77 +1027,96 @@ HandleEvents(Arena* arena, AppState* state)
     switch (event->type)
     {
       case OS_EVENT_TYPE_EXIT:
-        {
-          state->is_window_closed = 1;
-        } break;
+      {
+        state->is_window_closed = 1;
+      } break;
 
       case OS_EVENT_TYPE_RESIZE:
+      {
+        // @TODO Window recreated multiple time.
+        // I guess, resize event is triggered multiple time. It should be handled only once, after last resizing
+        if ((state->window.size.w != event->window_size.w) || (state->window.size.h != event->window_size.h))
         {
-          // @TODO Window recreated multiple time.
-          // I guess, resize event is triggered multiple time. It should be handled only once, after last resizing
-          if ((state->window.size.w != event->window_size.w) || (state->window.size.h != event->window_size.h))
-          {
-            LOG_DEBUG("Old Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
-            state->window.size = event->window_size;
-            LOG_DEBUG("New Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
-            R_VK_HandleResize(&state->window);
+          LOG_DEBUG("Old Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
+          state->window.size = event->window_size;
+          LOG_DEBUG("New Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
+          R_VK_HandleResize(&state->window);
 
-            R_VK_DestroyTexture(app_state.depth_texture);
-            R_TextureCreateInfo depth_texture_info = {
-              .type = R_TEXTURE_TYPE_2D,
-              .format = R_TEXTURE_FORMAT_D16_UNORM,
-              .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
-              .width = app_state.window.size.w,
-              .height = app_state.window.size.h,
-              .depth = 1,
-              .num_levels = 1
-            };
-            app_state.depth_texture = R_CreateTexture(&depth_texture_info);
+          R_VK_DestroyTexture(app_state.depth_texture);
+          R_TextureCreateInfo depth_texture_info = {
+            .type = R_TEXTURE_TYPE_2D,
+            .format = R_TEXTURE_FORMAT_D16_UNORM,
+            .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+            .width = app_state.window.size.w,
+            .height = app_state.window.size.h,
+            .depth = 1,
+            .num_levels = 1
+          };
+          app_state.depth_texture = R_CreateTexture(&depth_texture_info);
 
-            R_VK_DestroyTexture(app_state.test_texture);
-            R_TextureCreateInfo test_texture_info = {
-              .type = R_TEXTURE_TYPE_2D,
-              .format = R_TEXTURE_FORMAT_R16_UINT,
-              .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-              .width = app_state.window.size.w,
-              .height = app_state.window.size.h,
-              .depth = 1,
-              .num_levels = 1
-            };
-            app_state.test_texture = R_CreateTexture(&test_texture_info);
+          R_VK_DestroyTexture(app_state.test_texture);
+          R_TextureCreateInfo test_texture_info = {
+            .type = R_TEXTURE_TYPE_2D,
+            .format = R_TEXTURE_FORMAT_R16_UINT,
+            .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+            .width = app_state.window.size.w,
+            .height = app_state.window.size.h,
+            .depth = 1,
+            .num_levels = 1
+          };
+          app_state.test_texture = R_CreateTexture(&test_texture_info);
 
-          }
-          // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
-          // Renderer.HandleResize(&state->window);
-        } break;
+        }
+        // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
+        // Renderer.HandleResize(&state->window);
+      } break;
 
       case OS_EVENT_TYPE_MOUSE_ENTER:
-        {
-          app_state.mouse_inside = 1;
-        } break;
+      {
+        app_state.mouse_inside = 1;
+      } break;
 
       case OS_EVENT_TYPE_MOUSE_LEAVE:
-        {
-          app_state.mouse_inside = 0;
-        } break;
+      {
+        app_state.mouse_inside = 0;
+      } break;
 
       case OS_EVENT_TYPE_MOUSE_MOVE:
-        {
-          // LOG_DEBUG("MousePosition: %.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
-          // LOG_DEBUG("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
-          Vec2F32 d_position = SubVec2F32(state->window.virtual_cursor_position, state->last_mouse_position);
-          Vec2F32 mouse_direction = NormalizeVec2F32(d_position);
+      {
+        // LOG_DEBUG("MousePosition: %.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
+        // LOG_DEBUG("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
+        Vec2F32 d_position = SubVec2F32(state->window.virtual_cursor_position, state->last_mouse_position);
+        Vec2F32 mouse_direction = NormalizeVec2F32(d_position);
 
-          state->last_mouse_position = event->mouse_position;
-        } break;
+        state->last_mouse_position = event->mouse_position;
+      } break;
 
       default: break;
     }
   }
 }
 
+func Vec2
+GetTextSize(FontBitmap font, Str8 text, U32 font_size)
+{
+  // --AlNov: @TODO Font spacing is hardcoded and not correct (Bitmap Grid size is 30px, but glyphs is smaller)
+  Vec2 result = MakeVec2(font_size*0.5f, font_size);
+
+  for (I32 i = 0; i < text.length; i += 1)
+  {
+    if (text.data[i] == '\n')
+    {
+      result.y += font_size*0.7f;
+      continue;
+    }
+    result.x += font_size*0.5f;
+  }
+
+  return result;
+}
+
 func void
-DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
+DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
 {
   TextVertex vertecies[1028] = {0};
   U32 vertecies_count = 0;
@@ -878,11 +1136,10 @@ DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_si
     }
 
     I32 glyph_id = text.data[i] - '!' + 1;
-    I32 glyphs_per_row = 19;
     
     Vec2 glyph_position = AddVec2(position, MakeVec2(symbols_on_line*(F32)font_size*0.5f, line_count*font_size*0.7f));
-    Vec2 glyph_grid_xy = MakeVec2(glyph_id%glyphs_per_row, glyph_id/glyphs_per_row);
-    Vec2 glyph_uv_size = DivVec2(MakeVec2(30.0f, 30.0f), MakeVec2(app_state.font_texture_size.x, app_state.font_texture_size.y));
+    Vec2 glyph_grid_xy = MakeVec2(glyph_id%font.glyphs_per_row, glyph_id/font.glyphs_per_row);
+    Vec2 glyph_uv_size = DivVec2(MakeVec2(font.glyph_size.x, font.glyph_size.y), MakeVec2(font.bitmap_size.x, font.bitmap_size.y));
     
     vertecies[vertecies_count].position = glyph_position;;
     vertecies[vertecies_count].uv = MulVec2(glyph_grid_xy, glyph_uv_size);
@@ -936,7 +1193,7 @@ DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_si
 
   R_SamplerBindingInfo font_sampler = {
     .sampler = app_state.texture_sampler,
-    .texture = app_state.font_texture,
+    .texture = app_state.font.bitmap,
   };
   R_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1, &font_sampler);
 
@@ -944,4 +1201,53 @@ DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, Str8 text, U32 font_si
   R_BindIndexBuffer(command_buffer, buffer, index_buffer_offset, R_INDEX_SIZE_U16);
   // R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
   R_DrawIndexedPrimitives(command_buffer, indecies_count, 1, 0, 0, 0);
+}
+
+func void
+DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 color)
+{
+
+  R_BindGraphicsPipeline(command_buffer,app_state.square_pipeline);
+  struct
+  {
+    Mat4 projection;
+  } square_global_vertex_data;
+  square_global_vertex_data.projection = MakeOrthographicMat4(0.0f, app_state.window.size.x, 0.0f, app_state.window.size.y, -1.0f, 1.0f);
+  U64 square_global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&square_global_vertex_data, sizeof(square_global_vertex_data));
+  R_UniformBufferBindingInfo square_vertex_shader_global_uniform = {
+    .buffer = buffer,
+    .offset = square_global_vertex_data_offset,
+    .size = sizeof(square_global_vertex_data),
+  };
+  R_BindGlobalVertexShaderData(command_buffer, 1, &square_vertex_shader_global_uniform, 0, 0);
+
+  struct
+  {
+    Vec2 position;
+    Vec2 size;
+  } square_instance_vertex_data;
+  square_instance_vertex_data.position = rect.position;
+  square_instance_vertex_data.size = rect.size;
+  U64 square_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&square_instance_vertex_data, sizeof(square_instance_vertex_data));
+  R_UniformBufferBindingInfo square_vertex_shader_instance_uniform = {
+    .buffer = buffer,
+    .offset = square_instance_vertex_data_offset,
+    .size = sizeof(square_instance_vertex_data),
+  };
+  R_BindInstanceVertexShaderData(command_buffer, 1, &square_vertex_shader_instance_uniform, 0, 0);
+
+  struct
+  {
+    Vec4 color;
+  } square_instance_fragment_data;
+  square_instance_fragment_data.color = color;
+  U64 square_instance_fragment_shader_data_offset = R_PushBuffer(buffer, (U8*)&square_instance_fragment_data, sizeof(square_instance_fragment_data));
+  R_UniformBufferBindingInfo square_fragment_shader_instance_uniform = {
+    .buffer = buffer,
+    .offset = square_instance_fragment_shader_data_offset,
+    .size = sizeof(square_instance_fragment_data),
+  };
+  R_BindInstanceFragmentShaderData(command_buffer, 1, &square_fragment_shader_instance_uniform, 0, 0);
+
+  R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 }

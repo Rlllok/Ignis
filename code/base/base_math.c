@@ -217,3 +217,19 @@ MakeRotationMat4F32(Vec3F32 axis, F32 angle)
  
  return result;
 }
+
+// -------------------------------------------------------------------
+// Rectangle
+func B32
+InsideRectF32(RectF32 rect, Vec2F32 v)
+{
+  B32 result = 0;
+
+  result =
+    (v.x > rect.position.x)&&
+    (v.y > rect.position.y)&&
+    (v.x < rect.size.x)&&
+    (v.y < rect.size.y);
+
+  return result;
+}

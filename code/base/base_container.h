@@ -42,6 +42,11 @@ func ArrayName ArrayName##Allocate(Arena* arena, I32 capacity)\
   return array;\
 }\
 \
+func void ArrayName##Reset(ArrayName* array)\
+{\
+  array->length = 0;\
+}\
+\
 func I32 ArrayName##Add(ArrayName* array, TypeName element)\
 {\
   if (array->length < array->capacity)\

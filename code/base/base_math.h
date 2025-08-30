@@ -200,7 +200,7 @@ union RectI32
 };
 
 typedef union RectF32 RectF32;
-union Rect2F32
+union RectF32
 {
   struct
   {
@@ -218,6 +218,8 @@ union Rect2F32
 
   Vec2F32 value[2];
 };
+
+func B32 InsideRectF32(RectF32 rect, Vec2F32 v);
 
 // -------------------------------------------------------------------
 // Default Math functions (Use F32)
