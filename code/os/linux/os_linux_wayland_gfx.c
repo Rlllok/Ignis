@@ -57,7 +57,23 @@ _PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I
 func void
 _PointerHandleButton(void* data, wl_pointer* pointer, U32 serial, U32 time, U32 button, U32 state)
 {
-  LOG_INFO("Mouse press\n");
+  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+
+  OS_Event event = {0};
+  event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+  event.pressed = state == 1;
+  event.released = state == 0;
+  
+  switch (button)
+  {
+    default: {}; break;
+
+    case 272: {event.mouse_button = OS_MouseButton_Left;}; break;
+    case 273: {event.mouse_button = OS_MouseButton_Right;}; break;
+  }
+
+  OS_EventListPush(&_os_state.mouse_event_list, event);
+  LOG_INFO("Mouse: %d State: %d\n", button, state);
 }
 
 func void
@@ -502,6 +518,7 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 {
   _os_state.event_list = OS_EventListCreate(arena);
 	_os_state.keyboard_event_list = OS_EventListCreate(arena);
+  _os_state.mouse_event_list = OS_EventListCreate(arena);
 
   wl_display_dispatch_pending(window->handle->display);
 
@@ -527,6 +544,31 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 			_os_state.keyboard.keys[event->key].is_down = 0;
 		}
 	}
+
+  for (I32 i = 0; i < OS_MouseButton_Count; i += 1)
+  {
+    OS_MouseButtonState* button = _os_state.mouse.buttons + i;
+    button->pressed = 0;
+    button->released = 0;
+  }
+
+  for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next)
+  {
+    LOG_DEBUG("MOUSE event\n");
+    OS_Event* event = &event_node->data;
+    _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
+    _os_state.mouse.buttons[event->mouse_button].released = event->released;
+    if (event->pressed)
+    {
+      _os_state.mouse.buttons[event->mouse_button].is_down = 1;
+      LOG_DEBUG("MOUSE event Pressed\n");
+    }
+    if (event->released)
+    {
+      _os_state.mouse.buttons[event->mouse_button].is_down = 0;
+      LOG_DEBUG("MOUSE event Released\n");
+    }
+  }
 
   return _os_state.event_list;
 }

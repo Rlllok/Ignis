@@ -713,7 +713,10 @@ I32 main(void)
       UI_SetSizeY((UI_Size){.type = UI_SizeType_WrapLabel,});
       if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
       {
-        LOG_DEBUG("BUTTON 1\n");
+        if (OS_IsMousePressed(OS_MouseButton_Left))
+        {
+          LOG_DEBUG("BUTTON 1 Pressed\n");
+        }
       }
       UI_Button(&app_state.ui_elements, Str8C("Test Button 2"));
       UI_Button(&app_state.ui_elements, Str8C("Test Button 3"));

@@ -107,15 +107,6 @@ typedef enum OS_KeyCodeEnum
 	OS_KEY_COUNT
 } OS_KeyCodeEnum;
 
-#if 0
-typedef U8 OS_KeyState;
-enum OS_KeyStateEnum
-{
-	OS_KEY_STATE_UP,
-	OS_KEY_STATE_DOWN,
-} OS_KeyboardKeyStateEnum;
-#endif
-
 typedef struct OS_KeyState OS_KeyState;
 struct OS_KeyState
 {
@@ -130,6 +121,33 @@ struct OS_Keyboard
 {
 	OS_KeyState prev[OS_KEY_COUNT];
 	OS_KeyState keys[OS_KEY_COUNT];
+};
+
+// -------------------------------------------------------------------
+// Mouse
+typedef U8 OS_MouseButtonCode;
+enum OS_MouseButtonEnum
+{
+  OS_MouseButton_None,
+  OS_MouseButton_Left,
+  OS_MouseButton_Right,
+  OS_MouseButton_Count,
+} OS_MouseButtonEnum;
+
+typedef struct OS_MouseButtonState OS_MouseButtonState;
+struct OS_MouseButtonState
+{
+  B32 pressed;
+  B32 released;
+  B32 is_down;
+  F32 time_down;
+};
+
+typedef struct OS_Mouse OS_Mouse;
+struct OS_Mouse
+{
+  Vec2F32 position;
+  OS_MouseButtonState buttons[OS_MouseButton_Count];
 };
 
 // -------------------------------------------------------------------
@@ -159,6 +177,7 @@ struct OS_Event
     Vec2U32 window_size;
     Vec2F32 mouse_position;
     OS_KeyCode key;
+    OS_MouseButtonCode mouse_button;
     B32 pressed;
 		B32 released;
 };
@@ -169,8 +188,10 @@ struct OS_State
 {
     Arena* arena;
 		OS_Keyboard keyboard;
+    OS_Mouse mouse;
     OS_EventList event_list;
 		OS_EventList keyboard_event_list;
+    OS_EventList mouse_event_list;
 } _os_state;
 
 func void OS_Init(U64 arena_size);
@@ -217,3 +238,9 @@ func B32 OS_IsKeyReleased(OS_KeyCode key_code)
 {
 	return _os_state.keyboard.keys[key_code].released;
 }
+
+func B32 OS_IsMousePressed(OS_MouseButtonCode code)
+{
+  return _os_state.mouse.buttons[code].pressed;
+}
+
