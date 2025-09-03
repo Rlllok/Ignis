@@ -14,7 +14,8 @@ func B32 BufferIsWhitespace(Buffer source, U64 position);
 func B32 AreBuffersEqual(Buffer a, Buffer b);
 func U64 FindPosition(Buffer buffer, U8 value);
 
-enum GLTFTokenType
+typedef U16 GLTFTokenType;
+enum GLTFTokenTypeEnum
 {
   GLTF_TOKEN_TYPE_ERROR,
   
@@ -30,14 +31,16 @@ enum GLTFTokenType
   GLTF_TOKEN_TYPE_FALSE,
   
   GLTF_TOKEN_TYPE_COUNT
-};
+} GLTFTokenTypeEnum;
 
+typedef struct GLTFToken GLTFToken;
 struct GLTFToken
 {
-  enum GLTFTokenType type;
+  GLTFTokenType type;
   Buffer value;
 };
 
+typedef struct GLTFElement GLTFElement;
 struct GLTFElement
 {
   Buffer label;
@@ -47,6 +50,7 @@ struct GLTFElement
   GLTFElement* next_sibling;
 };
 
+typedef struct GLTFReader GLTFReader;
 struct GLTFReader
 {
   Str8 file_path;
@@ -57,7 +61,8 @@ struct GLTFReader
   GLTFElement* element;
 };
 
-enum GLTFAttributeType
+typedef U16 GLTFAttributeType;
+enum GLTFAttributeTypeEnum
 {
   GLTF_ATTRIBUTE_TYPE_NONE,
   
@@ -66,8 +71,9 @@ enum GLTFAttributeType
   GLTF_ATTRIBUTE_TYPE_TEXCOORD_0,
 
   GLTF_ATTRIBUTE_TYPE_COUNT
-};
+} GLTFAttributeTypeEnum;
 
+typedef struct GLTFAttribute GLTFAttribute;
 struct GLTFAttribute
 {
   U32 accessor_id;
@@ -75,9 +81,10 @@ struct GLTFAttribute
 
   GLTFAttribute* next;
 };
-DefineList(GLTFAttribute)
+DefineList(GLTFAttribute, GLTFAttributeList)
 
-enum GLTFAccessorType
+typedef U8 GLTFAccessorType;
+enum GLTFAccessorTypeEnum
 {
   GLTF_ACCESSOR_TYPE_NONE,
 
@@ -85,8 +92,9 @@ enum GLTFAccessorType
   GLTF_ACCESSOR_TYPE_VEC3,
 
   GLTF_ACCSSOR_TYPE_COUNT
-};
+} GLTFAccessorTypeEnum;
 
+typedef struct GLTFAccessor GLTFAccessor;
 struct GLTFAccessor
 {
   U32 buffer_view_id;
@@ -96,8 +104,9 @@ struct GLTFAccessor
   
   GLTFAccessor* next;
 };
-DefineList(GLTFAccessor)
+DefineList(GLTFAccessor, GLTFAccessorList)
 
+typedef struct GLTFPrimitive GLTFPrimitive;
 struct GLTFPrimitive
 {
   U32 indices_accessor_id;
@@ -107,14 +116,16 @@ struct GLTFPrimitive
 
   GLTFPrimitive* next;
 };
-DefineList(GLTFPrimitive)
+DefineList(GLTFPrimitive, GLTFPrimitiveList)
 
+typedef struct GLTFMesh GLTFMesh;
 struct GLTFMesh
 {
-  ListGLTFPrimitive primitive_list;
+  GLTFPrimitiveList primitive_list;
 };
-DefineList(GLTFMesh)
+DefineList(GLTFMesh, GLTFMeshList)
 
+typedef struct GLTFBuffer GLTFBuffer;
 struct GLTFBuffer
 {
   Str8 uri;
@@ -122,8 +133,9 @@ struct GLTFBuffer
 
   GLTFBuffer* next;
 };
-DefineList(GLTFBuffer)
+DefineList(GLTFBuffer, GLTFBufferList)
 
+typedef struct GLTFBufferView GLTFBufferView;
 struct GLTFBufferView
 {
   U32 buffer_id;
@@ -133,21 +145,22 @@ struct GLTFBufferView
 
   GLTFBufferView* next;
 };
-DefineList(GLTFBufferView)
+DefineList(GLTFBufferView, GLTFBufferViewList)
 
+typedef struct GLTFData GLTFData;
 struct GLTFData
 {
   U32 default_scene_id;
-  ListGLTFBuffer buffer_list;
-  ListGLTFMesh mesh_list;
-  ListGLTFBufferView buffer_view_list;
-  ListGLTFAccessor accessor_list;
+  GLTFBufferList buffer_list;
+  GLTFMeshList mesh_list;
+  GLTFBufferViewList buffer_view_list;
+  GLTFAccessorList accessor_list;
 };
 
 func Buffer ReadGLTFFile(Buffer file_name);
 func void GLTFError(GLTFReader* reader, GLTFToken token, const char* message);
 func GLTFToken GetGLTFToken(GLTFReader* reader);
-func GLTFElement* ParseList(GLTFReader* reader, GLTFToken start_token, enum GLTFTokenType end_type);
+func GLTFElement* ParseList(GLTFReader* reader, GLTFToken start_token, GLTFTokenType end_type, B32 has_labels);
 func GLTFElement* ParseElement(GLTFReader* reader, Buffer label, GLTFToken token);
 func GLTFData GetGLTFData(GLTFReader* reader);
 func GLTFElement* LookUpElement(GLTFElement* object, Buffer label);
@@ -164,10 +177,10 @@ Base64Decode(Buffer in)
 {
   U8 count = 0;
   U8 buffer[4];
-  Buffer result = AllocateBuffer(in.size * 3 / 4);
+  Buffer result = AllocateBuffer(in.length * 3 / 4);
   U32 result_position = 0;
 
-  for (I32 i = 0; i < in.size; i += 1)
+  for (I32 i = 0; i < in.length; i += 1)
   {
     I32 map_index = 0;
     while ((map_index < 64) && (base64_map[map_index] != in.data[i])) map_index += 1;
@@ -207,7 +220,7 @@ func F64 GetNumberElement(GLTFElement* element, Buffer label)
   {
     Buffer source = number->value;
 
-    for (I32 i = 0; i < source.size; i += 1)
+    for (I32 i = 0; i < source.length; i += 1)
     {
       U8 number_char = source.data[i] - (U8)'0';
 
@@ -223,7 +236,7 @@ func F64 GetNumberElement(GLTFElement* element, Buffer label)
   }
   else
   {
-    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.size, label.data);
+    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
   }
 
   return result;

@@ -12,7 +12,7 @@ AllocateBuffer(U64 size)
   result.data = (U8*)OS_AllocateMemory(size * sizeof(U8));
   if (result.data)
   {
-    result.size = size;
+    result.length = size;
   }
 
   return result;
@@ -26,7 +26,7 @@ FreeBuffer(Buffer* buffer)
     OS_FreeMemory(buffer->data);
   }
 
-  *buffer = {};
+  *buffer = (Buffer){0};
 }
 
 func void
@@ -34,7 +34,7 @@ PrintBuffer(Buffer buffer)
 {
   if (buffer.data)
   {
-    fwrite(buffer.data, sizeof(buffer.data[0]), buffer.size, stdout);
+    fwrite(buffer.data, sizeof(buffer.data[0]), buffer.length, stdout);
   }
 }
 
@@ -50,18 +50,19 @@ ReadFile(Buffer file_name)
   if (file)
   {
   #if IGNIS_PLATFORM_LINUX
-    struct stat64 stat;
-    stat64(file_name_c, &stat);
+    struct stat file_stat;
+    stat(file_name_c, &file_stat);
   #endif
   #if IGNIS_PLATFORM_WIN32
-    struct _stat64 stat;
-    _stat64(file_name_c, &stat);
+    struct _stat64 file_stat;
+    _stat64(file_name_c, &file_stat);
   #endif
 
-    result = AllocateBuffer(stat.st_size);
+    LOG_DEBUG("FILE SIZE GLTF: %i\n", file_stat.st_size);
+    result = AllocateBuffer(file_stat.st_size);
     if (result.data)
     {
-      if (fread(result.data, result.size, 1, file) != 1)
+      if (fread(result.data, result.length, 1, file) != 1)
       {
         LOG_ERROR("ERROR: Unable to read \"%s\".\n", file_name_c);
         FreeBuffer(&result);
@@ -81,7 +82,7 @@ ReadFile(Buffer file_name)
 func B32
 IsInBound(Buffer source, U64 position)
 {
-  B32 result = position < source.size;
+  B32 result = position < source.length;
 
   return result;
 }
@@ -119,12 +120,12 @@ IsWhitespace(Buffer source, U64 position)
 func B32
 AreBuffersEqual(Buffer a, Buffer b)
 {
-  if (a.size != b.size)
+  if (a.length != b.length)
   {
     return false;
   }
 
-  for (U64 i = 0; i < a.size; i += 1)
+  for (U64 i = 0; i < a.length; i += 1)
   {
     if (a.data[i] != b.data[i])
     {
@@ -140,7 +141,7 @@ FindPosition(Buffer buffer, U8 value)
 {
   U64 result = 0;
 
-  while ((buffer.data[result] != value) && (buffer.size > result)) result += 1;
+  while ((buffer.data[result] != value) && (buffer.length > result)) result += 1;
 
   return result;
 }
@@ -151,7 +152,7 @@ GLTFError(GLTFReader* reader, GLTFToken token, const char* message)
 {
   reader->has_error = true;
 
-  LOG_ERROR("- LINE %d - \"%.*s\" - %s\n", reader->line_number + 1, (U32)token.value.size, (char*)token.value.data, message);
+  LOG_ERROR("- LINE %d - \"%.*s\" - %s\n", reader->line_number + 1, (U32)token.value.length, (char*)token.value.data, message);
 }
 
 func GLTFToken
@@ -174,7 +175,7 @@ GetGLTFToken(GLTFReader* reader)
   if (IsInBound(source, position))
   {
     result.type = GLTF_TOKEN_TYPE_ERROR;
-    result.value.size = 1;
+    result.value.length = 1;
     result.value.data = source.data + position;
 
     U8 value = source.data[position];
@@ -201,7 +202,7 @@ GetGLTFToken(GLTFReader* reader)
         }
 
         result.value.data = source.data + string_start;
-        result.value.size = position - string_start;
+        result.value.length = position - string_start;
         
         position += 1;
       } break;
@@ -210,13 +211,13 @@ GetGLTFToken(GLTFReader* reader)
       {
         Buffer true_buffer = {};
         true_buffer.data = source.data + position - 1;
-        true_buffer.size = 4;
+        true_buffer.length = 4;
 
-        if (AreBuffersEqual(true_buffer, Str8FromC("true")))
+        if (AreBuffersEqual(true_buffer, Str8C("true")))
         {
           result.type = GLTF_TOKEN_TYPE_TRUE;
           result.value.data = true_buffer.data;
-          result.value.size = 4;
+          result.value.length = 4;
           
           position += 3;
         }
@@ -261,7 +262,7 @@ GetGLTFToken(GLTFReader* reader)
         }
 
         result.value.data = source.data + start;
-        result.value.size = position - start;
+        result.value.length = position - start;
       } break;
     }
   }
@@ -272,7 +273,7 @@ GetGLTFToken(GLTFReader* reader)
 }
 
 func GLTFElement*
-ParseList(GLTFReader* reader, GLTFToken start_token, enum GLTFTokenType end_type, B32 has_labels)
+ParseList(GLTFReader* reader, GLTFToken start_token, GLTFTokenType end_type, B32 has_labels)
 {
   GLTFElement* first_element = 0;
   GLTFElement* last_element = 0;
@@ -303,7 +304,16 @@ ParseList(GLTFReader* reader, GLTFToken start_token, enum GLTFTokenType end_type
     GLTFElement* element = ParseElement(reader, label, current_token);
     if (element)
     {
-      last_element = (last_element ? last_element->next_sibling : first_element) = element;
+      if (last_element)
+      {
+        last_element->next_sibling = element;
+        last_element = last_element->next_sibling;
+      }
+      else
+      {
+        first_element = element;
+        last_element = first_element;
+      }
     }
     else if (current_token.type == end_type)
     {
@@ -334,6 +344,7 @@ ParseElement(GLTFReader* reader, Buffer label, GLTFToken token)
   if (token.type == GLTF_TOKEN_TYPE_OPEN_BRACE)
   {
     sub_element = ParseList(reader, token, GLTF_TOKEN_TYPE_CLOSE_BRACE, true);
+      LOG_DEBUG("Sub: %p\n", sub_element);
   }
   else if (token.type == GLTF_TOKEN_TYPE_OPEN_BRACKET)
   {
@@ -372,45 +383,46 @@ GetGLTFData(GLTFReader* reader)
   // @TODO @NOTE NO FREE
   Arena* licky_arena = AllocateArena(Megabytes(16));
   
-  GLTFData result = {};
+  GLTFData result = {0};
   
-  GLTFElement* head = ParseElement(reader, {}, GetGLTFToken(reader));
+  GLTFElement* head = ParseElement(reader, (Buffer){0}, GetGLTFToken(reader));
 
-  result.default_scene_id = GetNumberElement(head, Str8FromC("scene"));
+  result.default_scene_id = GetNumberElement(head, Str8C("scene"));
   
   // Meshes
-  result.mesh_list = CreateListGLTFMesh(licky_arena);
-  GLTFElement* meshes_list_element = LookUpElement(head, Str8FromC("meshes"));
+  result.mesh_list = GLTFMeshListCreate(licky_arena);
+  GLTFElement* meshes_list_element = LookUpElement(head, Str8C("meshes"));
+  // LOG_DEBUG("MeshP: %p\n", object);
   for (GLTFElement* mesh_element = meshes_list_element->first_sub_element;
        mesh_element;
        mesh_element = mesh_element->next_sibling)
   {
     GLTFMesh mesh = {};
-    mesh.primitive_list = CreateListGLTFPrimitive(licky_arena);
+    mesh.primitive_list = GLTFPrimitiveListCreate(licky_arena);
     
-    GLTFElement* primitives_list_element = LookUpElement(mesh_element, Str8FromC("primitives"));
+    GLTFElement* primitives_list_element = LookUpElement(mesh_element, Str8C("primitives"));
     for (GLTFElement* primitive_element = primitives_list_element->first_sub_element;
          primitive_element;
          primitive_element = primitive_element->next_sibling)
     {
       GLTFPrimitive primitive = {};
-      GLTFElement* attributes = LookUpElement(primitive_element, Str8FromC("attributes"));
+      GLTFElement* attributes = LookUpElement(primitive_element, Str8C("attributes"));
       for (GLTFElement* attribute_element = attributes->first_sub_element;
            attribute_element;
            attribute_element = attribute_element->next_sibling)
       {
         GLTFAttribute attribute = {};
-        if (AreBuffersEqual(attribute_element->label, Str8FromC("POSITION")))
+        if (AreBuffersEqual(attribute_element->label, Str8C("POSITION")))
         {
-          primitive.position_accessor_id = GetNumberElement(attributes, Str8FromC("POSITION"));
+          primitive.position_accessor_id = GetNumberElement(attributes, Str8C("POSITION"));
         }
-        else if (AreBuffersEqual(attribute_element->label, Str8FromC("NORMAL")))
+        else if (AreBuffersEqual(attribute_element->label, Str8C("NORMAL")))
         {
-          primitive.normal_accessor_id = GetNumberElement(attributes, Str8FromC("NORMAL"));
+          primitive.normal_accessor_id = GetNumberElement(attributes, Str8C("NORMAL"));
         }
-        else if (AreBuffersEqual(attribute_element->label, Str8FromC("TEXCOORD_0")))
+        else if (AreBuffersEqual(attribute_element->label, Str8C("TEXCOORD_0")))
         {
-          primitive.texcoord_accessor_id = GetNumberElement(attributes, Str8FromC("TEXCOORD_0"));
+          primitive.texcoord_accessor_id = GetNumberElement(attributes, Str8C("TEXCOORD_0"));
         }
         else
         {
@@ -418,46 +430,46 @@ GetGLTFData(GLTFReader* reader)
         }
       }
             
-      primitive.indices_accessor_id = GetNumberElement(primitive_element, Str8FromC("indices"));
+      primitive.indices_accessor_id = GetNumberElement(primitive_element, Str8C("indices"));
       
-      PushListGLTFPrimitive(&mesh.primitive_list, primitive);
+      GLTFPrimitiveListPush(&mesh.primitive_list, primitive);
     }
-    PushListGLTFMesh(&result.mesh_list, mesh);
+    GLTFMeshListPush(&result.mesh_list, mesh);
   }
 
   // BufferViews
-  result.buffer_view_list = CreateListGLTFBufferView(licky_arena);
-  GLTFElement* buffer_views_list = LookUpElement(head, Str8FromC("bufferViews"));
+  result.buffer_view_list = GLTFBufferViewListCreate(licky_arena);
+  GLTFElement* buffer_views_list = LookUpElement(head, Str8C("bufferViews"));
   for (GLTFElement* buffer_view_element = buffer_views_list->first_sub_element;
        buffer_view_element;
        buffer_view_element = buffer_view_element->next_sibling)
   {
     GLTFBufferView buffer_view = {};
     
-    buffer_view.buffer_id = GetNumberElement(buffer_view_element, Str8FromC("buffer"));
-    buffer_view.byte_offset = GetNumberElement(buffer_view_element, Str8FromC("byteOffset"));
-    buffer_view.byte_length = GetNumberElement(buffer_view_element, Str8FromC("byteLength"));
-    buffer_view.target = GetNumberElement(buffer_view_element, Str8FromC("target"));
+    buffer_view.buffer_id = GetNumberElement(buffer_view_element, Str8C("buffer"));
+    buffer_view.byte_offset = GetNumberElement(buffer_view_element, Str8C("byteOffset"));
+    buffer_view.byte_length = GetNumberElement(buffer_view_element, Str8C("byteLength"));
+    buffer_view.target = GetNumberElement(buffer_view_element, Str8C("target"));
 
-    PushListGLTFBufferView(&result.buffer_view_list, buffer_view);
+    GLTFBufferViewListPush(&result.buffer_view_list, buffer_view);
   }
 
   // Buffer
-  result.buffer_list = CreateListGLTFBuffer(licky_arena);
-  GLTFElement* buffers_element = LookUpElement(head, Str8FromC("buffers"));
+  result.buffer_list = GLTFBufferListCreate(licky_arena);
+  GLTFElement* buffers_element = LookUpElement(head, Str8C("buffers"));
   for (GLTFElement* buffer_element = buffers_element->first_sub_element;
        buffer_element;
        buffer_element = buffer_element->next_sibling)
   {
     GLTFBuffer buffer = {};
 
-    buffer.uri = LookUpElement(buffer_element, Str8FromC("uri"))->value;
-    if (FindPosition(buffer.uri, '.') != buffer.uri.size)
+    buffer.uri = LookUpElement(buffer_element, Str8C("uri"))->value;
+    if (FindPosition(buffer.uri, '.') != buffer.uri.length)
     {
       Arena* tmp_arena = AllocateArena(Megabytes(1));
       Str8 bin_file_path = SubStr8(tmp_arena, reader->file_path, 0, GetSymbolPositionLast(reader->file_path, '/'));
-      bin_file_path = ConcatStr8(tmp_arena, bin_file_path, Str8FromC("/"));
-      Str8 bin_file_name = SubStr8(tmp_arena, buffer.uri, 0, buffer.uri.size);
+      bin_file_path = ConcatStr8(tmp_arena, bin_file_path, Str8C("/"));
+      Str8 bin_file_name = SubStr8(tmp_arena, buffer.uri, 0, buffer.uri.length);
       buffer.buffer = ReadFile(ConcatStr8(tmp_arena, bin_file_path, bin_file_name));
       FreeArena(tmp_arena);
     }
@@ -465,27 +477,27 @@ GetGLTFData(GLTFReader* reader)
     {
       U64 comma_position = FindPosition(buffer.uri, ',');
       buffer.buffer.data = buffer.uri.data + comma_position + 1;
-      buffer.buffer.size = buffer.uri.size - comma_position - 1;
+      buffer.buffer.length = buffer.uri.length - comma_position - 1;
       buffer.buffer = Base64Decode(buffer.buffer);  
     }
 
-    PushListGLTFBuffer(&result.buffer_list, buffer);
+    GLTFBufferListPush(&result.buffer_list, buffer);
   }
 
   // Accessors
-  result.accessor_list = CreateListGLTFAccessor(licky_arena);
-  GLTFElement* accessors_element = LookUpElement(head, Str8FromC("accessors"));
+  result.accessor_list = GLTFAccessorListCreate(licky_arena);
+  GLTFElement* accessors_element = LookUpElement(head, Str8C("accessors"));
   for (GLTFElement* accessor_element = accessors_element->first_sub_element;
        accessor_element;
        accessor_element = accessor_element->next_sibling)
   {
     GLTFAccessor accessor = {};
 
-    accessor.buffer_view_id = GetNumberElement(accessor_element, Str8FromC("bufferView"));
-    accessor.byte_offset = GetNumberElement(accessor_element, Str8FromC("byteOffset"));
-    accessor.count = GetNumberElement(accessor_element, Str8FromC("count"));
+    accessor.buffer_view_id = GetNumberElement(accessor_element, Str8C("bufferView"));
+    accessor.byte_offset = GetNumberElement(accessor_element, Str8C("byteOffset"));
+    accessor.count = GetNumberElement(accessor_element, Str8C("count"));
 
-    PushListGLTFAccessor(&result.accessor_list, accessor);
+    GLTFAccessorListPush(&result.accessor_list, accessor);
   }
   
   return result;

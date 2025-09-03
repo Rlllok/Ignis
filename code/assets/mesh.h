@@ -3,6 +3,7 @@
 #include "base/base_include.h"
 #include "gltf.h"
 
+typedef struct AST_Geometry AST_Geometry;
 struct AST_Geometry
 {
   U8* index_data;
@@ -17,13 +18,14 @@ struct AST_Geometry
 
   AST_Geometry* next;
 };
-DefineList(AST_Geometry)
+DefineList(AST_Geometry, AST_GeometryList)
 
+typedef struct AST_StaticMesh AST_StaticMesh;
 struct AST_StaticMesh
 {
   Str8 name;
 
-  ListAST_Geometry geometry_list;
+  AST_GeometryList geometry_list;
 };
 
 func AST_Geometry AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name);

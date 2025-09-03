@@ -122,8 +122,8 @@ struct R_VK_DescriptorPool
 	I32 sets_count;
 };
 
-func void R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, R_SamplerBindingInfo* sampler_info);
-func void R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, R_SamplerBindingInfo* sampler_info);
+func void R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, R_SamplerBindingInfo* sampler_infos);
+func void R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, R_SamplerBindingInfo* sampler_infos);
 
 func void R_VK_BindGlobalVertexShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info);
 func void R_VK_BindInstanceVertexShaderData(R_CommandBuffer command_buffer, R_UniformBufferBindingInfo uniform_info);

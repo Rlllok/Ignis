@@ -748,7 +748,7 @@ R_VK_BindInstanceVertexShaderData(R_CommandBuffer command_buffer, R_UniformBuffe
 #endif
 
 func void
-R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
+R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_infos)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -832,8 +832,9 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
 
   for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
   {
-    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_info[0].sampler);
-    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_info[0].texture);
+    I32 index = i - uniform_buffers_count;
+    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_infos[i].sampler);
+    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_infos[i].texture);
 
     VkDescriptorImageInfo image_info = 
     {
@@ -867,7 +868,7 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
 }
 
 func void
-R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_info)
+R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_type, I32 uniform_buffers_count, R_UniformBufferBindingInfo* uniform_info, I32 samplers_count, R_SamplerBindingInfo* sampler_infos)
 {
 	R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
 
@@ -925,11 +926,15 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
 
   VkWriteDescriptorSet write_infos[R_VK_MAX_UNIFORM_BUFFERS_PER_SET+R_VK_MAX_SAMPLERS_PER_SET] = {0};
   I32 writes_count = 0;
+  VkDescriptorBufferInfo buffer_infos[R_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
+  I32 buffer_infos_count = 0;
+  VkDescriptorImageInfo image_infos[R_VK_MAX_SAMPLERS_PER_SET] = {0};
+  I32 image_infos_count = 0;
 
   for (I32 i = 0; i < uniform_buffers_count; i += 1)
   {
     R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(uniform_info->buffer);
-    VkDescriptorBufferInfo buffer_info = {
+    buffer_infos[buffer_infos_count] = (VkDescriptorBufferInfo){
       .buffer = vk_buffer->handle,
       .offset = uniform_info->offset,
       .range = uniform_info->size,
@@ -942,17 +947,20 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = &buffer_info,
+      .pBufferInfo = &buffer_infos[buffer_infos_count],
     };
     write_infos[writes_count] = write_info;
 
     writes_count += 1;
+    buffer_infos_count += 1;
   }
 
   for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
   {
-    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_info[0].sampler);
-    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_info[0].texture);
+    I32 index = i - uniform_buffers_count;
+    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_infos[index].sampler);
+    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_infos[index].texture);
+    LOG_DEBUG("INDEX %i I: %i T: %d\n", index, i, sampler_infos[index].texture);
 
     VkCommandBuffer single_cmd = R_VK_BeginSingleCmd();
     {
@@ -960,8 +968,7 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
     }
     R_VK_EndSingleCmd(single_cmd);
 
-    VkDescriptorImageInfo image_info = 
-    {
+    image_infos[image_infos_count] = (VkDescriptorImageInfo){
       .sampler = vk_sampler->handle,
       .imageView = vk_texture->view,
       .imageLayout = vk_texture->layout,
@@ -974,19 +981,21 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .pImageInfo = &image_info,
+      .pImageInfo = &image_infos[image_infos_count],
     };
     write_infos[writes_count] = write_info;
 
     writes_count += 1;
+    image_infos_count += 1;
   }
 	vkUpdateDescriptorSets(_r_vk_state.device.logical, writes_count, write_infos, 0, 0);
 
 	vkCmdBindDescriptorSets( 
-			vk_command_buffer->handle[_r_vk_state.current_frame],
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			vk_command_buffer->binded_graphics_pipeline->layout,
-			set_slot, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+    vk_command_buffer->handle[_r_vk_state.current_frame],
+    VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vk_command_buffer->binded_graphics_pipeline->layout,
+    set_slot, 1, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0
+  );
 
 	vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count += 1;
 }
@@ -1852,8 +1861,7 @@ R_VK_CreateTextureSampler(R_TextureSamplerCreateInfo* info)
 {
   R_VK_TextureSampler sampler = {0};
 
-  VkSamplerCreateInfo sampler_info = 
-  {
+  VkSamplerCreateInfo sampler_info = {
     .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
     .magFilter = R_VK_GetVkFilter(info->mag_filter),
     .minFilter = R_VK_GetVkFilter(info->min_filter),

@@ -1,10 +1,12 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
+#include "assets/mesh.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "render/r_include.c"
+#include "assets/mesh.c"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
@@ -384,16 +386,6 @@ UI_Button(UI_ElementArray* array, Str8 label)
     }
   );
 
-  LOG_DEBUG(
-    "I: %i, P: %.2f_x, %.2f_y; S: %.2f_x, %.2f_y\n",
-    InsideRectF32(button->rect, ui_context.mouse_position),
-    button->rect.position.x,
-    button->rect.position.y,
-    button->rect.size.x,
-    button->rect.size.y
-  );
-    
-
   return OS_IsMousePressed(OS_MouseButton_Left) && InsideRectF32(button->rect, ui_context.mouse_position);
 }
 
@@ -418,8 +410,7 @@ struct Entity
   Vec3 position;
   F32 rotation;
 
-  I32 vertecies_count;
-  Vertex* vertecies;
+  AST_StaticMesh mesh;
 };
 Entity EntityDefaultValue = {0};
 DefineArray(Entity, EntityArray, EntityDefaultValue) // -- AlNov: @TODO It can be better to set DefaultValue for Array through parameter
@@ -454,7 +445,8 @@ struct AppState
   R_GraphicsPipeline font_pipeline;
 
   R_TextureSampler texture_sampler;
-  R_Texture mesh_texture;
+  R_Texture mesh_color_texture;
+  R_Texture mesh_normal_texture;
 
   FontBitmap font;
 
@@ -475,6 +467,39 @@ struct AppState
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
+
+func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path)
+{
+  R_Texture result = {0};
+
+  I32 tex_width = 0;
+  I32 tex_height = 0;
+  I32 tex_channels = 0;
+  U8* tex_pixels = stbi_load(CFromStr8(path), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+
+  if (!tex_pixels)
+  {
+    LOG_ERROR("Cannot load texture %s\n", CFromStr8(path));
+  }
+  I32 texture_size = tex_width * tex_height * 4;
+
+   result = R_CreateTexture(
+    &(R_TextureCreateInfo){
+      .type = R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+      .width = tex_width,
+      .height = tex_height,
+      .depth = 1,
+      .num_levels = 1,
+    }
+  );
+
+  U64 texture_offset = R_PushBuffer(buffer, tex_pixels, texture_size);
+  R_CopyBufferToTexture(0, buffer, texture_offset, texture_size, result);
+
+  return result;
+}
 
 I32 main(void)
 {
@@ -511,7 +536,7 @@ I32 main(void)
 
   R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX|R_BUFFER_USAGE_FLAG_UNIFORM;
   R_Buffer data_buffer = R_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
-  R_Buffer transfer_buffer = R_CreateBuffer(Megabytes(64), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
+  R_Buffer transfer_buffer = R_CreateBuffer(Megabytes(128), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
 
   app_state.texture_sampler = R_CreateTextureSampler(
     &(R_TextureSamplerCreateInfo){
@@ -550,32 +575,8 @@ I32 main(void)
 
   // Mesh Texture
   {
-    Str8 texture_path = Str8C("./data/uv_checker.png");
-    I32 tex_width = 0;
-    I32 tex_height = 0;
-    I32 tex_channels = 0;
-    U8* tex_pixels = stbi_load(CFromStr8(texture_path), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
-
-    if (!tex_pixels)
-    {
-      LOG_ERROR("Cannot load texture %s\n", CFromStr8(texture_path));
-    }
-    I32 texture_size = tex_width * tex_height * 4;
-
-    app_state.mesh_texture = R_CreateTexture(
-      &(R_TextureCreateInfo){
-        .type = R_TEXTURE_TYPE_2D,
-        .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
-        .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-        .width = tex_width,
-        .height = tex_height,
-        .depth = 1,
-        .num_levels = 1,
-      }
-    );
-
-    U64 mesh_texture_offset = R_PushBuffer(data_buffer, tex_pixels, texture_size);
-    R_CopyBufferToTexture(0, data_buffer, mesh_texture_offset, texture_size, app_state.mesh_texture);
+    app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/tiles_material/Color.png"));
+    app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/tiles_material/NormalGL.png"));
   }
 
   // Font Texture
@@ -795,6 +796,7 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
+#if 0
   Entity cube = {
     .id = 1,
     .position = MakeVec3(0.0f, 0.0f, 0.0f),
@@ -809,35 +811,53 @@ I32 main(void)
     .vertecies = cube_vertecies,
   };
   EntityArrayAdd(&app_state.entities, cube_1);
+#endif
+
+  AST_StaticMesh test_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/sphere_gltf/sphere.gltf"));
+  Entity test_entity = {
+    .id = 1,
+    .position = MakeVec3(0.0f, 0.0f, 0.0f),
+    .mesh = test_mesh,
+  };
+  EntityArrayAdd(&app_state.entities, test_entity);
 
   // Mesh Pipeline
   {
-    R_ShaderCreateInfo mesh_vertex_shader_info = {
-      .file_name = Str8C("./data/shaders/mesh.vs.glsl"),
-      .type = R_SHADER_TYPE_VERTEX,
-      .global_uniforms_count = 1,
-      .instance_uniforms_count = 1,
-    };
-    R_Shader mesh_vertex_shader = R_CreateShader(app_state.arena, &mesh_vertex_shader_info);
-    R_ShaderCreateInfo mesh_fragment_shader_info = {
-      .file_name = Str8C("./data/shaders/mesh.fs.glsl"),
-      .type = R_SHADER_TYPE_FRAGMENT,
-      .global_uniforms_count = 0,
-      .instance_uniforms_count = 1,
-      .instance_samplers_count = 1,
-    };
-    R_Shader mesh_fragment_shader = R_CreateShader(app_state.arena, &mesh_fragment_shader_info);
+    R_Shader mesh_vertex_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/mesh.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 1,
+      }
+    );
+    R_Shader mesh_fragment_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/mesh.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .global_uniforms_count = 0,
+        .instance_uniforms_count = 1,
+        .instance_samplers_count = 2,
+      }
+    );
 
     R_VertexAttribute mesh_vertex_attributes[] = {
       {
         .location = 0,
         .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
-        .offset = offsetof(Vertex, position),
+        .offset = 0,
       },
       {
         .location = 1,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .offset = sizeof(Vec3F32),
+      },
+      {
+        .location = 2,
         .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = offsetof(Vertex, uv),
+        .offset = sizeof(Vec3F32)+sizeof(Vec3F32),
       }
     };
 
@@ -1132,68 +1152,85 @@ I32 main(void)
   func void
 DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 {
-  struct
+  for (AST_GeometryListNode* geometry_node = entity->mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
   {
-    Mat4 view_matrix;
-    Mat4 projection_matrix;
-  } global_vertex_data;
-  global_vertex_data.view_matrix = MakeLookAtMat4(
-      app_state.camera.position,
-      AddVec3(app_state.camera.position, app_state.camera.front),
-      app_state.camera.up);
-  global_vertex_data.projection_matrix = MakePerspectiveMat4(
-      45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
-      0.1f, 100.0f);
+    AST_Geometry* geometry = &geometry_node->data;
 
-  U64 global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&global_vertex_data, sizeof(global_vertex_data));
+    struct
+    {
+      Mat4 view_matrix;
+      Mat4 projection_matrix;
+    } global_vertex_data;
+    global_vertex_data.view_matrix = MakeLookAtMat4(
+        app_state.camera.position,
+        AddVec3(app_state.camera.position, app_state.camera.front),
+        app_state.camera.up);
+    global_vertex_data.projection_matrix = MakePerspectiveMat4(
+        45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+        0.1f, 100.0f);
 
-  U64 mesh_vertex_data_offset = R_PushBuffer(buffer, (U8*)entity->vertecies, sizeof(entity->vertecies[0])*entity->vertecies_count);
-  struct
-  {
-    Mat4 instance_matrix;
-  } mesh_instance_vertex_data;
-  // mesh_instance_vertex_data.instance_matrix = MakeTransposeMat4(entity->position);
-  mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
-  mesh_instance_vertex_data.instance_matrix = MulMat4(MakeRotationMat4(MakeVec3(0.0f, 1.0f, 0.0), RadiansFromDegrees(entity->rotation)), mesh_instance_vertex_data.instance_matrix);
-  mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
-  if (app_state.hover_entity_id == entity->id)
-  {
+    U64 global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&global_vertex_data, sizeof(global_vertex_data));
+
+    U64 mesh_vertex_data_offset = R_PushBuffer(buffer, geometry->vertex_data, geometry->vertex_size*geometry->vertex_count);
+    U64 mesh_index_data_offset = R_PushBuffer(buffer, geometry->index_data, geometry->index_size*geometry->index_count);
+    struct
+    {
+      Mat4 instance_matrix;
+    } mesh_instance_vertex_data;
+    // mesh_instance_vertex_data.instance_matrix = MakeTransposeMat4(entity->position);
+    mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
+    mesh_instance_vertex_data.instance_matrix = MulMat4(MakeRotationMat4(MakeVec3(0.0f, 1.0f, 0.0), RadiansFromDegrees(entity->rotation)), mesh_instance_vertex_data.instance_matrix);
+    mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
+    if (app_state.hover_entity_id == entity->id)
+    {
+    }
+    U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
+
+    struct
+    {
+      Vec3 ambient_color;
+      F32 entity_id;
+      Vec3 light_direction;
+    } mesh_instance_fragment_data;
+    mesh_instance_fragment_data.ambient_color = MakeVec3(0.1f, 0.1f, 0.1f);
+    mesh_instance_fragment_data.entity_id = entity->id;
+    mesh_instance_fragment_data.light_direction = NormalizeVec3(MakeVec3(1.0f, -1.0f, -1.0f));
+    U64 mesh_instance_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_fragment_data, sizeof(mesh_instance_fragment_data));
+
+    R_UniformBufferBindingInfo mesh_vertex_shader_global_uniform = {
+      .buffer = buffer,
+      .offset = global_vertex_data_offset,
+      .size = sizeof(global_vertex_data),
+    };
+    R_UniformBufferBindingInfo mesh_vertex_shader_instance_uniform = {
+      .buffer = buffer,
+      .offset = mesh_instance_vertex_data_offset,
+      .size = sizeof(mesh_instance_vertex_data),
+    };
+    R_UniformBufferBindingInfo mesh_fragment_shader_instance_uniform = {
+      .buffer = buffer,
+      .offset = mesh_instance_fragment_data_offset,
+      .size = sizeof(mesh_instance_fragment_data),
+    };
+    R_SamplerBindingInfo mesh_fragment_shader_instance_samplers[2] = {
+      {
+        .sampler = app_state.texture_sampler,
+        .texture = app_state.mesh_color_texture,
+      },
+      {
+        .sampler = app_state.texture_sampler,
+        .texture = app_state.mesh_normal_texture,
+      }
+    };
+
+    R_BindGraphicsPipeline(command_buffer, app_state.mesh_pipeline);
+    R_BindGlobalVertexShaderData(command_buffer, 1, &mesh_vertex_shader_global_uniform, 0, 0);
+    R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
+    R_BindInstanceFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_instance_uniform, 2, mesh_fragment_shader_instance_samplers);
+    R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
+    R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
+    R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
-  U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
-
-  struct
-  {
-    F32 entity_id;
-  } mesh_instance_fragment_data;
-  mesh_instance_fragment_data.entity_id = entity->id;
-  U64 mesh_instance_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_fragment_data, sizeof(mesh_instance_fragment_data));
-
-  R_UniformBufferBindingInfo mesh_vertex_shader_global_uniform = {
-    .buffer = buffer,
-    .offset = global_vertex_data_offset,
-    .size = sizeof(global_vertex_data),
-  };
-  R_UniformBufferBindingInfo mesh_vertex_shader_instance_uniform = {
-    .buffer = buffer,
-    .offset = mesh_instance_vertex_data_offset,
-    .size = sizeof(mesh_instance_vertex_data),
-  };
-  R_UniformBufferBindingInfo mesh_fragment_shader_instance_uniform = {
-    .buffer = buffer,
-    .offset = mesh_instance_fragment_data_offset,
-    .size = sizeof(mesh_instance_fragment_data),
-  };
-  R_SamplerBindingInfo mesh_fragment_shader_instance_sampler = {
-    .sampler = app_state.texture_sampler,
-    .texture = app_state.mesh_texture,
-  };
-
-  R_BindGraphicsPipeline(command_buffer, app_state.mesh_pipeline);
-  R_BindGlobalVertexShaderData(command_buffer, 1, &mesh_vertex_shader_global_uniform, 0, 0);
-  R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
-  R_BindInstanceFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_instance_uniform, 1, &mesh_fragment_shader_instance_sampler);
-  R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
-  R_DrawPrimitives(command_buffer, entity->vertecies_count, 1, 0, 0);
 }
 
   func void
