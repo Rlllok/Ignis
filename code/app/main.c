@@ -81,6 +81,22 @@ struct UI_BorderRadius
   };
 };
 
+typedef struct UI_Padding UI_Padding;
+struct UI_Padding
+{
+  union
+  {
+    Vec4F32 v;
+    struct
+    {
+      F32 top;
+      F32 right;
+      F32 bottom;
+      F32 left;
+    };
+  };
+};
+
 typedef U16 UI_ElementFlags;
 enum UI_ElementFlagEnum
 {
@@ -103,6 +119,7 @@ struct UI_Element
   U32 font_size;
   RectF32 rect;
   UI_LayoutDirection layout;
+  UI_Padding padding;
   F32 child_gap;
   Vec2 child_offset;
   Vec4 background_color;
@@ -142,7 +159,7 @@ func void UI_SetSizeX(UI_Size size) {ui_state.size_x = size;}
 func void UI_SetSizeY(UI_Size size) {ui_state.size_y = size;}
 func void UI_SetFont(FontBitmap font, U32 font_size) {ui_state.font = font; ui_state.font_size = font_size;}
 func void UI_SetTextColor(Vec4 color) {ui_state.text_color = color;}
-func void UI_SetBackgrouncColor(Vec4 color) {ui_state.background_color = color;}
+func void UI_SetBackgroundColor(Vec4 color) {ui_state.background_color = color;}
 func void UI_SetFixedPosition(Vec2 position) {ui_state.fixed_position = position;}
 
 typedef struct UI_ElementDescription UI_ElementDescription;
@@ -151,6 +168,7 @@ struct UI_ElementDescription
   Str8 label;
   UI_ElementFlags flags;
   UI_LayoutDirection layout;
+  UI_Padding padding;
   F32 child_gap;
   UI_BorderRadius border_radius;
 };
@@ -163,10 +181,14 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
   element.flags = description.flags;
   element.parent = ui_state.parent;
   element.layout = description.layout;
+  element.padding = description.padding;
   element.child_gap = description.child_gap;
   element.font = ui_state.font;
   element.font_size = ui_state.font_size;
   element.border_radius = description.border_radius;
+  element.text_color = ui_state.text_color;
+
+  element.child_offset = MakeVec2(element.padding.left, element.padding.top);
 
   switch (ui_state.size_x.type)
   {
@@ -262,6 +284,10 @@ UI_Button(UI_ElementArray* array, Str8 label)
     (UI_ElementDescription){
       .label = label,
       .flags = UI_ElementFlag_DrawLabel|UI_ElementFlag_DrawBackground,
+      .border_radius = {
+        .top_right = 10.0f,
+        .bottom_right = 10.0f,
+      },
     }
   );
 
@@ -760,12 +786,12 @@ I32 main(void)
     if (app_state.draw_ui)
     {
       UI_SetFont(app_state.font, 20);
-      UI_SetTextColor(MakeVec4(1.0f, 1.0f, 0.2f, 1.0f));
+      UI_SetTextColor(RGBAFromHex(0xE8B4B8FF));
 
       UI_SetFixedPosition(MakeVec2(0.0f, 0.0));
       UI_SetSizeX(UI_FixedSize(app_state.window.size.x));
       UI_SetSizeY(UI_FixedSize(30.0f));
-      UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.4f));
+      UI_SetBackgroundColor(RGBAFromHex(0x1D1A26AA));
       UI_Element* top_bar = UI_BuildElement(
         &app_state.ui_elements,
         (UI_ElementDescription){
@@ -791,6 +817,10 @@ I32 main(void)
           .label = Str8C("Right Box"),
           .flags = UI_ElementFlag_DrawBackground,
           .layout = UI_LayoutDirection_TopToBottom,
+          .padding = {
+            .top = 5.0f,
+            .left = 1.0f,
+          },
           .child_gap = 5.0f,
           .border_radius = {
             .top_left = 0.0f,
@@ -802,9 +832,9 @@ I32 main(void)
       );
       UI_SetParent(right_box);
       {
-        UI_SetBackgrouncColor(MakeVec4(0.0f, 0.0f, 0.0f, 0.6f));
+        UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
 
-        UI_SetSizeX((UI_Size){.type = UI_SizeType_ParentPercent, .value = 1.0f});
+        UI_SetSizeX((UI_Size){.type = UI_SizeType_ParentPercent, .value = 0.8f});
         UI_SetSizeY((UI_Size){.type = UI_SizeType_WrapLabel,});
         if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
         {
@@ -887,12 +917,14 @@ I32 main(void)
           Mat4 projection_matrix;
         } grid_global_vertex_data;
         grid_global_vertex_data.view_matrix = MakeLookAtMat4(
-            app_state.camera.position,
-            AddVec3(app_state.camera.position, app_state.camera.front),
-            app_state.camera.up);
+          app_state.camera.position,
+          AddVec3(app_state.camera.position, app_state.camera.front),
+          app_state.camera.up
+        );
         grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
-            45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
-            0.1f, 100.0f);
+          45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+          0.1f, 100.0f
+        );
         struct
         {
           Vec3 position;
@@ -905,7 +937,7 @@ I32 main(void)
         {
           Vec4 color;
         } grid_global_fragment_data;
-        grid_global_fragment_data.color = RGBAFromHex(0x95B8D177);
+        grid_global_fragment_data.color = RGBAFromHex(0x95B8D1AA);
 
         U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
         U64 grid_instance_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_instance_vertex_data, sizeof(grid_instance_vertex_data));
@@ -944,8 +976,7 @@ I32 main(void)
       {
         char frame_time_cstring[128] = {0};
         sprintf(frame_time_cstring, "%.3f", app_state.delta_time*1000.0f);
-        DrawText(command_buffer, data_buffer, app_state.font, Str8C(frame_time_cstring), 24, MakeVec2(0.0f, 0.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
-        DrawText(command_buffer, data_buffer, app_state.font, Str8C("Testing Text Rendering."), 40, MakeVec2(0.0f, 50.0f), RGBAFromHex(0x9ABBD1FF));
+        // DrawText(command_buffer, data_buffer, app_state.font, Str8C(frame_time_cstring), 24, MakeVec2(0.0f, 0.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
 
         for (I32 i = 0; i < app_state.ui_elements.length; i += 1)
         {
@@ -958,7 +989,7 @@ I32 main(void)
 
           if ((ui_element->flags & UI_ElementFlag_DrawLabel) == UI_ElementFlag_DrawLabel)
           {
-            DrawText(command_buffer, data_buffer, ui_element->font, ui_element->label, ui_element->font_size, ui_element->rect.position, MakeVec4(1.0f, 0.0f, 1.0f, 1.0f));
+            DrawText(command_buffer, data_buffer, ui_element->font, ui_element->label, ui_element->font_size, ui_element->rect.position, ui_element->text_color);
           }
         }
 
