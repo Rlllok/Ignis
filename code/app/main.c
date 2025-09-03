@@ -100,9 +100,13 @@ struct UI_Padding
 typedef U16 UI_ElementFlags;
 enum UI_ElementFlagEnum
 {
+  // Interaction Flags
+  UI_ElementFlag_Hover = 1 << 0,
+  UI_ElementFlag_Clickable = 1 << 1,
+
   // Draw Flags
-  UI_ElementFlag_DrawBackground = 1 << 0,
-  UI_ElementFlag_DrawLabel = 1 << 1,
+  UI_ElementFlag_DrawBackground = 1 << 2,
+  UI_ElementFlag_DrawLabel = 1 << 3,
 } UI_ElementFlagEnum;
 
 typedef struct UI_Element UI_Element;
@@ -111,6 +115,8 @@ struct UI_Element
   UI_Element* next;
   UI_Element* previous;
   UI_Element* parent;
+
+  U32 hot_id;
 
   Str8 label;
   UI_ElementFlags flags;
@@ -125,13 +131,47 @@ struct UI_Element
   Vec4 background_color;
   UI_BorderRadius border_radius;
 };
+
 UI_Element UI_ElementDefaultValue = {0};
 DefineArray(UI_Element, UI_ElementArray, UI_ElementDefaultValue)
 
-typedef struct UI_State UI_State;
-struct UI_State
+typedef U8 UI_DrawCommandType;
+enum UI_DrawCommandTypeEnum
 {
-  UI_Element* parent;
+  UI_DrawCommandType_Rectangle,
+  UI_DrawCommandType_Text,
+} UI_DrawCommandTypeEnum;
+
+typedef struct UI_DrawCommand UI_DrawCommand;
+struct UI_DrawCommand
+{
+  UI_DrawCommandType type;
+  union
+  {
+    struct
+    {
+      Vec4 color;
+      RectF32 bound;
+      Vec4 radius;
+    } rectangle;
+
+    struct
+    {
+      Str8 content;
+      FontBitmap font;
+      F32 font_size;
+      Vec4 color;
+      Vec2 position;
+    } text;
+  };
+};
+UI_DrawCommand UI_DrawCommandDefaultValue = {0};
+DefineArray(UI_DrawCommand, UI_DrawCommandArray, UI_DrawCommandDefaultValue)
+
+typedef struct UI_Context UI_Context;
+struct UI_Context
+{
+  UI_Element* current_parent;
 
   Vec2 mouse_position;
 
@@ -142,25 +182,35 @@ struct UI_State
   FontBitmap font;
   Vec4 text_color;
   Vec4 background_color;
-} ui_state;
 
-func void UI_BeginFrame(Vec2 mouse_position)
+  UI_DrawCommandArray draw_commands;
+} ui_context;
+
+func void UI_BeginFrame(UI_Context* context, Vec2 mouse_position)
 {
-  ui_state = (UI_State){0};
-  ui_state.mouse_position = mouse_position;
+  context->current_parent = 0;
+  context->mouse_position = mouse_position;
+  context->size_x = (UI_Size){0};
+  context->size_y = (UI_Size){0};
+  context->fixed_position = MakeVec2(0.0f, 0.0f);
+  context->font_size = 0.0f;
+  context->font = (FontBitmap){0};
+  context->text_color = MakeVec4(0.0f, 0.0f, 0.0f, 0.0f);
+  context->background_color = MakeVec4(0.0f, 0.0f, 0.0f, 0.0f);
+  UI_DrawCommandArrayReset(&context->draw_commands);
 }
 
 func void UI_EndFrame()
 {
 }
 
-func void UI_SetParent(UI_Element* parent) {ui_state.parent = parent;}
-func void UI_SetSizeX(UI_Size size) {ui_state.size_x = size;}
-func void UI_SetSizeY(UI_Size size) {ui_state.size_y = size;}
-func void UI_SetFont(FontBitmap font, U32 font_size) {ui_state.font = font; ui_state.font_size = font_size;}
-func void UI_SetTextColor(Vec4 color) {ui_state.text_color = color;}
-func void UI_SetBackgroundColor(Vec4 color) {ui_state.background_color = color;}
-func void UI_SetFixedPosition(Vec2 position) {ui_state.fixed_position = position;}
+func void UI_SetParent(UI_Element* parent) {ui_context.current_parent = parent;}
+func void UI_SetSizeX(UI_Size size) {ui_context.size_x = size;}
+func void UI_SetSizeY(UI_Size size) {ui_context.size_y = size;}
+func void UI_SetFont(FontBitmap font, U32 font_size) {ui_context.font = font; ui_context.font_size = font_size;}
+func void UI_SetTextColor(Vec4 color) {ui_context.text_color = color;}
+func void UI_SetBackgroundColor(Vec4 color) {ui_context.background_color = color;}
+func void UI_SetFixedPosition(Vec2 position) {ui_context.fixed_position = position;}
 
 typedef struct UI_ElementDescription UI_ElementDescription;
 struct UI_ElementDescription
@@ -179,28 +229,28 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
   UI_Element element = {0};
   element.label = description.label;
   element.flags = description.flags;
-  element.parent = ui_state.parent;
+  element.parent = ui_context.current_parent;
   element.layout = description.layout;
   element.padding = description.padding;
   element.child_gap = description.child_gap;
-  element.font = ui_state.font;
-  element.font_size = ui_state.font_size;
+  element.font = ui_context.font;
+  element.font_size = ui_context.font_size;
   element.border_radius = description.border_radius;
-  element.text_color = ui_state.text_color;
+  element.text_color = ui_context.text_color;
 
   element.child_offset = MakeVec2(element.padding.left, element.padding.top);
 
-  switch (ui_state.size_x.type)
+  switch (ui_context.size_x.type)
   {
     default: Assert(0); break;
 
     case UI_SizeType_Fixed:
     {
-      element.rect.size.x = ui_state.size_x.value;
+      element.rect.size.x = ui_context.size_x.value;
     } break;
     case UI_SizeType_WrapLabel:
     {
-      element.rect.size.x = GetTextSize(ui_state.font, element.label, element.font_size).x;
+      element.rect.size.x = GetTextSize(ui_context.font, element.label, element.font_size).x;
     } break;
     case UI_SizeType_WrapChildren:
     {
@@ -209,20 +259,20 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
     } break;
     case UI_SizeType_ParentPercent:
     {
-      element.rect.size.x = element.parent->rect.size.x*ui_state.size_x.value;
+      element.rect.size.x = element.parent->rect.size.x*ui_context.size_x.value;
     } break;
   }
-  switch (ui_state.size_y.type)
+  switch (ui_context.size_y.type)
   {
     default: Assert(0); break;
 
     case UI_SizeType_Fixed:
     {
-      element.rect.size.y = ui_state.size_y.value;
+      element.rect.size.y = ui_context.size_y.value;
     } break;
     case UI_SizeType_WrapLabel:
     {
-      element.rect.size.y = GetTextSize(ui_state.font, element.label, element.font_size).y;
+      element.rect.size.y = GetTextSize(ui_context.font, element.label, element.font_size).y;
     } break;
     case UI_SizeType_WrapChildren:
     {
@@ -231,7 +281,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
     } break;
     case UI_SizeType_ParentPercent:
     {
-      element.rect.size.y = element.parent->rect.size.y*ui_state.size_y.value;
+      element.rect.size.y = element.parent->rect.size.y*ui_context.size_y.value;
     } break;
   }
 
@@ -241,23 +291,64 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
     {
       case UI_LayoutDirection_TopToBottom:
       {
-        element.rect.position = AddVec2(element.parent->rect.position,element.parent->child_offset);
+        element.rect.position = AddVec2(element.parent->rect.position, element.parent->child_offset);
         element.parent->child_offset.y += element.rect.size.y + element.parent->child_gap;
       } break;
       case UI_LayoutDirection_LeftToRight:
       {
-        element.rect.position = AddVec2(element.parent->rect.position,element.parent->child_offset);
+        element.rect.position = AddVec2(element.parent->rect.position, element.parent->child_offset);
         element.parent->child_offset.x += element.rect.size.x + element.parent->child_gap;
       } break;
     }
   }
   else
   {
-    element.rect.position = ui_state.fixed_position;
+    element.rect.position = ui_context.fixed_position;
   }
 
-  element.text_color = ui_state.text_color;
-  element.background_color = ui_state.background_color;
+  element.text_color = ui_context.text_color;
+  element.background_color = ui_context.background_color;
+
+  if (element.flags & UI_ElementFlag_Hover)
+  {
+    if (InsideRectF32(element.rect, ui_context.mouse_position))
+    {
+      element.background_color = AddVec4(element.background_color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
+    }
+  }
+  if (element.flags & UI_ElementFlag_Clickable)
+  {
+  }
+  if (element.flags & UI_ElementFlag_DrawBackground)
+  {
+    UI_DrawCommandArrayAdd(
+      &ui_context.draw_commands,
+      (UI_DrawCommand){
+        .type = UI_DrawCommandType_Rectangle,
+        .rectangle = {
+          .color = element.background_color,
+          .bound = element.rect,
+          .radius = element.border_radius.values,
+        }
+      }
+    );
+  }
+  if (element.flags & UI_ElementFlag_DrawLabel)
+  {
+    UI_DrawCommandArrayAdd(
+      &ui_context.draw_commands,
+      (UI_DrawCommand){
+        .type = UI_DrawCommandType_Text,
+        .text = {
+          .content = element.label,
+          .font = element.font,
+          .font_size = element.font_size,
+          .color = element.text_color,
+          .position = element.rect.position,
+        }
+      }
+    );
+  }
 
   I32 index = UI_ElementArrayAdd(array, element);
   return UI_ElementArrayGetPointer(array, index);
@@ -283,7 +374,9 @@ UI_Button(UI_ElementArray* array, Str8 label)
     array,
     (UI_ElementDescription){
       .label = label,
-      .flags = UI_ElementFlag_DrawLabel|UI_ElementFlag_DrawBackground,
+      .flags = UI_ElementFlag_Hover|
+        UI_ElementFlag_DrawLabel|
+        UI_ElementFlag_DrawBackground,
       .border_radius = {
         .top_right = 10.0f,
         .bottom_right = 10.0f,
@@ -291,7 +384,17 @@ UI_Button(UI_ElementArray* array, Str8 label)
     }
   );
 
-  return InsideRectF32(button->rect, ui_state.mouse_position);
+  LOG_DEBUG(
+    "I: %i, P: %.2f_x, %.2f_y; S: %.2f_x, %.2f_y\n",
+    InsideRectF32(button->rect, ui_context.mouse_position),
+    button->rect.position.x,
+    button->rect.position.y,
+    button->rect.size.x,
+    button->rect.size.y
+  );
+    
+
+  return OS_IsMousePressed(OS_MouseButton_Left) && InsideRectF32(button->rect, ui_context.mouse_position);
 }
 
 func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color);
@@ -391,8 +494,9 @@ I32 main(void)
   app_state.camera.pitch = -30.0f;
   app_state.entities = EntityArrayAllocate(app_state.arena, 128);
   app_state.selected_entity = &EntityDefaultValue;
-  app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 64);
+  app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   app_state.draw_ui = 1;
+  ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
 
   F32 new_variable = 0;
 
@@ -781,14 +885,14 @@ I32 main(void)
     }
 
     // UI
-    UI_BeginFrame(app_state.last_mouse_position);
+    UI_BeginFrame(&ui_context, app_state.last_mouse_position);
     UI_ElementArrayReset(&app_state.ui_elements);
     if (app_state.draw_ui)
     {
       UI_SetFont(app_state.font, 20);
       UI_SetTextColor(RGBAFromHex(0xE8B4B8FF));
 
-      UI_SetFixedPosition(MakeVec2(0.0f, 0.0));
+      UI_SetFixedPosition(MakeVec2(0.0f, 0.0f));
       UI_SetSizeX(UI_FixedSize(app_state.window.size.x));
       UI_SetSizeY(UI_FixedSize(30.0f));
       UI_SetBackgroundColor(RGBAFromHex(0x1D1A26AA));
@@ -802,9 +906,12 @@ I32 main(void)
       );
       UI_SetParent(top_bar);
       {
-        UI_SetSizeX(UI_WrapLabelSize());
+        UI_SetSizeX(UI_ParentPercentSize(0.5f));
         UI_SetSizeY(UI_ParentPercentSize(1.0f));
-        UI_Button(&app_state.ui_elements, Str8C("Top"));
+        if(UI_Button(&app_state.ui_elements, Str8C("Top")))
+        {
+          LOG_DEBUG("Top Button\n");
+        }
       }
       UI_SetParent(0);
 
@@ -817,10 +924,6 @@ I32 main(void)
           .label = Str8C("Right Box"),
           .flags = UI_ElementFlag_DrawBackground,
           .layout = UI_LayoutDirection_TopToBottom,
-          .padding = {
-            .top = 5.0f,
-            .left = 1.0f,
-          },
           .child_gap = 5.0f,
           .border_radius = {
             .top_left = 0.0f,
@@ -834,19 +937,11 @@ I32 main(void)
       {
         UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
 
-        UI_SetSizeX((UI_Size){.type = UI_SizeType_ParentPercent, .value = 0.8f});
-        UI_SetSizeY((UI_Size){.type = UI_SizeType_WrapLabel,});
+        UI_SetSizeX(UI_ParentPercentSize(1.0f));
+        UI_SetSizeY(UI_ParentPercentSize(1.0f));
         if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
         {
-          if (OS_IsMousePressed(OS_MouseButton_Left))
-          {
-            LOG_DEBUG("BUTTON 1 Pressed\n");
-          }
-        }
-        for (I32 i = 0; i < 8; i += 1)
-        {
-          UI_Button(&app_state.ui_elements, Str8C("Test Button 2"));
-        // UI_Button(&app_state.ui_elements, Str8C("Test Button 3"));
+          LOG_DEBUG("BUTTON 1 Pressed\n");
         }
       }
       UI_SetParent(0);
@@ -976,20 +1071,23 @@ I32 main(void)
       {
         char frame_time_cstring[128] = {0};
         sprintf(frame_time_cstring, "%.3f", app_state.delta_time*1000.0f);
-        // DrawText(command_buffer, data_buffer, app_state.font, Str8C(frame_time_cstring), 24, MakeVec2(0.0f, 0.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
 
-        for (I32 i = 0; i < app_state.ui_elements.length; i += 1)
+        for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
         {
-          UI_Element* ui_element = UI_ElementArrayGetPointer(&app_state.ui_elements, i);
-
-          if ((ui_element->flags & UI_ElementFlag_DrawBackground) == UI_ElementFlag_DrawBackground)
+          UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, i);
+          switch (draw_command->type)
           {
-            DrawRect(command_buffer, data_buffer, ui_element->rect, ui_element->border_radius.values, ui_element->background_color);
-          }
+            default: {} break;
 
-          if ((ui_element->flags & UI_ElementFlag_DrawLabel) == UI_ElementFlag_DrawLabel)
-          {
-            DrawText(command_buffer, data_buffer, ui_element->font, ui_element->label, ui_element->font_size, ui_element->rect.position, ui_element->text_color);
+            case UI_DrawCommandType_Rectangle:
+            {
+              DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color);
+            } break;
+
+            case UI_DrawCommandType_Text:
+            {
+              DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
+            }
           }
         }
 
@@ -999,7 +1097,7 @@ I32 main(void)
             .position = app_state.last_mouse_position,
             .size = MakeVec2(20.0f, 20.0f),
           };
-          DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(1.0f, 1.0f, 1.0f, 1.0f));
+          DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(0.8f, 0.8f, 0.8f, 1.0f));
         }
       }
       R_EndRenderPass(command_buffer, 0);

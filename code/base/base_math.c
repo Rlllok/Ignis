@@ -228,8 +228,8 @@ InsideRectF32(RectF32 rect, Vec2F32 v)
   result =
     (v.x > rect.position.x)&&
     (v.y > rect.position.y)&&
-    (v.x < rect.size.x)&&
-    (v.y < rect.size.y);
+    (v.x < rect.position.x + rect.size.x)&&
+    (v.y < rect.position.y + rect.size.y);
 
   return result;
 }
