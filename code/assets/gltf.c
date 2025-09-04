@@ -7,7 +7,7 @@
 func Buffer
 AllocateBuffer(U64 size)
 {
-  Buffer result = {};
+  Buffer result = {0};
 
   result.data = (U8*)OS_AllocateMemory(size * sizeof(U8));
   if (result.data)
@@ -39,9 +39,9 @@ PrintBuffer(Buffer buffer)
 }
 
 func Buffer
-ReadFile(Buffer file_name)
+GLTFReadFile(Buffer file_name)
 {
-  Buffer result = {};
+  Buffer result = {0};
 
   // @TODO Get CString from Buffer(String)
   const char* file_name_c = CFromStr8(file_name);
@@ -158,7 +158,7 @@ GLTFError(GLTFReader* reader, GLTFToken token, const char* message)
 func GLTFToken
 GetGLTFToken(GLTFReader* reader)
 {
-  GLTFToken result = {};
+  GLTFToken result = {0};
 
   Buffer source = reader->file_buffer;
   U64 position = reader->position;
@@ -209,7 +209,7 @@ GetGLTFToken(GLTFReader* reader)
 
       case 't':
       {
-        Buffer true_buffer = {};
+        Buffer true_buffer = {0};
         true_buffer.data = source.data + position - 1;
         true_buffer.length = 4;
 
@@ -280,7 +280,7 @@ ParseList(GLTFReader* reader, GLTFToken start_token, GLTFTokenType end_type, B32
   
   while (!reader->has_error && IsInBound(reader->file_buffer, reader->position))
   {
-    Buffer label = {};
+    Buffer label = {0};
     GLTFToken current_token = GetGLTFToken(reader);
 
     if (has_labels)
@@ -397,7 +397,7 @@ GetGLTFData(GLTFReader* reader)
        mesh_element;
        mesh_element = mesh_element->next_sibling)
   {
-    GLTFMesh mesh = {};
+    GLTFMesh mesh = {0};
     mesh.primitive_list = GLTFPrimitiveListCreate(licky_arena);
     
     GLTFElement* primitives_list_element = LookUpElement(mesh_element, Str8C("primitives"));
@@ -405,13 +405,12 @@ GetGLTFData(GLTFReader* reader)
          primitive_element;
          primitive_element = primitive_element->next_sibling)
     {
-      GLTFPrimitive primitive = {};
+      GLTFPrimitive primitive = {0};
       GLTFElement* attributes = LookUpElement(primitive_element, Str8C("attributes"));
       for (GLTFElement* attribute_element = attributes->first_sub_element;
            attribute_element;
            attribute_element = attribute_element->next_sibling)
       {
-        GLTFAttribute attribute = {};
         if (AreBuffersEqual(attribute_element->label, Str8C("POSITION")))
         {
           primitive.position_accessor_id = GetNumberElement(attributes, Str8C("POSITION"));
@@ -444,7 +443,7 @@ GetGLTFData(GLTFReader* reader)
        buffer_view_element;
        buffer_view_element = buffer_view_element->next_sibling)
   {
-    GLTFBufferView buffer_view = {};
+    GLTFBufferView buffer_view = {0};
     
     buffer_view.buffer_id = GetNumberElement(buffer_view_element, Str8C("buffer"));
     buffer_view.byte_offset = GetNumberElement(buffer_view_element, Str8C("byteOffset"));
@@ -461,7 +460,7 @@ GetGLTFData(GLTFReader* reader)
        buffer_element;
        buffer_element = buffer_element->next_sibling)
   {
-    GLTFBuffer buffer = {};
+    GLTFBuffer buffer = {0};
 
     buffer.uri = LookUpElement(buffer_element, Str8C("uri"))->value;
     if (FindPosition(buffer.uri, '.') != buffer.uri.length)
@@ -470,7 +469,7 @@ GetGLTFData(GLTFReader* reader)
       Str8 bin_file_path = SubStr8(tmp_arena, reader->file_path, 0, GetSymbolPositionLast(reader->file_path, '/'));
       bin_file_path = ConcatStr8(tmp_arena, bin_file_path, Str8C("/"));
       Str8 bin_file_name = SubStr8(tmp_arena, buffer.uri, 0, buffer.uri.length);
-      buffer.buffer = ReadFile(ConcatStr8(tmp_arena, bin_file_path, bin_file_name));
+      buffer.buffer = GLTFReadFile(ConcatStr8(tmp_arena, bin_file_path, bin_file_name));
       FreeArena(tmp_arena);
     }
     else
@@ -491,7 +490,7 @@ GetGLTFData(GLTFReader* reader)
        accessor_element;
        accessor_element = accessor_element->next_sibling)
   {
-    GLTFAccessor accessor = {};
+    GLTFAccessor accessor = (GLTFAccessor){0};
 
     accessor.buffer_view_id = GetNumberElement(accessor_element, Str8C("bufferView"));
     accessor.byte_offset = GetNumberElement(accessor_element, Str8C("byteOffset"));
@@ -528,7 +527,7 @@ LookUpElement(GLTFElement* object, Buffer label)
 func Buffer
 GetGltfBufferData(GLTFBuffer gltf_buffer)
 {
-  Buffer result = {};
+  Buffer result = {0};
 
 
   return result;

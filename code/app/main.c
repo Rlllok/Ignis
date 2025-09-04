@@ -30,7 +30,7 @@ struct TextVertex
 };
 
 func Vec2 GetTextSize(FontBitmap font, Str8 text, U32 font_size);
-func void DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
+func void IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
 
 typedef U8 UI_PositionType;
 enum UI_PositionTypeEnum
@@ -503,10 +503,6 @@ func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path)
 
 I32 main(void)
 {
-  UI_BorderRadius test_border = {
-    .top_left = 5.0f
-  };
-
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = 0;
@@ -523,7 +519,10 @@ I32 main(void)
   app_state.draw_ui = 1;
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
 
-  F32 new_variable = 0;
+  Entity* entity_ptr = PushArena(app_state.arena, sizeof(Entity));
+
+  app_state.entities.elements[0] = (Entity){.id = 512};
+  EntityArrayAdd(&app_state.entities, (Entity){0});
 
   OS_Init(Megabytes(32));
 
@@ -663,11 +662,6 @@ I32 main(void)
       }
     );
 
-    R_ShaderCreateInfo font_fragment_shader_info = {
-      .file_name = Str8C("./data/shaders/font.fs.glsl"),
-      .type = R_SHADER_TYPE_FRAGMENT,
-      .global_samplers_count = 1,
-    };
     R_Shader font_fragment_shader = R_CreateShader(
       app_state.arena,
       &(R_ShaderCreateInfo){
@@ -1106,7 +1100,7 @@ I32 main(void)
 
             case UI_DrawCommandType_Text:
             {
-              DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
+              IGN_DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
             }
           }
         }
@@ -1388,7 +1382,7 @@ GetTextSize(FontBitmap font, Str8 text, U32 font_size)
 }
 
 func void
-DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
+IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
 {
   TextVertex vertecies[1028] = {0};
   U32 vertecies_count = 0;

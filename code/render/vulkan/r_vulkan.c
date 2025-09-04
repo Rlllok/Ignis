@@ -802,7 +802,7 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
 		.descriptorSetCount = 1, // --AlNov: @TODO Only Global Set for now
 		.pSetLayouts = &set_layout,
 	};
-	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
+	VK_CHECK(vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]));
 
   VkWriteDescriptorSet write_infos[R_VK_MAX_UNIFORM_BUFFERS_PER_SET+R_VK_MAX_SAMPLERS_PER_SET] = {0};
   I32 writes_count = 0;
@@ -833,8 +833,8 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
   for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
   {
     I32 index = i - uniform_buffers_count;
-    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_infos[i].sampler);
-    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_infos[i].texture);
+    R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_infos[index].sampler);
+    R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_infos[index].texture);
 
     VkDescriptorImageInfo image_info = 
     {
@@ -922,7 +922,7 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
 		.descriptorSetCount = 1,
 		.pSetLayouts = &set_layout,
 	};
-	VkResult allocate_result = vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]);
+	VK_CHECK(vkAllocateDescriptorSets(_r_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].vk_sets[pool_id][set_id]));
 
   VkWriteDescriptorSet write_infos[R_VK_MAX_UNIFORM_BUFFERS_PER_SET+R_VK_MAX_SAMPLERS_PER_SET] = {0};
   I32 writes_count = 0;
@@ -1201,7 +1201,7 @@ R_VK_CreateGraphicsPipeline(R_GraphicsPipelineCreateInfo* pipeline_info)
   };
 
   // @TODO Support multiple attachments
-  VkPipelineColorBlendAttachmentState blend_attachments[8] = {};
+  VkPipelineColorBlendAttachmentState blend_attachments[8] = {0};
   for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1)
   {
     blend_attachments[i].blendEnable = pipeline_info->color_target_infos[i].blend_enable;
@@ -1482,7 +1482,7 @@ R_VK_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture)
       .pImageIndices = &_r_vk_state.current_target,
     };
 
-    VkResult present_result = vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info);
+    VK_CHECK(vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info));
   }
   else
   {
@@ -1929,11 +1929,19 @@ R_VK_Init(OS_Window* window)
 {
   _r_vk_state.arena = AllocateArena(Megabytes(64));
   _r_vk_state.buffers = R_VK_BufferArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.buffers.elements[0] = (R_VK_Buffer){0};
   _r_vk_state.graphics_pipelines = R_VK_GraphicsPipelineArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.graphics_pipelines.elements[0] = (R_VK_GraphicsPipeline){0};
   _r_vk_state.command_buffers = R_VK_CommandBufferArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.command_buffers.elements[0] = (R_VK_CommandBuffer){0};
   _r_vk_state.samplers = R_VK_TextureSamplerArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.samplers.elements[0] = (R_VK_TextureSampler){0};
   _r_vk_state.textures = R_VK_TextureArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.textures.elements[0] = (R_VK_Texture){0};
   _r_vk_state.textures_free_list = R_VK_TextureFreeListAllocate(_r_vk_state.arena, 32);
+
+  R_VK_Texture* test_texture = PushArena(_r_vk_state.arena, sizeof(R_VK_Texture));
+  test_texture->format = 1;
 
   VkApplicationInfo app_info = {0};
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -1978,7 +1986,7 @@ R_VK_Init(OS_Window* window)
   instance_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&messenger_info;
 #endif // IGNIS_DEBUG
 
-  VkResult result = (vkCreateInstance(&instance_info, 0, &_r_vk_state.instance));
+  VK_CHECK(vkCreateInstance(&instance_info, 0, &_r_vk_state.instance));
 
 #if IGNIS_DEBUG
   VK_CHECK(R_VK_CreateDebugMessenger(_r_vk_state.instance, &_r_vk_state.debug_messenger));

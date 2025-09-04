@@ -77,7 +77,7 @@ func void R_LoadImageToTexture(Str8 image_path, R_Texture texture)
 func void
 R_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Texture destination)
 {
-  return _r_state.device.CopyTexture(command_buffer, source, destination);
+  _r_state.device.CopyTexture(command_buffer, source, destination);
 }
 
 func U64

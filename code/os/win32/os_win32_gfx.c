@@ -80,16 +80,63 @@ OS_WIN32_ToggleFullscreen(HWND window_handle)
   }
 }
 
-func ListOS_Event
+func OS_EventList
 OS_GetEventList(Arena* arena, OS_Window* window)
 {
-  _os_state.event_list = CreateListOS_Event(arena);
-  
+  _os_state.event_list = OS_EventListCreate(arena);
+	_os_state.keyboard_event_list = OS_EventListCreate(arena);
+  _os_state.mouse_event_list = OS_EventListCreate(arena);
+
   MSG message;
   while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
   {
     TranslateMessage(&message);
     DispatchMessageW(&message);
+  }
+
+	for (I32 i = 0; i < OS_KEY_COUNT; i += 1)
+	{
+		OS_KeyState* key = _os_state.keyboard.keys + i;
+		key->pressed = 0;
+		key->released = 0;
+		key->time_down += key->is_down * (0.0f); // AlNov: @TODO Add delta time
+	}
+
+  for (OS_EventListNode *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
+	{
+		OS_Event* event = &event_node->data;
+		_os_state.keyboard.keys[event->key].pressed = event->pressed;
+		_os_state.keyboard.keys[event->key].released = !event->pressed;
+		if (event->pressed)
+		{
+			_os_state.keyboard.keys[event->key].is_down = 1;
+		}
+		if (event->released)
+		{
+			_os_state.keyboard.keys[event->key].is_down = 0;
+		}
+	}
+
+  for (I32 i = 0; i < OS_MouseButton_Count; i += 1)
+  {
+    OS_MouseButtonState* button = _os_state.mouse.buttons + i;
+    button->pressed = 0;
+    button->released = 0;
+  }
+
+  for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next)
+  {
+    OS_Event* event = &event_node->data;
+    _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
+    _os_state.mouse.buttons[event->mouse_button].released = event->released;
+    if (event->pressed)
+    {
+      _os_state.mouse.buttons[event->mouse_button].is_down = 1;
+    }
+    if (event->released)
+    {
+      _os_state.mouse.buttons[event->mouse_button].is_down = 0;
+    }
   }
 
   return _os_state.event_list;
@@ -187,46 +234,90 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
     case WM_SYSKEYUP:
     case WM_KEYUP:
       {
-        B32 was_down = !!(l_param & (1 << 30));
-        B32 is_down  = !(l_param & (1 << 31));
-
-        if (w_param == VK_ESCAPE)
+        event.pressed = !(l_param & (1 << 31));
+        event.released = event.pressed;
+  
+        switch (w_param)
         {
-          DestroyWindow(hwnd);
-        }
-
-        if (w_param == VK_UP)
-        {
-          event.type = OS_EVENT_TYPE_KEYBOARD;
-          event.key = OS_KEY_ARROW_UP;
-          event.was_down = was_down;
-          event.is_down = is_down;
-        }
-
-        if (w_param == VK_DOWN)
-        {
-          event.type = OS_EVENT_TYPE_KEYBOARD;
-          event.key = OS_KEY_ARROW_DOWN;
-          event.was_down = was_down;
-          event.is_down = is_down;
-        }
-
-        if (w_param == VK_LEFT)
-        {
-          event.type = OS_EVENT_TYPE_KEYBOARD;
-          event.key = OS_KEY_ARROW_LEFT;
-          event.was_down = was_down;
-          event.is_down = is_down;
-        }
-
-        if (w_param == VK_RIGHT)
-        {
-          event.type = OS_EVENT_TYPE_KEYBOARD;
-          event.key = OS_KEY_ARROW_RIGHT;
-          event.was_down = was_down;
-          event.is_down = is_down;
-        }
-
+          default: {}; break;
+          
+          case VK_ESCAPE: {event.key = OS_KEY_ESC;};break;
+          case VK_F1: {event.key = OS_KEY_F1;};break;
+          case VK_F2: {event.key = OS_KEY_F2;};break;
+          case VK_F3: {event.key = OS_KEY_F3;};break;
+          case VK_F4: {event.key = OS_KEY_F4;};break;
+          case VK_F5: {event.key = OS_KEY_F5;};break;
+          case VK_F6: {event.key = OS_KEY_F6;};break;
+          case VK_F7: {event.key = OS_KEY_F7;};break;
+          case VK_F8: {event.key = OS_KEY_F8;};break;
+          case VK_F9: {event.key = OS_KEY_F9;};break;
+          case VK_F10: {event.key = OS_KEY_F10;};break;
+          case VK_F11: {event.key = OS_KEY_F11;};break;
+          case VK_F12: {event.key = OS_KEY_F12;};break;
+          case VK_OEM_3: {event.key = OS_KEY_BACKTICK;};break;
+          case '0': {event.key = OS_KEY_0;};break;
+          case '1': {event.key = OS_KEY_1;};break;
+          case '2': {event.key = OS_KEY_2;};break;
+          case '3': {event.key = OS_KEY_3;};break;
+          case '4': {event.key = OS_KEY_4;};break;
+          case '5': {event.key = OS_KEY_5;};break;
+          case '6': {event.key = OS_KEY_6;};break;
+          case '7': {event.key = OS_KEY_7;};break;
+          case '8': {event.key = OS_KEY_8;};break;
+          case '9': {event.key = OS_KEY_9;};break;
+          case VK_OEM_MINUS: {event.key = OS_KEY_MINUS;};break;
+          case VK_OEM_PLUS: {event.key = OS_KEY_EQUAL;};break;
+          case VK_BACK: {event.key = OS_KEY_BACKSPACE;};break;
+          case VK_TAB: {event.key = OS_KEY_TAB;};break;
+          case 'Q': {event.key = OS_KEY_Q;};break;
+          case 'W': {event.key = OS_KEY_W;};break;
+          case 'E': {event.key = OS_KEY_E;};break;
+          case 'R': {event.key = OS_KEY_R;};break;
+          case 'T': {event.key = OS_KEY_T;};break;
+          case 'Y': {event.key = OS_KEY_Y;};break;
+          case 'U': {event.key = OS_KEY_U;};break;
+          case 'I': {event.key = OS_KEY_I;};break;
+          case 'O': {event.key = OS_KEY_O;};break;
+          case 'P': {event.key = OS_KEY_P;};break;
+          case VK_OEM_4: {event.key = OS_KEY_LEFT_BRACKET;};break;
+          case VK_OEM_6: {event.key = OS_KEY_RIGHT_BRACKET;};break;
+          case VK_OEM_5: {event.key = OS_KEY_BACK_SLASH;};break;
+          case VK_CAPITAL: {event.key = OS_KEY_CAPS_LOCK;};break;
+          case 'A': {event.key = OS_KEY_A;};break;
+          case 'S': {event.key = OS_KEY_S;};break;
+          case 'D': {event.key = OS_KEY_D;};break;
+          case 'F': {event.key = OS_KEY_F;};break;
+          case 'G': {event.key = OS_KEY_G;};break;
+          case 'H': {event.key = OS_KEY_H;};break;
+          case 'J': {event.key = OS_KEY_J;};break;
+          case 'K': {event.key = OS_KEY_K;};break;
+          case 'L': {event.key = OS_KEY_L;};break;
+          case VK_OEM_1: {event.key = OS_KEY_SEMICOLON;};break;
+          case VK_OEM_7: {event.key = OS_KEY_QUOTE;};break;
+          case VK_RETURN: {event.key = OS_KEY_RETURN;};break;
+          case VK_LSHIFT: {event.key = OS_KEY_SHIFT;};break;
+          case VK_RSHIFT: {event.key = OS_KEY_SHIFT;};break;
+          case 'Z': {event.key = OS_KEY_Z;};break;
+          case 'X': {event.key = OS_KEY_X;};break;
+          case 'C': {event.key = OS_KEY_C;};break;
+          case 'V': {event.key = OS_KEY_V;};break;
+          case 'B': {event.key = OS_KEY_B;};break;
+          case 'N': {event.key = OS_KEY_N;};break;
+          case 'M': {event.key = OS_KEY_M;};break;
+          case VK_OEM_COMMA: {event.key = OS_KEY_COMMA;};break;
+          case VK_OEM_PERIOD: {event.key = OS_KEY_PERIOD;};break;
+          case VK_OEM_2: {event.key = OS_KEY_SLASH;};break;
+          case VK_LCONTROL: {event.key = OS_KEY_CTRL;};break;
+          case VK_RCONTROL: {event.key = OS_KEY_CTRL;};break;
+          case VK_LMENU: {event.key = OS_KEY_ALT;};break;
+          case VK_RMENU: {event.key = OS_KEY_ALT;};break;
+          case VK_SPACE: {event.key = OS_KEY_SPACE;};break;
+          case VK_UP: {event.key = OS_KEY_ARROW_UP;};break;
+          case VK_DOWN: {event.key = OS_KEY_ARROW_DOWN;};break;
+          case VK_LEFT: {event.key = OS_KEY_ARROW_LEFT;};break;
+          case VK_RIGHT: {event.key = OS_KEY_ARROW_RIGHT;};break;
+        };
+#if 0
         if (w_param == VK_RETURN && (l_param & (1 << 29)))
         {
           if (was_down && !is_down)
@@ -234,6 +325,7 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
             OS_WIN32_ToggleFullscreen(hwnd);
           }
         }
+#endif
       } break;
 
       // --AlNov: Mouse Input ------------------------------
@@ -276,7 +368,11 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
 
   if (event.type != 0)
   {
-    PushListOS_Event(&_os_state.event_list, event);
+    if (event.type == OS_EVENT_TYPE_KEYBOARD)
+    {
+      OS_EventListPush(&_os_state.keyboard_event_list, event);
+    }
+    OS_EventListPush(&_os_state.event_list, event);
   }
 
   return result;

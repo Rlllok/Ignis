@@ -30,7 +30,7 @@ struct R_VK_Buffer
   U64 capacity;
 };
 R_VK_Buffer R_VK_BufferDefaultValue = {0};
-DefineArray(R_VK_Buffer, R_VK_BufferArray, R_VK_BufferDefaultValue);
+DefineArray(R_VK_Buffer, R_VK_BufferArray, R_VK_BufferDefaultValue)
 
 func R_VK_Buffer* R_VK_BufferFromHandle(R_Buffer handle);
 func R_Buffer R_VK_CreateBuffer(U32 capacity, R_BufferUsageFlags usage_flags, R_BufferPropertyFlags property_flags);

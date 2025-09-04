@@ -7,11 +7,11 @@
 func AST_Geometry
 AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name)
 {
-  AST_Geometry result = {};
+  AST_Geometry result = {0};
   
-  GLTFReader gltf_reader = {};
+  GLTFReader gltf_reader = {0};
   gltf_reader.file_path = gltf_name;
-  gltf_reader.file_buffer = ReadFile(gltf_name);
+  gltf_reader.file_buffer = GLTFReadFile(gltf_name);
 
   GLTFData gltf_data = GetGLTFData(&gltf_reader);
     
@@ -56,12 +56,12 @@ AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name)
 func AST_StaticMesh
 AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 {
-  AST_StaticMesh result = {};
+  AST_StaticMesh result = {0};
   result.geometry_list = AST_GeometryListCreate(arena);
   
-  GLTFReader gltf_reader = {};
+  GLTFReader gltf_reader = {0};
   gltf_reader.file_path = gltf_name;
-  gltf_reader.file_buffer = ReadFile(gltf_name);
+  gltf_reader.file_buffer = GLTFReadFile(gltf_name);
 
   GLTFData gltf_data = GetGLTFData(&gltf_reader);
     
@@ -69,7 +69,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
        mesh_node;
        mesh_node = mesh_node->next)
   {
-    AST_Geometry geometry = {};
+    AST_Geometry geometry = {0};
     
     U64 index_accessor_id = mesh_node->data.primitive_list.first->data.indices_accessor_id;
     U64 position_accessor_id = mesh_node->data.primitive_list.first->data.position_accessor_id;
