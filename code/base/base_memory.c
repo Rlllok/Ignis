@@ -29,7 +29,7 @@ PushArena(Arena* arena, U64 size)
   }
   else
   {
-    Assert(1 && "Not enough space for allocation");
+    Assert(0 && "Not enough space for allocation");
   }
 
   return result;

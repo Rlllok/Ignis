@@ -25,7 +25,7 @@ OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
   window_class.lpszClassName = OS_WIN32_WindowClassName;
   window_class.hCursor       = LoadCursor(0, IDC_ARROW);
 
-  Assert(RegisterClassW(&window_class) == 0);
+  Assert(RegisterClassW(&window_class));
 
   HWND handle = {0};
 
@@ -36,7 +36,7 @@ OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
     CW_USEDEFAULT, CW_USEDEFAULT, size.w, size.h, 0, 0, out->handle->instance, 0
   );
 
-  AssertMessage(handle == 0, "Cannot create out->");
+  AssertMessage(handle, "Cannot create out->");
 
   out->handle->handle = handle;
   out->size = size;

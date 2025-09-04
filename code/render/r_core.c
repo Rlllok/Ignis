@@ -182,7 +182,7 @@ _R_GlslangStageFromShaderType(R_ShaderType type)
     case R_SHADER_TYPE_VERTEX   : return GLSLANG_STAGE_VERTEX;
     case R_SHADER_TYPE_FRAGMENT : return GLSLANG_STAGE_FRAGMENT;
 
-    default: Assert(1); return 0; // --AlNov: type cannot be used with glslang
+    default: Assert(0); return 0; // --AlNov: type cannot be used with glslang
   }
 }
 
@@ -192,7 +192,7 @@ R_CreateShader(Arena* arena, R_ShaderCreateInfo* info)
 	R_Shader out_shader = {0};
 
   FILE* file = fopen(CFromStr8(info->file_name), "r");
-  Assert(!file);
+  Assert(file);
 
   fseek(file, 0L, SEEK_END);
   U32 shader_code_size = ftell(file);
@@ -228,7 +228,7 @@ R_CreateShader(Arena* arena, R_ShaderCreateInfo* info)
     LOG_ERROR("%s", glslang_shader_get_info_log(shader));
     LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
     glslang_shader_delete(shader);
-    Assert(true);
+    Assert(0);
   }
 
   if (!glslang_shader_parse(shader, &input))
@@ -238,7 +238,7 @@ R_CreateShader(Arena* arena, R_ShaderCreateInfo* info)
     LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
     // LOG_ERROR("%s", glslang_shader_get_preprocessed_code(shader));
     glslang_shader_delete(shader);
-    Assert(true);
+    Assert(0);
   }
 
   glslang_program_t* program = glslang_program_create();
@@ -251,7 +251,7 @@ R_CreateShader(Arena* arena, R_ShaderCreateInfo* info)
     LOG_ERROR("%s", glslang_program_get_info_debug_log(program));
     glslang_program_delete(program);
     glslang_shader_delete(shader);
-    Assert(true);
+    Assert(0);
   }
 
   glslang_program_SPIRV_generate(program, input.stage);

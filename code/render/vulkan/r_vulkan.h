@@ -14,7 +14,7 @@
 #include "vulkan/vulkan_wayland.h"
 #endif // IGNIS_PLATFORM_LINUX
 
-#define VK_CHECK(expression) Assert(expression != VK_SUCCESS)
+#define VK_CHECK(expression) Assert((expression) == VK_SUCCESS)
 
 #include "r_vk_utils.h"
 
@@ -223,7 +223,7 @@ struct R_VK_CommandBuffer
 
 	R_VK_DescriptorPool descriptor_pool[R_FRAMES_IN_FLIGHT];
 
-	struct R_VK_GraphicsPipeline* binded_graphics_pipeline;
+	R_VK_GraphicsPipeline* binded_graphics_pipeline;
 };
 R_VK_CommandBuffer R_VK_CommandBufferDefaultValue = {0};
 DefineArray(R_VK_CommandBuffer, R_VK_CommandBufferArray, R_VK_CommandBufferDefaultValue)

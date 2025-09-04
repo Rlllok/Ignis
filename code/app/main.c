@@ -244,7 +244,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 
   switch (ui_context.size_x.type)
   {
-    default: Assert(0); break;
+    default: Assert(1); break;
 
     case UI_SizeType_Fixed:
     {
@@ -257,7 +257,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
     case UI_SizeType_WrapChildren:
     {
       // --AlNov: @TODO
-      Assert(0);
+      Assert(1);
     } break;
     case UI_SizeType_ParentPercent:
     {
@@ -266,7 +266,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
   }
   switch (ui_context.size_y.type)
   {
-    default: Assert(0); break;
+    default: Assert(1); break;
 
     case UI_SizeType_Fixed:
     {
@@ -279,7 +279,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
     case UI_SizeType_WrapChildren:
     {
       // --AlNov: @TODO
-      Assert(0);
+      Assert(1);
     } break;
     case UI_SizeType_ParentPercent:
     {

@@ -117,7 +117,7 @@ func U64 R_VK_PushBuffer(R_Buffer buffer, U8* data, U64 size)
 {
   R_VK_Buffer* vk_buffer = R_VK_BufferFromHandle(buffer);
 
-	Assert((vk_buffer->size + size) > vk_buffer->capacity);
+	Assert((vk_buffer->size + size) < vk_buffer->capacity);
 	U32 offset = vk_buffer->size;
 
 	memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
@@ -595,7 +595,7 @@ R_VK_AcquireSwapchainTexture(R_CommandBuffer command_buffer)
 		}
 		else
 		{
-			Assert(acquire_result != VK_SUCCESS);
+			Assert(acquire_result == VK_SUCCESS);
 		}
 	}
 
@@ -755,7 +755,7 @@ R_VK_BindGlobalShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_ty
 	U32 num_sets = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count*R_VK_SETS_PER_POOL;
 	if (num_sets <= vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count)
 	{
-		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
+		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count < R_VK_MAX_POOL_COUNT);
 
 		VkDescriptorPoolSize pool_sizes[] = {
       {
@@ -875,7 +875,7 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
 	U32 num_sets = vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count*R_VK_SETS_PER_POOL;
 	if (num_sets <= vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].sets_count)
 	{
-		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count >= R_VK_MAX_POOL_COUNT);
+		Assert(vk_command_buffer->descriptor_pool[_r_vk_state.current_frame].pool_count < R_VK_MAX_POOL_COUNT);
 
 		VkDescriptorPoolSize pool_sizes[] = {
       {
@@ -960,7 +960,6 @@ R_VK_BindInstanceShaderData(R_CommandBuffer command_buffer, R_ShaderType shader_
     I32 index = i - uniform_buffers_count;
     R_VK_TextureSampler* vk_sampler = R_VK_TextureSamplerFromHandle(sampler_infos[index].sampler);
     R_VK_Texture* vk_texture = R_VK_TextureFromHandle(sampler_infos[index].texture);
-    LOG_DEBUG("INDEX %i I: %i T: %d\n", index, i, sampler_infos[index].texture);
 
     VkCommandBuffer single_cmd = R_VK_BeginSingleCmd();
     {
@@ -1801,7 +1800,7 @@ R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayo
   }
   else
   {
-    Assert(1); // Layout is not supported
+    AssertMessage(0, "Image Layout is not supproted");
   }
 
   if (new_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
@@ -1842,7 +1841,7 @@ R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayo
   }
   else
   {
-    Assert(1); // Layout is not supported
+    AssertMessage(0, "Image Layout is not supproted");
   }
 
   vkCmdPipelineBarrier(cmd, source_stages, destination_stages, 0, 0, 0, 0, 0, 1, &image_barrier);
@@ -1932,16 +1931,14 @@ R_VK_Init(OS_Window* window)
   _r_vk_state.buffers.elements[0] = (R_VK_Buffer){0};
   _r_vk_state.graphics_pipelines = R_VK_GraphicsPipelineArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.graphics_pipelines.elements[0] = (R_VK_GraphicsPipeline){0};
-  _r_vk_state.command_buffers = R_VK_CommandBufferArrayAllocate(_r_vk_state.arena, 32);
+  _r_vk_state.command_buffers = R_VK_CommandBufferArrayAllocate(_r_vk_state.arena, 16);
   _r_vk_state.command_buffers.elements[0] = (R_VK_CommandBuffer){0};
   _r_vk_state.samplers = R_VK_TextureSamplerArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.samplers.elements[0] = (R_VK_TextureSampler){0};
   _r_vk_state.textures = R_VK_TextureArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.textures.elements[0] = (R_VK_Texture){0};
   _r_vk_state.textures_free_list = R_VK_TextureFreeListAllocate(_r_vk_state.arena, 32);
-
-  R_VK_Texture* test_texture = PushArena(_r_vk_state.arena, sizeof(R_VK_Texture));
-  test_texture->format = 1;
+  _r_vk_state.textures_free_list.elements[0] = 1;
 
   VkApplicationInfo app_info = {0};
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
