@@ -207,9 +207,7 @@ func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window);
 
 func F32 OS_GetMonitorHZ(void);
 
-// --AlNov: @NOTE Convertion time getted from this function can be not as presice.
-// The reason that we delete small number to large inside (tick and frequency).
-func F32   OS_CurrentTimeSeconds(void);
+func U64 OS_GetTimeTicks(void);
 func Vec2F32 OS_MousePosition(OS_Window window);
 
 func void OS_ChangeKeyState(OS_KeyCode key_code, OS_KeyState state)

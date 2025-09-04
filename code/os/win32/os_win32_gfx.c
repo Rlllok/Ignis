@@ -4,11 +4,14 @@
 #define OS_WIN32_WindowClassName L"AppWindowClass"
 
 static WINDOWPLACEMENT previous_window_params = { sizeof(previous_window_params) };
+static LARGE_INTEGER win32_frequency;
 
 func void
 OS_Init(U64 arena_size)
 {
   _os_state.arena = AllocateArena(arena_size);
+  timeBeginPeriod(1);
+  QueryPerformanceFrequency(&win32_frequency);
 }
 
 func void
@@ -104,7 +107,12 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 
   for (OS_EventListNode *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
 	{
+
 		OS_Event* event = &event_node->data;
+    if(event->key == OS_KEY_W)
+    {
+      LOG_DEBUG("Keyboard event W\n");
+    }
 		_os_state.keyboard.keys[event->key].pressed = event->pressed;
 		_os_state.keyboard.keys[event->key].released = !event->pressed;
 		if (event->pressed)
@@ -142,33 +150,26 @@ OS_GetEventList(Arena* arena, OS_Window* window)
   return _os_state.event_list;
 }
 
-func F32
-OS_CurrentTimeSeconds(void)
+func U64 OS_GetTimeTicks(void)
 {
-  // --AlNov: @NOTE Frequency should be computed only ones, as it doens't change after system start.
-  local_persist LARGE_INTEGER frequency = {0};
-  if (!frequency.QuadPart)
-  {
-    QueryPerformanceFrequency(&frequency);
-  }
-
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
+  F64 seconds = (F64)(counter.QuadPart)/(F64)(win32_frequency.QuadPart);
 
-  return ((F64)counter.QuadPart) / ((F64)frequency.QuadPart);
+  return (U64)(seconds * 1000);
 }
 
 func void
-OS_Wait(F32 wait_seconds)
+OS_Wait(F32 miliseconds)
 {
-  if (wait_seconds <= 0) return;
+  if (miliseconds <= 0) return;
 
-  F32 begin_time = OS_CurrentTimeSeconds();
-  F32 end_time = begin_time + wait_seconds;
+  F32 begin_time_ms = OS_GetTimeTicks();
+  F32 end_time_ms = begin_time_ms + miliseconds;
 
-  Sleep(wait_seconds * 500);
+  Sleep(miliseconds);
 
-  while (OS_CurrentTimeSeconds() < end_time) {}
+  while (OS_GetTimeTicks() < end_time_ms) {}
 }
 
 func Vec2F32
@@ -234,9 +235,11 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
     case WM_SYSKEYUP:
     case WM_KEYUP:
       {
+        event.type = OS_EVENT_TYPE_KEYBOARD;
         event.pressed = !(l_param & (1 << 31));
-        event.released = event.pressed;
-  
+        event.released = !event.pressed;
+        LOG_DEBUG("PRES: %i REL: %i\n", event.pressed, event.released);
+
         switch (w_param)
         {
           default: {}; break;
@@ -270,7 +273,7 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
           case VK_BACK: {event.key = OS_KEY_BACKSPACE;};break;
           case VK_TAB: {event.key = OS_KEY_TAB;};break;
           case 'Q': {event.key = OS_KEY_Q;};break;
-          case 'W': {event.key = OS_KEY_W;};break;
+          case 'W': {event.key = OS_KEY_W; LOG_DEBUG("WIN32 W\n");};break;
           case 'E': {event.key = OS_KEY_E;};break;
           case 'R': {event.key = OS_KEY_R;};break;
           case 'T': {event.key = OS_KEY_T;};break;

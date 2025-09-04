@@ -434,7 +434,7 @@ struct AppState
   Arena* arena;
   Arena* frame_arena;
   OS_Window window;
-  F32 delta_time;
+  F32 delta_time_sec;
   B32 is_window_closed;
   B32 mouse_inside;
   Vec2F32 last_mouse_position;
@@ -883,7 +883,7 @@ I32 main(void)
   }
 
   // AlNov: AppLoop
-  F32 begin_time = OS_CurrentTimeSeconds();
+  U64 begin_time_ms = OS_GetTimeTicks();
   U16 test_texture_values_offset = 0;
   while (!app_state.is_window_closed)
   {
@@ -894,7 +894,7 @@ I32 main(void)
       if (app_state.hover_entity_id != 0)
       {
         Entity* hover_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
-        hover_entity->rotation += 25.0f*app_state.delta_time;
+        hover_entity->rotation += 25.0f*app_state.delta_time_sec;
       }
     }
 
@@ -1084,7 +1084,7 @@ I32 main(void)
       R_BeginRenderPass(command_buffer, 1, &font_pass_color_target, 0);
       {
         char frame_time_cstring[128] = {0};
-        sprintf(frame_time_cstring, "%.3f", app_state.delta_time*1000.0f);
+        sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
 
         for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
         {
@@ -1132,9 +1132,10 @@ I32 main(void)
 
     ResetArena(app_state.frame_arena);
 
-    F32 end_time = OS_CurrentTimeSeconds();
-    app_state.delta_time = end_time - begin_time;
-    begin_time = end_time;
+    U64 end_tick_ms = OS_GetTimeTicks();
+
+    app_state.delta_time_sec = (end_tick_ms - begin_time_ms)/1000.0f;
+    begin_time_ms = end_tick_ms;
   }
 
   R_VK_DestroyBuffer(data_buffer);
@@ -1143,7 +1144,7 @@ I32 main(void)
   return 0;
 }
 
-  func void
+func void
 DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 {
   for (AST_GeometryListNode* geometry_node = entity->mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
@@ -1246,6 +1247,7 @@ HandleEvents(Arena* arena, AppState* state)
   if (OS_IsKeyDown(OS_KEY_W))
   {
     direction = AddVec3(direction, state->camera.front);
+    LOG_DEBUG("DT: %f\n", state->delta_time_sec);
   }
   if (OS_IsKeyDown(OS_KEY_S))
   {
@@ -1259,23 +1261,23 @@ HandleEvents(Arena* arena, AppState* state)
   {
     direction = SubVec3(direction, state->camera.right);
   }
-  state->camera.position = AddVec3(state->camera.position, ScaleVec3(NormalizeVec3(direction), speed*state->delta_time));
+  state->camera.position = AddVec3(state->camera.position, ScaleVec3(NormalizeVec3(direction), speed*state->delta_time_sec));
 
   if (OS_IsKeyDown(OS_KEY_ARROW_LEFT))
   {
-    state->camera.yaw -= 25.0f*state->delta_time;
+    state->camera.yaw -= 25.0f*state->delta_time_sec;
   }
   if (OS_IsKeyDown(OS_KEY_ARROW_RIGHT))
   {
-    state->camera.yaw += 25.0f*state->delta_time;
+    state->camera.yaw += 25.0f*state->delta_time_sec;
   }
   if (OS_IsKeyDown(OS_KEY_ARROW_UP))
   {
-    state->camera.pitch += 25.0f*state->delta_time;
+    state->camera.pitch += 25.0f*state->delta_time_sec;
   }
   if (OS_IsKeyDown(OS_KEY_ARROW_DOWN))
   {
-    state->camera.pitch -= 25.0f*state->delta_time;
+    state->camera.pitch -= 25.0f*state->delta_time_sec;
   }
   Vec3 rotation = {0};
   rotation.x = cos(RadiansFromDegrees(state->camera.yaw))*cos(RadiansFromDegrees(state->camera.pitch));
