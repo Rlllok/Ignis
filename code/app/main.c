@@ -463,6 +463,8 @@ struct AppState
   const Entity* selected_entity;
 
   UI_ElementArray ui_elements;
+
+  B32 to_render;
   B32 draw_ui;
 } app_state;
 
@@ -517,6 +519,8 @@ I32 main(void)
   app_state.selected_entity = &EntityDefaultValue;
   app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   app_state.draw_ui = 1;
+  app_state.to_render = 1;
+
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
 
   Entity* entity_ptr = PushArena(app_state.arena, sizeof(Entity));
@@ -574,8 +578,9 @@ I32 main(void)
 
   // Mesh Texture
   {
-    app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/tiles_material/Color.png"));
-    app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/tiles_material/NormalGL.png"));
+    app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"));
+    // app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"));
+    app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"));
   }
 
   // Font Texture
@@ -961,172 +966,175 @@ I32 main(void)
       UI_SetParent(0);
     }
 
-    R_ResetBuffer(data_buffer);
-
-    // Draw
-    R_Texture swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
-    R_BeginCommandBuffer(command_buffer);
+    if (app_state.to_render)
     {
-      RectI32 viewport = {
-        .x = 0,
-        .y = 0,
-        .w = app_state.window.size.w,
-        .h = app_state.window.size.h,
-      };
-      RectI32 scissor = viewport;
-      R_SetViewport(command_buffer, viewport);
-      R_SetScissor(command_buffer, scissor);
+      R_ResetBuffer(data_buffer);
 
-      // Entity Pass
-      R_ColorTarget color_targets[] = {
-        {
-          .texture = swapchain_texture,
-          .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
-          .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-          .clear_color = RGBAFromHex(0x1A1D26FF),
-        },
-        {
-          .texture = app_state.test_texture,
-          .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
-          .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-          .clear_color = RGBAFromHex(0x00000000),
-        },
-      };
-      R_DepthStencilTarget depth_target = {
-        .texture = app_state.depth_texture,
-        .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
-        .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-        .clear_depth = 0.0f,
-      };
-      R_BeginRenderPass(command_buffer, CountArrayElements(color_targets), color_targets, &depth_target);
+      // Draw
+      R_Texture swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
+      R_BeginCommandBuffer(command_buffer);
       {
-        for (I32 i = 0; i < app_state.entities.length; i += 1)
-        {
-          DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
-        }
-      }
-      R_EndRenderPass(command_buffer, 0);
-
-      // Draw Grid (UI)
-      R_ColorTarget grid_color_target = {
-        .texture = swapchain_texture,
-        .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
-        .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-      };
-      R_DepthStencilTarget grid_depth_target = {
-        .texture = app_state.depth_texture,
-        .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
-        .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
-      };
-      R_BeginRenderPass(command_buffer, 1, &grid_color_target, &grid_depth_target);
-      {
-        struct
-        {
-          Mat4 view_matrix;
-          Mat4 projection_matrix;
-        } grid_global_vertex_data;
-        grid_global_vertex_data.view_matrix = MakeLookAtMat4(
-          app_state.camera.position,
-          AddVec3(app_state.camera.position, app_state.camera.front),
-          app_state.camera.up
-        );
-        grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
-          45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
-          0.1f, 100.0f
-        );
-        struct
-        {
-          Vec3 position;
-          F32 grid_scale;
-        } grid_instance_vertex_data;
-        grid_instance_vertex_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
-        grid_instance_vertex_data.grid_scale = app_state.grid_scale;
-
-        struct
-        {
-          Vec4 color;
-        } grid_global_fragment_data;
-        grid_global_fragment_data.color = RGBAFromHex(0x95B8D1AA);
-
-        U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
-        U64 grid_instance_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_instance_vertex_data, sizeof(grid_instance_vertex_data));
-        U64 grid_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_fragment_data, sizeof(grid_global_fragment_data));
-
-        R_UniformBufferBindingInfo grid_vertex_shader_global_uniform = {
-          .buffer = data_buffer,
-          .offset = grid_global_vertex_data_offset,
-          .size = sizeof(grid_global_vertex_data),
+        RectI32 viewport = {
+          .x = 0,
+          .y = 0,
+          .w = app_state.window.size.w,
+          .h = app_state.window.size.h,
         };
-        R_UniformBufferBindingInfo grid_vertex_shader_instance_uniform = {
-          .buffer = data_buffer,
-          .offset = grid_instance_vertex_data_offset,
-          .size = sizeof(grid_instance_vertex_data),
-        };
-        R_UniformBufferBindingInfo grid_fragment_shader_global_uniform = {
-          .buffer = data_buffer,
-          .offset = grid_global_fragment_data_offset,
-          .size = sizeof(grid_global_fragment_data),
-        };
+        RectI32 scissor = viewport;
+        R_SetViewport(command_buffer, viewport);
+        R_SetScissor(command_buffer, scissor);
 
-        R_BindGraphicsPipeline(command_buffer, app_state.grid_pipeline);
-        R_BindGlobalVertexShaderData(command_buffer, 1, &grid_vertex_shader_global_uniform, 0, 0);
-        R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
-        R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
-        R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
-      }
-      R_EndRenderPass(command_buffer, 0);
-
-      R_ColorTarget font_pass_color_target = {
-        .texture = swapchain_texture,
-        .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
-        .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-      };
-      R_BeginRenderPass(command_buffer, 1, &font_pass_color_target, 0);
-      {
-        char frame_time_cstring[128] = {0};
-        sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
-
-        for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
-        {
-          UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, i);
-          switch (draw_command->type)
+        // Entity Pass
+        R_ColorTarget color_targets[] = {
           {
-            default: {} break;
-
-            case UI_DrawCommandType_Rectangle:
-            {
-              DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color);
-            } break;
-
-            case UI_DrawCommandType_Text:
-            {
-              IGN_DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
-            }
+            .texture = swapchain_texture,
+            .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+            .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+            .clear_color = RGBAFromHex(0x1A1D26FF),
+          },
+          {
+            .texture = app_state.test_texture,
+            .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+            .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+            .clear_color = RGBAFromHex(0x00000000),
+          },
+        };
+        R_DepthStencilTarget depth_target = {
+          .texture = app_state.depth_texture,
+          .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+          .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+          .clear_depth = 0.0f,
+        };
+        R_BeginRenderPass(command_buffer, CountArrayElements(color_targets), color_targets, &depth_target);
+        {
+          for (I32 i = 0; i < app_state.entities.length; i += 1)
+          {
+            DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
           }
         }
+        R_EndRenderPass(command_buffer, 0);
 
-        if (app_state.mouse_inside)
+        // Draw Grid (UI)
+        R_ColorTarget grid_color_target = {
+          .texture = swapchain_texture,
+          .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+          .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+        };
+        R_DepthStencilTarget grid_depth_target = {
+          .texture = app_state.depth_texture,
+          .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+          .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+        };
+        R_BeginRenderPass(command_buffer, 1, &grid_color_target, &grid_depth_target);
         {
-          RectF32 cursor = {
-            .position = app_state.last_mouse_position,
-            .size = MakeVec2(20.0f, 20.0f),
+          struct
+          {
+            Mat4 view_matrix;
+            Mat4 projection_matrix;
+          } grid_global_vertex_data;
+          grid_global_vertex_data.view_matrix = MakeLookAtMat4(
+            app_state.camera.position,
+            AddVec3(app_state.camera.position, app_state.camera.front),
+            app_state.camera.up
+          );
+          grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
+            45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+            0.1f, 100.0f
+          );
+          struct
+          {
+            Vec3 position;
+            F32 grid_scale;
+          } grid_instance_vertex_data;
+          grid_instance_vertex_data.position = MakeVec3(app_state.camera.position.x, 0.0f, app_state.camera.position.z);
+          grid_instance_vertex_data.grid_scale = app_state.grid_scale;
+
+          struct
+          {
+            Vec4 color;
+          } grid_global_fragment_data;
+          grid_global_fragment_data.color = RGBAFromHex(0x95B8D1AA);
+
+          U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
+          U64 grid_instance_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_instance_vertex_data, sizeof(grid_instance_vertex_data));
+          U64 grid_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_fragment_data, sizeof(grid_global_fragment_data));
+
+          R_UniformBufferBindingInfo grid_vertex_shader_global_uniform = {
+            .buffer = data_buffer,
+            .offset = grid_global_vertex_data_offset,
+            .size = sizeof(grid_global_vertex_data),
           };
-          DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(0.8f, 0.8f, 0.8f, 1.0f));
+          R_UniformBufferBindingInfo grid_vertex_shader_instance_uniform = {
+            .buffer = data_buffer,
+            .offset = grid_instance_vertex_data_offset,
+            .size = sizeof(grid_instance_vertex_data),
+          };
+          R_UniformBufferBindingInfo grid_fragment_shader_global_uniform = {
+            .buffer = data_buffer,
+            .offset = grid_global_fragment_data_offset,
+            .size = sizeof(grid_global_fragment_data),
+          };
+
+          R_BindGraphicsPipeline(command_buffer, app_state.grid_pipeline);
+          R_BindGlobalVertexShaderData(command_buffer, 1, &grid_vertex_shader_global_uniform, 0, 0);
+          R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
+          R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
+          R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
         }
+        R_EndRenderPass(command_buffer, 0);
+
+        R_ColorTarget font_pass_color_target = {
+          .texture = swapchain_texture,
+          .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+          .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+        };
+        R_BeginRenderPass(command_buffer, 1, &font_pass_color_target, 0);
+        {
+          char frame_time_cstring[128] = {0};
+          sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
+
+          for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
+          {
+            UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, i);
+            switch (draw_command->type)
+            {
+              default: {} break;
+
+              case UI_DrawCommandType_Rectangle:
+              {
+                DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color);
+              } break;
+
+              case UI_DrawCommandType_Text:
+              {
+                IGN_DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
+              }
+            }
+          }
+
+          if (app_state.mouse_inside)
+          {
+            RectF32 cursor = {
+              .position = app_state.last_mouse_position,
+              .size = MakeVec2(20.0f, 20.0f),
+            };
+            DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(0.8f, 0.8f, 0.8f, 1.0f));
+          }
+        }
+        R_EndRenderPass(command_buffer, 0);
+
+        // R_CopyTexture(command_buffer, swapchain_texture, app_state.test_texture);
+        test_texture_values_offset = R_CopyTextureToBuffer(command_buffer, app_state.test_texture, transfer_buffer);
       }
-      R_EndRenderPass(command_buffer, 0);
+      R_SubmitCommandBuffer(command_buffer);
 
-      // R_CopyTexture(command_buffer, swapchain_texture, app_state.test_texture);
-      test_texture_values_offset = R_CopyTextureToBuffer(command_buffer, app_state.test_texture, transfer_buffer);
-    }
-    R_SubmitCommandBuffer(command_buffer);
+      R_PresentTexture(command_buffer, swapchain_texture);
 
-    R_PresentTexture(command_buffer, swapchain_texture);
-
-    if (app_state.last_mouse_position.x >= 0.0f && app_state.last_mouse_position.y >= 0)
-    {
-      U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
-      R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
+      if (app_state.last_mouse_position.x >= 0.0f && app_state.last_mouse_position.y >= 0)
+      {
+        U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
+        R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
+      }
     }
     // LOG_DEBUG("MOUSE: %.1fx, %.1fy\tOFFSET: %d, PIXEL VALUE: %d\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y, pixel_offset, app_state.hover_entity_id);
 
@@ -1308,32 +1316,39 @@ HandleEvents(Arena* arena, AppState* state)
           LOG_DEBUG("Old Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
           state->window.size = event->window_size;
           LOG_DEBUG("New Window Size: %d\t%d\n", state->window.size.w, state->window.size.h);
-          R_VK_HandleResize(&state->window);
+            
+          if (state->window.size.x != 0 && state->window.size.y != 0)
+          {
+            R_VK_HandleResize(&state->window);
 
-          R_VK_DestroyTexture(app_state.depth_texture);
-          R_TextureCreateInfo depth_texture_info = {
-            .type = R_TEXTURE_TYPE_2D,
-            .format = R_TEXTURE_FORMAT_D16_UNORM,
-            .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
-            .width = app_state.window.size.w,
-            .height = app_state.window.size.h,
-            .depth = 1,
-            .num_levels = 1
-          };
-          app_state.depth_texture = R_CreateTexture(&depth_texture_info);
+            R_VK_DestroyTexture(app_state.depth_texture);
+            R_TextureCreateInfo depth_texture_info = {
+              .type = R_TEXTURE_TYPE_2D,
+              .format = R_TEXTURE_FORMAT_D16_UNORM,
+              .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+              .width = app_state.window.size.w,
+              .height = app_state.window.size.h,
+              .depth = 1,
+              .num_levels = 1
+            };
+            app_state.depth_texture = R_CreateTexture(&depth_texture_info);
 
-          R_VK_DestroyTexture(app_state.test_texture);
-          R_TextureCreateInfo test_texture_info = {
-            .type = R_TEXTURE_TYPE_2D,
-            .format = R_TEXTURE_FORMAT_R16_UINT,
-            .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-            .width = app_state.window.size.w,
-            .height = app_state.window.size.h,
-            .depth = 1,
-            .num_levels = 1
-          };
-          app_state.test_texture = R_CreateTexture(&test_texture_info);
-
+            R_VK_DestroyTexture(app_state.test_texture);
+            R_TextureCreateInfo test_texture_info = {
+              .type = R_TEXTURE_TYPE_2D,
+              .format = R_TEXTURE_FORMAT_R16_UINT,
+              .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+              .width = app_state.window.size.w,
+              .height = app_state.window.size.h,
+              .depth = 1,
+              .num_levels = 1
+            };
+            app_state.test_texture = R_CreateTexture(&test_texture_info);
+          }
+          else
+          {
+            state->to_render = 0;
+          }
         }
         // LOG_INFO("New window size: %d w %d h\n\n", state->window.size.x, state->window.size.y);
         // Renderer.HandleResize(&state->window);

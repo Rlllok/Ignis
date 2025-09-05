@@ -1,6 +1,6 @@
 {
 	"asset":{
-		"generator":"Khronos glTF Blender I/O v4.0.44",
+		"generator":"Khronos glTF Blender I/O v4.5.47",
 		"version":"2.0"
 	},
 	"scene":0,
@@ -15,12 +15,26 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"Sphere"
+			"name":"Icosphere",
+			"translation":[
+				-0.4941907525062561,
+				0.042657025158405304,
+				0.07825689017772675
+			]
+		}
+	],
+	"materials":[
+		{
+			"doubleSided":true,
+			"name":"Rock",
+			"pbrMetallicRoughness":{
+				"metallicFactor":0
+			}
 		}
 	],
 	"meshes":[
 		{
-			"name":"Sphere",
+			"name":"Icosphere",
 			"primitives":[
 				{
 					"attributes":{
@@ -28,7 +42,8 @@
 						"NORMAL":1,
 						"TEXCOORD_0":2
 					},
-					"indices":3
+					"indices":3,
+					"material":0
 				}
 			]
 		}
@@ -37,67 +52,67 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":16256,
+			"count":2964,
 			"max":[
-				0.9999998807907104,
-				1,
-				0.9999997615814209
+				0.9118379354476929,
+				0.8347773551940918,
+				0.9790529608726501
 			],
 			"min":[
-				-0.9999997019767761,
+				-0.9968857765197754,
 				-1,
-				-1
+				-0.9438406825065613
 			],
 			"type":"VEC3"
 		},
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":16256,
+			"count":2964,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":16256,
+			"count":2964,
 			"type":"VEC2"
 		},
 		{
 			"bufferView":3,
 			"componentType":5123,
-			"count":24192,
+			"count":15360,
 			"type":"SCALAR"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":195072,
+			"byteLength":35568,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":195072,
-			"byteOffset":195072,
+			"byteLength":35568,
+			"byteOffset":35568,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":130048,
-			"byteOffset":390144,
+			"byteLength":23712,
+			"byteOffset":71136,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":48384,
-			"byteOffset":520192,
+			"byteLength":30720,
+			"byteOffset":94848,
 			"target":34963
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":568576,
+			"byteLength":125568,
 			"uri":"sphere.bin"
 		}
 	]

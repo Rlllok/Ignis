@@ -20,10 +20,10 @@ layout(location = 1) out uint out_id;
 void main(void)
 {
   vec3 ambient_light = ambient_color;
-  vec3 texture_normals = normalize(texture(normal_texture, uv*2).rgb*2.0f - 1.0f);
-  vec3 specular_light = vec3(dot(-light_direction, norm));
-  out_color = (texture(color_texture, uv*2) + vec4(ambient_color, 0.0f))*vec4(specular_light, 1.0f);
+  vec3 texture_normals = normalize(texture(normal_texture, uv).rgb*2.0f - 1.0f);
+  vec3 specular_light = vec3(max(dot(-light_direction, norm), 0.0f));
+  out_color = texture(color_texture, uv)*vec4(ambient_color + specular_light, 1.0f);
   // out_color = vec4(vec3(dot(-light_direction, norm)), 1.0f);
-  out_color = vec4(texture_normals, 1.0f);
+  // out_color = vec4(texture_normals, 1.0f);
   out_id = uint(entity_id);
 }
