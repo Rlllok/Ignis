@@ -570,12 +570,11 @@ OS_GetEventList(Arena* arena, OS_Window* window)
   return _os_state.event_list;
 }
 
-func F32
-OS_CurrentTimeSeconds()
+func U64
+OS_GetTimeTicks(void)
 {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
-  return now.tv_sec + now.tv_nsec * 0.000000001;
-	return 0;
+  return (U64)(now.tv_sec*1000 + now.tv_nsec*0.000001);
 }
