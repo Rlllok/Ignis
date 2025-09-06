@@ -389,6 +389,45 @@ UI_Button(UI_ElementArray* array, Str8 label)
   return OS_IsMousePressed(OS_MouseButton_Left) && InsideRectF32(button->rect, ui_context.mouse_position);
 }
 
+func F32
+UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
+{
+  UI_Element* slider = UI_BuildElement(
+    array,
+    (UI_ElementDescription){
+      .label = label,
+      .flags = UI_ElementFlag_Hover|
+        UI_ElementFlag_DrawLabel|
+        UI_ElementFlag_DrawBackground,
+    }
+  );
+
+  F32 slider_value = (*value - min)/(max-min);
+
+  UI_DrawCommandArrayAdd(
+    &ui_context.draw_commands,
+    (UI_DrawCommand){
+      .type = UI_DrawCommandType_Rectangle,
+      .rectangle = {
+        .color = MakeVec4(0.4f, 0.4f, 0.4f, 0.5f),
+        .bound = {
+          .position = slider->rect.position,
+          .size.x = slider->rect.size.x*slider_value,
+          .size.y = slider->rect.size.y,
+        },
+      },
+    }
+  );
+
+  if (OS_IsMouseDown(OS_MouseButton_Left) && InsideRectF32(slider->rect, ui_context.mouse_position))
+  {
+    F32 slider_value = (ui_context.mouse_position.x - slider->rect.position.x)/slider->rect.size.x;
+    *value = min*(1.0f - slider_value) + max*slider_value;
+  }
+
+  return 0.0f;
+}
+
 func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color);
 
 // -------------------------------------------------------------------
@@ -809,7 +848,7 @@ I32 main(void)
 
   AST_StaticMesh test_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/sphere_gltf/sphere.gltf"));
   Entity test_entity = {
-    .id = 1,
+    .id = 5,
     .position = MakeVec3(0.0f, 0.0f, 0.0f),
     .mesh = test_mesh,
   };
@@ -903,35 +942,13 @@ I32 main(void)
     UI_ElementArrayReset(&app_state.ui_elements);
     if (app_state.draw_ui)
     {
+      UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
       UI_SetFont(app_state.font, 20);
       UI_SetTextColor(RGBAFromHex(0xE8B4B8FF));
 
       UI_SetFixedPosition(MakeVec2(0.0f, 0.0f));
-      UI_SetSizeX(UI_FixedSize(app_state.window.size.x));
-      UI_SetSizeY(UI_FixedSize(30.0f));
-      UI_SetBackgroundColor(RGBAFromHex(0x1D1A26AA));
-      UI_Element* top_bar = UI_BuildElement(
-        &app_state.ui_elements,
-        (UI_ElementDescription){
-          .label = Str8C("Top Bar"),
-          .flags = UI_ElementFlag_DrawBackground,
-          .layout = UI_LayoutDirection_LeftToRight,
-        }
-      );
-      UI_SetParent(top_bar);
-      {
-        UI_SetSizeX(UI_ParentPercentSize(0.5f));
-        UI_SetSizeY(UI_ParentPercentSize(1.0f));
-        if(UI_Button(&app_state.ui_elements, Str8C("Top")))
-        {
-          LOG_DEBUG("Top Button\n");
-        }
-      }
-      UI_SetParent(0);
-
-      UI_SetFixedPosition(MakeVec2(0.0f, app_state.window.size.y*0.5f));
-      UI_SetSizeX(UI_FixedSize(200.0f));
-      UI_SetSizeY(UI_FixedSize(app_state.window.size.y*0.5f));
+      UI_SetSizeX(UI_FixedSize(250.0f));
+      UI_SetSizeY(UI_FixedSize(app_state.window.size.y));
       UI_Element* right_box = UI_BuildElement(
         &app_state.ui_elements,
         (UI_ElementDescription){
@@ -949,14 +966,20 @@ I32 main(void)
       );
       UI_SetParent(right_box);
       {
-        UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
-
         UI_SetSizeX(UI_ParentPercentSize(1.0f));
-        UI_SetSizeY(UI_ParentPercentSize(1.0f));
+        UI_SetSizeY(UI_FixedSize(40.0f));
         if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
         {
           LOG_DEBUG("BUTTON 1 Pressed\n");
         }
+
+        char rotation_slider_cstring[128] = {0};
+        sprintf(rotation_slider_cstring, "Rotation: %.1f", app_state.entities.elements[0].rotation);
+        UI_SliderF32(&app_state.ui_elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.entities.elements[0].rotation);
+
+        char position_x_slider_cstring[128] = {0};
+        sprintf(position_x_slider_cstring, "X: %.1f", app_state.entities.elements[0].position.x);
+        UI_SliderF32(&app_state.ui_elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.entities.elements[0].position.x);
       }
       UI_SetParent(0);
     }

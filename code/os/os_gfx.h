@@ -242,3 +242,8 @@ func B32 OS_IsMousePressed(OS_MouseButtonCode code)
   return _os_state.mouse.buttons[code].pressed;
 }
 
+func B32 OS_IsMouseDown(OS_MouseButtonCode code)
+{
+  return _os_state.mouse.buttons[code].is_down;
+}
+

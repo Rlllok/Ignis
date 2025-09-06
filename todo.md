@@ -20,6 +20,9 @@
 ## BUGS
 -[ ] Mouse Picking is not working
 
+## Mesh
+-[ ] Smooth Tangents
+
 ## UI
 -[x] BitMap Text Rendering
 -[ ] 
