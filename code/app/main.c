@@ -448,11 +448,19 @@ struct Entity
   EntityID id;
   Vec3 position;
   F32 rotation;
+  F32 smoothness;
 
   AST_StaticMesh mesh;
 };
 Entity EntityDefaultValue = {0};
 DefineArray(Entity, EntityArray, EntityDefaultValue) // -- AlNov: @TODO It can be better to set DefaultValue for Array through parameter
+
+func void
+CreateEntity(EntityArray* array, Entity entity)
+{
+  entity.id = array->length + 1;
+  EntityArrayAdd(array, entity);
+}
 
 func void DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity);
 
@@ -499,7 +507,7 @@ struct AppState
   F32 grid_scale;
 
   EntityArray entities;
-  const Entity* selected_entity;
+  Entity* selected_entity;
 
   UI_ElementArray ui_elements;
 
@@ -613,7 +621,6 @@ I32 main(void)
   // Mesh Texture
   {
     app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"), R_TEXTURE_FORMAT_R8G8B8A8_SRGB);
-    // app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"));
     app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"), R_TEXTURE_FORMAT_R8G8B8A8_UNORM);
   }
 
@@ -829,30 +836,24 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
-#if 0
-  Entity cube = {
-    .id = 1,
-    .position = MakeVec3(0.0f, 0.0f, 0.0f),
-    .vertecies_count = CountArrayElements(cube_vertecies),
-    .vertecies = cube_vertecies,
-  };
-  EntityArrayAdd(&app_state.entities, cube);
-  Entity cube_1 = {
-    .id = 2,
-    .position = MakeVec3(1.0f, 2.0f, 0.0f),
-    .vertecies_count = CountArrayElements(cube_vertecies),
-    .vertecies = cube_vertecies,
-  };
-  EntityArrayAdd(&app_state.entities, cube_1);
-#endif
-
   AST_StaticMesh test_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/sphere_gltf/sphere.gltf"));
-  Entity test_entity = {
-    .id = 5,
-    .position = MakeVec3(0.0f, 0.0f, 0.0f),
-    .mesh = test_mesh,
-  };
-  EntityArrayAdd(&app_state.entities, test_entity);
+  CreateEntity(
+    &app_state.entities,
+    (Entity){
+      .position = MakeVec3(1.0f, 0.0f, 0.0f),
+      .smoothness = 1.0f,
+      .mesh = test_mesh,
+    }
+  );
+
+  CreateEntity(
+    &app_state.entities,
+    (Entity){
+      .position = MakeVec3(0.0f, 0.0f, 1.0f),
+      .smoothness = 1.0f,
+      .mesh = test_mesh,
+    }
+  );
 
   // Mesh Pipeline
   {
@@ -967,19 +968,32 @@ I32 main(void)
       UI_SetParent(right_box);
       {
         UI_SetSizeX(UI_ParentPercentSize(1.0f));
-        UI_SetSizeY(UI_FixedSize(40.0f));
+        UI_SetSizeY(UI_FixedSize(20.0f));
         if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
         {
           LOG_DEBUG("BUTTON 1 Pressed\n");
         }
 
-        char rotation_slider_cstring[128] = {0};
-        sprintf(rotation_slider_cstring, "Rotation: %.1f", app_state.entities.elements[0].rotation);
-        UI_SliderF32(&app_state.ui_elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.entities.elements[0].rotation);
+        if (app_state.selected_entity != &EntityDefaultValue)
+        {
+          char rotation_slider_cstring[128] = {0};
+          sprintf(rotation_slider_cstring, "Rotation: %.1f", app_state.selected_entity->rotation);
+          UI_SliderF32(&app_state.ui_elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.selected_entity->rotation);
 
-        char position_x_slider_cstring[128] = {0};
-        sprintf(position_x_slider_cstring, "X: %.1f", app_state.entities.elements[0].position.x);
-        UI_SliderF32(&app_state.ui_elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.entities.elements[0].position.x);
+          char position_x_slider_cstring[128] = {0};
+          sprintf(position_x_slider_cstring, "X: %.1f", app_state.selected_entity->position.x);
+          UI_SliderF32(&app_state.ui_elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.x);
+          char position_y_slider_cstring[128] = {0};
+          sprintf(position_y_slider_cstring, "Y: %.1f", app_state.selected_entity->position.y);
+          UI_SliderF32(&app_state.ui_elements, Str8C(position_y_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.y);
+          char position_z_slider_cstring[128] = {0};
+          sprintf(position_z_slider_cstring, "Z: %.1f", app_state.selected_entity->position.z);
+          UI_SliderF32(&app_state.ui_elements, Str8C(position_z_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.z);
+
+          char smoothness_slider_cstring[128] = {0};
+          sprintf(smoothness_slider_cstring, "Smoothness: %.1f", app_state.selected_entity->smoothness);
+          UI_SliderF32(&app_state.ui_elements, Str8C(smoothness_slider_cstring), 0.0f, 1.0f, &app_state.selected_entity->smoothness);
+        }
       }
       UI_SetParent(0);
     }
@@ -987,6 +1001,7 @@ I32 main(void)
     if (app_state.to_render)
     {
       R_ResetBuffer(data_buffer);
+      R_ResetBuffer(transfer_buffer);
 
       // Draw
       R_Texture swapchain_texture = R_AcquireSwapchainTexture(command_buffer);
@@ -1141,7 +1156,6 @@ I32 main(void)
         }
         R_EndRenderPass(command_buffer, 0);
 
-        // R_CopyTexture(command_buffer, swapchain_texture, app_state.test_texture);
         test_texture_values_offset = R_CopyTextureToBuffer(command_buffer, app_state.test_texture, transfer_buffer);
       }
       R_SubmitCommandBuffer(command_buffer);
@@ -1152,7 +1166,14 @@ I32 main(void)
       {
         U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
         R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
-        LOG_DEBUG("HOVER ID: %d\n", app_state.hover_entity_id);
+
+        if (app_state.hover_entity_id != 0)
+        {
+          if (OS_IsMousePressed(OS_MouseButton_Left))
+          {
+            app_state.selected_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
+          }
+        }
       }
     }
     // LOG_DEBUG("MOUSE: %.1fx, %.1fy\tOFFSET: %d, PIXEL VALUE: %d\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y, pixel_offset, app_state.hover_entity_id);
@@ -1204,10 +1225,6 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
     mesh_instance_vertex_data.instance_matrix = MulMat4(MakeRotationMat4(MakeVec3(0.0f, 1.0f, 0.0), RadiansFromDegrees(entity->rotation)), mesh_instance_vertex_data.instance_matrix);
     mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
-    if (app_state.hover_entity_id == entity->id)
-    {
-      entity->rotation += 45.0f*app_state.delta_time_sec;
-    }
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
     struct
@@ -1215,13 +1232,15 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       Vec3 camera_position;
       F32 camera_position_padding;
       Vec3 ambient_color;
-      F32 entity_id;
+      F32 smoothness;
       Vec3 light_direction;
+      F32 entity_id;
     } mesh_instance_fragment_data;
     mesh_instance_fragment_data.camera_position = app_state.camera.position;
     mesh_instance_fragment_data.ambient_color = MakeVec3(0.1f, 0.1f, 0.1f);
-    mesh_instance_fragment_data.entity_id = entity->id;
+    mesh_instance_fragment_data.smoothness = entity->smoothness;
     mesh_instance_fragment_data.light_direction = NormalizeVec3(MakeVec3(1.0f, -1.0f, -1.0f));
+    mesh_instance_fragment_data.entity_id = entity->id;
     U64 mesh_instance_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_fragment_data, sizeof(mesh_instance_fragment_data));
 
     R_UniformBufferBindingInfo mesh_vertex_shader_global_uniform = {

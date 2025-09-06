@@ -1481,7 +1481,7 @@ R_VK_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture)
       .pImageIndices = &_r_vk_state.current_target,
     };
 
-    VK_CHECK(vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info));
+    vkQueuePresentKHR(_r_vk_state.device.graphics_queue, &present_info);
   }
   else
   {
