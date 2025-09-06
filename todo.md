@@ -17,6 +17,9 @@
     - [x] Load Image to Texture
     - [x] Bind Sampler to DescriptorSet
 
+## BUGS
+-[ ] Mouse Picking is not working
+
 ## UI
 -[x] BitMap Text Rendering
 -[ ] 

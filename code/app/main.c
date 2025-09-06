@@ -523,11 +523,6 @@ I32 main(void)
 
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
 
-  Entity* entity_ptr = PushArena(app_state.arena, sizeof(Entity));
-
-  app_state.entities.elements[0] = (Entity){.id = 512};
-  EntityArrayAdd(&app_state.entities, (Entity){0});
-
   OS_Init(Megabytes(32));
 
   OS_CreateWindow(Str8C("Vulkan Triangle"), MakeVec2U32(1270, 720), &app_state.window);
@@ -901,11 +896,6 @@ I32 main(void)
 
     // Update World
     {
-      if (app_state.hover_entity_id != 0)
-      {
-        Entity* hover_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
-        hover_entity->rotation += 25.0f*app_state.delta_time_sec;
-      }
     }
 
     // UI
@@ -1139,6 +1129,7 @@ I32 main(void)
       {
         U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
         R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
+        LOG_DEBUG("HOVER ID: %d\n", app_state.hover_entity_id);
       }
     }
     // LOG_DEBUG("MOUSE: %.1fx, %.1fy\tOFFSET: %d, PIXEL VALUE: %d\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y, pixel_offset, app_state.hover_entity_id);
@@ -1192,15 +1183,19 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
     if (app_state.hover_entity_id == entity->id)
     {
+      entity->rotation += 45.0f*app_state.delta_time_sec;
     }
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
     struct
     {
+      Vec3 camera_position;
+      F32 camera_position_padding;
       Vec3 ambient_color;
       F32 entity_id;
       Vec3 light_direction;
     } mesh_instance_fragment_data;
+    mesh_instance_fragment_data.camera_position = app_state.camera.position;
     mesh_instance_fragment_data.ambient_color = MakeVec3(0.1f, 0.1f, 0.1f);
     mesh_instance_fragment_data.entity_id = entity->id;
     mesh_instance_fragment_data.light_direction = NormalizeVec3(MakeVec3(1.0f, -1.0f, -1.0f));

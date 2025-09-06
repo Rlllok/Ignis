@@ -8,6 +8,7 @@ layout(location = 4) in mat3 TBN;
 
 layout(set = 3, binding = 0) uniform InstanceData
 {
+  vec3 camera_position;
   vec3 ambient_color;
   float entity_id;
   vec3 light_direction;
@@ -21,12 +22,15 @@ layout(location = 1) out uint out_id;
 
 void main(void)
 {
-  vec3 ambient_light = ambient_color;
   vec3 texture_normals = TBN*normalize(texture(normal_texture, uv).rgb*2.0f - 1.0f);
-  vec3 specular_light = vec3(max(dot(-light_direction, texture_normals), 0.0f));
-  out_color = texture(color_texture, uv)*vec4(ambient_color + specular_light, 1.0f);
-  // out_color = vec4(vec3(dot(-light_direction, norm)), 1.0f);
-  // out_color = vec4(texture_normals, 1.0f);
-  // out_color = vec4(TBN*texture_normals, 1.0f);
+
+  vec3 ambient_light = ambient_color;
+  vec3 diffuse_light = vec3(max(dot(-light_direction, texture_normals), 0.0f));
+
+  vec3 view_direction = normalize(camera_position - position);
+  vec3 reflection_direction = reflect(light_direction, texture_normals);
+  vec3 specular_light = vec3(0.7f)*0.5f*pow(max(dot(view_direction, reflection_direction), 0.0f), 8);
+
+  out_color = texture(color_texture, uv)*vec4(ambient_color + diffuse_light + specular_light, 1.0f);
   out_id = uint(entity_id);
 }
