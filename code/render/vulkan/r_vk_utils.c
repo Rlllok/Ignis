@@ -163,6 +163,7 @@ func R_TextureFormat R_VK_TextureFormatFromVkFormat(VkFormat format)
     default: Assert(1); break;
 
     case VK_FORMAT_R8G8B8A8_SRGB: texture_format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB; break; 
+    case VK_FORMAT_R8G8B8A8_UNORM: texture_format = R_TEXTURE_FORMAT_R8G8B8A8_UNORM; break; 
     case VK_FORMAT_B8G8R8A8_UNORM: texture_format = R_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
     case VK_FORMAT_D16_UNORM: texture_format = R_TEXTURE_FORMAT_D16_UNORM; break;
     case VK_FORMAT_R16_UINT: texture_format = R_TEXTURE_FORMAT_R16_UINT; break;
@@ -182,6 +183,7 @@ R_VK_GetVkFormat(R_TextureFormat format)
 
     case R_TEXTURE_FORMAT_NONE: vk_format = VK_FORMAT_UNDEFINED; break;
     case R_TEXTURE_FORMAT_R8G8B8A8_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
+    case R_TEXTURE_FORMAT_R8G8B8A8_UNORM: vk_format = VK_FORMAT_R8G8B8A8_UNORM; break;
     case R_TEXTURE_FORMAT_B8G8R8A8_UNORM: vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
     case R_TEXTURE_FORMAT_R16G16B16A16_SFLOAT: vk_format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
     case R_TEXTURE_FORMAT_D16_UNORM: vk_format = VK_FORMAT_D16_UNORM; break;

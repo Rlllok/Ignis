@@ -470,7 +470,7 @@ struct AppState
 
 func void HandleEvents(Arena* arena, AppState* state);
 
-func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path)
+func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path, R_TextureFormat format)
 {
   R_Texture result = {0};
 
@@ -488,7 +488,7 @@ func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path)
    result = R_CreateTexture(
     &(R_TextureCreateInfo){
       .type = R_TEXTURE_TYPE_2D,
-      .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+      .format = format,
       .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
       .width = tex_width,
       .height = tex_height,
@@ -578,9 +578,9 @@ I32 main(void)
 
   // Mesh Texture
   {
-    app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"));
+    app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"), R_TEXTURE_FORMAT_R8G8B8A8_SRGB);
     // app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"));
-    app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"));
+    app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"), R_TEXTURE_FORMAT_R8G8B8A8_UNORM);
   }
 
   // Font Texture
@@ -846,18 +846,23 @@ I32 main(void)
       {
         .location = 0,
         .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
-        .offset = 0,
+        .offset = offsetof(AST_Vertex, position),
       },
       {
         .location = 1,
         .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
-        .offset = sizeof(Vec3F32),
+        .offset = offsetof(AST_Vertex, normal),
       },
       {
         .location = 2,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .offset = offsetof(AST_Vertex, tangent),
+      },
+      {
+        .location = 3,
         .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = sizeof(Vec3F32)+sizeof(Vec3F32),
-      }
+        .offset = offsetof(AST_Vertex, uv),
+      },
     };
 
     R_GraphicsPipelineColorTargetInfo mesh_pipeline_color_target_infos[] = {
@@ -1174,8 +1179,9 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 
     U64 global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&global_vertex_data, sizeof(global_vertex_data));
 
-    U64 mesh_vertex_data_offset = R_PushBuffer(buffer, geometry->vertex_data, geometry->vertex_size*geometry->vertex_count);
+    U64 mesh_vertex_data_offset = R_PushBuffer(buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
     U64 mesh_index_data_offset = R_PushBuffer(buffer, geometry->index_data, geometry->index_size*geometry->index_count);
+
     struct
     {
       Mat4 instance_matrix;

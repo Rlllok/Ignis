@@ -3,18 +3,24 @@
 #include "base/base_include.h"
 #include "gltf.h"
 
+typedef struct AST_Vertex AST_Vertex;
+struct AST_Vertex
+{
+  Vec3 position;
+  Vec3 normal;
+  Vec3 tangent;
+  Vec2 uv;
+};
+
 typedef struct AST_Geometry AST_Geometry;
 struct AST_Geometry
 {
   U8* index_data;
-  U64 index_size;
-  U64 index_count;
-  U64 index_r_backend_offset;
+  U32 index_size;
+  U32 index_count;
   
-  U8* vertex_data;
-  U64 vertex_size;
-  U64 vertex_count;
-  U64 vertex_r_backend_offset;
+  AST_Vertex* vertecies;
+  U64 vertecies_count;
 
   AST_Geometry* next;
 };
