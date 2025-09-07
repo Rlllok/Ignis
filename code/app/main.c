@@ -13,6 +13,8 @@
 
 // -------------------------------------------------------------------
 // UI
+typedef U32 UI_ID;
+
 typedef struct FontBitmap FontBitmap;
 struct FontBitmap
 {
@@ -114,11 +116,11 @@ enum UI_ElementFlagEnum
 typedef struct UI_Element UI_Element;
 struct UI_Element
 {
+  UI_ID id;
+
   UI_Element* next;
   UI_Element* previous;
   UI_Element* parent;
-
-  U32 hot_id;
 
   Str8 label;
   UI_ElementFlags flags;
@@ -175,8 +177,6 @@ struct UI_Context
 {
   UI_Element* current_parent;
 
-  Vec2 mouse_position;
-
   UI_Size size_x;
   UI_Size size_y;
   Vec2 fixed_position;
@@ -185,7 +185,15 @@ struct UI_Context
   Vec4 text_color;
   Vec4 background_color;
 
+  // Interaction
+  UI_ID hot_id;
+  UI_ID active_id;
+  Vec2 mouse_position;
+
+  // Draw
   UI_DrawCommandArray draw_commands;
+
+  UI_ElementArray elements;
 } ui_context;
 
 func void UI_BeginFrame(UI_Context* context, Vec2 mouse_position)
@@ -199,6 +207,7 @@ func void UI_BeginFrame(UI_Context* context, Vec2 mouse_position)
   context->font = (FontBitmap){0};
   context->text_color = MakeVec4(0.0f, 0.0f, 0.0f, 0.0f);
   context->background_color = MakeVec4(0.0f, 0.0f, 0.0f, 0.0f);
+  context->hot_id = 0;
   UI_DrawCommandArrayReset(&context->draw_commands);
 }
 
@@ -229,6 +238,7 @@ func UI_Element*
 UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 {
   UI_Element element = {0};
+  element.id = array->length + 1;
   element.label = description.label;
   element.flags = description.flags;
   element.parent = ui_context.current_parent;
@@ -315,6 +325,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
   {
     if (InsideRectF32(element.rect, ui_context.mouse_position))
     {
+      ui_context.hot_id = element.id;
       element.background_color = AddVec4(element.background_color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
     }
   }
@@ -352,8 +363,7 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
     );
   }
 
-  I32 index = UI_ElementArrayAdd(array, element);
-  return UI_ElementArrayGetPointer(array, index);
+  return UI_ElementArrayGetPointer(array, UI_ElementArrayAdd(array, element));
 }
 
 func UI_Element*
@@ -372,6 +382,8 @@ UI_Layout(UI_ElementArray* array, Str8 label)
 func B32
 UI_Button(UI_ElementArray* array, Str8 label)
 {
+  B32 result = 0;
+
   UI_Element* button = UI_BuildElement(
     array,
     (UI_ElementDescription){
@@ -386,7 +398,20 @@ UI_Button(UI_ElementArray* array, Str8 label)
     }
   );
 
-  return OS_IsMousePressed(OS_MouseButton_Left) && InsideRectF32(button->rect, ui_context.mouse_position);
+  if (ui_context.active_id == button->id)
+  {
+    if ((ui_context.hot_id == button->id) && OS_IsMouseReleased(OS_MouseButton_Left))
+    {
+      ui_context.active_id = 0;
+      result = 1;
+    }
+  }
+  else if (ui_context.hot_id == button->id)
+  {
+    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = button->id;
+  }
+
+  return result;
 }
 
 func F32
@@ -419,10 +444,25 @@ UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
     }
   );
 
-  if (OS_IsMouseDown(OS_MouseButton_Left) && InsideRectF32(slider->rect, ui_context.mouse_position))
+  if (ui_context.active_id == slider->id)
   {
-    F32 slider_value = (ui_context.mouse_position.x - slider->rect.position.x)/slider->rect.size.x;
-    *value = min*(1.0f - slider_value) + max*slider_value;
+    if (OS_IsMouseDown(OS_MouseButton_Left))
+    {
+      F32 slider_value = (ui_context.mouse_position.x - slider->rect.position.x)/slider->rect.size.x;
+      slider_value = Clamp(slider_value, 0.0f, 1.0f);
+      *value = min*(1.0f - slider_value) + max*slider_value;
+    }
+    else
+    {
+      ui_context.active_id = 0;
+    }
+  }
+  else if (ui_context.hot_id == slider->id)
+  {
+    if (OS_IsMousePressed(OS_MouseButton_Left))
+    {
+      ui_context.active_id = slider->id;
+    }
   }
 
   return 0.0f;
@@ -509,8 +549,6 @@ struct AppState
   EntityArray entities;
   Entity* selected_entity;
 
-  UI_ElementArray ui_elements;
-
   B32 to_render;
   B32 draw_ui;
 } app_state;
@@ -564,10 +602,10 @@ I32 main(void)
   app_state.camera.pitch = -30.0f;
   app_state.entities = EntityArrayAllocate(app_state.arena, 128);
   app_state.selected_entity = &EntityDefaultValue;
-  app_state.ui_elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   app_state.draw_ui = 1;
   app_state.to_render = 1;
 
+  ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
 
   OS_Init(Megabytes(32));
@@ -940,7 +978,7 @@ I32 main(void)
 
     // UI
     UI_BeginFrame(&ui_context, app_state.last_mouse_position);
-    UI_ElementArrayReset(&app_state.ui_elements);
+    UI_ElementArrayReset(&ui_context.elements);
     if (app_state.draw_ui)
     {
       UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
@@ -951,7 +989,7 @@ I32 main(void)
       UI_SetSizeX(UI_FixedSize(250.0f));
       UI_SetSizeY(UI_FixedSize(app_state.window.size.y));
       UI_Element* right_box = UI_BuildElement(
-        &app_state.ui_elements,
+        &ui_context.elements,
         (UI_ElementDescription){
           .label = Str8C("Right Box"),
           .flags = UI_ElementFlag_DrawBackground,
@@ -969,30 +1007,30 @@ I32 main(void)
       {
         UI_SetSizeX(UI_ParentPercentSize(1.0f));
         UI_SetSizeY(UI_FixedSize(20.0f));
-        if(UI_Button(&app_state.ui_elements, Str8C("Test Button")))
+        if(UI_Button(&ui_context.elements, Str8C("Test Button")))
         {
-          LOG_DEBUG("BUTTON 1 Pressed\n");
+          LOG_DEBUG("TEST BUTTON Pressed\n");
         }
 
         if (app_state.selected_entity != &EntityDefaultValue)
         {
           char rotation_slider_cstring[128] = {0};
           sprintf(rotation_slider_cstring, "Rotation: %.1f", app_state.selected_entity->rotation);
-          UI_SliderF32(&app_state.ui_elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.selected_entity->rotation);
+          UI_SliderF32(&ui_context.elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.selected_entity->rotation);
 
           char position_x_slider_cstring[128] = {0};
           sprintf(position_x_slider_cstring, "X: %.1f", app_state.selected_entity->position.x);
-          UI_SliderF32(&app_state.ui_elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.x);
+          UI_SliderF32(&ui_context.elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.x);
           char position_y_slider_cstring[128] = {0};
           sprintf(position_y_slider_cstring, "Y: %.1f", app_state.selected_entity->position.y);
-          UI_SliderF32(&app_state.ui_elements, Str8C(position_y_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.y);
+          UI_SliderF32(&ui_context.elements, Str8C(position_y_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.y);
           char position_z_slider_cstring[128] = {0};
           sprintf(position_z_slider_cstring, "Z: %.1f", app_state.selected_entity->position.z);
-          UI_SliderF32(&app_state.ui_elements, Str8C(position_z_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.z);
+          UI_SliderF32(&ui_context.elements, Str8C(position_z_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.z);
 
           char smoothness_slider_cstring[128] = {0};
           sprintf(smoothness_slider_cstring, "Smoothness: %.1f", app_state.selected_entity->smoothness);
-          UI_SliderF32(&app_state.ui_elements, Str8C(smoothness_slider_cstring), 0.0f, 1.0f, &app_state.selected_entity->smoothness);
+          UI_SliderF32(&ui_context.elements, Str8C(smoothness_slider_cstring), 0.0f, 1.0f, &app_state.selected_entity->smoothness);
         }
       }
       UI_SetParent(0);

@@ -10,6 +10,12 @@
 #define PI 3.141592654f
 
 // -------------------------------------------------------------------
+// --AlNov: Math Defines (Min, Max ...)
+#define Min(a, b) (((a) < (b)) ? (a) : (b))
+#define Max(a, b) (((a) > (b)) ? (a) : (b))
+#define Clamp(v, low, high) Max(Min(v, high), low)
+
+// -------------------------------------------------------------------
 // Vectors and Matrices
 typedef union Vec2I32 Vec2I32;
 union Vec2I32

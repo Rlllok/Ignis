@@ -226,7 +226,6 @@ func B32 OS_IsKeyUp(OS_KeyCode key_code)
 	return !_os_state.keyboard.keys[key_code].is_down;
 }
 
-
 func B32 OS_IsKeyDown(OS_KeyCode key_code)
 {
 	return _os_state.keyboard.keys[key_code].is_down;
@@ -240,6 +239,11 @@ func B32 OS_IsKeyReleased(OS_KeyCode key_code)
 func B32 OS_IsMousePressed(OS_MouseButtonCode code)
 {
   return _os_state.mouse.buttons[code].pressed;
+}
+
+func B32 OS_IsMouseReleased(OS_MouseButtonCode code)
+{
+  return _os_state.mouse.buttons[code].released;
 }
 
 func B32 OS_IsMouseDown(OS_MouseButtonCode code)
