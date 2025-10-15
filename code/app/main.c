@@ -972,6 +972,11 @@ I32 main(void)
   {
     HandleEvents(app_state.frame_arena, &app_state);
 
+    if (OS_IsMousePressed(OS_MouseButton_Left))
+    {
+      LOG_INFO("Mouse Pressed: %.3fx, %.3fy\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y);
+    }
+
     // Update World
     {
     }
@@ -1321,6 +1326,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 HandleEvents(Arena* arena, AppState* state)
 {
   OS_EventList event_list = OS_GetEventList(arena, &state->window);
+  state->last_mouse_position = OS_MousePosition(state->window);
 
   if (OS_IsKeyPressed(OS_KEY_ESC))
   {

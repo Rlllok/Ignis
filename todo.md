@@ -1,4 +1,4 @@
-#TODO
+# TODO
 -[?] Render in Texture and then copy to Swapchain
     I think, this is not how it should work. Not through copy(blit). I tried but it's not working.
     The reason is there is no garanty that swapchain image can supprot transfer. Or, maybe, there is
@@ -6,6 +6,16 @@
     But it can be posible to just add pass where we draw texture on fullscreen quad;
     -[x] Copy Texture
 
+## BUGS
+-[ ] Mouse Picking is not working
+-[ ] Grid is shaking when camera moves
+
+## Mesh
+-[ ] Smooth Tangents
+
+# Done
+-[x] {10.15.2025} Win32. Mouse not working (Changed mouse input logic and implemented only for Linux)
+-[x] BitMap Text Rendering
 -[x] Mouse Picking
     -[x] Draw Texture filled with EntityID
     -[x] Read Texture data from CPU
@@ -17,12 +27,3 @@
     - [x] Load Image to Texture
     - [x] Bind Sampler to DescriptorSet
 
-## BUGS
--[ ] Mouse Picking is not working
-
-## Mesh
--[ ] Smooth Tangents
-
-## UI
--[x] BitMap Text Rendering
--[ ] 

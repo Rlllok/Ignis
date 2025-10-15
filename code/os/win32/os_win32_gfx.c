@@ -320,53 +320,41 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
           case VK_LEFT: {event.key = OS_KEY_ARROW_LEFT;};break;
           case VK_RIGHT: {event.key = OS_KEY_ARROW_RIGHT;};break;
         };
-#if 0
-        if (w_param == VK_RETURN && (l_param & (1 << 29)))
-        {
-          if (was_down && !is_down)
-          {
-            OS_WIN32_ToggleFullscreen(hwnd);
-          }
-        }
-#endif
-      } break;
+      }
 
-      // --AlNov: Mouse Input ------------------------------
+    // --AlNov: Mouse Input ------------------------------
+    case WM_MOUSEMOVE:
+    {
+      
+    } break;
     case WM_LBUTTONUP:
-    case WM_MBUTTONUP:
+    {
+      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+      event.released = 1;
+      event.mouse_button = OS_MouseButton_Left;
+    } break;
     case WM_RBUTTONUP:
-      {
-        release = 1;
-      } // go through;
+    {
+      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+      event.released = 1;
+      event.mouse_button = OS_MouseButton_Right;
+    } break;
     case WM_LBUTTONDOWN:
-    case WM_MBUTTONDOWN:
+    {
+      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+      event.pressed = 1;
+      event.mouse_button = OS_MouseButton_Left;
+    } break;
     case WM_RBUTTONDOWN:
-      {
-        if (release)
-        {
-          event.type = OS_EVENT_TYPE_MOUSE_RELEASE;
-        } 
-        else
-        {
-          event.type = OS_EVENT_TYPE_MOUSE_PRESS;
-        }
-        event.mouse_position.x = LOWORD(l_param);
-        event.mouse_position.y = HIWORD(l_param);
-
-        // if (release)
-        // {
-        //     ReleaseCapture();
-        // }
-        // else
-        // {
-        //     SetCapture(hwnd);
-        // }
-      } break;
-
+    {
+      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+      event.pressed = 1;
+      event.mouse_button = OS_MouseButton_Right;
+    } break;
     default:
-      {
-        result = DefWindowProcW(hwnd, message, w_param, l_param);
-      } break;
+    {
+      result = DefWindowProcW(hwnd, message, w_param, l_param);
+    } break;
   }
 
   if (event.type != 0)
@@ -375,7 +363,14 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
     {
       OS_EventListPush(&_os_state.keyboard_event_list, event);
     }
-    OS_EventListPush(&_os_state.event_list, event);
+    else if (event.type == OS_EVENT_TYPE_MOUSE_PRESS)
+    {
+      OS_EventListPush(&_os_state.mouse_event_list, event);
+    }
+    else
+    {
+      OS_EventListPush(&_os_state.event_list, event);
+    }
   }
 
   return result;
