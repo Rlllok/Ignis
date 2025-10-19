@@ -379,6 +379,18 @@ UI_Layout(UI_ElementArray* array, Str8 label)
   return layout;
 }
 
+func void
+UI_Text(UI_ElementArray* array, Str8 label)
+{
+  UI_Element* text = UI_BuildElement(
+    array,
+    (UI_ElementDescription){
+      .label = label,
+      .flags = UI_ElementFlag_DrawLabel,
+    }
+  );
+}
+
 func B32
 UI_Button(UI_ElementArray* array, Str8 label)
 {
@@ -486,11 +498,13 @@ typedef struct Entity Entity;
 struct Entity
 {
   EntityID id;
+  Str8 name;
   Vec3 position;
   F32 rotation;
   F32 smoothness;
 
   AST_StaticMesh mesh;
+  R_Texture color_texture;
 };
 Entity EntityDefaultValue = {0};
 DefineArray(Entity, EntityArray, EntityDefaultValue) // -- AlNov: @TODO It can be better to set DefaultValue for Array through parameter
@@ -532,6 +546,7 @@ struct AppState
   R_GraphicsPipeline font_pipeline;
 
   R_TextureSampler texture_sampler;
+  R_Texture default_color_texture;
   R_Texture mesh_color_texture;
   R_Texture mesh_normal_texture;
 
@@ -658,6 +673,7 @@ I32 main(void)
 
   // Mesh Texture
   {
+    app_state.default_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"), R_TEXTURE_FORMAT_R8G8B8A8_SRGB);
     app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"), R_TEXTURE_FORMAT_R8G8B8A8_SRGB);
     app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"), R_TEXTURE_FORMAT_R8G8B8A8_UNORM);
   }
@@ -878,18 +894,34 @@ I32 main(void)
   CreateEntity(
     &app_state.entities,
     (Entity){
+      .name = Str8C("Test_0"),
       .position = MakeVec3(1.0f, 0.0f, 0.0f),
       .smoothness = 1.0f,
       .mesh = test_mesh,
+      .color_texture = app_state.mesh_color_texture,
     }
   );
 
   CreateEntity(
     &app_state.entities,
     (Entity){
+      .name = Str8C("Test_1"),
       .position = MakeVec3(0.0f, 0.0f, 1.0f),
       .smoothness = 1.0f,
       .mesh = test_mesh,
+      // .color_texture = app_state.mesh_color_texture,
+      .color_texture = app_state.default_color_texture,
+    }
+  );
+
+  AST_StaticMesh motocycle_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/motocycle_gltf/motocycle.gltf"));
+  CreateEntity(
+    &app_state.entities,
+    (Entity){
+      .name = Str8C("Motocycle"),
+      .position = MakeVec3(0.0f, 0.0f, 0.0f),
+      .mesh = motocycle_mesh,
+      .color_texture = app_state.default_color_texture,
     }
   );
 
@@ -1007,13 +1039,11 @@ I32 main(void)
       {
         UI_SetSizeX(UI_ParentPercentSize(1.0f));
         UI_SetSizeY(UI_FixedSize(20.0f));
-        if(UI_Button(&ui_context.elements, Str8C("Test Button")))
-        {
-          LOG_DEBUG("TEST BUTTON Pressed\n");
-        }
 
         if (app_state.selected_entity != &EntityDefaultValue)
         {
+          UI_Text(&ui_context.elements, app_state.selected_entity->name);
+
           char rotation_slider_cstring[128] = {0};
           sprintf(rotation_slider_cstring, "Rotation: %.1f", app_state.selected_entity->rotation);
           UI_SliderF32(&ui_context.elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.selected_entity->rotation);
@@ -1299,7 +1329,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     R_SamplerBindingInfo mesh_fragment_shader_instance_samplers[2] = {
       {
         .sampler = app_state.texture_sampler,
-        .texture = app_state.mesh_color_texture,
+        .texture = entity->color_texture,
       },
       {
         .sampler = app_state.texture_sampler,
