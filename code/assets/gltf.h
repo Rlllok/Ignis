@@ -43,8 +43,8 @@ struct GLTFToken
 typedef struct GLTFElement GLTFElement;
 struct GLTFElement
 {
-  Buffer label;
-  Buffer value;
+  Str8 label;
+  Str8 value;
 
   GLTFElement* first_sub_element;
   GLTFElement* next_sibling;
@@ -61,77 +61,48 @@ struct GLTFReader
   GLTFElement* element;
 };
 
-typedef U16 GLTFAttributeType;
-enum GLTFAttributeTypeEnum
-{
-  GLTF_ATTRIBUTE_TYPE_NONE,
-  
-  GLTF_ATTRIBUTE_TYPE_POSITION,
-  GLTF_ATTRIBUTE_TYPE_NORMAL,
-  GLTF_ATTRIBUTE_TYPE_TEXCOORD_0,
-
-  GLTF_ATTRIBUTE_TYPE_COUNT
-} GLTFAttributeTypeEnum;
-
-typedef struct GLTFAttribute GLTFAttribute;
-struct GLTFAttribute
-{
-  U32 accessor_id;
-  GLTFAttributeType type;
-
-  GLTFAttribute* next;
-};
-DefineList(GLTFAttribute, GLTFAttributeList)
-
-typedef U8 GLTFAccessorType;
-enum GLTFAccessorTypeEnum
-{
-  GLTF_ACCESSOR_TYPE_NONE,
-
-  GLTF_ACCESSOR_TYPE_SCALAR,
-  GLTF_ACCESSOR_TYPE_VEC3,
-
-  GLTF_ACCSSOR_TYPE_COUNT
-} GLTFAccessorTypeEnum;
-
-typedef struct GLTFAccessor GLTFAccessor;
-struct GLTFAccessor
-{
-  U32 buffer_view_id;
-  U64 byte_offset;
-  U64 count;
-  GLTFAccessorType type;
-  
-  GLTFAccessor* next;
-};
-DefineList(GLTFAccessor, GLTFAccessorList)
-
+// -- NEW ------------------------------------------------------------
 typedef struct GLTFPrimitive GLTFPrimitive;
 struct GLTFPrimitive
 {
-  U32 indices_accessor_id;
-  U32 position_accessor_id;
-  U32 normal_accessor_id;
-  U32 texcoord_accessor_id;
+  I32 indecies_accessor_id;
+  I32 material_accessor_id;
 
-  GLTFPrimitive* next;
+  // GLTF Attributes
+  I32 position_accessor_id;
+  I32 tangent_accessor_id;
+  I32 normal_accessor_id;
+  I32 texcoord_accessor_id;
 };
 DefineList(GLTFPrimitive, GLTFPrimitiveList)
 
 typedef struct GLTFMesh GLTFMesh;
 struct GLTFMesh
 {
-  GLTFPrimitiveList primitive_list;
+  GLTFPrimitiveList primitives;
 };
-DefineList(GLTFMesh, GLTFMeshList)
+DefineList(GLTFMesh, GLTFMeshList);
+
+typedef struct GLTFNode GLTFNode;
+struct GLTFNode
+{
+  U32 mesh_id;
+};
+DefineList(GLTFNode, GLTFNodeList)
+
+typedef struct GLTFScene GLTFScene;
+struct GLTFScene
+{
+  GLTFNodeList nodes;
+  U32 nodes_count;
+};
 
 typedef struct GLTFBuffer GLTFBuffer;
 struct GLTFBuffer
 {
   Str8 uri;
-  Buffer buffer;
-
-  GLTFBuffer* next;
+  U64 byte_length;
+  U8* data;
 };
 DefineList(GLTFBuffer, GLTFBufferList)
 
@@ -141,20 +112,63 @@ struct GLTFBufferView
   U32 buffer_id;
   U32 byte_offset;
   U32 byte_length;
-  U32 target;
-
-  GLTFBufferView* next;
+  U32 byte_stride;
+  U32 target; // @NOTE: Not used
 };
 DefineList(GLTFBufferView, GLTFBufferViewList)
+
+typedef U16 GLTFComponentType;
+typedef enum GLTFComponentTypeEnum
+{
+  GLTFComponentType_None = 0,
+  GLTFComponentType_Byte = 5120,
+  GLTFComponentType_UnsignedByte = 5121,
+  GLTFComponentType_Short = 5122,
+  GLTFComponentType_UnsignedShort = 5123,
+  GLTFComponentType_UnsignedInt = 5125,
+  GLTFComponentType_Float = 5126,
+} GLTFComponentTypeEnum;
+
+typedef U8 GLTFAccessorType;
+typedef enum GLTFAccessorTypeEnum
+{
+  GLTFAccessorType_None,
+  GLTFAccessorType_Scalar,
+  GLTFAccessorType_Vec2,
+  GLTFAccessorType_Vec3,
+  GLTFAccessorType_Vec4,
+  GLTFAccessorType_Mat2,
+  GLTFAccessorType_Mat3,
+  GLTFAccessorType_Mat4,
+} GLTFAccessorTypeEnum;
+
+typedef struct GLTFAccessor GLTFAccessor;
+struct GLTFAccessor
+{
+  U32 buffer_view_id;
+  U32 byte_offset;
+  GLTFAccessorType type;
+  GLTFComponentType component_type;
+  B32 normalized;
+  U32 count;
+};
+DefineList(GLTFAccessor, GLTFAccessorList)
+
+typedef struct GLTFAsset GLTFAsset;
+struct GLTFAsset
+{
+  U32 version;
+};
 
 typedef struct GLTFData GLTFData;
 struct GLTFData
 {
-  U32 default_scene_id;
-  GLTFBufferList buffer_list;
-  GLTFMeshList mesh_list;
-  GLTFBufferViewList buffer_view_list;
-  GLTFAccessorList accessor_list;
+  GLTFAsset asset;
+  GLTFScene scene;
+  GLTFMeshList meshes;
+  GLTFBufferList buffers;
+  GLTFBufferViewList buffer_views;
+  GLTFAccessorList accessors;
 };
 
 func Buffer ReadGLTFFile(Buffer file_name);
@@ -172,12 +186,12 @@ U8 base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', '
                    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
                    'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'};
 
-func Buffer
-Base64Decode(Buffer in)
+func Str8
+Base64Decode(Arena* arena, Str8 in)
 {
   U8 count = 0;
   U8 buffer[4];
-  Buffer result = AllocateBuffer(in.length * 3 / 4);
+  Str8 result = AllocateStr8(arena, in.length * 3 / 4);
   U32 result_position = 0;
 
   for (I32 i = 0; i < in.length; i += 1)
