@@ -66,43 +66,44 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
   gltf_reader.file_buffer = GLTFReadFile(gltf_name);
 
   GLTFData gltf_data = GetGLTFData(&gltf_reader);
-    
-  for (GLTFMeshListNode* mesh_node = gltf_data.mesh_list.first;
-       mesh_node;
-       mesh_node = mesh_node->next)
+
+  for (GLTFNodeListNode* gltf_node_iter = gltf_data.scene.nodes.first;
+       gltf_node_iter;
+       gltf_node_iter = gltf_node_iter->next)
   {
     AST_Geometry geometry = {0};
-    
-    U64 index_accessor_id = mesh_node->data.primitive_list.first->data.indices_accessor_id;
-    U64 position_accessor_id = mesh_node->data.primitive_list.first->data.position_accessor_id;
-    U64 normal_accessor_id = mesh_node->data.primitive_list.first->data.normal_accessor_id;
-    U64 texcoord_accessor_id = mesh_node->data.primitive_list.first->data.texcoord_accessor_id;
+    GLTFNode gltf_node = gltf_node_iter->data;
 
-    GLTFAccessor index_accessor = GLTFAccessorListGetItem(&gltf_data.accessor_list, index_accessor_id);
-    GLTFAccessor position_accessor = GLTFAccessorListGetItem(&gltf_data.accessor_list, position_accessor_id);
-    GLTFAccessor normal_accessor = GLTFAccessorListGetItem(&gltf_data.accessor_list, normal_accessor_id);
-    GLTFAccessor texcoord_accessor = GLTFAccessorListGetItem(&gltf_data.accessor_list, texcoord_accessor_id);
+    GLTFMesh gltf_mesh = GLTFMeshListGetItem(&gltf_data.meshes, gltf_node.mesh_id);
+    GLTFPrimitive gltf_primitive = gltf_mesh.primitives.first->data;
 
-    GLTFBufferView index_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_view_list, index_accessor.buffer_view_id);
-    GLTFBufferView position_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_view_list, position_accessor.buffer_view_id);
-    GLTFBufferView normal_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_view_list, normal_accessor.buffer_view_id);
-    GLTFBufferView texcoord_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_view_list, texcoord_accessor.buffer_view_id);
-  
-    Buffer data_buffer = gltf_data.buffer_list.first->data.buffer;
-    geometry.index_data = data_buffer.data + index_buffer_view.byte_offset;
+    GLTFAccessor index_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.indecies_accessor_id);
+    GLTFAccessor position_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.position_accessor_id);
+    GLTFAccessor normal_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.normal_accessor_id);
+    GLTFAccessor texcoord_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.texcoord_accessor_id);
+
+    GLTFBufferView index_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, index_accessor.buffer_view_id);
+    GLTFBufferView position_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, position_accessor.buffer_view_id);
+    GLTFBufferView normal_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, normal_accessor.buffer_view_id);
+    GLTFBufferView texcoord_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, texcoord_accessor.buffer_view_id);
+
+    GLTFBuffer index_buffer = GLTFBufferListGetItem(&gltf_data.buffers, index_buffer_view.buffer_id);
+    geometry.index_data = index_buffer.data + index_accessor.byte_offset + index_buffer_view.byte_offset;
     geometry.index_size = index_buffer_view.byte_length / index_accessor.count;
     geometry.index_count = index_accessor.count;
+
+    GLTFBuffer position_buffer = GLTFBufferListGetItem(&gltf_data.buffers, position_buffer_view.buffer_id);
+    GLTFBuffer normal_buffer = GLTFBufferListGetItem(&gltf_data.buffers, normal_buffer_view.buffer_id);
+    GLTFBuffer texcoord_buffer = GLTFBufferListGetItem(&gltf_data.buffers, texcoord_buffer_view.buffer_id);
 
     geometry.vertecies = (AST_Vertex*)PushArena(arena, position_accessor.count*sizeof(AST_Vertex));
     for (U32 i = 0; i < position_accessor.count; i += 1)
     {
       AST_Vertex* vertex = geometry.vertecies + i;
-      vertex->position = *((Vec3F32*)(data_buffer.data + position_buffer_view.byte_offset) + i);
-      vertex->normal = *((Vec3F32*)(data_buffer.data + normal_buffer_view.byte_offset) + i);
-      vertex->uv = *((Vec2F32*)(data_buffer.data + texcoord_buffer_view.byte_offset) + i);
+      vertex->position = *((Vec3F32*)(position_buffer.data + position_accessor.byte_offset + position_buffer_view.byte_offset) + i);
+      vertex->normal = *((Vec3F32*)(normal_buffer.data + normal_accessor.byte_offset + normal_buffer_view.byte_offset) + i);
+      vertex->uv = *((Vec2F32*)(texcoord_buffer.data + texcoord_accessor.byte_offset + texcoord_buffer_view.byte_offset) + i);
     }
-  
-    geometry.vertecies_count = position_accessor.count;
 
     for (U32 i = 0; i < geometry.index_count; i += 3)
     {
