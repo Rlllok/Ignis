@@ -81,7 +81,7 @@ struct GLTFMesh
 {
   GLTFPrimitiveList primitives;
 };
-DefineList(GLTFMesh, GLTFMeshList);
+DefineList(GLTFMesh, GLTFMeshList)
 
 typedef struct GLTFNode GLTFNode;
 struct GLTFNode

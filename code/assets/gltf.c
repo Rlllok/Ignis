@@ -261,6 +261,19 @@ GetGLTFToken(GLTFReader* reader)
           }
         }
 
+        if (source.data[position] == 'E' || source.data[position] == 'e')
+        {
+          position += 1;
+          if (source.data[position] == '-')
+          {
+            position += 1;
+          }
+          while (IsDigit(source, position))
+          {
+            position += 1;
+          }
+        }
+
         result.value.data = source.data + start;
         result.value.length = position - start;
       } break;
@@ -325,7 +338,11 @@ ParseList(GLTFReader* reader, GLTFToken start_token, GLTFTokenType end_type, B32
     {
       break;
     }
-    else if (comma.type != GLTF_TOKEN_TYPE_COMMA)
+    else if (comma.type == GLTF_TOKEN_TYPE_ERROR)
+    {
+      GLTFError(reader, current_token, "ERROR");
+    }
+    else if (comma.type != comma.type == GLTF_TOKEN_TYPE_COMMA)
     {
       GLTFError(reader, current_token, "Unexpected token");
     }
@@ -380,7 +397,7 @@ func GLTFData
 GetGLTFData(GLTFReader* reader)
 {
   // @TODO @NOTE NO FREE
-  Arena* licky_arena = AllocateArena(Megabytes(16));
+  Arena* licky_arena = AllocateArena(Megabytes(64));
   
   GLTFData gltf_data = {0};
   

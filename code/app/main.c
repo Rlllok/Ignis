@@ -890,6 +890,7 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
+#if 0
   AST_StaticMesh test_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/sphere_gltf/sphere.gltf"));
   CreateEntity(
     &app_state.entities,
@@ -899,19 +900,6 @@ I32 main(void)
       .smoothness = 1.0f,
       .mesh = test_mesh,
       .color_texture = app_state.mesh_color_texture,
-    }
-  );
-
-#if 0
-  CreateEntity(
-    &app_state.entities,
-    (Entity){
-      .name = Str8C("Test_1"),
-      .position = MakeVec3(0.0f, 0.0f, 1.0f),
-      .smoothness = 1.0f,
-      .mesh = test_mesh,
-      // .color_texture = app_state.mesh_color_texture,
-      .color_texture = app_state.default_color_texture,
     }
   );
 
@@ -925,18 +913,18 @@ I32 main(void)
       .color_texture = app_state.default_color_texture,
     }
   );
+#endif
 
   AST_StaticMesh helmet = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/helmet/Helmet.gltf"));
   CreateEntity(
     &app_state.entities,
     (Entity){
-      .name = Str8C("Car"),
+      .name = Str8C("Helmet"),
       .position = MakeVec3(0.0f, 0.0f, 0.0f),
       .mesh = helmet,
       .color_texture = app_state.default_color_texture,
     }
   );
-#endif
 
   // Mesh Pipeline
   {
