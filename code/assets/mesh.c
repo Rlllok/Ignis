@@ -22,6 +22,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
   {
     AST_Geometry geometry = {0};
     GLTFNode gltf_node = gltf_node_iter->data;
+    if (gltf_node.mesh_id == GLTF_ID_NIL) continue;
 
     GLTFMesh gltf_mesh = GLTFMeshListGetItem(&gltf_data.meshes, gltf_node.mesh_id);
     GLTFPrimitive gltf_primitive = gltf_mesh.primitives.first->data;
@@ -51,6 +52,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     {
       AST_Vertex* vertex = geometry.vertecies + i;
       vertex->position = *((Vec3F32*)(position_buffer.data + position_accessor.byte_offset + position_buffer_view.byte_offset) + i);
+      vertex->position = AddVec3F32(vertex->position, gltf_node.translation);
       vertex->normal = *((Vec3F32*)(normal_buffer.data + normal_accessor.byte_offset + normal_buffer_view.byte_offset) + i);
       vertex->uv = *((Vec2F32*)(texcoord_buffer.data + texcoord_accessor.byte_offset + texcoord_buffer_view.byte_offset) + i);
     }

@@ -23,3 +23,6 @@ func U64 GetSymbolPosition(Str8 str, U8 symbol);
 func U64 GetSymbolPositionLast(Str8 str, U8 symbol);
 
 func B32 Str8Equal(Str8 a, Str8 b);
+
+// -- Convertors -----------------------------------------------------
+func F64 F64FromStr8(Str8 s);

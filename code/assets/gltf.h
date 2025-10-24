@@ -62,17 +62,20 @@ struct GLTFReader
 };
 
 // -- NEW ------------------------------------------------------------
+typedef U32 GLTF_ID;
+#define GLTF_ID_NIL U32_MAX
+
 typedef struct GLTFPrimitive GLTFPrimitive;
 struct GLTFPrimitive
 {
-  I32 indecies_accessor_id;
-  I32 material_accessor_id;
+  GLTF_ID indecies_accessor_id;
+  GLTF_ID material_accessor_id;
 
   // GLTF Attributes
-  I32 position_accessor_id;
-  I32 tangent_accessor_id;
-  I32 normal_accessor_id;
-  I32 texcoord_accessor_id;
+  GLTF_ID position_accessor_id;
+  GLTF_ID tangent_accessor_id;
+  GLTF_ID normal_accessor_id;
+  GLTF_ID texcoord_accessor_id;
 };
 DefineList(GLTFPrimitive, GLTFPrimitiveList)
 
@@ -86,7 +89,8 @@ DefineList(GLTFMesh, GLTFMeshList)
 typedef struct GLTFNode GLTFNode;
 struct GLTFNode
 {
-  U32 mesh_id;
+  GLTF_ID mesh_id;
+  Vec3F32 translation;
 };
 DefineList(GLTFNode, GLTFNodeList)
 
@@ -109,7 +113,7 @@ DefineList(GLTFBuffer, GLTFBufferList)
 typedef struct GLTFBufferView GLTFBufferView;
 struct GLTFBufferView
 {
-  U32 buffer_id;
+  GLTF_ID buffer_id;
   U32 byte_offset;
   U32 byte_length;
   U32 byte_stride;
@@ -145,7 +149,7 @@ typedef enum GLTFAccessorTypeEnum
 typedef struct GLTFAccessor GLTFAccessor;
 struct GLTFAccessor
 {
-  U32 buffer_view_id;
+  GLTF_ID buffer_view_id;
   U32 byte_offset;
   GLTFAccessorType type;
   GLTFComponentType component_type;
@@ -223,30 +227,58 @@ Base64Decode(Arena* arena, Str8 in)
   return result;
 }
 
-
 // @TODO Move
-func F64 GetNumberElement(GLTFElement* element, Buffer label)
+func F64 _GetNumberElementFunc(GLTFElement* element, Buffer label, F64 default_value)
 {
-  F64 result = 0;
+  F64 result = default_value;
 
   GLTFElement* number = LookUpElement(element, label);
   if (number)
   {
-    Buffer source = number->value;
+    result = F64FromStr8(number->value);
+  }
+  else
+  {
+    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
+  }
 
-    for (I32 i = 0; i < source.length; i += 1)
-    {
-      U8 number_char = source.data[i] - (U8)'0';
+  return result;
+}
+#define GetNumberElement(element, label) _GetNumberElementFunc(element, label, 0.0)
+#define GetNumberElementWithDefault(element, label, default_value) _GetNumberElementFunc(element, label, default_value)
 
-      if (number_char < 10)
-      {
-        result = 10.0*result + (F64)number_char;
-      }
-      else
-      {
-        break;
-      }
-    }
+func GLTF_ID
+GetIDElement(GLTFElement* element, Buffer label)
+{
+  GLTF_ID result = GLTF_ID_NIL;
+
+  GLTFElement* id = LookUpElement(element, label);
+  if (id)
+  {
+    result = (GLTF_ID)F64FromStr8(id->value);
+  }
+  else
+  {
+    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
+  }
+
+  return result;
+}
+
+func Vec3F32
+GetVec3F32Element(GLTFElement* element, Buffer label)
+{
+  Vec3F32 result = {0};
+
+  GLTFElement* vector = LookUpElement(element, label);
+  if (vector)
+  {
+    GLTFElement* x_element = vector->first_sub_element;
+    result.x = (F32)F64FromStr8(x_element->value);
+    GLTFElement* y_element = x_element->next_sibling;
+    result.y = (F32)F64FromStr8(y_element->value);
+    GLTFElement* z_element = y_element->next_sibling;
+    result.z = (F32)F64FromStr8(z_element->value);
   }
   else
   {

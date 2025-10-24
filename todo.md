@@ -13,6 +13,9 @@
 ## Mesh
 -[ ] Smooth Tangents
 
+## GLTF
+-[ ] Handle situation when there is no value in gltf file (no mesh_id, no accessor_id etc)
+
 # Done
 -[x] {10.15.2025} Win32. Mouse not working (Changed mouse input logic and implemented only for Linux)
 -[x] BitMap Text Rendering

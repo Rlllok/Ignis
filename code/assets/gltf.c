@@ -409,7 +409,8 @@ GetGLTFData(GLTFReader* reader)
        node_element = node_element->next_sibling)
   {
     GLTFNode node = {0};
-    node.mesh_id = GetNumberElement(node_element, Str8C("mesh"));
+    node.mesh_id = GetIDElement(node_element, Str8C("mesh"));
+    node.translation = GetVec3F32Element(node_element, Str8C("translation"));
 
     GLTFNodeListPush(&gltf_data.scene.nodes, node);
   }

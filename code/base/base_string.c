@@ -96,3 +96,10 @@ Str8Equal(Str8 a, Str8 b)
 
   return result;
 }
+
+// -- Convertors -----------------------------------------------------
+func F64
+F64FromStr8(Str8 s)
+{
+  return atof((char*)s.data);
+}
