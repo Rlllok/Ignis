@@ -342,7 +342,7 @@ ParseList(GLTFReader* reader, GLTFToken start_token, GLTFTokenType end_type, B32
     {
       GLTFError(reader, current_token, "ERROR");
     }
-    else if (comma.type != comma.type == GLTF_TOKEN_TYPE_COMMA)
+    else if (comma.type != GLTF_TOKEN_TYPE_COMMA)
     {
       GLTFError(reader, current_token, "Unexpected token");
     }

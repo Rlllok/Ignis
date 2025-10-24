@@ -1,4 +1,4 @@
-#pragma oncewayland
+#pragma once
 
 #include "../os_gfx.h"
 

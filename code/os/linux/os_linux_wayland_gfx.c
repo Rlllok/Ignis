@@ -51,7 +51,7 @@ _PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I
     .type = OS_EVENT_TYPE_MOUSE_MOVE,
     .mouse_position = { (F32)wl_fixed_to_double(surface_x), (F32)wl_fixed_to_double(surface_y) }
   };
-  OS_EventListPush(&_os_state.event_list, event);
+  OS_EventListPush(&_os_state.mouse_event_list, event);
 }
 
 func void
@@ -443,6 +443,12 @@ OS_ShowWindow(OS_Window* window)
   LOG_INFO("Show Window\n");
 }
 
+func Vec2F32
+OS_MousePosition(OS_Window window)
+{
+  return window.cursor_position;
+}
+
 func void
 _LockedPointerHandleLocked(void* data, zwp_locked_pointer_v1* pointer)
 {
@@ -555,15 +561,22 @@ OS_GetEventList(Arena* arena, OS_Window* window)
   for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next)
   {
     OS_Event* event = &event_node->data;
-    _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
-    _os_state.mouse.buttons[event->mouse_button].released = event->released;
-    if (event->pressed)
+    if (event->type == OS_EVENT_TYPE_MOUSE_MOVE)
     {
-      _os_state.mouse.buttons[event->mouse_button].is_down = 1;
+      window->cursor_position = event->mouse_position;
     }
-    if (event->released)
+    else
     {
-      _os_state.mouse.buttons[event->mouse_button].is_down = 0;
+      _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
+      _os_state.mouse.buttons[event->mouse_button].released = event->released;
+      if (event->pressed)
+      {
+        _os_state.mouse.buttons[event->mouse_button].is_down = 1;
+      }
+      if (event->released)
+      {
+        _os_state.mouse.buttons[event->mouse_button].is_down = 0;
+      }
     }
   }
 

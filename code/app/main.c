@@ -1488,7 +1488,7 @@ HandleEvents(Arena* arena, AppState* state)
         // LOG_DEBUG("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
         Vec2F32 d_position = SubVec2F32(state->window.virtual_cursor_position, state->last_mouse_position);
         Vec2F32 mouse_direction = NormalizeVec2F32(d_position);
-
+        LOG_DEBUG("MOUSE_MOVE\n");
         state->last_mouse_position = event->mouse_position;
       } break;
 
