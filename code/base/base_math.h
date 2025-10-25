@@ -184,6 +184,25 @@ func Vec4F32 NormalizeVec4F32(Vec4F32 v);
 #define Vec3F32FromVec2(v) MakeVec3F32((F32)(v).x, (F32)(v).y, 0.0f)
 
 // -------------------------------------------------------------------
+// Quaternions
+typedef struct Quaternion Quaternion;
+struct Quaternion
+{
+  F32 x;
+  F32 y;
+  F32 z;
+  F32 w;
+};
+
+func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w);
+func Quaternion MulQuaternion(Quaternion l, Quaternion r);
+func Quaternion NormalizeQuaternion(Quaternion q);
+func Quaternion ConjugateQuaternion(Quaternion q);
+
+func Quaternion QuaternionFromEuler(F32 roll, F32 yaw, F32 pitch);
+func Mat4F32 MatrixFromQuaternion(Quaternion q);
+
+// -------------------------------------------------------------------
 // Rectangle
 typedef union RectI32 RectI32;
 union RectI32

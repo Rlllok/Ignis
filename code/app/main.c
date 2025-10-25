@@ -986,11 +986,22 @@ I32 main(void)
     app_state.mesh_pipeline = R_CreateGraphicsPipeline(&mesh_pipeline_info);
   }
 
-  // AlNov: AppLoop
+  // AlNov: -- AppLoop
   U64 begin_time_ms = OS_GetTimeTicks();
   U16 test_texture_values_offset = 0;
   while (!app_state.is_window_closed)
   {
+    LOG_DEBUG("--- Quaternion Test\n ---");
+
+    Quaternion q = QuaternionFromEuler(1.0f, 1.0f, 0.0f);
+    LOG_DEBUG("q: %fx %fy %fz %fw\n", q.x, q.y, q.z, q.w);
+
+    Mat4F32 rotation_matrix = MatrixFromQuaternion(q);
+    LOG_DEBUG("Matrix\n");
+    LOG_DEBUG("%f\t%f\t%f\t\n", rotation_matrix.values[0][0], rotation_matrix.values[0][1], rotation_matrix.values[0][2]);
+    LOG_DEBUG("%f\t%f\t%f\t\n", rotation_matrix.values[1][0], rotation_matrix.values[1][1], rotation_matrix.values[1][2]);
+    LOG_DEBUG("%f\t%f\t%f\t\n", rotation_matrix.values[2][0], rotation_matrix.values[2][1], rotation_matrix.values[2][2]);
+
     HandleEvents(app_state.frame_arena, &app_state);
 
     if (OS_IsMousePressed(OS_MouseButton_Left))

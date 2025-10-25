@@ -219,6 +219,87 @@ MakeRotationMat4F32(Vec3F32 axis, F32 angle)
 }
 
 // -------------------------------------------------------------------
+// Quaternions
+func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w) {return (Quaternion){x, y, z, w};}
+
+func Quaternion MulQuaternion(Quaternion l, Quaternion r)
+{
+  Quaternion result = {0};
+
+  result.x = l.x*r.w + l.y*r.z - l.z*r.y + l.w*r.x;
+  result.y = -l.x*r.z + l.y*r.w - l.z*r.x + l.w*r.y;
+  result.z = l.x*r.y - l.y*r.x + l.z*r.w + l.w*r.z;
+  result.w = -l.x*r.x - l.y*r.y - l.z*r.w + l.w*r.w;
+
+  return result;
+}
+
+func Quaternion
+NormalizeQuaternion(Quaternion q)
+{
+  Quaternion result = {0};
+  F32 normal = sqrtf(q.x*q.x + q.y*q.y + q.z*q.z * q.w*q.w);
+
+  result.x = q.x/normal;
+  result.y = q.y/normal;
+  result.z = q.z/normal;
+  result.w = q.w/normal;
+
+  return result;
+}
+
+func Quaternion ConjugateQuaternion(Quaternion q) {return MakeQuaternion(-q.x, -q.y, -q.z, q.w);}
+
+func Quaternion
+QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw)
+{
+  Quaternion result = {0};
+
+  F32 cos_roll = cosf(roll*0.5f);
+  F32 sin_roll = sinf(roll*0.5f);
+  F32 cos_pitch = cosf(pitch*0.5f);
+  F32 sin_pitch = sinf(pitch*0.5f);
+  F32 cos_yaw = cosf(yaw*0.5f);
+  F32 sin_yaw = sinf(yaw*0.5f);
+
+  // --AlNov: ZYX
+  result.x = sin_roll*cos_pitch*cos_yaw - cos_roll*sin_pitch*sin_yaw;
+  result.y = cos_roll*sin_pitch*cos_yaw + sin_roll*cos_pitch*sin_yaw;
+  result.z = cos_roll*cos_pitch*sin_yaw - sin_roll*sin_pitch*cos_yaw;
+  result.w = cos_roll*cos_pitch*cos_yaw + sin_roll*sin_pitch*sin_yaw;
+
+  return result;
+}
+
+func Mat4F32
+MatrixFromQuaternion(Quaternion q)
+{
+  Mat4F32 result = {0};
+
+  result.values[0][0] = 1 - 2*(q.y*q.y + q.z*q.z);
+  result.values[0][1] = 2*(q.x*q.y - q.w*q.z);
+  result.values[0][2] = 2*(q.w*q.y + q.x*q.z);
+  result.values[0][3] = 0;
+
+  result.values[1][0] = 2*(q.x*q.y + q.w*q.z);
+  result.values[1][1] = 1 - 2*(q.x*q.x + q.z*q.z);
+  result.values[1][2] = 2*(q.y*q.z - q.w*q.x);
+  result.values[1][3] = 0;
+
+  result.values[2][0] = 2*(q.x*q.z - q.w*q.y);
+  result.values[2][1] = 2*(q.w*q.x + q.y*q.z);
+  result.values[2][2] = 1 - 2*(q.x*q.x + q.y*q.y);
+  result.values[2][3] = 0;
+
+  result.values[3][0] = 0;
+  result.values[3][1] = 0;
+  result.values[3][2] = 0;
+  result.values[3][3] = 1;
+
+  return result;
+}
+
+// -------------------------------------------------------------------
 // Rectangle
 func B32
 InsideRectF32(RectF32 rect, Vec2F32 v)
