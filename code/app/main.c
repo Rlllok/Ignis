@@ -970,14 +970,14 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
-  AST_StaticMesh motocycle_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/motocycle_gltf/motocycle.gltf"));
+  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
   CreateEntity(
     &app_state.entities,
     (Entity){
-      .name = Str8C("Motocycle"),
+      .name = Str8C("Dummy"),
       .position = MakeVec3(0.0f, 0.0f, 0.0f),
       .rotation = QuaternionFromEuler(0.0f, 0.0f, 0.0f),
-      .mesh = motocycle_mesh,
+      .mesh = dummy_mesh,
       .color_texture = app_state.default_color_texture,
     }
   );
