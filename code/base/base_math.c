@@ -271,8 +271,20 @@ QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw)
   return result;
 }
 
+func Vec3F32
+EulerFromQuaternion(Quaternion q)
+{
+  Vec3F32 result = {0};
+
+  result.x = atan2(2.0f*(q.w*q.x + q.y*q.z), 1.0f - 2.0f*(q.x*q.x + q.y*q.y));
+  result.y = 2.0f*atan2(sqrtf(1.0f + 2.0f*(q.w*q.y - q.x*q.z)), sqrtf(1.0f - 2.0f*(q.w*q.y - q.x*q.z))) - PI/2.0f;
+  result.z = atan2(2.0f*(q.w*q.z + q.x*q.y), 1.0f - 2.0f*(q.y*q.y + q.z*q.z));
+
+  return result;
+}
+
 func Mat4F32
-MatrixFromQuaternion(Quaternion q)
+Mat4F32FromQuaternion(Quaternion q)
 {
   Mat4F32 result = {0};
 

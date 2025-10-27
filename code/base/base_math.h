@@ -200,7 +200,8 @@ func Quaternion NormalizeQuaternion(Quaternion q);
 func Quaternion ConjugateQuaternion(Quaternion q);
 
 func Quaternion QuaternionFromEuler(F32 roll, F32 yaw, F32 pitch);
-func Mat4F32 MatrixFromQuaternion(Quaternion q);
+func Vec3F32 EulerFromQuaternion(Quaternion q);
+func Mat4F32 Mat4F32FromQuaternion(Quaternion q);
 
 // -------------------------------------------------------------------
 // Rectangle
@@ -255,6 +256,7 @@ typedef Mat3F32 Mat3;
 typedef Mat4F32 Mat4;
 
 #define RadiansFromDegrees(d) ((PI/180.0f)*d)
+#define DegreesFromRadians(r) ((180.0f*r)/PI)
 
 // Constructors
 #define MakeVec2(x, y) MakeVec2F32(x, y)

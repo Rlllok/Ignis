@@ -391,6 +391,80 @@ UI_Text(UI_ElementArray* array, Str8 label)
   );
 }
 
+func void
+UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
+{
+  F32 result = *value;
+
+  UI_Element* input = UI_BuildElement(
+    array,
+    (UI_ElementDescription){
+      .label = label,
+      .flags = UI_ElementFlag_Hover|
+        UI_ElementFlag_DrawLabel|
+        UI_ElementFlag_DrawBackground,
+    }
+  );
+
+  if (ui_context.active_id == input->id)
+  {
+    if (OS_IsKeyPressed(OS_KEY_0))
+    {
+      result = result*10;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_1))
+    {
+      result = result*10 + 1;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_2))
+    {
+      result = result*10 + 2;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_3))
+    {
+      result = result*10 + 3;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_4))
+    {
+      result = result*10 + 4;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_5))
+    {
+      result = result*10 + 5;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_6))
+    {
+      result = result*10 + 6;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_7))
+    {
+      result = result*10 + 7;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_8))
+    {
+      result = result*10 + 8;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_9))
+    {
+      result = result*10 + 9;
+    }
+    else if (OS_IsKeyPressed(OS_KEY_BACKSPACE))
+    {
+      result = (F32)((I32)(result/10));
+    }
+    else if (OS_IsKeyPressed(OS_KEY_RETURN))
+    {
+      ui_context.active_id = 0;
+    }
+  }
+  else if (ui_context.hot_id == input->id)
+  {
+    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = input->id;
+  }
+
+  *value = result;
+}
+
 func B32
 UI_Button(UI_ElementArray* array, Str8 label)
 {
@@ -500,8 +574,9 @@ struct Entity
   EntityID id;
   Str8 name;
   Vec3 position;
-  F32 rotation;
   F32 smoothness;
+
+  Quaternion rotation;
 
   AST_StaticMesh mesh;
   R_Texture color_texture;
@@ -563,6 +638,11 @@ struct AppState
 
   EntityArray entities;
   Entity* selected_entity;
+
+  // --AlNov: @TODO Remove. It is for test
+  F32 roll;
+  F32 pitch;
+  F32 yaw;
 
   B32 to_render;
   B32 draw_ui;
@@ -896,6 +976,7 @@ I32 main(void)
     (Entity){
       .name = Str8C("Motocycle"),
       .position = MakeVec3(0.0f, 0.0f, 0.0f),
+      .rotation = QuaternionFromEuler(0.0f, 0.0f, 0.0f),
       .mesh = motocycle_mesh,
       .color_texture = app_state.default_color_texture,
     }
@@ -991,17 +1072,6 @@ I32 main(void)
   U16 test_texture_values_offset = 0;
   while (!app_state.is_window_closed)
   {
-    LOG_DEBUG("--- Quaternion Test\n ---");
-
-    Quaternion q = QuaternionFromEuler(1.0f, 1.0f, 0.0f);
-    LOG_DEBUG("q: %fx %fy %fz %fw\n", q.x, q.y, q.z, q.w);
-
-    Mat4F32 rotation_matrix = MatrixFromQuaternion(q);
-    LOG_DEBUG("Matrix\n");
-    LOG_DEBUG("%f\t%f\t%f\t\n", rotation_matrix.values[0][0], rotation_matrix.values[0][1], rotation_matrix.values[0][2]);
-    LOG_DEBUG("%f\t%f\t%f\t\n", rotation_matrix.values[1][0], rotation_matrix.values[1][1], rotation_matrix.values[1][2]);
-    LOG_DEBUG("%f\t%f\t%f\t\n", rotation_matrix.values[2][0], rotation_matrix.values[2][1], rotation_matrix.values[2][2]);
-
     HandleEvents(app_state.frame_arena, &app_state);
 
     if (OS_IsMousePressed(OS_MouseButton_Left))
@@ -1019,7 +1089,7 @@ I32 main(void)
     if (app_state.draw_ui)
     {
       UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
-      UI_SetFont(app_state.font, 20);
+      UI_SetFont(app_state.font, 16);
       UI_SetTextColor(RGBAFromHex(0xE8B4B8FF));
 
       UI_SetFixedPosition(MakeVec2(0.0f, 0.0f));
@@ -1049,9 +1119,42 @@ I32 main(void)
         {
           UI_Text(&ui_context.elements, app_state.selected_entity->name);
 
-          char rotation_slider_cstring[128] = {0};
-          sprintf(rotation_slider_cstring, "Rotation: %.1f", app_state.selected_entity->rotation);
-          UI_SliderF32(&ui_context.elements, Str8C(rotation_slider_cstring), 0.0f, 360.0f, &app_state.selected_entity->rotation);
+          UI_Element* euler_rotation = UI_BuildElement(
+            &ui_context.elements,
+            (UI_ElementDescription) {
+              .layout = UI_LayoutDirection_LeftToRight,
+              .child_gap = 2.0f,
+            }
+          );
+
+          UI_SetParent(euler_rotation);
+          {
+            Vec3F32 euler = EulerFromQuaternion(app_state.selected_entity->rotation);
+            euler.x = DegreesFromRadians(euler.x);
+            euler.y = DegreesFromRadians(euler.y);
+            euler.z = DegreesFromRadians(euler.z);
+
+            Vec3F32 input_euler = euler;
+
+            char roll_cstring[128] = {0};
+            sprintf(roll_cstring, "Roll: %.2f", input_euler.x);
+            UI_NumberInput(&ui_context.elements, Str8C(roll_cstring), &input_euler.x);
+
+            char pitch_cstring[128] = {0};
+            sprintf(pitch_cstring, "Pitch: %.2f", input_euler.y);
+            UI_NumberInput(&ui_context.elements, Str8C(pitch_cstring), &input_euler.y);
+
+            char yaw_cstring[128] = {0};
+            sprintf(yaw_cstring, "Yaw: %.2f", input_euler.z);
+            UI_NumberInput(&ui_context.elements, Str8C(yaw_cstring), &input_euler.z);
+
+            app_state.selected_entity->rotation = QuaternionFromEuler(
+              RadiansFromDegrees(input_euler.x),
+              RadiansFromDegrees(input_euler.y),
+              RadiansFromDegrees(input_euler.z)
+            );
+          }
+          UI_SetParent(right_box);
 
           char position_x_slider_cstring[128] = {0};
           sprintf(position_x_slider_cstring, "X: %.1f", app_state.selected_entity->position.x);
@@ -1296,7 +1399,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     } mesh_instance_vertex_data;
     // mesh_instance_vertex_data.instance_matrix = MakeTransposeMat4(entity->position);
     mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
-    mesh_instance_vertex_data.instance_matrix = MulMat4(MakeRotationMat4(MakeVec3(0.0f, 1.0f, 0.0), RadiansFromDegrees(entity->rotation)), mesh_instance_vertex_data.instance_matrix);
+    mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(entity->rotation), mesh_instance_vertex_data.instance_matrix);
     mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
