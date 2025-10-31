@@ -16,12 +16,10 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
   GLTFData gltf_data = GetGLTFData(&gltf_reader);
 
-  for (GLTFNodeListNode* gltf_node_iter = gltf_data.scene.nodes.first;
-       gltf_node_iter;
-       gltf_node_iter = gltf_node_iter->next)
+  for (I32 i = 0; i < gltf_data.nodes.length; i += 1)
   {
     AST_Geometry geometry = {0};
-    GLTFNode gltf_node = gltf_node_iter->data;
+    GLTFNode gltf_node = GLTFNodeArrayGet(&gltf_data.nodes, i);
     if (gltf_node.mesh_id == GLTF_ID_NIL) continue;
 
     GLTFMesh gltf_mesh = GLTFMeshListGetItem(&gltf_data.meshes, gltf_node.mesh_id);
@@ -83,16 +81,27 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     AST_GeometryListPush(&result.geometry_list, geometry);
   }
 
-  result.joint_list = AST_JointListCreate(arena);
+  result.joints = AST_JointArrayAllocate(arena, gltf_data.skin.joint_ids.length);
   for (I32 i = 0; i < gltf_data.skin.joint_ids.length; i += 1)
   {
     GLTF_ID joint_id = GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, i);
-    GLTFNode node = GLTFNodeListGetItem(&gltf_data.scene.nodes, joint_id);
+    GLTFNode node = GLTFNodeArrayGet(&gltf_data.nodes, joint_id);
 
     AST_Joint joint = {0};
     joint.position = node.translation;
 
-    AST_JointListPush(&result.joint_list, joint);
+    if (node.parent_id != GLTF_ID_NIL)
+    {
+      for (I32 j = 0; j < gltf_data.skin.joint_ids.length; j += 1)
+      {
+        if (node.parent_id == GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, j))
+        {
+          joint.parent_id = j;
+        }
+      }
+    }
+
+    AST_JointArrayAdd(&result.joints, joint);
   }
 
   return result;

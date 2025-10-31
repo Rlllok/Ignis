@@ -1483,10 +1483,9 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
 
-  for (AST_JointListNode* joint_node = entity->mesh.joint_list.first;
-       joint_node; joint_node = joint_node->next)
+  for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
   {
-    AST_Joint joint = joint_node->data;
+    AST_Joint joint = AST_JointArrayGet(&entity->mesh.joints, i);
 
     for (AST_GeometryListNode* geometry_node = app_state.joint_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
     {

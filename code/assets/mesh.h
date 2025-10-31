@@ -26,14 +26,19 @@ struct AST_Geometry
 };
 DefineList(AST_Geometry, AST_GeometryList)
 
+typedef U32 AST_JointID;
+#define AST_JointID_Nil U32_MAX
 typedef struct AST_Joint AST_Joint;
 struct AST_Joint
 {
   Vec3F32 position;
   Vec3F32 scale;
   Quaternion rotation;
+
+  AST_JointID parent_id;
 };
-DefineList(AST_Joint, AST_JointList)
+AST_Joint _joint_nil = {.parent_id = AST_JointID_Nil};
+DefineArray(AST_Joint, AST_JointArray, _joint_nil)
 
 typedef struct AST_StaticMesh AST_StaticMesh;
 struct AST_StaticMesh
@@ -41,7 +46,7 @@ struct AST_StaticMesh
   Str8 name;
 
   AST_GeometryList geometry_list;
-  AST_JointList joint_list;
+  AST_JointArray joints;
 };
 
 func AST_Geometry AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name);

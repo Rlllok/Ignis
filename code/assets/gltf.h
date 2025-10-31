@@ -99,14 +99,19 @@ struct GLTFNode
 {
   GLTF_ID mesh_id;
   Vec3F32 translation;
+
+  GLTF_ID parent_id;
+
+  GLTF_ID first_child_id;
+  GLTF_ID next_sibling_id;
 };
-DefineList(GLTFNode, GLTFNodeList)
+GLTFNode _gltf_node_nil = {.first_child_id = GLTF_ID_NIL, .next_sibling_id = GLTF_ID_NIL};
+DefineArray(GLTFNode, GLTFNodeArray, _gltf_node_nil)
 
 typedef struct GLTFScene GLTFScene;
 struct GLTFScene
 {
-  GLTFNodeList nodes;
-  U32 nodes_count;
+  Str8 name;
 };
 
 typedef struct GLTFBuffer GLTFBuffer;
@@ -177,6 +182,7 @@ struct GLTFData
 {
   GLTFAsset asset;
   GLTFScene scene;
+  GLTFNodeArray nodes;
   GLTFMeshList meshes;
   GLTFSkin skin;
   GLTFBufferList buffers;

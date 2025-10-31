@@ -39,6 +39,12 @@ func ArrayName ArrayName##Allocate(Arena* arena, I32 capacity)\
     .capacity = capacity,\
     .elements = (TypeName*)PushArena(arena, sizeof(TypeName)*capacity),\
   };\
+\
+  for (I32 i = 0; i < capacity; i += 1)\
+  {\
+    array.elements[i] = DefaultValue;\
+  }\
+\
   return array;\
 }\
 \

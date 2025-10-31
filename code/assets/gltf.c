@@ -403,43 +403,91 @@ GetGLTFData(GLTFReader* reader)
   
   GLTFElement* head = ParseElement(reader, (Buffer){0}, GetGLTFToken(reader));
 
-  gltf_data.scene.nodes = GLTFNodeListCreate(licky_arena);
+  U32 node_count = 0;
   for (GLTFElement* node_element = LookUpElement(head, Str8C("nodes"))->first_sub_element;
        node_element;
        node_element = node_element->next_sibling)
   {
-    GLTFNode node = {0};
+    node_count += 1;
+  }
+
+  gltf_data.nodes = GLTFNodeArrayAllocate(licky_arena, node_count);
+  GLTF_ID current_node_id = 0;
+  for (GLTFElement* node_element = LookUpElement(head, Str8C("nodes"))->first_sub_element;
+       node_element;
+       node_element = node_element->next_sibling)
+  {
+    GLTFNode node = _gltf_node_nil;
     node.mesh_id = GetIDElement(node_element, Str8C("mesh"));
     node.translation = GetVec3F32Element(node_element, Str8C("translation"));
 
-    GLTFNodeListPush(&gltf_data.scene.nodes, node);
+    GLTFElement* node_children = LookUpElement(node_element, Str8C("children"));
+    if (node_children)
+    {
+      GLTFElement* first_child = node_children->first_sub_element;
+      node.first_child_id = (GLTF_ID)F64FromStr8(first_child->value);
+
+      GLTFNode* sibling_node = GLTFNodeArrayGetPointer(&gltf_data.nodes, node.first_child_id);
+      for (GLTFElement* child_element = first_child->next_sibling; child_element; child_element = child_element->next_sibling)
+      {
+        F64 sibling_id = F64FromStr8(child_element->value);
+        sibling_node->next_sibling_id = sibling_id;
+
+        sibling_node = GLTFNodeArrayGetPointer(&gltf_data.nodes, sibling_id);
+      }
+    }
+
+    GLTFNodeArrayAdd(&gltf_data.nodes, node);
+
+    current_node_id += 1;
+  }
+
+  for (I32 i = 0; i < gltf_data.nodes.length; i += 1)
+  {
+    GLTFNode* node = GLTFNodeArrayGetPointer(&gltf_data.nodes, i);
+
+    if (node->first_child_id != GLTF_ID_NIL)
+    {
+      GLTF_ID child_id = node->first_child_id;
+      while (child_id != GLTF_ID_NIL)
+      {
+        GLTFNode* child = GLTFNodeArrayGetPointer(&gltf_data.nodes, child_id);
+        child->parent_id = i;
+
+        child_id = child->next_sibling_id;
+      }
+    }
   }
 
   gltf_data.meshes = GLTFMeshListCreate(licky_arena);
-  for (GLTFElement* mesh_element = LookUpElement(head, Str8C("meshes"))->first_sub_element;
-       mesh_element;
-       mesh_element = mesh_element->next_sibling)
+  GLTFElement* gltf_mesh = LookUpElement(head, Str8C("meshes"));
+  if (gltf_mesh)
   {
-    GLTFMesh mesh = {0};
-    mesh.primitives = GLTFPrimitiveListCreate(licky_arena);
-    for (GLTFElement* primitive_element = LookUpElement(mesh_element, Str8C("primitives"))->first_sub_element;
-        primitive_element;
-        primitive_element = primitive_element->next_sibling)
-      {
-        GLTFPrimitive primitive = {0};
-        primitive.indecies_accessor_id = GetNumberElement(primitive_element, Str8C("indices"));
-        primitive.material_accessor_id = GetNumberElement(primitive_element, Str8C("material"));
+    for (GLTFElement* mesh_element = gltf_mesh->first_sub_element;
+         mesh_element;
+         mesh_element = mesh_element->next_sibling)
+    {
+      GLTFMesh mesh = {0};
+      mesh.primitives = GLTFPrimitiveListCreate(licky_arena);
+      for (GLTFElement* primitive_element = LookUpElement(mesh_element, Str8C("primitives"))->first_sub_element;
+          primitive_element;
+          primitive_element = primitive_element->next_sibling)
+        {
+          GLTFPrimitive primitive = {0};
+          primitive.indecies_accessor_id = GetNumberElement(primitive_element, Str8C("indices"));
+          primitive.material_accessor_id = GetNumberElement(primitive_element, Str8C("material"));
 
-        GLTFElement* attributes_element = LookUpElement(primitive_element, Str8C("attributes"));
-        primitive.position_accessor_id = GetNumberElement(attributes_element, Str8C("POSITION"));
-        primitive.tangent_accessor_id = GetNumberElement(attributes_element, Str8C("TANGENT"));
-        primitive.normal_accessor_id = GetNumberElement(attributes_element, Str8C("NORMAL"));
-        primitive.texcoord_accessor_id = GetNumberElement(attributes_element, Str8C("TEXCOORD_0"));
+          GLTFElement* attributes_element = LookUpElement(primitive_element, Str8C("attributes"));
+          primitive.position_accessor_id = GetNumberElement(attributes_element, Str8C("POSITION"));
+          primitive.tangent_accessor_id = GetNumberElement(attributes_element, Str8C("TANGENT"));
+          primitive.normal_accessor_id = GetNumberElement(attributes_element, Str8C("NORMAL"));
+          primitive.texcoord_accessor_id = GetNumberElement(attributes_element, Str8C("TEXCOORD_0"));
 
-        GLTFPrimitiveListPush(&mesh.primitives, primitive);
-      }
+          GLTFPrimitiveListPush(&mesh.primitives, primitive);
+        }
 
-      GLTFMeshListPush(&gltf_data.meshes, mesh);
+        GLTFMeshListPush(&gltf_data.meshes, mesh);
+    }
   }
   
   gltf_data.skin.joint_ids = GLTFJointIDArrayAllocate(licky_arena, 32);
@@ -454,7 +502,6 @@ GetGLTFData(GLTFReader* reader)
            joint_id_element; joint_id_element = joint_id_element->next_sibling)
       {
         GLTFJointIDArrayAdd(&gltf_data.skin.joint_ids, (GLTF_ID)(F64FromStr8(joint_id_element->value)));
-        // GLTFJointIDArrayAdd(&gltf_data.skin.joint_ids, 25);
       }
     }
   }
