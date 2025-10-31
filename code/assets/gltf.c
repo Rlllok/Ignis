@@ -441,6 +441,23 @@ GetGLTFData(GLTFReader* reader)
 
       GLTFMeshListPush(&gltf_data.meshes, mesh);
   }
+  
+  gltf_data.skin.joint_ids = GLTFJointIDArrayAllocate(licky_arena, 32);
+  GLTFElement* gltf_skin = LookUpElement(head, Str8C("skins"));
+  if (gltf_skin)
+  {
+    for (GLTFElement* skin_element = gltf_skin->first_sub_element;
+         skin_element;
+         skin_element = skin_element->next_sibling)
+    {
+      for (GLTFElement* joint_id_element = LookUpElement(skin_element, Str8C("joints"))->first_sub_element;
+           joint_id_element; joint_id_element = joint_id_element->next_sibling)
+      {
+        GLTFJointIDArrayAdd(&gltf_data.skin.joint_ids, (GLTF_ID)(F64FromStr8(joint_id_element->value)));
+        // GLTFJointIDArrayAdd(&gltf_data.skin.joint_ids, 25);
+      }
+    }
+  }
 
   gltf_data.buffer_views = GLTFBufferViewListCreate(licky_arena);
   for (GLTFElement* buffer_view_element = LookUpElement(head, Str8C("bufferViews"))->first_sub_element;
@@ -558,8 +575,6 @@ LookUpElement(GLTFElement* object, Buffer label)
         break;
       }
     }
-
-    return result;
   }
 
   return result;

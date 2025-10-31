@@ -26,12 +26,22 @@ struct AST_Geometry
 };
 DefineList(AST_Geometry, AST_GeometryList)
 
+typedef struct AST_Joint AST_Joint;
+struct AST_Joint
+{
+  Vec3F32 position;
+  Vec3F32 scale;
+  Quaternion rotation;
+};
+DefineList(AST_Joint, AST_JointList)
+
 typedef struct AST_StaticMesh AST_StaticMesh;
 struct AST_StaticMesh
 {
   Str8 name;
 
   AST_GeometryList geometry_list;
+  AST_JointList joint_list;
 };
 
 func AST_Geometry AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name);

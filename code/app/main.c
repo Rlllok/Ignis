@@ -619,6 +619,7 @@ struct AppState
   R_GraphicsPipeline square_pipeline;
   R_GraphicsPipeline mesh_pipeline;
   R_GraphicsPipeline font_pipeline;
+  R_GraphicsPipeline joint_pipeline;
 
   R_TextureSampler texture_sampler;
   R_Texture default_color_texture;
@@ -631,6 +632,7 @@ struct AppState
   R_Texture test_texture;
 
   Camera camera;
+  AST_StaticMesh joint_mesh;
 
   U32 hover_entity_id;
 
@@ -924,6 +926,44 @@ I32 main(void)
     app_state.square_pipeline = R_CreateGraphicsPipeline(&square_pipeline_info);
   }
 
+#if 0
+  // Joint Pipeline
+  {
+    R_Shader joint_vertex_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/joint.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+      }
+    );
+
+    R_Shader joint_fragment_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/joint.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .instance_uniforms_count = 1,
+      }
+    );
+
+    R_GraphicsPipelineColorTargetInfo joint_pipeline_color_target_infos[] = {
+      {
+        .format = R_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
+      }
+    };
+    app_state.joint_pipeline = R_CreateGraphicsPipeline(
+      &(R_GraphicsPipelineCreateInfo){
+        .vertex_shader = joint_vertex_shader,
+        .fragment_shader = joint_fragment_shader,
+        .color_targets_count = CountArrayElements(joint_pipeline_color_target_infos),
+        .color_target_infos = joint_pipeline_color_target_infos,
+      }
+    );
+  }
+#endif
+
   // --AlNov: UV coordinates writen in Bottom-Left coordinate system.
   // But Vulkan uses Top-Left coordinate system.
   Vertex cube_vertecies[] = {
@@ -982,18 +1022,7 @@ I32 main(void)
     }
   );
 
-#if 0
-  AST_StaticMesh helmet = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/helmet/Helmet.gltf"));
-  CreateEntity(
-    &app_state.entities,
-    (Entity){
-      .name = Str8C("Helmet"),
-      .position = MakeVec3(0.0f, 0.0f, 0.0f),
-      .mesh = helmet,
-      .color_texture = app_state.default_color_texture,
-    }
-  );
-#endif
+  app_state.joint_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Cone/Cone.gltf"));
 
   // Mesh Pipeline
   {
@@ -1453,9 +1482,98 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
     R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
+
+  for (AST_JointListNode* joint_node = entity->mesh.joint_list.first;
+       joint_node; joint_node = joint_node->next)
+  {
+    AST_Joint joint = joint_node->data;
+
+    for (AST_GeometryListNode* geometry_node = app_state.joint_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
+    {
+      AST_Geometry* geometry = &geometry_node->data;
+
+      struct
+      {
+        Mat4 view_matrix;
+        Mat4 projection_matrix;
+      } global_vertex_data;
+      global_vertex_data.view_matrix = MakeLookAtMat4(
+          app_state.camera.position,
+          AddVec3(app_state.camera.position, app_state.camera.front),
+          app_state.camera.up);
+      global_vertex_data.projection_matrix = MakePerspectiveMat4(
+          45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+          0.1f, 100.0f);
+
+      U64 global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&global_vertex_data, sizeof(global_vertex_data));
+
+      U64 mesh_vertex_data_offset = R_PushBuffer(buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+      U64 mesh_index_data_offset = R_PushBuffer(buffer, geometry->index_data, geometry->index_size*geometry->index_count);
+
+      struct
+      {
+        Mat4 instance_matrix;
+      } mesh_instance_vertex_data;
+      // mesh_instance_vertex_data.instance_matrix = MakeTransposeMat4(joint.position);
+      mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(joint.rotation), mesh_instance_vertex_data.instance_matrix);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(joint.position), mesh_instance_vertex_data.instance_matrix);
+      U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
+
+      struct
+      {
+        Vec3 camera_position;
+        F32 camera_position_padding;
+        Vec3 ambient_color;
+        F32 smoothness;
+        Vec3 light_direction;
+        F32 entity_id;
+      } mesh_instance_fragment_data;
+      mesh_instance_fragment_data.camera_position = app_state.camera.position;
+      mesh_instance_fragment_data.ambient_color = MakeVec3(0.1f, 0.1f, 0.1f);
+      mesh_instance_fragment_data.smoothness = 0.0f;
+      mesh_instance_fragment_data.light_direction = NormalizeVec3(MakeVec3(1.0f, -1.0f, -1.0f));
+      mesh_instance_fragment_data.entity_id = 0;
+      U64 mesh_instance_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_fragment_data, sizeof(mesh_instance_fragment_data));
+
+      R_UniformBufferBindingInfo mesh_vertex_shader_global_uniform = {
+        .buffer = buffer,
+        .offset = global_vertex_data_offset,
+        .size = sizeof(global_vertex_data),
+      };
+      R_UniformBufferBindingInfo mesh_vertex_shader_instance_uniform = {
+        .buffer = buffer,
+        .offset = mesh_instance_vertex_data_offset,
+        .size = sizeof(mesh_instance_vertex_data),
+      };
+      R_UniformBufferBindingInfo mesh_fragment_shader_instance_uniform = {
+        .buffer = buffer,
+        .offset = mesh_instance_fragment_data_offset,
+        .size = sizeof(mesh_instance_fragment_data),
+      };
+      R_SamplerBindingInfo mesh_fragment_shader_instance_samplers[2] = {
+        {
+          .sampler = app_state.texture_sampler,
+          .texture = app_state.default_color_texture,
+        },
+        {
+          .sampler = app_state.texture_sampler,
+          .texture = app_state.mesh_normal_texture,
+        }
+      };
+
+      R_BindGraphicsPipeline(command_buffer, app_state.mesh_pipeline);
+      R_BindGlobalVertexShaderData(command_buffer, 1, &mesh_vertex_shader_global_uniform, 0, 0);
+      R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
+      R_BindInstanceFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_instance_uniform, 2, mesh_fragment_shader_instance_samplers);
+      R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
+      R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
+      R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
+    }
+  }
 }
 
-  func void
+func void
 HandleEvents(Arena* arena, AppState* state)
 {
   OS_EventList event_list = OS_GetEventList(arena, &state->window);

@@ -86,6 +86,14 @@ struct GLTFMesh
 };
 DefineList(GLTFMesh, GLTFMeshList)
 
+GLTF_ID joint_id_nil = GLTF_ID_NIL;
+DefineArray(GLTF_ID, GLTFJointIDArray, joint_id_nil)
+typedef struct GLTFSkin GLTFSkin;
+struct GLTFSkin
+{
+  GLTFJointIDArray joint_ids;
+};
+
 typedef struct GLTFNode GLTFNode;
 struct GLTFNode
 {
@@ -170,6 +178,7 @@ struct GLTFData
   GLTFAsset asset;
   GLTFScene scene;
   GLTFMeshList meshes;
+  GLTFSkin skin;
   GLTFBufferList buffers;
   GLTFBufferViewList buffer_views;
   GLTFAccessorList accessors;

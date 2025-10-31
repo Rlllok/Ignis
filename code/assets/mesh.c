@@ -83,5 +83,17 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     AST_GeometryListPush(&result.geometry_list, geometry);
   }
 
+  result.joint_list = AST_JointListCreate(arena);
+  for (I32 i = 0; i < gltf_data.skin.joint_ids.length; i += 1)
+  {
+    GLTF_ID joint_id = GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, i);
+    GLTFNode node = GLTFNodeListGetItem(&gltf_data.scene.nodes, joint_id);
+
+    AST_Joint joint = {0};
+    joint.position = node.translation;
+
+    AST_JointListPush(&result.joint_list, joint);
+  }
+
   return result;
 }
