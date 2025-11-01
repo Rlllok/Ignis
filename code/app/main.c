@@ -1010,7 +1010,7 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
-  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
+  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/SimpleSkelet/SimpleSkelet.gltf"));
   CreateEntity(
     &app_state.entities,
     (Entity){
@@ -1022,7 +1022,7 @@ I32 main(void)
     }
   );
 
-  app_state.joint_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Cone/Cone.gltf"));
+  app_state.joint_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Cube/Cube.gltf"));
 
   // Mesh Pipeline
   {
@@ -1486,6 +1486,14 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
   for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
   {
     AST_Joint joint = AST_JointArrayGet(&entity->mesh.joints, i);
+    AST_JointID parent_id = joint.parent_id;
+    while (parent_id != AST_JointID_Nil)
+    {
+      AST_Joint parent = AST_JointArrayGet(&entity->mesh.joints, parent_id);
+      joint.position = AddVec3F32(joint.position, parent.position);
+
+      parent_id = parent.parent_id;
+    }
 
     for (AST_GeometryListNode* geometry_node = app_state.joint_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
     {
@@ -1513,10 +1521,10 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       {
         Mat4 instance_matrix;
       } mesh_instance_vertex_data;
-      // mesh_instance_vertex_data.instance_matrix = MakeTransposeMat4(joint.position);
       mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
-      mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(joint.rotation), mesh_instance_vertex_data.instance_matrix);
       mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(joint.position), mesh_instance_vertex_data.instance_matrix);
+      // mesh_instance_vertex_data.instance_matrix = MulMat4F32(joint.inverse_bind_transform, mesh_instance_vertex_data.instance_matrix);
+
       U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
       struct

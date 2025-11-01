@@ -87,8 +87,13 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     GLTF_ID joint_id = GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, i);
     GLTFNode node = GLTFNodeArrayGet(&gltf_data.nodes, joint_id);
 
-    AST_Joint joint = {0};
+    AST_Joint joint = _ast_joint_nil;
     joint.position = node.translation;
+
+    GLTFAccessor inverse_bind_matrices_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_data.skin.inverse_bind_matrices_accessor);
+    GLTFBufferView inverse_bind_matrices_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, inverse_bind_matrices_accessor.buffer_view_id);
+    GLTFBuffer inverse_bind_matrices_buffer = GLTFBufferListGetItem(&gltf_data.buffers, inverse_bind_matrices_buffer_view.buffer_id);
+    joint.inverse_bind_transform = *((Mat4F32*)(inverse_bind_matrices_buffer.data + inverse_bind_matrices_accessor.byte_offset + inverse_bind_matrices_buffer_view.byte_offset) + i);
 
     if (node.parent_id != GLTF_ID_NIL)
     {

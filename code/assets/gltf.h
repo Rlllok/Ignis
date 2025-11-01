@@ -91,6 +91,7 @@ DefineArray(GLTF_ID, GLTFJointIDArray, joint_id_nil)
 typedef struct GLTFSkin GLTFSkin;
 struct GLTFSkin
 {
+  GLTF_ID inverse_bind_matrices_accessor;
   GLTFJointIDArray joint_ids;
 };
 

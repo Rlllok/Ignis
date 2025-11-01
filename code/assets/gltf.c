@@ -494,6 +494,8 @@ GetGLTFData(GLTFReader* reader)
   GLTFElement* gltf_skin = LookUpElement(head, Str8C("skins"));
   if (gltf_skin)
   {
+    gltf_data.skin.inverse_bind_matrices_accessor = GetNumberElement(gltf_skin, Str8C("inverseBindMatrices"));
+
     for (GLTFElement* skin_element = gltf_skin->first_sub_element;
          skin_element;
          skin_element = skin_element->next_sibling)

@@ -35,10 +35,12 @@ struct AST_Joint
   Vec3F32 scale;
   Quaternion rotation;
 
+  Mat4F32 inverse_bind_transform;
+
   AST_JointID parent_id;
 };
-AST_Joint _joint_nil = {.parent_id = AST_JointID_Nil};
-DefineArray(AST_Joint, AST_JointArray, _joint_nil)
+AST_Joint _ast_joint_nil = {.parent_id = AST_JointID_Nil};
+DefineArray(AST_Joint, AST_JointArray, _ast_joint_nil)
 
 typedef struct AST_StaticMesh AST_StaticMesh;
 struct AST_StaticMesh
