@@ -5,7 +5,7 @@
 
 #define R_FRAMES_IN_FLIGHT 2
 #define R_MAX_BINDINGS 4
-#define R_MAX_VERTEX_ATTRIBUTES 8
+#define R_MAX_VERTEX_ATTRIBUTES 16
 
 typedef U32 R_Handle;
 #define R_NIL 0

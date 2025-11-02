@@ -76,6 +76,8 @@ struct GLTFPrimitive
   GLTF_ID tangent_accessor_id;
   GLTF_ID normal_accessor_id;
   GLTF_ID texcoord_accessor_id;
+  GLTF_ID joints_accessor_id;
+  GLTF_ID weights_accessor_id;
 };
 DefineList(GLTFPrimitive, GLTFPrimitiveList)
 
@@ -100,8 +102,8 @@ struct GLTFNode
 {
   GLTF_ID mesh_id;
   Vec3F32 translation;
+  Vec3F32 scale;
   Quaternion rotation;
-
 
   GLTF_ID parent_id;
 

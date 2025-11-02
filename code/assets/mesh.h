@@ -10,6 +10,8 @@ struct AST_Vertex
   Vec3 normal;
   Vec3 tangent;
   Vec2 uv;
+  Vec4I32 joint_ids;
+  Vec4F32 joint_weights;
 };
 
 typedef struct AST_Geometry AST_Geometry;
@@ -34,6 +36,10 @@ struct AST_Joint
   Vec3F32 position;
   Vec3F32 scale;
   Quaternion rotation;
+
+  Vec3F32 g_position;
+  Vec3F32 g_scale;
+  Quaternion g_rotation;
 
   Mat4F32 inverse_bind_transform;
 

@@ -4,7 +4,8 @@ layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 norm;
 layout(location = 2) in vec3 tangent;
 layout(location = 3) in vec2 uv;
-layout(location = 4) in mat3 TBN;
+layout(location = 4) in vec3 weight_color;
+layout(location = 5) in mat3 TBN;
 
 layout(set = 3, binding = 0) uniform InstanceData
 {
@@ -33,5 +34,6 @@ void main(void)
   vec3 specular_light = vec3(0.7f)*0.35f*pow(max(dot(view_direction, reflection_direction), 0.0f), log2(smoothness*10 + 1));
 
   out_color = texture(color_texture, uv)*vec4(ambient_color + diffuse_light + specular_light, 1.0f);
+  out_color = vec4(weight_color, 1.0f);
   out_id = uint(entity_id);
 }

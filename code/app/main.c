@@ -1067,6 +1067,16 @@ I32 main(void)
         .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
         .offset = offsetof(AST_Vertex, uv),
       },
+      {
+        .location = 4,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .offset = offsetof(AST_Vertex, joint_ids),
+      },
+      {
+        .location = 5,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .offset = offsetof(AST_Vertex, joint_weights),
+      },
     };
 
     R_GraphicsPipelineColorTargetInfo mesh_pipeline_color_target_infos[] = {
@@ -1425,11 +1435,33 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     struct
     {
       Mat4 instance_matrix;
+      Mat4 bone_transform[64];
     } mesh_instance_vertex_data;
-    // mesh_instance_vertex_data.instance_matrix = MakeTransposeMat4(entity->position);
     mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
     mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(entity->rotation), mesh_instance_vertex_data.instance_matrix);
     mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
+    
+    for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
+    {
+      AST_Joint joint = AST_JointArrayGet(&entity->mesh.joints, i);
+      AST_JointID parent_id = joint.parent_id;
+      while (parent_id != AST_JointID_Nil)
+      {
+        AST_Joint parent = AST_JointArrayGet(&entity->mesh.joints, parent_id);
+        joint.position = AddVec3F32(RotateVec3F32(MulVec3F32(parent.scale, joint.position), parent.rotation), parent.position);
+        joint.scale = MulVec3F32(parent.scale, joint.scale);
+        joint.rotation = MulQuaternion(joint.rotation, parent.rotation);
+
+        parent_id = parent.parent_id;
+      }
+
+      mesh_instance_vertex_data.bone_transform[i] = MakeMat4(1.0f);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(MakeScaleMat4F32(joint.scale), mesh_instance_vertex_data.bone_transform[i]);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(Mat4F32FromQuaternion(joint.rotation), mesh_instance_vertex_data.bone_transform[i]);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(MakeTransposeMat4(joint.position), mesh_instance_vertex_data.bone_transform[i]);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(mesh_instance_vertex_data.bone_transform[i], joint.inverse_bind_transform);
+    }
+
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
     struct
@@ -1485,13 +1517,23 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 
   for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
   {
-    AST_Joint joint = AST_JointArrayGet(&entity->mesh.joints, i);
-    AST_JointID parent_id = joint.parent_id;
-    while (parent_id != AST_JointID_Nil)
+    AST_Joint* joint = AST_JointArrayGetPointer(&entity->mesh.joints, i);
+    joint->g_position = joint->position;
+    joint->g_scale = joint->scale;
+    joint->g_rotation = joint->rotation;
+  }
+
+  for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
+  {
+    AST_Joint* joint = AST_JointArrayGetPointer(&entity->mesh.joints, i);
+
+    AST_JointID parent_id = joint->parent_id;
+    if (parent_id != AST_JointID_Nil)
     {
       AST_Joint parent = AST_JointArrayGet(&entity->mesh.joints, parent_id);
-      joint.position = AddVec3F32(RotateVec3F32(joint.position, parent.rotation), parent.position);
-      joint.rotation = MulQuaternion(parent.rotation, joint.rotation);
+      joint->g_position = AddVec3F32(RotateVec3F32(MulVec3F32(parent.g_scale, joint->position), parent.g_rotation), parent.g_position);
+      joint->g_scale = MulVec3F32(parent.g_scale, joint->scale);
+      joint->g_rotation = MulQuaternion(parent.g_rotation, joint->rotation);
 
       parent_id = parent.parent_id;
     }
@@ -1521,11 +1563,18 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       struct
       {
         Mat4 instance_matrix;
+        Mat4 bone_transform[64];
       } mesh_instance_vertex_data;
       mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
-      mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(joint.rotation), mesh_instance_vertex_data.instance_matrix);
-      mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(joint.position), mesh_instance_vertex_data.instance_matrix);
-      // mesh_instance_vertex_data.instance_matrix = MulMat4F32(joint.inverse_bind_transform, mesh_instance_vertex_data.instance_matrix);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(MakeScaleMat4F32(joint->g_scale), mesh_instance_vertex_data.instance_matrix);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(joint->g_rotation), mesh_instance_vertex_data.instance_matrix);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(joint->g_position), mesh_instance_vertex_data.instance_matrix);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(mesh_instance_vertex_data.instance_matrix, joint->inverse_bind_transform);
+
+      for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
+      {
+        mesh_instance_vertex_data.bone_transform[i] = MakeMat4(1.0f);
+      }
 
       U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 

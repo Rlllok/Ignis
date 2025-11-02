@@ -420,7 +420,16 @@ GetGLTFData(GLTFReader* reader)
     GLTFNode node = _gltf_node_nil;
     node.mesh_id = GetIDElement(node_element, Str8C("mesh"));
     node.translation = GetVec3F32Element(node_element, Str8C("translation"));
+    node.scale = GetVec3F32Element(node_element, Str8C("scale"));
+    if (node.scale.x == 0 && node.scale.y == 0 && node.scale.z == 0)
+    {
+      node.scale = MakeVec3F32(1.0f, 1.0f, 1.0f);
+    }
     node.rotation = GetQuaternionElement(node_element, Str8C("rotation"));
+    if (node.rotation.x == 0 && node.rotation.y == 0 && node.rotation.z == 0 && node.rotation.w)
+    {
+      node.rotation.w = 1;
+    }
 
     GLTFElement* node_children = LookUpElement(node_element, Str8C("children"));
     if (node_children)
@@ -483,6 +492,8 @@ GetGLTFData(GLTFReader* reader)
           primitive.tangent_accessor_id = GetNumberElement(attributes_element, Str8C("TANGENT"));
           primitive.normal_accessor_id = GetNumberElement(attributes_element, Str8C("NORMAL"));
           primitive.texcoord_accessor_id = GetNumberElement(attributes_element, Str8C("TEXCOORD_0"));
+          primitive.joints_accessor_id = GetNumberElement(attributes_element, Str8C("JOINTS_0"));
+          primitive.weights_accessor_id = GetNumberElement(attributes_element, Str8C("WEIGHTS_0"));
 
           GLTFPrimitiveListPush(&mesh.primitives, primitive);
         }
@@ -495,12 +506,13 @@ GetGLTFData(GLTFReader* reader)
   GLTFElement* gltf_skin = LookUpElement(head, Str8C("skins"));
   if (gltf_skin)
   {
-    gltf_data.skin.inverse_bind_matrices_accessor = GetNumberElement(gltf_skin, Str8C("inverseBindMatrices"));
-
     for (GLTFElement* skin_element = gltf_skin->first_sub_element;
          skin_element;
          skin_element = skin_element->next_sibling)
     {
+      gltf_data.skin.inverse_bind_matrices_accessor = GetNumberElement(skin_element, Str8C("inverseBindMatrices"));
+      LOG_INFO("Inverset bind: %d\n", gltf_data.skin.inverse_bind_matrices_accessor);
+
       for (GLTFElement* joint_id_element = LookUpElement(skin_element, Str8C("joints"))->first_sub_element;
            joint_id_element; joint_id_element = joint_id_element->next_sibling)
       {

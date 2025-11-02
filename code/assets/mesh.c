@@ -29,11 +29,15 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     GLTFAccessor position_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.position_accessor_id);
     GLTFAccessor normal_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.normal_accessor_id);
     GLTFAccessor texcoord_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.texcoord_accessor_id);
+    GLTFAccessor joints_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.joints_accessor_id);
+    GLTFAccessor weights_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_primitive.weights_accessor_id);
 
     GLTFBufferView index_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, index_accessor.buffer_view_id);
     GLTFBufferView position_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, position_accessor.buffer_view_id);
     GLTFBufferView normal_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, normal_accessor.buffer_view_id);
     GLTFBufferView texcoord_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, texcoord_accessor.buffer_view_id);
+    GLTFBufferView joints_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, joints_accessor.buffer_view_id);
+    GLTFBufferView weights_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, weights_accessor.buffer_view_id);
 
     GLTFBuffer index_buffer = GLTFBufferListGetItem(&gltf_data.buffers, index_buffer_view.buffer_id);
     geometry.index_data = index_buffer.data + index_accessor.byte_offset + index_buffer_view.byte_offset;
@@ -43,6 +47,8 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     GLTFBuffer position_buffer = GLTFBufferListGetItem(&gltf_data.buffers, position_buffer_view.buffer_id);
     GLTFBuffer normal_buffer = GLTFBufferListGetItem(&gltf_data.buffers, normal_buffer_view.buffer_id);
     GLTFBuffer texcoord_buffer = GLTFBufferListGetItem(&gltf_data.buffers, texcoord_buffer_view.buffer_id);
+    GLTFBuffer joints_buffer = GLTFBufferListGetItem(&gltf_data.buffers, joints_buffer_view.buffer_id);
+    GLTFBuffer weights_buffer = GLTFBufferListGetItem(&gltf_data.buffers, weights_buffer_view.buffer_id);
 
     geometry.vertecies = (AST_Vertex*)PushArena(arena, position_accessor.count*sizeof(AST_Vertex));
     geometry.vertecies_count = position_accessor.count;
@@ -53,6 +59,12 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
       vertex->position = AddVec3F32(vertex->position, gltf_node.translation); // --AlNov: @NOTE Not sure what problems such translation can cause
       vertex->normal = *((Vec3F32*)(normal_buffer.data + normal_accessor.byte_offset + normal_buffer_view.byte_offset) + i);
       vertex->uv = *((Vec2F32*)(texcoord_buffer.data + texcoord_accessor.byte_offset + texcoord_buffer_view.byte_offset) + i);
+      Vec4U8 joint_ids = *((Vec4U8*)(joints_buffer.data + joints_accessor.byte_offset + joints_buffer_view.byte_offset) + i);
+      vertex->joint_ids.x = (I32)joint_ids.x;
+      vertex->joint_ids.y = (I32)joint_ids.y;
+      vertex->joint_ids.z = (I32)joint_ids.z;
+      vertex->joint_ids.w = (I32)joint_ids.w;
+      vertex->joint_weights = *((Vec4F32*)(weights_buffer.data + weights_accessor.byte_offset + weights_buffer_view.byte_offset) + i);
     }
 
     for (U32 i = 0; i < geometry.index_count; i += 3)
@@ -89,6 +101,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
     AST_Joint joint = _ast_joint_nil;
     joint.position = node.translation;
+    joint.scale = node.scale;
     joint.rotation = node.rotation;
 
     GLTFAccessor inverse_bind_matrices_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_data.skin.inverse_bind_matrices_accessor);

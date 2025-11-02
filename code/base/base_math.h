@@ -35,6 +35,32 @@ func Vec2I32 MakeVec2I32(I32 a, I32 b);
 func Vec2I32 AddVec2I32(Vec2I32 a, Vec2I32 b);
 func Vec2I32 SubVec2I32(Vec2I32 a, Vec2I32 b);
 
+typedef union Vec4U8 Vec4U8;
+union Vec4U8
+{
+  struct
+  {
+    U8 x;
+    U8 y;
+    U8 z;
+    U8 w;
+  };
+  U8 values[4];
+};
+
+typedef union Vec4I32 Vec4I32;
+union Vec4I32
+{
+  struct
+  {
+    I32 x;
+    I32 y;
+    I32 z;
+    I32 w;
+  };
+  I32 values[4];
+};
+
 typedef union Vec2U32 Vec2U32;
 union Vec2U32
 {
@@ -143,6 +169,7 @@ func Mat4F32 MakeOrthographicMat4F32(F32 left, F32 right, F32 bottom, F32 top, F
 func Mat4F32 MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z);
 func Mat4F32 MakeTransposeMat4F32(Vec3F32 v);
 func Mat4F32 MakeRotationMat4F32(Vec3F32 axis, F32 angle);
+func Mat4F32 MakeScaleMat4F32(Vec3F32 v);
 
 typedef union Vec4F32 Vec4F32;
 union Vec4F32

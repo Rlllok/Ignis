@@ -218,6 +218,18 @@ MakeRotationMat4F32(Vec3F32 axis, F32 angle)
  return result;
 }
 
+func Mat4F32
+MakeScaleMat4F32(Vec3F32 v)
+{
+  Mat4F32 result = MakeMat4F32(1.0f);
+  result.values[0][0] = v.x;
+  result.values[1][1] = v.y;
+  result.values[2][2] = v.z;
+  result.values[3][3] = 1.0f;
+
+  return result;
+}
+
 // -------------------------------------------------------------------
 // Quaternions
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w) {return (Quaternion){x, y, z, w};}
