@@ -420,6 +420,7 @@ GetGLTFData(GLTFReader* reader)
     GLTFNode node = _gltf_node_nil;
     node.mesh_id = GetIDElement(node_element, Str8C("mesh"));
     node.translation = GetVec3F32Element(node_element, Str8C("translation"));
+    node.rotation = GetQuaternionElement(node_element, Str8C("rotation"));
 
     GLTFElement* node_children = LookUpElement(node_element, Str8C("children"));
     if (node_children)

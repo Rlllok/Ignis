@@ -224,12 +224,11 @@ func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w) {return (Quaternion){
 
 func Quaternion MulQuaternion(Quaternion l, Quaternion r)
 {
-  Quaternion result = {0};
-
+  Quaternion result = {.w = 1};
   result.x = l.x*r.w + l.y*r.z - l.z*r.y + l.w*r.x;
-  result.y = -l.x*r.z + l.y*r.w - l.z*r.x + l.w*r.y;
-  result.z = l.x*r.y - l.y*r.x + l.z*r.w + l.w*r.z;
-  result.w = -l.x*r.x - l.y*r.y - l.z*r.w + l.w*r.w;
+  result.y = -l.x*r.z + l.y*r.w + l.z*r.x + l.w*r.y;
+  result.z = l.x*r.y - l.y * r.x + l.z * r.w + l.w*r.z;
+  result.w = -l.x*r.x - l.y*r.y - l.z*r.z + l.w*r.w;
 
   return result;
 }
@@ -249,6 +248,20 @@ NormalizeQuaternion(Quaternion q)
 }
 
 func Quaternion ConjugateQuaternion(Quaternion q) {return MakeQuaternion(-q.x, -q.y, -q.z, q.w);}
+
+func Vec3F32
+RotateVec3F32(Vec3F32 v, Quaternion q)
+{
+  Vec3F32 result = {0};
+
+  Quaternion v_rotated = MulQuaternion(MulQuaternion(q, MakeQuaternion(v.x, v.y, v.z, 0.0f)), ConjugateQuaternion(q));
+
+  result.x = v_rotated.x;
+  result.y = v_rotated.y;
+  result.z = v_rotated.z;
+
+  return result;
+}
 
 func Quaternion
 QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw)

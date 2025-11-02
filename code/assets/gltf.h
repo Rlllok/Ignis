@@ -100,6 +100,8 @@ struct GLTFNode
 {
   GLTF_ID mesh_id;
   Vec3F32 translation;
+  Quaternion rotation;
+
 
   GLTF_ID parent_id;
 
@@ -299,6 +301,27 @@ GetVec3F32Element(GLTFElement* element, Buffer label)
   else
   {
     LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
+  }
+
+  return result;
+}
+
+func Quaternion
+GetQuaternionElement(GLTFElement* element, Buffer label)
+{
+  Quaternion result = {.w = 1};
+
+  GLTFElement* quaternion = LookUpElement(element, label);
+  if (quaternion)
+  {
+    GLTFElement* x_element = quaternion->first_sub_element;
+    result.x = (F32)F64FromStr8(x_element->value);
+    GLTFElement* y_element = x_element->next_sibling;
+    result.y = (F32)F64FromStr8(y_element->value);
+    GLTFElement* z_element = y_element->next_sibling;
+    result.z = (F32)F64FromStr8(z_element->value);
+    GLTFElement* w_element = z_element->next_sibling;
+    result.w = (F32)F64FromStr8(w_element->value);
   }
 
   return result;

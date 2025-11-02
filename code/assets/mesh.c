@@ -50,7 +50,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     {
       AST_Vertex* vertex = geometry.vertecies + i;
       vertex->position = *((Vec3F32*)(position_buffer.data + position_accessor.byte_offset + position_buffer_view.byte_offset) + i);
-      vertex->position = AddVec3F32(vertex->position, gltf_node.translation);
+      vertex->position = AddVec3F32(vertex->position, gltf_node.translation); // --AlNov: @NOTE Not sure what problems such translation can cause
       vertex->normal = *((Vec3F32*)(normal_buffer.data + normal_accessor.byte_offset + normal_buffer_view.byte_offset) + i);
       vertex->uv = *((Vec2F32*)(texcoord_buffer.data + texcoord_accessor.byte_offset + texcoord_buffer_view.byte_offset) + i);
     }
@@ -89,6 +89,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
     AST_Joint joint = _ast_joint_nil;
     joint.position = node.translation;
+    joint.rotation = node.rotation;
 
     GLTFAccessor inverse_bind_matrices_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_data.skin.inverse_bind_matrices_accessor);
     GLTFBufferView inverse_bind_matrices_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, inverse_bind_matrices_accessor.buffer_view_id);

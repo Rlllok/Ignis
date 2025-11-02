@@ -1010,7 +1010,7 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
-  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/SimpleSkelet/SimpleSkelet.gltf"));
+  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
   CreateEntity(
     &app_state.entities,
     (Entity){
@@ -1480,7 +1480,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     R_BindInstanceFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_instance_uniform, 2, mesh_fragment_shader_instance_samplers);
     R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
     R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
-    R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
+    // R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
 
   for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
@@ -1490,7 +1490,8 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     while (parent_id != AST_JointID_Nil)
     {
       AST_Joint parent = AST_JointArrayGet(&entity->mesh.joints, parent_id);
-      joint.position = AddVec3F32(joint.position, parent.position);
+      joint.position = AddVec3F32(RotateVec3F32(joint.position, parent.rotation), parent.position);
+      joint.rotation = MulQuaternion(parent.rotation, joint.rotation);
 
       parent_id = parent.parent_id;
     }
@@ -1522,6 +1523,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
         Mat4 instance_matrix;
       } mesh_instance_vertex_data;
       mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(joint.rotation), mesh_instance_vertex_data.instance_matrix);
       mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(joint.position), mesh_instance_vertex_data.instance_matrix);
       // mesh_instance_vertex_data.instance_matrix = MulMat4F32(joint.inverse_bind_transform, mesh_instance_vertex_data.instance_matrix);
 

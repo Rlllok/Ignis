@@ -199,6 +199,8 @@ func Quaternion MulQuaternion(Quaternion l, Quaternion r);
 func Quaternion NormalizeQuaternion(Quaternion q);
 func Quaternion ConjugateQuaternion(Quaternion q);
 
+func Vec3F32 RotateVec3F32(Vec3F32 v, Quaternion q);
+
 func Quaternion QuaternionFromEuler(F32 roll, F32 yaw, F32 pitch);
 func Vec3F32 EulerFromQuaternion(Quaternion q);
 func Mat4F32 Mat4F32FromQuaternion(Quaternion q);
