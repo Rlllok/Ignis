@@ -687,6 +687,11 @@ func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path, R_TextureFormat for
 
 I32 main(void)
 {
+  Quaternion q1 = MakeQuaternion(1.0f, 0.2f, 0.0f, 1.0f);
+  Quaternion q2 = MakeQuaternion(0.4f, 0.1f, -0.5f, 0.73f);
+  Quaternion test1 = MulQuaternion(q1, q2);
+  Quaternion test2 = MulQuaternionTest(q2, q1);
+
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = 0;
@@ -1010,7 +1015,7 @@ I32 main(void)
     {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
   };
 
-  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
+  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/SimpleSkelet/SimpleSkelet.gltf"));
   CreateEntity(
     &app_state.entities,
     (Entity){
@@ -1022,7 +1027,7 @@ I32 main(void)
     }
   );
 
-  app_state.joint_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Cube/Cube.gltf"));
+  app_state.joint_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Cone/Cone.gltf"));
 
   // Mesh Pipeline
   {
@@ -1069,7 +1074,7 @@ I32 main(void)
       },
       {
         .location = 4,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4I32,
         .offset = offsetof(AST_Vertex, joint_ids),
       },
       {
@@ -1440,9 +1445,18 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
     mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(entity->rotation), mesh_instance_vertex_data.instance_matrix);
     mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
+
+    for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
+    {
+      AST_Joint* joint = AST_JointArrayGetPointer(&entity->mesh.joints, i);
+      joint->g_position = joint->position;
+      joint->g_scale = joint->scale;
+      joint->g_rotation = joint->rotation;
+    }
     
     for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
     {
+  #if 0
       AST_Joint joint = AST_JointArrayGet(&entity->mesh.joints, i);
       AST_JointID parent_id = joint.parent_id;
       while (parent_id != AST_JointID_Nil)
@@ -1454,12 +1468,33 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 
         parent_id = parent.parent_id;
       }
+  #endif
+
+      AST_Joint* joint = AST_JointArrayGetPointer(&entity->mesh.joints, i);
+
+      AST_JointID parent_id = joint->parent_id;
+      if (parent_id != AST_JointID_Nil)
+      {
+        if (parent_id > i)
+        {
+          LOG_DEBUG("PARENT IS GREATER!!!!\n");
+        }
+
+        AST_Joint parent = AST_JointArrayGet(&entity->mesh.joints, parent_id);
+        joint->g_position = AddVec3F32(RotateVec3F32(MulVec3F32(parent.g_scale, joint->position), parent.g_rotation), parent.g_position);
+        joint->g_scale = MulVec3F32(parent.g_scale, joint->scale);
+        joint->g_rotation = MulQuaternionTest(joint->rotation, parent.g_rotation);
+
+        parent_id = parent.parent_id;
+      }
 
       mesh_instance_vertex_data.bone_transform[i] = MakeMat4(1.0f);
-      mesh_instance_vertex_data.bone_transform[i] = MulMat4(MakeScaleMat4F32(joint.scale), mesh_instance_vertex_data.bone_transform[i]);
-      mesh_instance_vertex_data.bone_transform[i] = MulMat4(Mat4F32FromQuaternion(joint.rotation), mesh_instance_vertex_data.bone_transform[i]);
-      mesh_instance_vertex_data.bone_transform[i] = MulMat4(MakeTransposeMat4(joint.position), mesh_instance_vertex_data.bone_transform[i]);
-      mesh_instance_vertex_data.bone_transform[i] = MulMat4(mesh_instance_vertex_data.bone_transform[i], joint.inverse_bind_transform);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(MakeScaleMat4F32(joint->g_scale), mesh_instance_vertex_data.bone_transform[i]);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(Mat4F32FromQuaternion(joint->g_rotation), mesh_instance_vertex_data.bone_transform[i]);
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(MakeTransposeMat4(joint->g_position), mesh_instance_vertex_data.bone_transform[i]);
+      Mat4F32 inverse_transform = InverseMat4F32(mesh_instance_vertex_data.bone_transform[i]);
+      // Mat4F32 inverse_transform = joint->inverse_bind_transform;
+      mesh_instance_vertex_data.bone_transform[i] = MulMat4(mesh_instance_vertex_data.bone_transform[i], inverse_transform);
     }
 
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
@@ -1533,7 +1568,8 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       AST_Joint parent = AST_JointArrayGet(&entity->mesh.joints, parent_id);
       joint->g_position = AddVec3F32(RotateVec3F32(MulVec3F32(parent.g_scale, joint->position), parent.g_rotation), parent.g_position);
       joint->g_scale = MulVec3F32(parent.g_scale, joint->scale);
-      joint->g_rotation = MulQuaternion(parent.g_rotation, joint->rotation);
+      // joint->g_rotation = MulQuaternion(joint->rotation, parent.g_rotation);
+      joint->g_rotation = MulQuaternion(parent.g_rotation, joint->g_rotation);
 
       parent_id = parent.parent_id;
     }
@@ -1568,8 +1604,11 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
       mesh_instance_vertex_data.instance_matrix = MulMat4(MakeScaleMat4F32(joint->g_scale), mesh_instance_vertex_data.instance_matrix);
       mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(joint->g_rotation), mesh_instance_vertex_data.instance_matrix);
+      // mesh_instance_vertex_data.instance_matrix = MulMat4(MakeRotationMat4F32(MakeVec3F32(0.0f, 1.0f, -1.0f), RadiansFromDegrees(89.0f)), mesh_instance_vertex_data.instance_matrix);
       mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(joint->g_position), mesh_instance_vertex_data.instance_matrix);
-      mesh_instance_vertex_data.instance_matrix = MulMat4(mesh_instance_vertex_data.instance_matrix, joint->inverse_bind_transform);
+      // Mat4F32 inverse_transform = InverseMat4F32(mesh_instance_vertex_data.instance_matrix);
+      Mat4F32 inverse_transform = InverseMat4F32(joint->inverse_bind_transform);
+      mesh_instance_vertex_data.instance_matrix = MulMat4(inverse_transform, mesh_instance_vertex_data.instance_matrix);
 
       for (I32 i = 0; i < entity->mesh.joints.length; i += 1)
       {

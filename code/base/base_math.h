@@ -164,6 +164,8 @@ struct Mat4F32
 
 func Mat4F32 MakeMat4F32(F32 diagonal_value);
 func Mat4F32 MulMat4F32(Mat4F32 a, Mat4F32 b);
+func Mat4F32 ScaleMat4F32(Mat4F32 m, F32 n);
+func Mat4F32 InverseMat4F32(Mat4F32 m);
 func Mat4F32 MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up);
 func Mat4F32 MakeOrthographicMat4F32(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z);
 func Mat4F32 MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z);
@@ -212,13 +214,17 @@ func Vec4F32 NormalizeVec4F32(Vec4F32 v);
 
 // -------------------------------------------------------------------
 // Quaternions
-typedef struct Quaternion Quaternion;
-struct Quaternion
+typedef union Quaternion Quaternion;
+union Quaternion
 {
-  F32 x;
-  F32 y;
-  F32 z;
-  F32 w;
+  struct
+  {
+    F32 x;
+    F32 y;
+    F32 z;
+    F32 w;
+  };
+  F32 values[4];
 };
 
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w);

@@ -33,6 +33,8 @@ typedef U32 AST_JointID;
 typedef struct AST_Joint AST_Joint;
 struct AST_Joint
 {
+  Str8 name;
+
   Vec3F32 position;
   Vec3F32 scale;
   Quaternion rotation;

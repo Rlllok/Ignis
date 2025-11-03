@@ -168,6 +168,7 @@ GetSizeOfVertexAttributeFormat(R_VertexAttributeFormat format)
 		sizeof(Vec2F32),
 		sizeof(Vec3F32),
 		sizeof(Vec4F32),
+    sizeof(Vec4I32),
 		0 // FORMAT_COUNT
 	};
 

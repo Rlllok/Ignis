@@ -100,6 +100,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     GLTFNode node = GLTFNodeArrayGet(&gltf_data.nodes, joint_id);
 
     AST_Joint joint = _ast_joint_nil;
+    joint.name = node.name;
     joint.position = node.translation;
     joint.scale = node.scale;
     joint.rotation = node.rotation;

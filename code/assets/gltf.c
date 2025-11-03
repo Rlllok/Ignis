@@ -418,6 +418,11 @@ GetGLTFData(GLTFReader* reader)
        node_element = node_element->next_sibling)
   {
     GLTFNode node = _gltf_node_nil;
+    GLTFElement* node_name = LookUpElement(node_element, Str8C("name"));
+    if (node_name)
+    {
+      node.name = node_name->value;
+    }
     node.mesh_id = GetIDElement(node_element, Str8C("mesh"));
     node.translation = GetVec3F32Element(node_element, Str8C("translation"));
     node.scale = GetVec3F32Element(node_element, Str8C("scale"));

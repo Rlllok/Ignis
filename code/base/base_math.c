@@ -127,6 +127,81 @@ MulMat4F32(Mat4F32 a, Mat4F32 b)
 }
 
 func Mat4F32
+ScaleMat4F32(Mat4F32 m, F32 n)
+{
+  for (I32 i = 0; i < 4; i += 1)
+  {
+    for (I32 j = 0; j < 4; j += 1)
+    {
+      m.values[i][j] *= n;
+    }
+  }
+
+  return m;
+}
+
+func Mat4F32
+InverseMat4F32(Mat4F32 m)
+{
+  F32 coef00 = m.values[2][2] * m.values[3][3] - m.values[3][2] * m.values[2][3];
+  F32 coef02 = m.values[1][2] * m.values[3][3] - m.values[3][2] * m.values[1][3];
+  F32 coef03 = m.values[1][2] * m.values[2][3] - m.values[2][2] * m.values[1][3];
+  F32 coef04 = m.values[2][1] * m.values[3][3] - m.values[3][1] * m.values[2][3];
+  F32 coef06 = m.values[1][1] * m.values[3][3] - m.values[3][1] * m.values[1][3];
+  F32 coef07 = m.values[1][1] * m.values[2][3] - m.values[2][1] * m.values[1][3];
+  F32 coef08 = m.values[2][1] * m.values[3][2] - m.values[3][1] * m.values[2][2];
+  F32 coef10 = m.values[1][1] * m.values[3][2] - m.values[3][1] * m.values[1][2];
+  F32 coef11 = m.values[1][1] * m.values[2][2] - m.values[2][1] * m.values[1][2];
+  F32 coef12 = m.values[2][0] * m.values[3][3] - m.values[3][0] * m.values[2][3];
+  F32 coef14 = m.values[1][0] * m.values[3][3] - m.values[3][0] * m.values[1][3];
+  F32 coef15 = m.values[1][0] * m.values[2][3] - m.values[2][0] * m.values[1][3];
+  F32 coef16 = m.values[2][0] * m.values[3][2] - m.values[3][0] * m.values[2][2];
+  F32 coef18 = m.values[1][0] * m.values[3][2] - m.values[3][0] * m.values[1][2];
+  F32 coef19 = m.values[1][0] * m.values[2][2] - m.values[2][0] * m.values[1][2];
+  F32 coef20 = m.values[2][0] * m.values[3][1] - m.values[3][0] * m.values[2][1];
+  F32 coef22 = m.values[1][0] * m.values[3][1] - m.values[3][0] * m.values[1][1];
+  F32 coef23 = m.values[1][0] * m.values[2][1] - m.values[2][0] * m.values[1][1];
+
+  Vec4F32 fac0 = { coef00, coef00, coef02, coef03 };
+  Vec4F32 fac1 = { coef04, coef04, coef06, coef07 };
+  Vec4F32 fac2 = { coef08, coef08, coef10, coef11 };
+  Vec4F32 fac3 = { coef12, coef12, coef14, coef15 };
+  Vec4F32 fac4 = { coef16, coef16, coef18, coef19 };
+  Vec4F32 fac5 = { coef20, coef20, coef22, coef23 };
+
+  Vec4F32 vec0 = { m.values[1][0], m.values[0][0], m.values[0][0], m.values[0][0] };
+  Vec4F32 vec1 = { m.values[1][1], m.values[0][1], m.values[0][1], m.values[0][1] };
+  Vec4F32 vec2 = { m.values[1][2], m.values[0][2], m.values[0][2], m.values[0][2] };
+  Vec4F32 vec3 = { m.values[1][3], m.values[0][3], m.values[0][3], m.values[0][3] };
+
+  Vec4F32 inv0 = AddVec4F32(SubVec4F32(MulVec4F32(vec1, fac0), MulVec4F32(vec2, fac1)), MulVec4F32(vec3, fac2));
+  Vec4F32 inv1 = AddVec4F32(SubVec4F32(MulVec4F32(vec0, fac0), MulVec4F32(vec2, fac3)), MulVec4F32(vec3, fac4));
+  Vec4F32 inv2 = AddVec4F32(SubVec4F32(MulVec4F32(vec0, fac1), MulVec4F32(vec1, fac3)), MulVec4F32(vec3, fac5));
+  Vec4F32 inv3 = AddVec4F32(SubVec4F32(MulVec4F32(vec0, fac2), MulVec4F32(vec1, fac4)), MulVec4F32(vec2, fac5));
+
+  Vec4F32 sign_a = { +1.0f, -1.0f, +1.0f, -1.0f };
+  Vec4F32 sign_b = { -1.0f, +1.0f, -1.0f, +1.0f };
+
+  Mat4F32 inverse = {0};
+  for(U32 i = 0; i < 4; i += 1)
+  {
+  inverse.values[0][i] = inv0.values[i] * sign_a.values[i];
+  inverse.values[1][i] = inv1.values[i] * sign_b.values[i];
+  inverse.values[2][i] = inv2.values[i] * sign_a.values[i];
+  inverse.values[3][i] = inv3.values[i] * sign_b.values[i];
+  }
+
+  Vec4F32 row0 = { inverse.values[0][0], inverse.values[1][0], inverse.values[2][0], inverse.values[3][0] };
+  Vec4F32 m0 = { m.values[0][0], m.values[0][1], m.values[0][2], m.values[0][3] };
+  Vec4F32 dot0 = MulVec4F32(m0, row0);
+  F32 dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
+
+  F32 one_over_det = 1 / dot1;
+
+  return ScaleMat4F32(inverse, one_over_det);
+}
+
+func Mat4F32
 MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up)
 {
   Mat4F32 result = MakeMat4F32(1.0f);
@@ -201,6 +276,7 @@ func Mat4F32
 MakeRotationMat4F32(Vec3F32 axis, F32 angle)
 {
  Mat4F32 result = MakeMat4F32(1.f);
+ axis = NormalizeVec3F32(axis);
  
  F32 sin_theta = sin(angle);
  F32 cos_theta = cos(angle);
@@ -234,7 +310,8 @@ MakeScaleMat4F32(Vec3F32 v)
 // Quaternions
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w) {return (Quaternion){x, y, z, w};}
 
-func Quaternion MulQuaternion(Quaternion l, Quaternion r)
+func Quaternion
+MulQuaternion(Quaternion l, Quaternion r)
 {
   Quaternion result = {.w = 1};
   result.x = l.x*r.w + l.y*r.z - l.z*r.y + l.w*r.x;
@@ -246,10 +323,35 @@ func Quaternion MulQuaternion(Quaternion l, Quaternion r)
 }
 
 func Quaternion
+MulQuaternionTest(Quaternion a, Quaternion b)
+{
+ Quaternion c;
+ {
+  c.x =  b.values[3] * +a.values[0];
+  c.y =  b.values[2] * -a.values[0];
+  c.z =  b.values[1] * +a.values[0];
+  c.w =  b.values[0] * -a.values[0];
+  c.x += b.values[2] * +a.values[1];
+  c.y += b.values[3] * +a.values[1];
+  c.z += b.values[0] * -a.values[1];
+  c.w += b.values[1] * -a.values[1];
+  c.x += b.values[1] * -a.values[2];
+  c.y += b.values[0] * +a.values[2];
+  c.z += b.values[3] * +a.values[2];
+  c.w += b.values[2] * -a.values[2];
+  c.x += b.values[0] * +a.values[3];
+  c.y += b.values[1] * +a.values[3];
+  c.z += b.values[2] * +a.values[3];
+  c.w += b.values[3] * +a.values[3];
+ }
+ return c;
+}
+
+func Quaternion
 NormalizeQuaternion(Quaternion q)
 {
   Quaternion result = {0};
-  F32 normal = sqrtf(q.x*q.x + q.y*q.y + q.z*q.z * q.w*q.w);
+  F32 normal = sqrtf(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
 
   result.x = q.x/normal;
   result.y = q.y/normal;
@@ -312,20 +414,21 @@ func Mat4F32
 Mat4F32FromQuaternion(Quaternion q)
 {
   Mat4F32 result = {0};
+  Quaternion q_norm = NormalizeQuaternion(q);
 
-  result.values[0][0] = 1 - 2*(q.y*q.y + q.z*q.z);
-  result.values[0][1] = 2*(q.x*q.y - q.w*q.z);
-  result.values[0][2] = 2*(q.w*q.y + q.x*q.z);
+  result.values[0][0] = 1 - 2*(q_norm.y*q_norm.y + q_norm.z*q_norm.z);
+  result.values[0][1] = 2*(q_norm.x*q_norm.y - q_norm.w*q_norm.z);
+  result.values[0][2] = 2*(q_norm.w*q_norm.y + q_norm.x*q_norm.z);
   result.values[0][3] = 0;
 
-  result.values[1][0] = 2*(q.x*q.y + q.w*q.z);
-  result.values[1][1] = 1 - 2*(q.x*q.x + q.z*q.z);
-  result.values[1][2] = 2*(q.y*q.z - q.w*q.x);
+  result.values[1][0] = 2*(q_norm.x*q_norm.y + q_norm.w*q_norm.z);
+  result.values[1][1] = 1 - 2*(q_norm.x*q_norm.x + q_norm.z*q_norm.z);
+  result.values[1][2] = 2*(q_norm.y*q_norm.z - q_norm.w*q_norm.x);
   result.values[1][3] = 0;
 
-  result.values[2][0] = 2*(q.x*q.z - q.w*q.y);
-  result.values[2][1] = 2*(q.w*q.x + q.y*q.z);
-  result.values[2][2] = 1 - 2*(q.x*q.x + q.y*q.y);
+  result.values[2][0] = 2*(q_norm.x*q_norm.z - q_norm.w*q_norm.y);
+  result.values[2][1] = 2*(q_norm.w*q_norm.x + q_norm.y*q_norm.z);
+  result.values[2][2] = 1 - 2*(q_norm.x*q_norm.x + q_norm.y*q_norm.y);
   result.values[2][3] = 0;
 
   result.values[3][0] = 0;

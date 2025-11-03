@@ -64,6 +64,8 @@ R_VK_GetVkFormatAttribute(R_VertexAttributeFormat format)
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32: result = VK_FORMAT_R32G32_SFLOAT; break;
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32: result = VK_FORMAT_R32G32B32_SFLOAT; break;
     case R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+    
+    case R_VERTEX_ATTRIBUTE_FORMAT_VEC4I32: result = VK_FORMAT_R32G32B32A32_SINT; break;
 
     default: Assert(1); break;
   }

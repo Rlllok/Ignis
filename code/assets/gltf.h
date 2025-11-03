@@ -100,6 +100,7 @@ struct GLTFSkin
 typedef struct GLTFNode GLTFNode;
 struct GLTFNode
 {
+  Str8 name;
   GLTF_ID mesh_id;
   Vec3F32 translation;
   Vec3F32 scale;

@@ -15,17 +15,12 @@
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"Sphere",
-			"translation":[
-				-0.4941907525062561,
-				0.042657025158405304,
-				0.07825689017772675
-			]
+			"name":"Cube.001"
 		}
 	],
 	"meshes":[
 		{
-			"name":"Sphere",
+			"name":"Cube.002",
 			"primitives":[
 				{
 					"attributes":{
@@ -42,67 +37,67 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":1984,
+			"count":40,
 			"max":[
-				0.10564534366130829,
-				0.10564518719911575,
-				0.10564518719911575
+				0.08382047712802887,
+				0.4919874370098114,
+				0.08382047712802887
 			],
 			"min":[
-				-0.10564492642879486,
-				-0.10564517974853516,
-				-0.1056450754404068
+				-0.08382047712802887,
+				0,
+				-0.08382047712802887
 			],
 			"type":"VEC3"
 		},
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":1984,
+			"count":40,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":1984,
+			"count":40,
 			"type":"VEC2"
 		},
 		{
 			"bufferView":3,
 			"componentType":5123,
-			"count":2880,
+			"count":84,
 			"type":"SCALAR"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":23808,
+			"byteLength":480,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":23808,
-			"byteOffset":23808,
+			"byteLength":480,
+			"byteOffset":480,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":15872,
-			"byteOffset":47616,
+			"byteLength":320,
+			"byteOffset":960,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":5760,
-			"byteOffset":63488,
+			"byteLength":168,
+			"byteOffset":1280,
 			"target":34963
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":69248,
+			"byteLength":1448,
 			"uri":"Cone.bin"
 		}
 	]
