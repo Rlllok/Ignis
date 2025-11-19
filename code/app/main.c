@@ -591,6 +591,7 @@ CreateEntity(EntityArray* array, Entity entity)
   EntityArrayAdd(array, entity);
 }
 
+func void DrawLine3D(R_CommandBuffer command_buffer, R_Buffer buffer, Vec3F32 start, Vec3F32 end, Vec4F32 color, F32 width);
 func void DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity);
 
 typedef struct Camera Camera;
@@ -604,6 +605,33 @@ struct Camera
   F32 pitch;
 };
 
+typedef U32 JointID; // --AlNov: @NOTE Index in array of joints in skeleton struct;
+#define JOINT_ID_NIL U32_MAX
+
+typedef struct Joint Joint;
+struct Joint
+{
+  JointID parent;
+
+  Vec3F32 scale;
+  Quaternion rotation;
+  Vec3F32 translation;
+
+  Vec3F32 g_scale;
+  Quaternion g_rotation;
+  Vec3F32 g_translation;
+};
+Joint _joint_nil = {.parent = JOINT_ID_NIL, .scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f};
+DefineArray(Joint, JointArray, _joint_nil);
+
+typedef struct Skeleton Skeleton;
+struct Skeleton
+{
+  JointArray joints;
+};
+
+func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton);
+
 typedef struct AppState AppState;
 struct AppState
 {
@@ -616,6 +644,7 @@ struct AppState
   Vec2F32 last_mouse_position;
 
   R_GraphicsPipeline grid_pipeline;
+  R_GraphicsPipeline line_3d_pipeline;
   R_GraphicsPipeline square_pipeline;
   R_GraphicsPipeline mesh_pipeline;
   R_GraphicsPipeline font_pipeline;
@@ -633,6 +662,8 @@ struct AppState
 
   Camera camera;
   AST_StaticMesh joint_mesh;
+
+  Skeleton skeleton;
 
   U32 hover_entity_id;
 
@@ -704,8 +735,48 @@ I32 main(void)
   app_state.camera.pitch = -30.0f;
   app_state.entities = EntityArrayAllocate(app_state.arena, 128);
   app_state.selected_entity = &EntityDefaultValue;
-  app_state.draw_ui = 1;
+  app_state.draw_ui = 0;
   app_state.to_render = 1;
+
+  app_state.skeleton.joints = JointArrayAllocate(app_state.arena, 3);
+
+  Vec3F32 translations[3] = {
+    MakeVec3F32(0.0f, 0.0f, 0.0f),
+    MakeVec3F32(0.0f, 1.0f, 0.0f),
+    MakeVec3F32(0.0f, 0.25f, 0.0f),
+  };
+
+  Quaternion rotations[3] = {
+    QuaternionFromEuler(RadiansFromDegrees(0.0f), 0.0f, 0.0f),
+    QuaternionFromEuler(RadiansFromDegrees(90.0f), 0.0f, 0.0f),
+    QuaternionFromEuler(RadiansFromDegrees(-15.0f), 0.0f, 0.0f),
+  };
+
+  for (I32 i = 0; i < app_state.skeleton.joints.capacity; i += 1)
+  {
+    Joint joint = {
+      .parent = ((i - 1) >= 0) ? (i - 1) : JOINT_ID_NIL,
+      .translation = translations[i],
+      .rotation = rotations[i],
+    };
+    JointArrayAdd(&app_state.skeleton.joints, joint);
+  }
+
+  for (I32 i = 0; i < app_state.skeleton.joints.length; i += 1)
+  {
+    Joint* joint = JointArrayGetPointer(&app_state.skeleton.joints, i);
+    joint->g_translation = joint->translation;
+    joint->g_scale = joint->scale;
+    joint->g_rotation = joint->rotation;
+
+    if (joint->parent != JOINT_ID_NIL)
+    {
+      Joint* parent = JointArrayGetPointer(&app_state.skeleton.joints, joint->parent);
+
+      joint->g_translation = AddVec3F32(RotateVec3F32(joint->translation, parent->g_rotation), parent->g_translation);
+      joint->g_rotation = MulQuaternion(parent->g_rotation, joint->rotation);
+    }
+  }
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
@@ -827,6 +898,44 @@ I32 main(void)
         .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
           .format = R_GetSwapchainTextureFormat(),
           .blend_enable = 1,
+        },
+        .depth_stencil_state = {
+          .depth_test_enable = 1,
+          .depth_write_enable = 0,
+          .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
+          .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
+        },
+      }
+    );
+  }
+
+  // 3D Line Pipeline
+  {
+    R_Shader line_vertex_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/line3d.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 1,
+      }
+    );
+
+    R_Shader line_fragment_shader = R_CreateShader(
+      app_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/line3d.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+      }
+    );
+
+    app_state.line_3d_pipeline = R_CreateGraphicsPipeline(
+      &(R_GraphicsPipelineCreateInfo){
+        .vertex_shader = line_vertex_shader,
+        .fragment_shader = line_fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
+          .format = R_GetSwapchainTextureFormat(),
         },
         .depth_stencil_state = {
           .depth_test_enable = 1,
@@ -1262,7 +1371,7 @@ I32 main(void)
         {
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
-            DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
+            // DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
           }
         }
         R_EndRenderPass(command_buffer, 0);
@@ -1280,6 +1389,8 @@ I32 main(void)
         };
         R_BeginRenderPass(command_buffer, 1, &grid_color_target, &grid_depth_target);
         {
+          DrawSkeleton(command_buffer, data_buffer, &app_state.skeleton);
+
           struct
           {
             Mat4 view_matrix;
@@ -1668,6 +1779,94 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
     }
   }
+}
+
+func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton)
+{
+  Vec4F32 colors[] = {
+    MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+    MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
+    MakeVec4F32(0.0f, 0.0f, 1.0f, 1.0f),
+    MakeVec4F32(1.0f, 1.0f, 0.0f, 1.0f),
+    MakeVec4F32(1.0f, 0.0f, 1.0f, 1.0f),
+    MakeVec4F32(0.0f, 1.0f, 1.0f, 1.0f),
+  };
+
+  for (I32 i = 0; i < skeleton->joints.length - 1; i += 1)
+  {
+    LOG_DEBUG("Line number %d\n", i);
+    Joint* joint1 = JointArrayGetPointer(&skeleton->joints, i);
+    Joint* joint2 = JointArrayGetPointer(&skeleton->joints, i + 1);
+
+    Vec3F32 start = joint1->g_translation;
+    Vec3F32 end = joint2->g_translation;
+
+    DrawLine3D(command_buffer, buffer, start, end, colors[i], 0.008f);
+    DrawLine3D(
+      command_buffer, buffer,joint1->g_translation,
+      AddVec3F32(joint1->g_translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint1->g_rotation)),
+      MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
+    );
+    DrawLine3D(
+      command_buffer, buffer, joint2->g_translation,
+      AddVec3F32(joint2->g_translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint2->g_rotation)),
+      MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
+    );
+  }
+}
+
+func void
+DrawLine3D(R_CommandBuffer command_buffer, R_Buffer buffer, Vec3F32 start, Vec3F32 end, Vec4F32 color, F32 width)
+{
+  struct
+  {
+    Mat4 view_matrix;
+    Mat4 projection_matrix;
+    Vec3 camera_direction;
+  } global_vertex_data;
+  global_vertex_data.view_matrix = MakeLookAtMat4(
+    app_state.camera.position,
+    AddVec3(app_state.camera.position, app_state.camera.front),
+    app_state.camera.up
+  );
+  global_vertex_data.projection_matrix = MakePerspectiveMat4(
+    45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+    0.1f, 100.0f
+  );
+  global_vertex_data.camera_direction = app_state.camera.front;
+
+  U64 global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&global_vertex_data, sizeof(global_vertex_data));
+
+  struct
+  {
+    Vec4F32 line_color;
+    Vec3F32 line_start;
+    F32 line_width;
+    Vec3F32 line_end;
+  } instance_vertex_data;
+  instance_vertex_data.line_color = color;
+  instance_vertex_data.line_start = start;
+  instance_vertex_data.line_width = width;
+  instance_vertex_data.line_end = end;
+
+  U64 instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&instance_vertex_data, sizeof(instance_vertex_data));
+
+  R_UniformBufferBindingInfo line_vertex_global_uniform = {
+    .buffer = buffer,
+    .offset = global_vertex_data_offset,
+    .size = sizeof(global_vertex_data),
+  };
+
+  R_UniformBufferBindingInfo line_vertex_instance_uniform = {
+    .buffer = buffer,
+    .offset = instance_vertex_data_offset,
+    .size = sizeof(instance_vertex_data),
+  };
+
+  R_BindGraphicsPipeline(command_buffer, app_state.line_3d_pipeline);
+  R_BindGlobalVertexShaderData(command_buffer, 1, &line_vertex_global_uniform, 0, 0);
+  R_BindInstanceVertexShaderData(command_buffer, 1, &line_vertex_instance_uniform, 0, 0);
+  R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 }
 
 func void
