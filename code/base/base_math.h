@@ -196,6 +196,7 @@ union Vec4F32
 };
 
 func Vec4F32 MakeVec4F32(F32 x, F32 y, F32 z, F32 w);
+func Vec4F32 Vec4F32FromVec3(Vec3F32 v, F32 w);
 func Vec4F32 AddVec4F32(Vec4F32 a, Vec4F32 b);
 func Vec4F32 SubVec4F32(Vec4F32 a, Vec4F32 b);
 func Vec4F32 MulVec4F32(Vec4F32 a, Vec4F32 b);
@@ -205,6 +206,7 @@ func F32 DotVec4F32(Vec4F32 a, Vec4F32 b);
 func F32 MagnitudeSquareVec4F32(Vec4F32 v);
 func F32 MagnitudeVec4F32(Vec4F32 v);
 func Vec4F32 NormalizeVec4F32(Vec4F32 v);
+func Vec4F32 TransformVec4F32(Vec4F32 v, Mat4F32 m);
 
 #define Vec2IFromVec(v)  MakeVec2I((I32)(v).x, (I32)(v).y)
 #define Vec2uFromVec(v)  MakeVec2f((U32)(v).x, (U32)(v).y)

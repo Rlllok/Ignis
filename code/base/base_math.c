@@ -48,6 +48,7 @@ TransformVec3F32(Vec3F32 v, Mat3F32 m)
 }
 
 func Vec4F32 MakeVec4F32(F32 x, F32 y, F32 z, F32 w) {Vec4F32 result = {x,y,z,w}; return result;}
+func Vec4F32 Vec4F32FromVec3(Vec3F32 v, F32 w) {return MakeVec4F32(v.x, v.y, v.z, w);}
 func Vec4F32 AddVec4F32(Vec4F32 a, Vec4F32 b) {return MakeVec4F32(a.x+b.x, a.y+b.y, a.z+b.z, a.w+b.w);}
 func Vec4F32 SubVec4F32(Vec4F32 a, Vec4F32 b) {return MakeVec4F32(a.x-b.x, a.y-b.y, a.z-b.z, a.w+b.w);}
 func Vec4F32 MulVec4F32(Vec4F32 a, Vec4F32 b) {return MakeVec4F32(a.x*b.x, a.y*b.y, a.z*b.z, a.w*b.w);}
@@ -57,6 +58,19 @@ func F32 DotVec4F32(Vec4F32 a, Vec4F32 b) {return a.x*b.x + a.y*b.y + a.z*b.z + 
 func F32 MagnitudeSquareVec4F32(Vec4F32 v) {return v.x*v.x + v.y*v.y + v.z*v.z + v.w*v.w;}
 func F32 MagnitudeVec4F32(Vec4F32 v) {return sqrt(MagnitudeSquareVec4F32(v));}
 func Vec4F32 NormalizeVec4F32(Vec4F32 v) {return ScaleVec4F32(v, 1.0f/MagnitudeVec4F32(v));}
+func Vec4F32
+TransformVec4F32(Vec4F32 v, Mat4F32 m)
+{
+  Vec4F32 result = {0};
+  for (I32 i = 0; i < 4; i += 1)
+  {
+    result.values[i] += v.values[0] * m.values[0][i];
+    result.values[i] += v.values[1] * m.values[1][i];
+    result.values[i] += v.values[2] * m.values[2][i];
+    result.values[i] += v.values[3] * m.values[3][i];
+  }
+  return result;
+}
 
 func Mat3F32
 MakeMat3F32(F32 diagonal_value)

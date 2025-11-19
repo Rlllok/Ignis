@@ -382,7 +382,7 @@ UI_Layout(UI_ElementArray* array, Str8 label)
 func void
 UI_Text(UI_ElementArray* array, Str8 label)
 {
-  UI_Element* text = UI_BuildElement(
+  UI_BuildElement(
     array,
     (UI_ElementDescription){
       .label = label,
@@ -608,6 +608,15 @@ struct Camera
 typedef U32 JointID; // --AlNov: @NOTE Index in array of joints in skeleton struct;
 #define JOINT_ID_NIL U32_MAX
 
+typedef struct Transform Transform;
+struct Transform
+{
+  Vec3F32 translation;
+  Quaternion rotation;
+  Vec3F32 scale;
+};
+#define IdentityTransform() {.scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f}
+
 typedef struct Joint Joint;
 struct Joint
 {
@@ -620,9 +629,20 @@ struct Joint
   Vec3F32 g_scale;
   Quaternion g_rotation;
   Vec3F32 g_translation;
+
+  Mat4F32 inv_bind_pose;
 };
 Joint _joint_nil = {.parent = JOINT_ID_NIL, .scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f};
-DefineArray(Joint, JointArray, _joint_nil);
+DefineArray(Joint, JointArray, _joint_nil)
+
+typedef struct JointPose JointPose;
+struct JointPose
+{
+  Transform local_transform;
+  Transform global_transform;
+};
+JointPose _joint_pose_nil = {.local_transform = IdentityTransform(), .global_transform = IdentityTransform()};
+DefineArray(JointPose, JointPoseArray, _joint_pose_nil)
 
 typedef struct Skeleton Skeleton;
 struct Skeleton
@@ -630,7 +650,14 @@ struct Skeleton
   JointArray joints;
 };
 
-func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton);
+typedef struct SkeletonPose SkeletonPose;
+struct SkeletonPose {
+  Skeleton* skeleton;
+  JointPoseArray joint_poses;
+};
+
+func void UpdateSkeletonPose(SkeletonPose* pose);
+func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, SkeletonPose* skeleton_pose);
 
 typedef struct AppState AppState;
 struct AppState
@@ -664,6 +691,8 @@ struct AppState
   AST_StaticMesh joint_mesh;
 
   Skeleton skeleton;
+  SkeletonPose skeleton_poses[3];
+  I32 current_pose;
 
   U32 hover_entity_id;
 
@@ -718,11 +747,6 @@ func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path, R_TextureFormat for
 
 I32 main(void)
 {
-  Quaternion q1 = MakeQuaternion(1.0f, 0.2f, 0.0f, 1.0f);
-  Quaternion q2 = MakeQuaternion(0.4f, 0.1f, -0.5f, 0.73f);
-  Quaternion test1 = MulQuaternion(q1, q2);
-  Quaternion test2 = MulQuaternionTest(q2, q1);
-
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = 0;
@@ -738,7 +762,9 @@ I32 main(void)
   app_state.draw_ui = 0;
   app_state.to_render = 1;
 
-  app_state.skeleton.joints = JointArrayAllocate(app_state.arena, 3);
+  const I32 joint_count = 3;
+  app_state.skeleton.joints = JointArrayAllocate(app_state.arena, joint_count);
+  app_state.current_pose = 0;
 
   Vec3F32 translations[3] = {
     MakeVec3F32(0.0f, 0.0f, 0.0f),
@@ -762,6 +788,12 @@ I32 main(void)
     JointArrayAdd(&app_state.skeleton.joints, joint);
   }
 
+  for (I32 i = 0; i < 3; i += 1)
+  {
+    app_state.skeleton_poses[i].skeleton = &app_state.skeleton;
+    app_state.skeleton_poses[i].joint_poses = JointPoseArrayAllocate(app_state.arena, app_state.skeleton_poses[0].skeleton->joints.capacity);
+  }
+
   for (I32 i = 0; i < app_state.skeleton.joints.length; i += 1)
   {
     Joint* joint = JointArrayGetPointer(&app_state.skeleton.joints, i);
@@ -773,9 +805,35 @@ I32 main(void)
     {
       Joint* parent = JointArrayGetPointer(&app_state.skeleton.joints, joint->parent);
 
-      joint->g_translation = AddVec3F32(RotateVec3F32(joint->translation, parent->g_rotation), parent->g_translation);
+      joint->g_translation = AddVec3F32(
+        RotateVec3F32(joint->translation, parent->g_rotation),
+        parent->g_translation
+      );
       joint->g_rotation = MulQuaternion(parent->g_rotation, joint->rotation);
     }
+
+    joint->inv_bind_pose = MakeMat4F32(1.0f);
+    joint->inv_bind_pose = MulMat4F32(Mat4F32FromQuaternion(joint->g_rotation), joint->inv_bind_pose);
+    joint->inv_bind_pose = MulMat4F32(MakeTransposeMat4F32(joint->g_translation), joint->inv_bind_pose);
+    joint->inv_bind_pose = InverseMat4F32(joint->inv_bind_pose);
+
+    for (I32 i = 0; i < 3; i += 1)
+    {
+      JointPose joint_pose = _joint_pose_nil;
+      joint_pose.local_transform.translation = joint->translation;
+      joint_pose.local_transform.rotation = joint->rotation;
+      joint_pose.local_transform.scale = joint->scale;
+      joint_pose.global_transform.translation = joint->g_translation;
+      joint_pose.global_transform.rotation = joint->g_rotation;
+      joint_pose.global_transform.scale = joint->g_scale;
+      JointPoseArrayAdd(&app_state.skeleton_poses[i].joint_poses, joint_pose);
+    }
+  }
+
+  for (I32 i = 0; i < 3; i += 1)
+  {
+    JointPose* joint_pose = JointPoseArrayGetPointer(&app_state.skeleton_poses[i].joint_poses, 0);
+    joint_pose->local_transform.translation = AddVec3F32(joint_pose->local_transform.translation, MakeVec3F32(i*0.25f, 0.0f, 0.0f));
   }
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
@@ -1078,52 +1136,6 @@ I32 main(void)
   }
 #endif
 
-  // --AlNov: UV coordinates writen in Bottom-Left coordinate system.
-  // But Vulkan uses Top-Left coordinate system.
-  Vertex cube_vertecies[] = {
-    {.position = {-0.5f, -0.5f, -0.5f}, .uv = {0.0f, 0.0f}},
-    {.position = { 0.5f, -0.5f, -0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = { 0.5f,  0.5f, -0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = { 0.5f,  0.5f, -0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = {-0.5f, -0.5f, -0.5f}, .uv = {0.0f, 0.0f}},
-
-    {.position = {-0.5f, -0.5f,  0.5f}, .uv = {0.0f, 0.0f}},
-    {.position = { 0.5f, -0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = { 0.5f,  0.5f,  0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = { 0.5f,  0.5f,  0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = {-0.5f,  0.5f,  0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = {-0.5f, -0.5f,  0.5f}, .uv = {0.0f, 0.0f}},
-
-    {.position = {-0.5f,  0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = {-0.5f,  0.5f, -0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = {-0.5f, -0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = {-0.5f, -0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = {-0.5f, -0.5f,  0.5f}, .uv = {0.0f, 0.0f}},
-    {.position = {-0.5f,  0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-
-    {.position = { 0.5f,  0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = { 0.5f,  0.5f, -0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = { 0.5f, -0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = { 0.5f, -0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = { 0.5f, -0.5f,  0.5f}, .uv = {0.0f, 0.0f}},
-    {.position = { 0.5f,  0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-
-    {.position = {-0.5f, -0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = { 0.5f, -0.5f, -0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = { 0.5f, -0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = { 0.5f, -0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = {-0.5f, -0.5f,  0.5f}, .uv = {0.0f, 0.0f}},
-    {.position = {-0.5f, -0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-
-    {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-    {.position = { 0.5f,  0.5f, -0.5f}, .uv = {1.0f, 1.0f}},
-    {.position = { 0.5f,  0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = { 0.5f,  0.5f,  0.5f}, .uv = {1.0f, 0.0f}},
-    {.position = {-0.5f,  0.5f,  0.5f}, .uv = {0.0f, 0.0f}},
-    {.position = {-0.5f,  0.5f, -0.5f}, .uv = {0.0f, 1.0f}},
-  };
-
   AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/SimpleSkelet/SimpleSkelet.gltf"));
   CreateEntity(
     &app_state.entities,
@@ -1389,7 +1401,8 @@ I32 main(void)
         };
         R_BeginRenderPass(command_buffer, 1, &grid_color_target, &grid_depth_target);
         {
-          DrawSkeleton(command_buffer, data_buffer, &app_state.skeleton);
+          UpdateSkeletonPose(&app_state.skeleton_poses[app_state.current_pose]);
+          DrawSkeleton(command_buffer, data_buffer, &app_state.skeleton_poses[app_state.current_pose]);
 
           struct
           {
@@ -1781,7 +1794,33 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
   }
 }
 
-func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton)
+func void
+UpdateSkeletonPose(SkeletonPose* pose)
+{
+  for (I32 i = 0; i < pose->skeleton->joints.length; i += 1)
+  {
+    Joint* joint = JointArrayGetPointer(&pose->skeleton->joints, i);
+    JointPose* joint_pose = JointPoseArrayGetPointer(&pose->joint_poses, i);
+
+    joint_pose->global_transform = joint_pose->local_transform;
+
+    if (joint->parent != JOINT_ID_NIL)
+    {
+      JointPose* parent_pose = JointPoseArrayGetPointer(&pose->joint_poses, joint->parent);
+
+      joint_pose->global_transform.translation = AddVec3F32(
+        RotateVec3F32(joint_pose->local_transform.translation, parent_pose->global_transform.rotation),
+        parent_pose->global_transform.translation
+      );
+      joint_pose->global_transform.rotation = MulQuaternion(
+        parent_pose->global_transform.rotation,
+        joint_pose->local_transform.rotation
+      );
+    }
+  }
+}
+
+func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, SkeletonPose* skeleton_pose)
 {
   Vec4F32 colors[] = {
     MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
@@ -1792,24 +1831,26 @@ func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton
     MakeVec4F32(0.0f, 1.0f, 1.0f, 1.0f),
   };
 
-  for (I32 i = 0; i < skeleton->joints.length - 1; i += 1)
+  for (I32 i = 0; i < skeleton_pose->joint_poses.length - 1; i += 1)
   {
-    LOG_DEBUG("Line number %d\n", i);
-    Joint* joint1 = JointArrayGetPointer(&skeleton->joints, i);
-    Joint* joint2 = JointArrayGetPointer(&skeleton->joints, i + 1);
+    JointPose* joint1 = JointPoseArrayGetPointer(&skeleton_pose->joint_poses, i);
+    JointPose* joint2 = JointPoseArrayGetPointer(&skeleton_pose->joint_poses, i + 1);
 
-    Vec3F32 start = joint1->g_translation;
-    Vec3F32 end = joint2->g_translation;
+    // Vec4F32 start = TransformVec4F32(Vec4F32FromVec3(joint1->g_translation, 1.0f), joint1->inv_bind_pose);
+    // Vec4F32 end = TransformVec4F32(Vec4F32FromVec3(joint2->g_translation, 1.0f), joint2->inv_bind_pose);
+
+    Vec3F32 start = joint1->global_transform.translation;
+    Vec3F32 end = joint2->global_transform.translation;
 
     DrawLine3D(command_buffer, buffer, start, end, colors[i], 0.008f);
     DrawLine3D(
-      command_buffer, buffer,joint1->g_translation,
-      AddVec3F32(joint1->g_translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint1->g_rotation)),
+      command_buffer, buffer,joint1->global_transform.translation,
+      AddVec3F32(joint1->global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint1->global_transform.rotation)),
       MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
     );
     DrawLine3D(
-      command_buffer, buffer, joint2->g_translation,
-      AddVec3F32(joint2->g_translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint2->g_rotation)),
+      command_buffer, buffer, joint2->global_transform.translation,
+      AddVec3F32(joint2->global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint2->global_transform.rotation)),
       MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
     );
   }
@@ -1882,6 +1923,12 @@ HandleEvents(Arena* arena, AppState* state)
   if (OS_IsKeyPressed(OS_KEY_TAB))
   {
     state->draw_ui = !state->draw_ui;
+  }
+
+  if (OS_IsKeyPressed(OS_KEY_U))
+  {
+    state->current_pose = (state->current_pose + 1)%3;
+    LOG_DEBUG("Current Pose: %d", state->current_pose);
   }
 
   Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
