@@ -46,6 +46,14 @@ TransformVec3F32(Vec3F32 v, Mat3F32 m)
   }
   return result;
 }
+func Vec3F32
+LerpVec3F32(Vec3F32 a, Vec3F32 b, F32 t)
+{
+  Vec3F32 result = {0};
+  result = AddVec3F32(ScaleVec3F32(a, 1.0f - t), ScaleVec3F32(b, t));
+  return result;
+}
+
 
 func Vec4F32 MakeVec4F32(F32 x, F32 y, F32 z, F32 w) {Vec4F32 result = {x,y,z,w}; return result;}
 func Vec4F32 Vec4F32FromVec3(Vec3F32 v, F32 w) {return MakeVec4F32(v.x, v.y, v.z, w);}

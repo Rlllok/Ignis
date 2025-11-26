@@ -616,23 +616,18 @@ struct Transform
   Vec3F32 scale;
 };
 #define IdentityTransform() {.scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f}
+Transform _transform_nil = IdentityTransform();
+DefineArray(Transform, TransformArray, _transform_nil);
 
 typedef struct Joint Joint;
 struct Joint
 {
   JointID parent;
-
-  Vec3F32 scale;
-  Quaternion rotation;
-  Vec3F32 translation;
-
-  Vec3F32 g_scale;
-  Quaternion g_rotation;
-  Vec3F32 g_translation;
-
+  Transform local_transform;
+  Transform global_transform;
   Mat4F32 inv_bind_pose;
 };
-Joint _joint_nil = {.parent = JOINT_ID_NIL, .scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f};
+Joint _joint_nil = {.parent = JOINT_ID_NIL, .local_transform = IdentityTransform(), .global_transform = IdentityTransform()};
 DefineArray(Joint, JointArray, _joint_nil)
 
 typedef struct JointPose JointPose;
@@ -650,14 +645,28 @@ struct Skeleton
   JointArray joints;
 };
 
-typedef struct SkeletonPose SkeletonPose;
-struct SkeletonPose {
-  Skeleton* skeleton;
-  JointPoseArray joint_poses;
+typedef struct SkeletonKeySample SkeletonKeySample;
+struct SkeletonKeySample
+{
+  TransformArray local_joint_transforms;
+  U64 timestamp;
+};
+SkeletonKeySample _skeleton_key_sample_nil = {0};
+DefineArray(SkeletonKeySample, SkeletonKeySampleArray, _skeleton_key_sample_nil);
+
+typedef struct SkeletonAnimation SkeletonAnimation;
+struct SkeletonAnimation
+{
+  SkeletonKeySampleArray key_samples;
+
+  U64 duration;
+  U64 start_time;
+  U64 end_time;
 };
 
-func void UpdateSkeletonPose(SkeletonPose* pose);
-func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, SkeletonPose* skeleton_pose);
+func void UpdateSkeletonGlobalTransform(Skeleton* skeleton);
+func void AnimateSkeleton(Arena* arena, Skeleton* skeleton, SkeletonAnimation* animation, U64 current_time);
+func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton);
 
 typedef struct AppState AppState;
 struct AppState
@@ -691,8 +700,7 @@ struct AppState
   AST_StaticMesh joint_mesh;
 
   Skeleton skeleton;
-  SkeletonPose skeleton_poses[3];
-  I32 current_pose;
+  SkeletonAnimation skeleton_animation;
 
   U32 hover_entity_id;
 
@@ -764,7 +772,6 @@ I32 main(void)
 
   const I32 joint_count = 3;
   app_state.skeleton.joints = JointArrayAllocate(app_state.arena, joint_count);
-  app_state.current_pose = 0;
 
   Vec3F32 translations[3] = {
     MakeVec3F32(0.0f, 0.0f, 0.0f),
@@ -782,58 +789,40 @@ I32 main(void)
   {
     Joint joint = {
       .parent = ((i - 1) >= 0) ? (i - 1) : JOINT_ID_NIL,
-      .translation = translations[i],
-      .rotation = rotations[i],
+      .local_transform.translation = translations[i],
+      .local_transform.rotation = rotations[i],
     };
     JointArrayAdd(&app_state.skeleton.joints, joint);
   }
 
-  for (I32 i = 0; i < 3; i += 1)
-  {
-    app_state.skeleton_poses[i].skeleton = &app_state.skeleton;
-    app_state.skeleton_poses[i].joint_poses = JointPoseArrayAllocate(app_state.arena, app_state.skeleton_poses[0].skeleton->joints.capacity);
-  }
+  UpdateSkeletonGlobalTransform(&app_state.skeleton);
 
-  for (I32 i = 0; i < app_state.skeleton.joints.length; i += 1)
-  {
-    Joint* joint = JointArrayGetPointer(&app_state.skeleton.joints, i);
-    joint->g_translation = joint->translation;
-    joint->g_scale = joint->scale;
-    joint->g_rotation = joint->rotation;
-
-    if (joint->parent != JOINT_ID_NIL)
-    {
-      Joint* parent = JointArrayGetPointer(&app_state.skeleton.joints, joint->parent);
-
-      joint->g_translation = AddVec3F32(
-        RotateVec3F32(joint->translation, parent->g_rotation),
-        parent->g_translation
-      );
-      joint->g_rotation = MulQuaternion(parent->g_rotation, joint->rotation);
-    }
-
-    joint->inv_bind_pose = MakeMat4F32(1.0f);
-    joint->inv_bind_pose = MulMat4F32(Mat4F32FromQuaternion(joint->g_rotation), joint->inv_bind_pose);
-    joint->inv_bind_pose = MulMat4F32(MakeTransposeMat4F32(joint->g_translation), joint->inv_bind_pose);
-    joint->inv_bind_pose = InverseMat4F32(joint->inv_bind_pose);
-
-    for (I32 i = 0; i < 3; i += 1)
-    {
-      JointPose joint_pose = _joint_pose_nil;
-      joint_pose.local_transform.translation = joint->translation;
-      joint_pose.local_transform.rotation = joint->rotation;
-      joint_pose.local_transform.scale = joint->scale;
-      joint_pose.global_transform.translation = joint->g_translation;
-      joint_pose.global_transform.rotation = joint->g_rotation;
-      joint_pose.global_transform.scale = joint->g_scale;
-      JointPoseArrayAdd(&app_state.skeleton_poses[i].joint_poses, joint_pose);
-    }
-  }
+  app_state.skeleton_animation = (SkeletonAnimation){
+    .key_samples = SkeletonKeySampleArrayAllocate(app_state.arena, 3),
+    .duration = 3*1000,
+    .start_time = 0,
+    .end_time = 0,
+  };
 
   for (I32 i = 0; i < 3; i += 1)
   {
-    JointPose* joint_pose = JointPoseArrayGetPointer(&app_state.skeleton_poses[i].joint_poses, 0);
-    joint_pose->local_transform.translation = AddVec3F32(joint_pose->local_transform.translation, MakeVec3F32(i*0.25f, 0.0f, 0.0f));
+    SkeletonKeySample key_sample = _skeleton_key_sample_nil;
+    key_sample.local_joint_transforms = TransformArrayAllocate(app_state.arena, 3);
+    key_sample.timestamp = 1000*i;
+
+    Joint joint = JointArrayGet(&app_state.skeleton.joints, 0);
+    Transform local_transform = joint.local_transform;
+    local_transform.translation = AddVec3F32(local_transform.translation, MakeVec3F32(i*1.0f, 0.0f, i*1.0f));
+    TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
+
+    joint = JointArrayGet(&app_state.skeleton.joints, 1);
+    local_transform = joint.local_transform;
+    TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
+    joint = JointArrayGet(&app_state.skeleton.joints, 2);
+    local_transform = joint.local_transform;
+    TransformArrayAdd(&key_sample.local_joint_transforms, joint.local_transform);
+
+    SkeletonKeySampleArrayAdd(&app_state.skeleton_animation.key_samples, key_sample);
   }
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
@@ -1401,8 +1390,8 @@ I32 main(void)
         };
         R_BeginRenderPass(command_buffer, 1, &grid_color_target, &grid_depth_target);
         {
-          UpdateSkeletonPose(&app_state.skeleton_poses[app_state.current_pose]);
-          DrawSkeleton(command_buffer, data_buffer, &app_state.skeleton_poses[app_state.current_pose]);
+          AnimateSkeleton(app_state.frame_arena, &app_state.skeleton, &app_state.skeleton_animation, OS_GetTimeTicks());
+          DrawSkeleton(command_buffer, data_buffer, &app_state.skeleton);
 
           struct
           {
@@ -1795,32 +1784,83 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
 }
 
 func void
-UpdateSkeletonPose(SkeletonPose* pose)
+UpdateSkeletonGlobalTransform(Skeleton* skeleton)
 {
-  for (I32 i = 0; i < pose->skeleton->joints.length; i += 1)
+  for (I32 i = 0; i < skeleton->joints.length; i += 1)
   {
-    Joint* joint = JointArrayGetPointer(&pose->skeleton->joints, i);
-    JointPose* joint_pose = JointPoseArrayGetPointer(&pose->joint_poses, i);
+    Joint* joint = JointArrayGetPointer(&skeleton->joints, i);
 
-    joint_pose->global_transform = joint_pose->local_transform;
+    joint->global_transform = joint->local_transform;
 
     if (joint->parent != JOINT_ID_NIL)
     {
-      JointPose* parent_pose = JointPoseArrayGetPointer(&pose->joint_poses, joint->parent);
+      Joint* parent_joint = JointArrayGetPointer(&skeleton->joints, joint->parent);
 
-      joint_pose->global_transform.translation = AddVec3F32(
-        RotateVec3F32(joint_pose->local_transform.translation, parent_pose->global_transform.rotation),
-        parent_pose->global_transform.translation
+      joint->global_transform.translation = AddVec3F32(
+        RotateVec3F32(joint->local_transform.translation, parent_joint->global_transform.rotation),
+        parent_joint->global_transform.translation
       );
-      joint_pose->global_transform.rotation = MulQuaternion(
-        parent_pose->global_transform.rotation,
-        joint_pose->local_transform.rotation
+      joint->global_transform.rotation = MulQuaternion(
+        parent_joint->global_transform.rotation,
+        joint->local_transform.rotation
       );
     }
+
+    joint->inv_bind_pose = MakeMat4F32(1.0f);
+    joint->inv_bind_pose = MulMat4F32(Mat4F32FromQuaternion(joint->global_transform.rotation), joint->inv_bind_pose);
+    joint->inv_bind_pose = MulMat4F32(MakeTransposeMat4F32(joint->global_transform.translation), joint->inv_bind_pose);
+    joint->inv_bind_pose = InverseMat4F32(joint->inv_bind_pose);
   }
 }
 
-func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, SkeletonPose* skeleton_pose)
+func void
+AnimateSkeleton(Arena* arena, Skeleton* skeleton, SkeletonAnimation* animation, U64 current_time)
+{
+  if (animation->start_time == 0)
+  {
+    animation->start_time = current_time;
+    animation->end_time = current_time + animation->duration;
+  }
+
+  if (current_time > animation->end_time)
+  {
+    animation->start_time = animation->end_time;
+    animation->end_time = current_time + animation->duration;
+  }
+
+  U64 animation_time = current_time - animation->start_time;
+
+  SkeletonKeySample current_sample = SkeletonKeySampleArrayGet(&animation->key_samples, 0);
+  SkeletonKeySample next_sample = SkeletonKeySampleArrayGet(&animation->key_samples, 0);
+  for (I32 i = 1; i < animation->key_samples.length; i += 1)
+  {
+    next_sample = SkeletonKeySampleArrayGet(&animation->key_samples, i);
+    if (current_sample.timestamp < animation_time)
+    {
+      break;
+    }
+    current_sample = next_sample;
+  }
+  LOG_DEBUG("Current Timestamp time %f\n", current_sample.timestamp/1000.0f);
+  LOG_DEBUG("Next Timestamp time %f\n", next_sample.timestamp/1000.0f);
+  LOG_DEBUG("Animation time %f\n", animation_time/1000.0f);
+  F32 blend_value = (F32)(animation_time - current_sample.timestamp)/(F32)(next_sample.timestamp - current_sample.timestamp);
+  LOG_DEBUG("Blend value\t%f\n", blend_value);
+
+  for (I32 i = 0; i < skeleton->joints.length; i += 1)
+  {
+    Transform transform0 = TransformArrayGet(&current_sample.local_joint_transforms, i);
+    Transform transform1 = TransformArrayGet(&next_sample.local_joint_transforms, i);
+
+    Joint* target_joint = JointArrayGetPointer(&skeleton->joints, i);
+    target_joint->local_transform.translation = LerpVec3F32(transform0.translation, transform1.translation, blend_value);
+  }
+
+  UpdateSkeletonGlobalTransform(skeleton);
+}
+
+func void
+DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton)
 {
   Vec4F32 colors[] = {
     MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
@@ -1831,26 +1871,23 @@ func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton
     MakeVec4F32(0.0f, 1.0f, 1.0f, 1.0f),
   };
 
-  for (I32 i = 0; i < skeleton_pose->joint_poses.length - 1; i += 1)
+  for (I32 i = 0; i < skeleton->joints.length - 1; i += 1)
   {
-    JointPose* joint1 = JointPoseArrayGetPointer(&skeleton_pose->joint_poses, i);
-    JointPose* joint2 = JointPoseArrayGetPointer(&skeleton_pose->joint_poses, i + 1);
+    Joint joint1 = JointArrayGet(&skeleton->joints, i);
+    Joint joint2 = JointArrayGet(&skeleton->joints, i + 1);
 
-    // Vec4F32 start = TransformVec4F32(Vec4F32FromVec3(joint1->g_translation, 1.0f), joint1->inv_bind_pose);
-    // Vec4F32 end = TransformVec4F32(Vec4F32FromVec3(joint2->g_translation, 1.0f), joint2->inv_bind_pose);
-
-    Vec3F32 start = joint1->global_transform.translation;
-    Vec3F32 end = joint2->global_transform.translation;
+    Vec3F32 start = joint1.global_transform.translation;
+    Vec3F32 end = joint2.global_transform.translation;
 
     DrawLine3D(command_buffer, buffer, start, end, colors[i], 0.008f);
     DrawLine3D(
-      command_buffer, buffer,joint1->global_transform.translation,
-      AddVec3F32(joint1->global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint1->global_transform.rotation)),
+      command_buffer, buffer,joint1.global_transform.translation,
+      AddVec3F32(joint1.global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint1.global_transform.rotation)),
       MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
     );
     DrawLine3D(
-      command_buffer, buffer, joint2->global_transform.translation,
-      AddVec3F32(joint2->global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint2->global_transform.rotation)),
+      command_buffer, buffer, joint2.global_transform.translation,
+      AddVec3F32(joint2.global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint2.global_transform.rotation)),
       MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
     );
   }
@@ -1925,18 +1962,11 @@ HandleEvents(Arena* arena, AppState* state)
     state->draw_ui = !state->draw_ui;
   }
 
-  if (OS_IsKeyPressed(OS_KEY_U))
-  {
-    state->current_pose = (state->current_pose + 1)%3;
-    LOG_DEBUG("Current Pose: %d", state->current_pose);
-  }
-
   Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
   F32 speed = 2.0f;
   if (OS_IsKeyDown(OS_KEY_W))
   {
     direction = AddVec3(direction, state->camera.front);
-    LOG_DEBUG("DT: %f\n", state->delta_time_sec);
   }
   if (OS_IsKeyDown(OS_KEY_S))
   {

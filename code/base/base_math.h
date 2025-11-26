@@ -155,6 +155,7 @@ func F32 MagnitudeSquareVec3F32(Vec3F32 v);
 func F32 MagnitudeVec3F32(Vec3F32 v);
 func Vec3F32 NormalizeVec3F32(Vec3F32 v);
 func Vec3F32 TransformVec3F32(Vec3F32 v, Mat3F32 m);
+func Vec3F32 LerpVec3F32(Vec3F32 a, Vec3F32 b, F32 t);
 
 typedef struct Mat4F32 Mat4F32;
 struct Mat4F32
