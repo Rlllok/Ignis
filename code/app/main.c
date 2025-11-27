@@ -799,7 +799,7 @@ I32 main(void)
 
   app_state.skeleton_animation = (SkeletonAnimation){
     .key_samples = SkeletonKeySampleArrayAllocate(app_state.arena, 3),
-    .duration = 3*1000,
+    .duration = 2*1000,
     .start_time = 0,
     .end_time = 0,
   };
@@ -808,11 +808,16 @@ I32 main(void)
   {
     SkeletonKeySample key_sample = _skeleton_key_sample_nil;
     key_sample.local_joint_transforms = TransformArrayAllocate(app_state.arena, 3);
-    key_sample.timestamp = 1000*i;
+    key_sample.timestamp = 1000*(i);
 
     Joint joint = JointArrayGet(&app_state.skeleton.joints, 0);
     Transform local_transform = joint.local_transform;
-    local_transform.translation = AddVec3F32(local_transform.translation, MakeVec3F32(i*1.0f, 0.0f, i*1.0f));
+    Vec3F32 table[3] = {
+      MakeVec3F32(0.0f, 0.0f, 0.0f),
+      MakeVec3F32(1.0f, 1.0f, 0.0f),
+      MakeVec3F32(3.0f, 0.0f, 0.0f),
+    };
+    local_transform.translation = table[i];
     TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
 
     joint = JointArrayGet(&app_state.skeleton.joints, 1);
@@ -1835,17 +1840,13 @@ AnimateSkeleton(Arena* arena, Skeleton* skeleton, SkeletonAnimation* animation, 
   for (I32 i = 1; i < animation->key_samples.length; i += 1)
   {
     next_sample = SkeletonKeySampleArrayGet(&animation->key_samples, i);
-    if (current_sample.timestamp < animation_time)
+    if (next_sample.timestamp > animation_time)
     {
       break;
     }
     current_sample = next_sample;
   }
-  LOG_DEBUG("Current Timestamp time %f\n", current_sample.timestamp/1000.0f);
-  LOG_DEBUG("Next Timestamp time %f\n", next_sample.timestamp/1000.0f);
-  LOG_DEBUG("Animation time %f\n", animation_time/1000.0f);
   F32 blend_value = (F32)(animation_time - current_sample.timestamp)/(F32)(next_sample.timestamp - current_sample.timestamp);
-  LOG_DEBUG("Blend value\t%f\n", blend_value);
 
   for (I32 i = 0; i < skeleton->joints.length; i += 1)
   {
@@ -1854,6 +1855,17 @@ AnimateSkeleton(Arena* arena, Skeleton* skeleton, SkeletonAnimation* animation, 
 
     Joint* target_joint = JointArrayGetPointer(&skeleton->joints, i);
     target_joint->local_transform.translation = LerpVec3F32(transform0.translation, transform1.translation, blend_value);
+    if (i == 0)
+    {
+      LOG_DEBUG("Transform 0\t: %.2fx %.2fy %.2fz\n", transform0.translation.x, transform0.translation.y, transform0.translation.z);
+      LOG_DEBUG("Animation Time\t%f\n", animation_time/1000.0f);
+      LOG_DEBUG("Current Time\t%f\n", current_sample.timestamp/1000.0f);
+      LOG_DEBUG("Next Time\t%f\n", next_sample.timestamp/1000.0f);
+      LOG_DEBUG("Blend value\t%f\n", blend_value);
+      LOG_DEBUG("CurrentTransform 0\t: %.2fx %.2fy %.2fz\n", target_joint->local_transform.translation.x, target_joint->local_transform.translation.y, target_joint->local_transform.translation.z);
+      LOG_DEBUG("Transform 1\t: %.2fx %.2fy %.2fz\n", transform1.translation.x, transform1.translation.y, transform1.translation.z);
+    }
+
   }
 
   UpdateSkeletonGlobalTransform(skeleton);
