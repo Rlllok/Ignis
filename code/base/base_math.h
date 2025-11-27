@@ -229,13 +229,18 @@ union Quaternion
   };
   F32 values[4];
 };
+#define IdentityQuaternion() (Quaternion){0.0f, 0.0f, 0.0f, 1.0f}
 
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w);
+func Vec4F32 Vec4F32FromQuaternion(Quaternion q);
+func Quaternion AddQuaternion(Quaternion a, Quaternion b);
 func Quaternion MulQuaternion(Quaternion l, Quaternion r);
+func Quaternion ScaleQuaternion(Quaternion q, F32 s);
 func Quaternion NormalizeQuaternion(Quaternion q);
 func Quaternion ConjugateQuaternion(Quaternion q);
 
 func Vec3F32 RotateVec3F32(Vec3F32 v, Quaternion q);
+func Quaternion SlerpQuaternion(Quaternion a, Quaternion b, F32 w);
 
 func Quaternion QuaternionFromEuler(F32 roll, F32 yaw, F32 pitch);
 func Vec3F32 EulerFromQuaternion(Quaternion q);

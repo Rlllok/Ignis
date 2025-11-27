@@ -331,6 +331,18 @@ MakeScaleMat4F32(Vec3F32 v)
 // -------------------------------------------------------------------
 // Quaternions
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w) {return (Quaternion){x, y, z, w};}
+func Vec4F32 Vec4F32FromQuaternion(Quaternion q) {return (Vec4F32){q.x, q.y, q.z, q.z};}
+
+func Quaternion
+AddQuaternion(Quaternion a, Quaternion b)
+{
+  Quaternion result = IdentityQuaternion();
+  result.x = a.x + b.x;
+  result.y = a.y + b.y;
+  result.z = a.z + b.z;
+  result.w = a.w + b.w;
+  return result;
+}
 
 func Quaternion
 MulQuaternion(Quaternion l, Quaternion r)
@@ -341,6 +353,17 @@ MulQuaternion(Quaternion l, Quaternion r)
   result.z = l.x*r.y - l.y * r.x + l.z * r.w + l.w*r.z;
   result.w = -l.x*r.x - l.y*r.y - l.z*r.z + l.w*r.w;
 
+  return result;
+}
+
+func Quaternion
+ScaleQuaternion(Quaternion q, F32 s)
+{
+  Quaternion result = IdentityQuaternion();
+  result.x = q.x*s;
+  result.y = q.y*s;
+  result.z = q.z*s;
+  result.w = q.w*s;
   return result;
 }
 
@@ -398,6 +421,24 @@ RotateVec3F32(Vec3F32 v, Quaternion q)
 
   return result;
 }
+
+func Quaternion
+SlerpQuaternion(Quaternion a, Quaternion b, F32 w)
+{
+  Quaternion result = IdentityQuaternion();
+
+  F32 dot = DotVec4F32(Vec4F32FromQuaternion(a), Vec4F32FromQuaternion(b));
+  F32 angle = acosf(dot);
+
+  // --AlNov: @TODO Do we need to normalize?
+  result = NormalizeQuaternion(AddQuaternion(
+    ScaleQuaternion(a, sinf((1 - w)*angle)/sinf(angle)),
+    ScaleQuaternion(b, sinf(w*angle)/sinf(angle))
+  ));
+  
+  return result;
+}
+
 
 func Quaternion
 QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw)

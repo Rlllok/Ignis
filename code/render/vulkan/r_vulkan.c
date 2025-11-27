@@ -1461,7 +1461,6 @@ R_VK_DrawIndexedPrimitives(R_CommandBuffer command_buffer, U32 index_count, U32 
 func void
 R_VK_PresentTexture(R_CommandBuffer command_buffer, R_Texture texture)
 {
-  R_VK_CommandBuffer* vk_command_buffer = R_VK_CommandBufferFromHandle(command_buffer);
   R_VK_Texture* vk_texture = R_VK_TextureFromHandle(texture);
 
   if (vk_texture->from_swapchain)
@@ -1615,7 +1614,7 @@ R_VK_DestroyTexture(R_Texture texture)
 func void
 R_VK_LoadDataToTexture(U8* data, U64 data_size, R_Texture texture)
 {
-  R_VK_Texture* vk_texture = R_VK_TextureFromHandle(texture);
+  // --AlNov: @TODO Empty
 }
 
 func void

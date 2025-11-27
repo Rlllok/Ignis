@@ -202,7 +202,6 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
 {
   OS_Event event = {0};
   LRESULT result  = 0;
-  B32 release = 0;
 
   switch (message)
   {

@@ -617,7 +617,7 @@ struct Transform
 };
 #define IdentityTransform() {.scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f}
 Transform _transform_nil = IdentityTransform();
-DefineArray(Transform, TransformArray, _transform_nil);
+DefineArray(Transform, TransformArray, _transform_nil)
 
 typedef struct Joint Joint;
 struct Joint
@@ -652,7 +652,7 @@ struct SkeletonKeySample
   U64 timestamp;
 };
 SkeletonKeySample _skeleton_key_sample_nil = {0};
-DefineArray(SkeletonKeySample, SkeletonKeySampleArray, _skeleton_key_sample_nil);
+DefineArray(SkeletonKeySample, SkeletonKeySampleArray, _skeleton_key_sample_nil)
 
 typedef struct SkeletonAnimation SkeletonAnimation;
 struct SkeletonAnimation
@@ -799,7 +799,7 @@ I32 main(void)
 
   app_state.skeleton_animation = (SkeletonAnimation){
     .key_samples = SkeletonKeySampleArrayAllocate(app_state.arena, 3),
-    .duration = 2*1000,
+    .duration = 4*1000,
     .start_time = 0,
     .end_time = 0,
   };
@@ -808,20 +808,27 @@ I32 main(void)
   {
     SkeletonKeySample key_sample = _skeleton_key_sample_nil;
     key_sample.local_joint_transforms = TransformArrayAllocate(app_state.arena, 3);
-    key_sample.timestamp = 1000*(i);
+    key_sample.timestamp = (app_state.skeleton_animation.duration/2)*i;
 
     Joint joint = JointArrayGet(&app_state.skeleton.joints, 0);
     Transform local_transform = joint.local_transform;
-    Vec3F32 table[3] = {
+    Vec3F32 translation_table[3] = {
       MakeVec3F32(0.0f, 0.0f, 0.0f),
       MakeVec3F32(1.0f, 1.0f, 0.0f),
       MakeVec3F32(3.0f, 0.0f, 0.0f),
     };
-    local_transform.translation = table[i];
+    Quaternion rotation_table[3] = {
+      QuaternionFromEuler(0.0f, 0.0f, 0.0f),
+      QuaternionFromEuler(90.0f, RadiansFromDegrees(300.0f), 0.0f),
+      QuaternionFromEuler(180.0f, 0.0f, 0.0f),
+    };
+    local_transform.translation = translation_table[i];
+    local_transform.rotation = rotation_table[i];
     TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
 
     joint = JointArrayGet(&app_state.skeleton.joints, 1);
     local_transform = joint.local_transform;
+    local_transform.rotation = rotation_table[i];
     TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
     joint = JointArrayGet(&app_state.skeleton.joints, 2);
     local_transform = joint.local_transform;
@@ -1855,6 +1862,7 @@ AnimateSkeleton(Arena* arena, Skeleton* skeleton, SkeletonAnimation* animation, 
 
     Joint* target_joint = JointArrayGetPointer(&skeleton->joints, i);
     target_joint->local_transform.translation = LerpVec3F32(transform0.translation, transform1.translation, blend_value);
+    target_joint->local_transform.rotation = SlerpQuaternion(transform0.rotation, transform1.rotation, blend_value);
     if (i == 0)
     {
       LOG_DEBUG("Transform 0\t: %.2fx %.2fy %.2fz\n", transform0.translation.x, transform0.translation.y, transform0.translation.z);
@@ -2085,16 +2093,6 @@ HandleEvents(Arena* arena, AppState* state)
       case OS_EVENT_TYPE_MOUSE_LEAVE:
       {
         app_state.mouse_inside = 0;
-      } break;
-
-      case OS_EVENT_TYPE_MOUSE_MOVE:
-      {
-        // LOG_DEBUG("MousePosition: %.3f, %.3f\n", event->mouse_position.x, event->mouse_position.y);
-        // LOG_DEBUG("Virtual Cursor: %.3f, %.3f\n", state->window.virtual_cursor_position.x, state->window.virtual_cursor_position.y);
-        Vec2F32 d_position = SubVec2F32(state->window.virtual_cursor_position, state->last_mouse_position);
-        Vec2F32 mouse_direction = NormalizeVec2F32(d_position);
-        LOG_DEBUG("MOUSE_MOVE\n");
-        state->last_mouse_position = event->mouse_position;
       } break;
 
       default: break;
