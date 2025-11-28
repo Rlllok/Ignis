@@ -93,22 +93,22 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     AST_GeometryListPush(&result.geometry_list, geometry);
   }
 
-  result.joints = AST_JointArrayAllocate(arena, gltf_data.skin.joint_ids.length);
+  result.skeleton.joints = JointArrayAllocate(arena, gltf_data.skin.joint_ids.length);
   for (I32 i = 0; i < gltf_data.skin.joint_ids.length; i += 1)
   {
     GLTF_ID joint_id = GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, i);
     GLTFNode node = GLTFNodeArrayGet(&gltf_data.nodes, joint_id);
 
-    AST_Joint joint = _ast_joint_nil;
+    Joint joint = _joint_nil;
     joint.name = node.name;
-    joint.position = node.translation;
-    joint.scale = node.scale;
-    joint.rotation = node.rotation;
+    joint.local_transform.translation = node.translation;
+    joint.local_transform.rotation = node.rotation;
+    joint.local_transform.scale = node.scale;
 
     GLTFAccessor inverse_bind_matrices_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, gltf_data.skin.inverse_bind_matrices_accessor);
     GLTFBufferView inverse_bind_matrices_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, inverse_bind_matrices_accessor.buffer_view_id);
     GLTFBuffer inverse_bind_matrices_buffer = GLTFBufferListGetItem(&gltf_data.buffers, inverse_bind_matrices_buffer_view.buffer_id);
-    joint.inverse_bind_transform = *((Mat4F32*)(inverse_bind_matrices_buffer.data + inverse_bind_matrices_accessor.byte_offset + inverse_bind_matrices_buffer_view.byte_offset) + i);
+    joint.inv_bind_pose = *((Mat4F32*)(inverse_bind_matrices_buffer.data + inverse_bind_matrices_accessor.byte_offset + inverse_bind_matrices_buffer_view.byte_offset) + i);
 
     if (node.parent_id != GLTF_ID_NIL)
     {
@@ -121,7 +121,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
       }
     }
 
-    AST_JointArrayAdd(&result.joints, joint);
+    JointArrayAdd(&result.skeleton.joints, joint);
   }
 
   return result;

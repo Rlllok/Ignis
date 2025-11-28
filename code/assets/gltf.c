@@ -623,6 +623,70 @@ GetGLTFData(GLTFReader* reader)
 
     GLTFAccessorListPush(&gltf_data.accessors, accessor);
   }
+
+  GLTFElement* gltf_animation = LookUpElement(head, Str8C("animations"));
+  if (gltf_animation)
+  {
+    gltf_data.animations = GLTFAnimationListCreate(licky_arena);
+    for (GLTFElement* animation_element = gltf_animation->first_sub_element;
+         animation_element;
+         animation_element = animation_element->next_sibling)
+    {
+      GLTFAnimation animation = {0};
+      GLTFElement* name = LookUpElement(animation_element, Str8C("name"));
+      if (name)
+      {
+        animation.name = name->value;
+      }
+      animation.channels = GLTFChannelListCreate(licky_arena);
+      for (
+        GLTFElement* channel_element = LookUpElement(animation_element, Str8C("channels"))->first_sub_element;
+        channel_element;
+        channel_element = channel_element->next_sibling
+      )
+      {
+        GLTFChannel channel = {0};
+        channel.sampler_id = GetNumberElement(channel_element, Str8C("sampler"));
+        GLTFElement* target_element = LookUpElement(channel_element, Str8C("target"));
+        channel.target.node_id = GetNumberElement(target_element, Str8C("node"));
+        GLTFElement* type_element = LookUpElement(target_element, Str8C("path"));
+        if (Str8Equal(Str8C("translation"), type_element->value))
+        {
+          channel.target.type = GLTFTargetType_Translation;
+        }
+        else if (Str8Equal(Str8C("rotation"), type_element->value))
+        {
+          channel.target.type = GLTFTargetType_Rotation;
+        }
+        else if (Str8Equal(Str8C("scale"), type_element->value))
+        {
+          channel.target.type = GLTFTargetType_Scale;
+        }
+        else
+        {
+          AssertMessage(0, "Unsupported TargetPathType\n");
+        }
+        
+        GLTFChannelListPush(&animation.channels, channel);
+      }
+
+      animation.samplers = GLTFSamplerListCreate(licky_arena);
+      for (
+        GLTFElement* sampler_element = LookUpElement(animation_element, Str8C("samplers"))->first_sub_element;
+        sampler_element;
+        sampler_element = sampler_element->next_sibling
+      )
+      {
+        GLTFSampler sampler = {0};
+        sampler.input_accessor_id = GetNumberElement(animation_element, Str8C("input"));
+        sampler.output_accessor_id = GetNumberElement(animation_element, Str8C("output"));
+
+        GLTFSamplerListPush(&animation.samplers, sampler);
+      }
+
+      GLTFAnimationListPush(&gltf_data.animations, animation);
+    }
+  }
   
   return gltf_data;
 }

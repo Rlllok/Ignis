@@ -291,6 +291,19 @@ union RectF32
 func B32 InsideRectF32(RectF32 rect, Vec2F32 v);
 
 // -------------------------------------------------------------------
+// Transform
+typedef struct Transform Transform;
+struct Transform
+{
+  Vec3F32 translation;
+  Quaternion rotation;
+  Vec3F32 scale;
+};
+#define IdentityTransform() {.scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f}
+Transform _transform_nil = IdentityTransform();
+DefineArray(Transform, TransformArray, _transform_nil)
+
+// -------------------------------------------------------------------
 // Default Math functions (Use F32)
 typedef Vec2F32 Vec2;
 typedef Vec3F32 Vec3;

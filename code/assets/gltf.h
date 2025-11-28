@@ -183,6 +183,48 @@ struct GLTFAsset
   U32 version;
 };
 
+typedef U8 GLTFTargetType;
+typedef enum GLTFTargetTypeEnum
+{
+  GLTFTargetType_None,
+  GLTFTargetType_Translation,
+  GLTFTargetType_Rotation,
+  GLTFTargetType_Scale,
+} GLTF_TargetTypeEnum;
+
+typedef struct GLTFTarget GLTFTarget;
+struct GLTFTarget
+{
+  GLTF_ID node_id;
+  GLTFTargetType type;
+};
+
+typedef struct GLTFChannel GLTFChannel;
+struct GLTFChannel
+{
+  GLTF_ID sampler_id;
+  GLTFTarget target;
+};
+DefineList(GLTFChannel, GLTFChannelList)
+
+typedef struct GLTFSampler GLTFSampler;
+struct GLTFSampler
+{
+  GLTF_ID input_accessor_id;
+  // GLTFInterpolationType interpolation_type; // Linear is default
+  GLTF_ID output_accessor_id;
+};
+DefineList(GLTFSampler, GLTFSamplerList)
+
+typedef struct GLTFAnimation GLTFAnimation;
+struct GLTFAnimation
+{
+  Str8 name;
+  GLTFChannelList channels;
+  GLTFSamplerList samplers;
+};
+DefineList(GLTFAnimation, GLTFAnimationList)
+
 typedef struct GLTFData GLTFData;
 struct GLTFData
 {
@@ -194,6 +236,7 @@ struct GLTFData
   GLTFBufferList buffers;
   GLTFBufferViewList buffer_views;
   GLTFAccessorList accessors;
+  GLTFAnimationList animations;
 };
 
 func Buffer ReadGLTFFile(Buffer file_name);
