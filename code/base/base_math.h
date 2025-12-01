@@ -303,6 +303,8 @@ struct Transform
 Transform _transform_nil = IdentityTransform();
 DefineArray(Transform, TransformArray, _transform_nil)
 
+func Mat4F32 Mat4F32FromTransform(Transform t);
+
 // -------------------------------------------------------------------
 // Default Math functions (Use F32)
 typedef Vec2F32 Vec2;

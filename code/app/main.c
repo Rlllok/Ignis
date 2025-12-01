@@ -2,11 +2,13 @@
 #include "os/os_include.h"
 #include "render/r_include.h"
 #include "assets/mesh.h"
+#include "assets/animation.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "render/r_include.c"
 #include "assets/mesh.c"
+#include "assets/animation.c"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
@@ -579,10 +581,10 @@ struct Entity
 {
   EntityID id;
   Str8 name;
-  Vec3 position;
-  F32 smoothness;
 
-  Quaternion rotation;
+  Transform transform;
+
+  F32 smoothness;
 
   AST_StaticMesh mesh;
   R_Texture color_texture;
@@ -645,6 +647,8 @@ struct AppState
   SkeletonArray skeletons;
   SkeletonAnimationArray skeleton_animations;
   SkeletonAnimationIDArray running_animations;
+
+  Animation animation;
 
   U32 hover_entity_id;
 
@@ -798,6 +802,27 @@ I32 main(void)
 
     SkeletonAnimationArrayAdd(&app_state.skeleton_animations, animation);
   }
+
+  AnimationCurve animation_curve = CreateAnimationCurve(app_state.arena, 2);
+  app_state.animation = (Animation){
+    .duration = 2*1000,
+    .looped = 1,
+    .curve = (AnimationCurve){
+        .type = AnimationCurveType_Linear,
+        .start_transform = {
+          .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+          .rotation = IdentityQuaternion(),
+          .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+        },
+        .end_transform = {
+          .translation = MakeVec3F32(2.0f, 0.0f, 0.0f),
+          .rotation = IdentityQuaternion(),
+          .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+        },
+        .start_timestamp = 0*1000,
+        .end_timestamp = 1*1000,
+    },
+  };
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
@@ -1062,14 +1087,16 @@ I32 main(void)
   }
 
 
-  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
+  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
   UpdateSkeletonGlobalTransform(&dummy_mesh.skeleton);
   CreateEntity(
     &app_state.entities,
     (Entity){
       .name = Str8C("Dummy"),
-      .position = MakeVec3(0.0f, 0.0f, 0.0f),
-      .rotation = QuaternionFromEuler(0.0f, 0.0f, 0.0f),
+      .transform = (Transform){
+        .translation = MakeVec3(0.0f, 0.0f, 0.0f),
+        .rotation = IdentityQuaternion(),
+      },
       .mesh = dummy_mesh,
       .color_texture = app_state.default_color_texture,
     }
@@ -1221,7 +1248,7 @@ I32 main(void)
 
           UI_SetParent(euler_rotation);
           {
-            Vec3F32 euler = EulerFromQuaternion(app_state.selected_entity->rotation);
+            Vec3F32 euler = EulerFromQuaternion(app_state.selected_entity->transform.rotation);
             euler.x = DegreesFromRadians(euler.x);
             euler.y = DegreesFromRadians(euler.y);
             euler.z = DegreesFromRadians(euler.z);
@@ -1240,7 +1267,7 @@ I32 main(void)
             sprintf(yaw_cstring, "Yaw: %.2f", input_euler.z);
             UI_NumberInput(&ui_context.elements, Str8C(yaw_cstring), &input_euler.z);
 
-            app_state.selected_entity->rotation = QuaternionFromEuler(
+            app_state.selected_entity->transform.rotation = QuaternionFromEuler(
               RadiansFromDegrees(input_euler.x),
               RadiansFromDegrees(input_euler.y),
               RadiansFromDegrees(input_euler.z)
@@ -1249,14 +1276,14 @@ I32 main(void)
           UI_SetParent(right_box);
 
           char position_x_slider_cstring[128] = {0};
-          sprintf(position_x_slider_cstring, "X: %.1f", app_state.selected_entity->position.x);
-          UI_SliderF32(&ui_context.elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.x);
+          sprintf(position_x_slider_cstring, "X: %.1f", app_state.selected_entity->transform.translation.x);
+          UI_SliderF32(&ui_context.elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->transform.translation.x);
           char position_y_slider_cstring[128] = {0};
-          sprintf(position_y_slider_cstring, "Y: %.1f", app_state.selected_entity->position.y);
-          UI_SliderF32(&ui_context.elements, Str8C(position_y_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.y);
+          sprintf(position_y_slider_cstring, "Y: %.1f", app_state.selected_entity->transform.translation.y);
+          UI_SliderF32(&ui_context.elements, Str8C(position_y_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->transform.translation.y);
           char position_z_slider_cstring[128] = {0};
-          sprintf(position_z_slider_cstring, "Z: %.1f", app_state.selected_entity->position.z);
-          UI_SliderF32(&ui_context.elements, Str8C(position_z_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->position.z);
+          sprintf(position_z_slider_cstring, "Z: %.1f", app_state.selected_entity->transform.translation.z);
+          UI_SliderF32(&ui_context.elements, Str8C(position_z_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->transform.translation.z);
 
           char smoothness_slider_cstring[128] = {0};
           sprintf(smoothness_slider_cstring, "Smoothness: %.1f", app_state.selected_entity->smoothness);
@@ -1310,6 +1337,8 @@ I32 main(void)
         {
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
+            Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
+            entity->transform = AnimateTransform(app_state.animation, OS_GetTimeTicks());
             DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
           }
         }
@@ -1513,9 +1542,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       Mat4 instance_matrix;
       Mat4 bone_transform[64];
     } mesh_instance_vertex_data;
-    mesh_instance_vertex_data.instance_matrix = MakeMat4(1.0f);
-    mesh_instance_vertex_data.instance_matrix = MulMat4(Mat4F32FromQuaternion(entity->rotation), mesh_instance_vertex_data.instance_matrix);
-    mesh_instance_vertex_data.instance_matrix = MulMat4(MakeTransposeMat4(entity->position), mesh_instance_vertex_data.instance_matrix);
+    mesh_instance_vertex_data.instance_matrix = Mat4F32FromTransform(entity->transform);
 
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
@@ -1685,6 +1712,7 @@ AnimateSkeleton(Skeleton* skeleton, SkeletonAnimation* animation, U64 current_ti
     target_joint->local_transform.rotation = SlerpQuaternion(transform0.rotation, transform1.rotation, blend_value);
     if (i == 0)
     {
+    #if 0
       LOG_DEBUG("Transform 0\t: %.2fx %.2fy %.2fz\n", transform0.translation.x, transform0.translation.y, transform0.translation.z);
       LOG_DEBUG("Animation Time\t%f\n", animation_time/1000.0f);
       LOG_DEBUG("Current Time\t%f\n", current_sample.timestamp/1000.0f);
@@ -1692,6 +1720,7 @@ AnimateSkeleton(Skeleton* skeleton, SkeletonAnimation* animation, U64 current_ti
       LOG_DEBUG("Blend value\t%f\n", blend_value);
       LOG_DEBUG("CurrentTransform 0\t: %.2fx %.2fy %.2fz\n", target_joint->local_transform.translation.x, target_joint->local_transform.translation.y, target_joint->local_transform.translation.z);
       LOG_DEBUG("Transform 1\t: %.2fx %.2fy %.2fz\n", transform1.translation.x, transform1.translation.y, transform1.translation.z);
+    #endif
     }
 
   }
@@ -1815,6 +1844,8 @@ HandleEvents(Arena* arena, AppState* state)
       LOG_DEBUG("Start Animations\n");
       StartAnimation(SkeletonAnimationArrayGetPointer(&state->skeleton_animations, i), OS_GetTimeTicks());
     }
+
+    state->animation.start_timestamp = OS_GetTimeTicks();
   }
 
   Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);

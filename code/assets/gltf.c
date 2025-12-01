@@ -678,8 +678,8 @@ GetGLTFData(GLTFReader* reader)
       )
       {
         GLTFSampler sampler = {0};
-        sampler.input_accessor_id = GetNumberElement(animation_element, Str8C("input"));
-        sampler.output_accessor_id = GetNumberElement(animation_element, Str8C("output"));
+        sampler.input_accessor_id = GetNumberElement(sampler_element, Str8C("input"));
+        sampler.output_accessor_id = GetNumberElement(sampler_element, Str8C("output"));
 
         GLTFSamplerListPush(&animation.samplers, sampler);
       }

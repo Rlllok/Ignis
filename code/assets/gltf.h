@@ -206,6 +206,8 @@ struct GLTFChannel
   GLTFTarget target;
 };
 DefineList(GLTFChannel, GLTFChannelList)
+GLTFChannel _gltf_channel_nil = {.sampler_id = GLTF_ID_NIL};
+DefineArray(GLTFChannel, GLTFChannelArray, _gltf_channel_nil)
 
 typedef struct GLTFSampler GLTFSampler;
 struct GLTFSampler

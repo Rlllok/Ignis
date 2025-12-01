@@ -1,4 +1,4 @@
-#pragma once
+#pragma oncemesh.c
 
 #include "mesh.h"
 
@@ -123,6 +123,107 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
     JointArrayAdd(&result.skeleton.joints, joint);
   }
+
+  // @TODO Hardcoded
+  GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 1);
+  {
+    GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
+    GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+    result.animation.key_samples = SkeletonKeySampleArrayAllocate(arena, accessor.count);
+    result.animation.key_samples.length = result.animation.key_samples.capacity;
+    for (I32 i = 0; i < result.animation.key_samples.length; i += 1)
+    {
+      SkeletonKeySample* sample = SkeletonKeySampleArrayGetPointer(&result.animation.key_samples, i);
+      sample->local_joint_transforms = TransformArrayAllocate(arena, result.skeleton.joints.length);
+
+      for (I32 j = 0; j < result.skeleton.joints.length; j += 1)
+      {
+        Joint joint = JointArrayGet(&result.skeleton.joints, j);
+        TransformArrayAdd(&sample->local_joint_transforms, joint.local_transform);
+      }
+    }
+  }
+
+  Arena* tmp_arena = AllocateArena(Megabytes(16));
+  {
+    GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+    translation_channels.length = translation_channels.capacity;
+    GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+    rotation_channels.length = rotation_channels.capacity;
+    GLTFChannelArray scale_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+    scale_channels.length = scale_channels.capacity;
+
+    // @TODO List should be changed to Array
+    for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
+    {
+      GLTFChannel channel = GLTFChannelListGetItem(&gltf_animation.channels, i);
+
+      JointID joint_id = JointID_Nil;
+      for (I32 j = 0; j < gltf_data.skin.joint_ids.length; j += 1)
+      {
+        if (GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, j) == channel.target.node_id)
+        {
+          joint_id = j;
+          break;
+        }
+      }
+
+      if (joint_id == JointID_Nil)
+      {
+        continue;
+      }
+
+      switch (channel.target.type)
+      {
+        default:
+        {
+          AssertMessage(0, "Wrong Channel Target\n");
+        }
+
+        case GLTFTargetType_Translation:
+        {
+          GLTFChannel* joint_translation_channel = GLTFChannelArrayGetPointer(&translation_channels, joint_id);
+          *joint_translation_channel = channel;
+        } break;
+
+        case GLTFTargetType_Rotation:
+        {
+          GLTFChannel* joint_rotation_channel = GLTFChannelArrayGetPointer(&rotation_channels, joint_id);
+          *joint_rotation_channel = channel;
+        } break;
+
+        case GLTFTargetType_Scale:
+        {
+          GLTFChannel* joint_scale_channel = GLTFChannelArrayGetPointer(&scale_channels, joint_id);
+          *joint_scale_channel = channel;
+        } break;
+      }
+    }
+
+    for (I32 i = 0; i < result.animation.key_samples.length; i += 1)
+    {
+      SkeletonKeySample* key_sample = SkeletonKeySampleArrayGetPointer(&result.animation.key_samples, i);
+
+      for (I32 j = 0; j < result.skeleton.joints.length; j += 1)
+      {
+        // Translation
+        {
+          GLTFChannel channel = GLTFChannelArrayGet(&translation_channels, j);
+          GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+          GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+          GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+          GLTFBufferView input_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, input_accessor.buffer_view_id);
+          GLTFBufferView output_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, output_accessor.buffer_view_id);
+          GLTFBuffer input_buffer = GLTFBufferListGetItem(&gltf_data.buffers, input_buffer_view.buffer_id);
+          GLTFBuffer output_buffer = GLTFBufferListGetItem(&gltf_data.buffers, output_buffer_view.buffer_id);
+
+          F32 timestamp = *((F32*)(input_buffer.data + input_accessor.byte_offset + input_buffer_view.byte_offset) + i);
+          key_sample->timestamp = (U32)(timestamp*1000.0f);
+        }
+      }
+    }
+  }
+  FreeArena(tmp_arena);
 
   return result;
 }

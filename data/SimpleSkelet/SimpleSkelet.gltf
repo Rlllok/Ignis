@@ -1,6 +1,6 @@
 {
 	"asset":{
-		"generator":"Khronos glTF Blender I/O v4.5.49",
+		"generator":"Khronos glTF Blender I/O v5.0.21",
 		"version":"2.0"
 	},
 	"scene":0,
@@ -8,30 +8,19 @@
 		{
 			"name":"Scene",
 			"nodes":[
-				9
+				4
 			]
 		}
 	],
 	"nodes":[
 		{
-			"name":"TopBone",
-			"rotation":[
-				1.9367126569136417e-08,
-				8.823756303399932e-08,
-				-0.21438519656658173,
-				0.9767491817474365
-			],
-			"translation":[
-				0,
-				2.118612051010132,
-				0
-			]
+			"name":"Bone.002"
 		},
 		{
 			"children":[
 				0
 			],
-			"name":"MiddleBone",
+			"name":"Bone.001",
 			"translation":[
 				0,
 				1,
@@ -39,144 +28,169 @@
 			]
 		},
 		{
-			"name":"Right1",
-			"rotation":[
-				3.0834326025797054e-07,
-				-3.1787426024720844e-08,
-				-0.7096042633056641,
-				0.70460045337677
-			],
-			"scale":[
-				0.9999998807907104,
-				0.9999998807907104,
+			"children":[
 				1
 			],
-			"translation":[
-				-1.4585106100639678e-07,
-				3.025192975997925,
-				1.3346506122502433e-09
-			]
-		},
-		{
-			"children":[
-				2
-			],
-			"name":"Right0",
-			"rotation":[
-				1.689781612412844e-07,
-				1.7017821107856435e-07,
-				-0.70460045337677,
-				0.7096042633056641
-			],
-			"translation":[
-				1.0996794700622559,
-				2.1797592639923096,
-				0.020594418048858643
-			]
-		},
-		{
-			"name":"Left3",
-			"rotation":[
-				-0.004153141751885414,
-				1.0272352568563292e-07,
-				0.707171618938446,
-				0.7070297598838806
-			],
-			"translation":[
-				3.944442141801119e-07,
-				1.9479961395263672,
-				-8.381903171539307e-09
-			]
-		},
-		{
-			"children":[
-				4
-			],
-			"name":"Left2",
-			"rotation":[
-				0.045170072466135025,
-				0.03498364984989166,
-				-0.8165498375892639,
-				0.5744407773017883
-			],
-			"scale":[
-				1.0000001192092896,
-				1,
-				0.9999999403953552
-			],
-			"translation":[
-				-1.019798219203949e-07,
-				1.3719725608825684,
-				2.60770320892334e-08
-			]
-		},
-		{
-			"children":[
-				5
-			],
-			"name":"Left1",
-			"rotation":[
-				-0.03832850605249405,
-				-0.03960943594574928,
-				0.8163343667984009,
-				0.5749436616897583
-			],
-			"translation":[
-				-1.0527523756027222,
-				2.032729148864746,
-				-0.02139134705066681
-			]
-		},
-		{
-			"children":[
-				1,
-				3,
-				6
-			],
-			"name":"BottomBone"
+			"name":"Bone"
 		},
 		{
 			"mesh":0,
-			"name":"Cube",
+			"name":"Plane",
 			"skin":0
 		},
 		{
 			"children":[
-				8,
-				7
+				3,
+				2
 			],
-			"name":"Armature"
+			"name":"Armature",
+			"scale":[
+				0.16487836837768555,
+				0.16487836837768555,
+				0.16487836837768555
+			]
+		}
+	],
+	"animations":[
+		{
+			"channels":[
+				{
+					"sampler":0,
+					"target":{
+						"node":2,
+						"path":"translation"
+					}
+				},
+				{
+					"sampler":1,
+					"target":{
+						"node":2,
+						"path":"rotation"
+					}
+				},
+				{
+					"sampler":2,
+					"target":{
+						"node":2,
+						"path":"scale"
+					}
+				},
+				{
+					"sampler":3,
+					"target":{
+						"node":1,
+						"path":"translation"
+					}
+				},
+				{
+					"sampler":4,
+					"target":{
+						"node":1,
+						"path":"rotation"
+					}
+				},
+				{
+					"sampler":5,
+					"target":{
+						"node":1,
+						"path":"scale"
+					}
+				},
+				{
+					"sampler":6,
+					"target":{
+						"node":0,
+						"path":"translation"
+					}
+				},
+				{
+					"sampler":7,
+					"target":{
+						"node":0,
+						"path":"rotation"
+					}
+				},
+				{
+					"sampler":8,
+					"target":{
+						"node":0,
+						"path":"scale"
+					}
+				}
+			],
+			"name":"ArmatureAction",
+			"samplers":[
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":7
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":8
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":9
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":10
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":8
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":9
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":7
+				},
+				{
+					"input":11,
+					"interpolation":"LINEAR",
+					"output":12
+				},
+				{
+					"input":6,
+					"interpolation":"STEP",
+					"output":9
+				}
+			]
 		}
 	],
 	"meshes":[
 		{
-			"name":"Cube",
+			"name":"Plane",
 			"primitives":[
 				{
 					"attributes":{
 						"POSITION":0,
 						"NORMAL":1,
-						"TEXCOORD_0":2,
-						"JOINTS_0":3,
-						"WEIGHTS_0":4
+						"JOINTS_0":2,
+						"WEIGHTS_0":3
 					},
-					"indices":5
+					"indices":4
 				}
 			]
 		}
 	],
 	"skins":[
 		{
-			"inverseBindMatrices":6,
+			"inverseBindMatrices":5,
 			"joints":[
-				7,
-				1,
-				0,
-				3,
 				2,
-				6,
-				5,
-				4
+				1,
+				0
 			],
 			"name":"Armature"
 		}
@@ -185,102 +199,179 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":260,
+			"count":72,
 			"max":[
-				4.335450172424316,
-				6.47202205657959,
-				1
+				0.06027528643608093,
+				0.48112693428993225,
+				0.06027528643608093
 			],
 			"min":[
-				-3.41271710395813,
+				-0.06027528643608093,
 				0,
-				-1
+				-0.06027528643608093
 			],
 			"type":"VEC3"
 		},
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":260,
+			"count":72,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
-			"componentType":5126,
-			"count":260,
-			"type":"VEC2"
+			"componentType":5121,
+			"count":72,
+			"type":"VEC4"
 		},
 		{
 			"bufferView":3,
-			"componentType":5121,
-			"count":260,
+			"componentType":5126,
+			"count":72,
 			"type":"VEC4"
 		},
 		{
 			"bufferView":4,
-			"componentType":5126,
-			"count":260,
-			"type":"VEC4"
+			"componentType":5123,
+			"count":180,
+			"type":"SCALAR"
 		},
 		{
 			"bufferView":5,
-			"componentType":5123,
-			"count":570,
-			"type":"SCALAR"
+			"componentType":5126,
+			"count":3,
+			"type":"MAT4"
 		},
 		{
 			"bufferView":6,
 			"componentType":5126,
-			"count":8,
-			"type":"MAT4"
+			"count":2,
+			"max":[
+				10.041666666666666
+			],
+			"min":[
+				0
+			],
+			"type":"SCALAR"
+		},
+		{
+			"bufferView":7,
+			"componentType":5126,
+			"count":2,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":8,
+			"componentType":5126,
+			"count":2,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":9,
+			"componentType":5126,
+			"count":2,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":10,
+			"componentType":5126,
+			"count":2,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":11,
+			"componentType":5126,
+			"count":242,
+			"max":[
+				10.041666666666666
+			],
+			"min":[
+				0
+			],
+			"type":"SCALAR"
+		},
+		{
+			"bufferView":12,
+			"componentType":5126,
+			"count":242,
+			"type":"VEC4"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":3120,
+			"byteLength":864,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":3120,
-			"byteOffset":3120,
+			"byteLength":864,
+			"byteOffset":864,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":2080,
-			"byteOffset":6240,
+			"byteLength":288,
+			"byteOffset":1728,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":1040,
-			"byteOffset":8320,
+			"byteLength":1152,
+			"byteOffset":2016,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":4160,
-			"byteOffset":9360,
-			"target":34962
-		},
-		{
-			"buffer":0,
-			"byteLength":1140,
-			"byteOffset":13520,
+			"byteLength":360,
+			"byteOffset":3168,
 			"target":34963
 		},
 		{
 			"buffer":0,
-			"byteLength":512,
-			"byteOffset":14660
+			"byteLength":192,
+			"byteOffset":3528
+		},
+		{
+			"buffer":0,
+			"byteLength":8,
+			"byteOffset":3720
+		},
+		{
+			"buffer":0,
+			"byteLength":24,
+			"byteOffset":3728
+		},
+		{
+			"buffer":0,
+			"byteLength":32,
+			"byteOffset":3752
+		},
+		{
+			"buffer":0,
+			"byteLength":24,
+			"byteOffset":3784
+		},
+		{
+			"buffer":0,
+			"byteLength":24,
+			"byteOffset":3808
+		},
+		{
+			"buffer":0,
+			"byteLength":968,
+			"byteOffset":3832
+		},
+		{
+			"buffer":0,
+			"byteLength":3872,
+			"byteOffset":4800
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":15172,
+			"byteLength":8672,
 			"uri":"SimpleSkelet.bin"
 		}
 	]

@@ -517,3 +517,15 @@ InsideRectF32(RectF32 rect, Vec2F32 v)
 
   return result;
 }
+
+// -------------------------------------------------------------------
+// Transform
+func Mat4F32
+Mat4F32FromTransform(Transform t)
+{
+  Mat4F32 result = MakeMat4F32(1.0f);
+  result = MulMat4F32(MakeScaleMat4F32(t.scale), result);
+  result = MulMat4F32(Mat4F32FromQuaternion(t.rotation), result);
+  result = MulMat4F32(MakeTransposeMat4F32(t.translation), result);
+  return result;
+}
