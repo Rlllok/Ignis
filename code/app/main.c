@@ -1,14 +1,14 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
 #include "render/r_include.h"
-#include "assets/mesh.h"
 #include "assets/animation.h"
+#include "assets/mesh.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "render/r_include.c"
-#include "assets/mesh.c"
 #include "assets/animation.c"
+#include "assets/mesh.c"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
@@ -803,26 +803,31 @@ I32 main(void)
     SkeletonAnimationArrayAdd(&app_state.skeleton_animations, animation);
   }
 
-  AnimationCurve animation_curve = CreateAnimationCurve(app_state.arena, 2);
   app_state.animation = (Animation){
-    .duration = 2*1000,
+    .duration = 1*1000,
     .looped = 1,
-    .curve = (AnimationCurve){
-        .type = AnimationCurveType_Linear,
-        .start_transform = {
-          .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
-          .rotation = IdentityQuaternion(),
-          .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
-        },
-        .end_transform = {
-          .translation = MakeVec3F32(2.0f, 0.0f, 0.0f),
-          .rotation = IdentityQuaternion(),
-          .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
-        },
-        .start_timestamp = 0*1000,
-        .end_timestamp = 1*1000,
-    },
+    .points = AnimationPointArrayAllocate(app_state.arena, 2)
   };
+  AnimationPoint point = (AnimationPoint){
+    .type = AnimationPointType_Linear,
+    .timestamp = 0*1000,
+    .linear.transform = (Transform){
+      .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+      .rotation = IdentityQuaternion(),
+      .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+    }
+  };
+  AnimationPointArrayAdd(&app_state.animation.points, point);
+  point = (AnimationPoint){
+    .type = AnimationPointType_Linear,
+    .timestamp = 1*1000,
+    .linear.transform = (Transform){
+      .translation = MakeVec3F32(2.0f, 0.0f, 0.0f),
+      .rotation = IdentityQuaternion(),
+      .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+    }
+  };
+  AnimationPointArrayAdd(&app_state.animation.points, point);
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
@@ -1088,6 +1093,7 @@ I32 main(void)
 
 
   AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
+  dummy_mesh.simple_animation.looped = 1;
   UpdateSkeletonGlobalTransform(&dummy_mesh.skeleton);
   CreateEntity(
     &app_state.entities,
@@ -1338,7 +1344,7 @@ I32 main(void)
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
             Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
-            entity->transform = AnimateTransform(app_state.animation, OS_GetTimeTicks());
+            entity->transform = AnimateTransform(entity->mesh.simple_animation, OS_GetTimeTicks());
             DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
           }
         }

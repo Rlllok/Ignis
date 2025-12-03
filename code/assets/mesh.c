@@ -1,4 +1,4 @@
-#pragma oncemesh.c
+#pragma once
 
 #include "mesh.h"
 
@@ -124,8 +124,66 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     JointArrayAdd(&result.skeleton.joints, joint);
   }
 
-  // @TODO Hardcoded
-  GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 1);
+  // --AlNov 3 December 2025: @Remove Hardcoded
+  // There is a lot of asumption about data inside gltf file
+  GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 0);
+  {
+    GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
+    GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+    result.simple_animation.points = AnimationPointArrayAllocate(arena, accessor.count);
+
+    for (I32 j = 0; j < result.simple_animation.points.capacity; j += 1)
+    {
+      AnimationPoint point = {0};
+      point.type = AnimationPointType_Linear;
+
+      for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
+      {
+        GLTFChannel channel = GLTFChannelListGetItem(&gltf_animation.channels, i);
+        GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+        GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+        GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+        GLTFBufferView input_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, input_accessor.buffer_view_id);
+        GLTFBufferView output_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, output_accessor.buffer_view_id);
+        GLTFBuffer input_buffer = GLTFBufferListGetItem(&gltf_data.buffers, input_buffer_view.buffer_id);
+        GLTFBuffer output_buffer = GLTFBufferListGetItem(&gltf_data.buffers, output_buffer_view.buffer_id);
+
+        switch (channel.target.type)
+        {
+          default:
+          {
+            AssertMessage(0, "GLTF: Unsupported channel type");
+          } break;
+
+          case GLTFTargetType_Translation:
+          {
+            Vec3F32 translation = *((Vec3F32*)(output_buffer.data + output_accessor.byte_offset + output_buffer_view.byte_offset) + j);
+            F32 timestamp = *((F32*)(input_buffer.data + input_accessor.byte_offset + input_buffer_view.byte_offset) + j);
+
+            point.linear.transform.translation = translation;
+            point.timestamp = (U64)(timestamp*1000.0f);
+            result.simple_animation.duration = Max(result.simple_animation.duration, point.timestamp);
+          } break;
+
+          case GLTFTargetType_Rotation:
+          {
+            Quaternion rotation = *((Quaternion*)(output_buffer.data + output_accessor.byte_offset + output_buffer_view.byte_offset) + j);
+            point.linear.transform.rotation = rotation;
+          } break;
+
+          case GLTFTargetType_Scale:
+          {
+            Vec3F32 scale = *((Vec3F32*)(output_buffer.data + output_accessor.byte_offset + output_buffer_view.byte_offset) + j);
+            point.linear.transform.scale = scale;
+          } break;
+        }
+      }
+
+      AnimationPointArrayAdd(&result.simple_animation.points, point);
+    }
+  }
+
+  gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 1);
   {
     GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
     GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);

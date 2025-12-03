@@ -2,41 +2,37 @@
 
 #include "base/base_include.h"
 
-U64 _timestamp_nil = 0;
-DefineArray(U64, TimestampArray, _timestamp_nil)
-
-typedef U16 AnimationCurveType;
+typedef U16 AnimationPointType;
 enum AnimationCurveTypeEnum
 {
-  AnimationCurveType_Step,
-  AnimationCurveType_Linear,
-} AnimationCurveTypeEnum;
+  AnimationPointType_Step,
+  AnimationPointType_Linear,
+} AnimationPointTypeEnum;
 
-typedef struct AnimationCurve AnimationCurve;
-struct AnimationCurve
+typedef struct AnimationPoint AnimationPoint;
+struct AnimationPoint
 {
-  AnimationCurveType type;
+  AnimationPointType type;
+  U64 timestamp;
+
   union
   {
     struct {
-      TranformArray transforms;
-      TimestampArray timestamps;
+      Transform transform;
     } step;
 
     struct {
-      TranformArray transforms;
-      TimestampArray timestamps;
+      Transform transform;
     } linear;
   };
 };
-
-func AnimationCurve CreateAnimationCurve(Arena* arena, AnimationCurveType type, U32 keys_number);
-func B32 AnimationCurveAddPoint(AnimationCurve* curve, Transform tranfsorm, U64 timestamp);
+AnimationPoint _animation_point_nil = {.linear.transform = IdentityTransform()};
+DefineArray(AnimationPoint, AnimationPointArray, _animation_point_nil)
 
 typedef struct Animation Animation;
 struct Animation
 {
-  AnimationCurve curve;
+  AnimationPointArray points;
   U32 duration;
   B32 looped;
   U32 start_timestamp;

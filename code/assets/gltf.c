@@ -146,6 +146,11 @@ FindPosition(Buffer buffer, U8 value)
   return result;
 }
 
+func void
+DataFromAccessor(GLTFData gltf_data, GLTF_ID accessor_id, void* output)
+{
+  GLTFAccessor accessor;
+}
 
 func void
 GLTFError(GLTFReader* reader, GLTFToken token, const char* message)

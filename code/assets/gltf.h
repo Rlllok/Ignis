@@ -177,6 +177,8 @@ struct GLTFAccessor
 };
 DefineList(GLTFAccessor, GLTFAccessorList)
 
+func void DataFromAccessor(GLTFData gltf_data, GLTF_ID accessor_id, void* output);
+
 typedef struct GLTFAsset GLTFAsset;
 struct GLTFAsset
 {
