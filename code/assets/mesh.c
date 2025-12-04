@@ -143,10 +143,6 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
         GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
         GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
         GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
-        GLTFBufferView input_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, input_accessor.buffer_view_id);
-        GLTFBufferView output_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, output_accessor.buffer_view_id);
-        GLTFBuffer input_buffer = GLTFBufferListGetItem(&gltf_data.buffers, input_buffer_view.buffer_id);
-        GLTFBuffer output_buffer = GLTFBufferListGetItem(&gltf_data.buffers, output_buffer_view.buffer_id);
 
         switch (channel.target.type)
         {
@@ -157,24 +153,19 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
           case GLTFTargetType_Translation:
           {
-            Vec3F32 translation = *((Vec3F32*)(output_buffer.data + output_accessor.byte_offset + output_buffer_view.byte_offset) + j);
-            F32 timestamp = *((F32*)(input_buffer.data + input_accessor.byte_offset + input_buffer_view.byte_offset) + j);
-
-            point.linear.transform.translation = translation;
-            point.timestamp = (U64)(timestamp*1000.0f);
+            point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
+            point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
             result.simple_animation.duration = Max(result.simple_animation.duration, point.timestamp);
           } break;
 
           case GLTFTargetType_Rotation:
           {
-            Quaternion rotation = *((Quaternion*)(output_buffer.data + output_accessor.byte_offset + output_buffer_view.byte_offset) + j);
-            point.linear.transform.rotation = rotation;
+            point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
           } break;
 
           case GLTFTargetType_Scale:
           {
-            Vec3F32 scale = *((Vec3F32*)(output_buffer.data + output_accessor.byte_offset + output_buffer_view.byte_offset) + j);
-            point.linear.transform.scale = scale;
+            point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
           } break;
         }
       }
@@ -264,19 +255,17 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
       for (I32 j = 0; j < result.skeleton.joints.length; j += 1)
       {
+        Transform
+
         // Translation
         {
           GLTFChannel channel = GLTFChannelArrayGet(&translation_channels, j);
           GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
           GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
           GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
-          GLTFBufferView input_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, input_accessor.buffer_view_id);
-          GLTFBufferView output_buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, output_accessor.buffer_view_id);
-          GLTFBuffer input_buffer = GLTFBufferListGetItem(&gltf_data.buffers, input_buffer_view.buffer_id);
-          GLTFBuffer output_buffer = GLTFBufferListGetItem(&gltf_data.buffers, output_buffer_view.buffer_id);
 
-          F32 timestamp = *((F32*)(input_buffer.data + input_accessor.byte_offset + input_buffer_view.byte_offset) + i);
-          key_sample->timestamp = (U32)(timestamp*1000.0f);
+          key_sample.
+          key_sample->timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, i)*1000.0f);
         }
       }
     }

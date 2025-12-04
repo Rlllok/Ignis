@@ -82,11 +82,11 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":1176,
+			"count":1308,
 			"max":[
 				0.14309921860694885,
 				0.28619855642318726,
-				0.14309927821159363
+				0.3219207525253296
 			],
 			"min":[
 				-0.14309927821159363,
@@ -98,19 +98,19 @@
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":1176,
+			"count":1308,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":1176,
+			"count":1308,
 			"type":"VEC2"
 		},
 		{
 			"bufferView":3,
 			"componentType":5123,
-			"count":1764,
+			"count":2124,
 			"type":"SCALAR"
 		},
 		{
@@ -147,52 +147,52 @@
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":14112,
+			"byteLength":15696,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":14112,
-			"byteOffset":14112,
+			"byteLength":15696,
+			"byteOffset":15696,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":9408,
-			"byteOffset":28224,
+			"byteLength":10464,
+			"byteOffset":31392,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":3528,
-			"byteOffset":37632,
+			"byteLength":4248,
+			"byteOffset":41856,
 			"target":34963
 		},
 		{
 			"buffer":0,
 			"byteLength":240,
-			"byteOffset":41160
+			"byteOffset":46104
 		},
 		{
 			"buffer":0,
 			"byteLength":720,
-			"byteOffset":41400
+			"byteOffset":46344
 		},
 		{
 			"buffer":0,
 			"byteLength":960,
-			"byteOffset":42120
+			"byteOffset":47064
 		},
 		{
 			"buffer":0,
 			"byteLength":720,
-			"byteOffset":43080
+			"byteOffset":48024
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":43800,
+			"byteLength":48744,
 			"uri":"SimpleAnimation.bin"
 		}
 	]

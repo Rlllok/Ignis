@@ -1,3 +1,8 @@
+## 4 December 2025
+I didn't add helper functions to read data from accessors. This is what I want to do today.
+
+Everething is working 
+
 ## 3 December 2025
 The last session ended on try to move AnimationCurve. And it was not finished. After a pause I understand that it should be better named as Point(or Sample). That means that animation will contain some number of points that represents transformation for animation target. With such perspective there is no differents between sampled animation or curved animation. If it is a curve it will just have less points then sampled one.
 

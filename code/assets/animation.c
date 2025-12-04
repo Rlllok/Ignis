@@ -39,9 +39,9 @@ AnimateTransform(Animation animation, U32 timestamp)
       result.scale = LerpVec3F32(current_point.linear.transform.scale, next_point.linear.transform.scale, blend_value);
 
       // LOG_DEBUG("Transform 0\t: %.2fx %.2fy %.2fz\n", current_point.linear.transform.translation.x, current_point.linear.transform.translation.y, current_point.linear.transform.translation.z);
-      LOG_DEBUG("Animation Time\t%f\n", animation_time/1000.0f);
-      LOG_DEBUG("Blend value\t%f\n", blend_value);
-      LOG_DEBUG("CurrentTransform 0\t: %.2fx %.2fy %.2fz\n", result.translation.x, result.translation.y, result.translation.z);
+      // LOG_DEBUG("Animation Time\t%f\n", animation_time/1000.0f);
+      // LOG_DEBUG("Blend value\t%f\n", blend_value);
+      // LOG_DEBUG("CurrentTransform 0\t: %.2fx %.2fy %.2fz\n", result.translation.x, result.translation.y, result.translation.z);
     } break;
   }
   

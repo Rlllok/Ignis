@@ -177,8 +177,6 @@ struct GLTFAccessor
 };
 DefineList(GLTFAccessor, GLTFAccessorList)
 
-func void DataFromAccessor(GLTFData gltf_data, GLTF_ID accessor_id, void* output);
-
 typedef struct GLTFAsset GLTFAsset;
 struct GLTFAsset
 {
@@ -250,7 +248,12 @@ func GLTFElement* ParseList(GLTFReader* reader, GLTFToken start_token, GLTFToken
 func GLTFElement* ParseElement(GLTFReader* reader, Buffer label, GLTFToken token);
 func GLTFData GetGLTFData(GLTFReader* reader);
 func GLTFElement* LookUpElement(GLTFElement* object, Buffer label);
-func Buffer GetDataFromGLTFBuffer(GLTFBuffer gltf_buffer);
+
+func void* GetDataFromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U64 byte_offset);
+func F32 GetF32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index);
+func Vec3F32 GetVec3F32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index);
+func Vec4F32 GetVec4F32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index);
+func Quaternion GetQuaternionFromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index);
 
 // Base64 Decoder
 U8 base64_map[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',

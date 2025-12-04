@@ -233,6 +233,7 @@ union Quaternion
 
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w);
 func Vec4F32 Vec4F32FromQuaternion(Quaternion q);
+func Quaternion QuaternionFromVec4F32(Vec4F32 v);
 func Quaternion AddQuaternion(Quaternion a, Quaternion b);
 func Quaternion MulQuaternion(Quaternion l, Quaternion r);
 func Quaternion ScaleQuaternion(Quaternion q, F32 s);

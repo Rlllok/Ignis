@@ -1092,7 +1092,8 @@ I32 main(void)
   }
 
 
-  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
+  // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
+  AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
   dummy_mesh.simple_animation.looped = 1;
   UpdateSkeletonGlobalTransform(&dummy_mesh.skeleton);
   CreateEntity(
@@ -1102,6 +1103,7 @@ I32 main(void)
       .transform = (Transform){
         .translation = MakeVec3(0.0f, 0.0f, 0.0f),
         .rotation = IdentityQuaternion(),
+        .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
       },
       .mesh = dummy_mesh,
       .color_texture = app_state.default_color_texture,
@@ -1344,8 +1346,8 @@ I32 main(void)
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
             Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
-            entity->transform = AnimateTransform(entity->mesh.simple_animation, OS_GetTimeTicks());
-            DrawEntity(command_buffer, data_buffer, EntityArrayGetPointer(&app_state.entities, i));
+            // entity->transform = AnimateTransform(entity->mesh.simple_animation, OS_GetTimeTicks());
+            DrawEntity(command_buffer, data_buffer, entity);
           }
         }
         R_EndRenderPass(command_buffer, 0);

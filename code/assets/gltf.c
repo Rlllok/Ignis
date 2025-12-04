@@ -147,12 +147,6 @@ FindPosition(Buffer buffer, U8 value)
 }
 
 func void
-DataFromAccessor(GLTFData gltf_data, GLTF_ID accessor_id, void* output)
-{
-  GLTFAccessor accessor;
-}
-
-func void
 GLTFError(GLTFReader* reader, GLTFToken token, const char* message)
 {
   reader->has_error = true;
@@ -716,10 +710,82 @@ LookUpElement(GLTFElement* object, Buffer label)
   return result;
 }
 
-func Buffer
-GetGltfBufferData(GLTFBuffer gltf_buffer)
+func void*
+GetDataFromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U64 byte_offset)
 {
-  Buffer result = {0};
+  GLTFBufferView buffer_view = GLTFBufferViewListGetItem(&gltf_data.buffer_views, accessor.buffer_view_id);
+  GLTFBuffer buffer = GLTFBufferListGetItem(&gltf_data.buffers, buffer_view.buffer_id);
 
+  return (void*)(buffer.data + accessor.byte_offset + buffer_view.byte_offset + byte_offset);
+}
+
+func F32
+GetF32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
+{
+  F32 result = 0.0f;
+
+  if (index >= accessor.count)
+  {
+    LOG_DEBUG("Out of accessor's data length.\n");
+    return result;
+  }
+  if (accessor.type != GLTFAccessorType_Scalar && accessor.component_type != GLTFComponentType_Float)
+  {
+    LOG_DEBUG("Accessor's type is not F32.\n");
+  }
+  result = *(F32*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(F32)*index);
+  return result;
+}
+
+func Vec3F32
+GetVec3F32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
+{
+  Vec3F32 result = MakeVec3F32(0.0f, 0.0f, 0.0f);
+
+  if (index >= accessor.count)
+  {
+    LOG_DEBUG("Out of accessor's data length.");
+    return result;
+  }
+  if (accessor.type != GLTFAccessorType_Vec3 && accessor.component_type != GLTFComponentType_Float)
+  {
+    LOG_DEBUG("Accessor's type is not Vec3F32.\n");
+  }
+  result = *(Vec3F32*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(Vec3F32)*index);
+  return result;
+}
+
+func Vec4F32
+GetVec4F32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
+{
+  Vec4F32 result = MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f);
+
+  if (index >= accessor.count)
+  {
+    LOG_DEBUG("Out of accessor's data length.");
+    return result;
+  }
+  if (accessor.type != GLTFAccessorType_Vec4 && accessor.component_type != GLTFComponentType_Float)
+  {
+    LOG_DEBUG("Accessor's type is not Vec4F32.\n");
+  }
+  result = *(Vec4F32*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(Vec4F32)*index);
+  return result;
+}
+
+func Quaternion GetQuaternionFromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
+{
+  Quaternion result = IdentityQuaternion();
+
+  if (index >= accessor.count)
+  {
+    LOG_DEBUG("Out of accessor's data length.");
+    return result;
+  }
+  if (accessor.type != GLTFAccessorType_Vec4 && accessor.component_type != GLTFComponentType_Float)
+  {
+    LOG_DEBUG("Accessor's type is not Quaternion.\n");
+  }
+  result = *(Quaternion*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(Quaternion)*index);
   return result;
 }
