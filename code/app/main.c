@@ -1385,7 +1385,17 @@ I32 main(void)
           
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
-            DrawSkeleton(command_buffer, data_buffer, &EntityArrayGetPointer(&app_state.entities, i)->mesh.skeleton);
+            Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
+            Skeleton* skeleton = &entity->mesh.skeleton;
+            for (I32 j = 0; j < skeleton->joints.length; j += 1)
+            {
+              Joint* joint = JointArrayGetPointer(&skeleton->joints, j);
+              Animation* animation = AnimationArrayGetPointer(&entity->mesh.skeletal_animation.bone_animations, j);
+              animation->looped = 1;
+              joint->local_transform = AnimateTransform(*animation, OS_GetTimeTicks());
+            }
+            UpdateSkeletonGlobalTransform(skeleton);
+            DrawSkeleton(command_buffer, data_buffer, skeleton);
           }
 
           struct

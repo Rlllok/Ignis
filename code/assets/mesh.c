@@ -178,8 +178,9 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
   {
     GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
     GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
-    result.animation.key_samples = SkeletonKeySampleArrayAllocate(arena, accessor.count);
-    result.animation.key_samples.length = result.animation.key_samples.capacity;
+    result.skeletal_animation.bone_animations = AnimationArrayAllocate(arena, result.skeleton.joints.length);
+    result.skeletal_animation.bone_animations.length = result.skeletal_animation.bone_animations.capacity;
+
     for (I32 i = 0; i < result.animation.key_samples.length; i += 1)
     {
       SkeletonKeySample* sample = SkeletonKeySampleArrayGetPointer(&result.animation.key_samples, i);
@@ -249,24 +250,48 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
       }
     }
 
-    for (I32 i = 0; i < result.animation.key_samples.length; i += 1)
+    for (I32 i = 0; i < result.skeletal_animation.bone_animations.length; i += 1)
     {
-      SkeletonKeySample* key_sample = SkeletonKeySampleArrayGetPointer(&result.animation.key_samples, i);
+      Animation* bone_animation = AnimationArrayGetPointer(&result.skeletal_animation.bone_animations, i);
+      GLTFChannel tmp_channel = GLTFChannelArrayGet(&translation_channels, i);
+      GLTFSampler tmp_sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, tmp_channel.sampler_id);
+      GLTFAccessor tmp_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, tmp_sampler.input_accessor_id);
+      bone_animation->points = AnimationPointArrayAllocate(arena, tmp_accessor.count);
 
-      for (I32 j = 0; j < result.skeleton.joints.length; j += 1)
+      for (I32 j = 0; j < bone_animation->points.capacity; j += 1)
       {
-        Transform
+        AnimationPoint bone_animation_point = {0};
+        bone_animation_point.type = AnimationPointType_Linear;
 
         // Translation
         {
-          GLTFChannel channel = GLTFChannelArrayGet(&translation_channels, j);
+          GLTFChannel channel = GLTFChannelArrayGet(&translation_channels, i);
           GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
           GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
           GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
 
-          key_sample.
-          key_sample->timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, i)*1000.0f);
+          bone_animation_point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
+          bone_animation_point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
+          bone_animation->duration = Max(bone_animation->duration, bone_animation_point.timestamp);
         }
+        // Rotation
+        {
+          GLTFChannel channel = GLTFChannelArrayGet(&rotation_channels, i);
+          GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+          GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+
+          bone_animation_point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
+        }
+        // Scale
+        {
+          GLTFChannel channel = GLTFChannelArrayGet(&scale_channels, i);
+          GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+          GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+
+          bone_animation_point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
+        }
+
+        AnimationPointArrayAdd(&bone_animation->points, bone_animation_point);
       }
     }
   }

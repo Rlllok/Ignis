@@ -37,5 +37,13 @@ struct Animation
   B32 looped;
   U32 start_timestamp;
 };
+Animation _animation_nil = {0};
+DefineArray(Animation, AnimationArray, _animation_nil)
+
+typedef struct SkeletalAnimation SkeletalAnimation;
+struct SkeletalAnimation
+{
+  AnimationArray bone_animations;
+};
 
 func Transform AnimateTransform(Animation animation, U32 timestamp);

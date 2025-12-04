@@ -300,7 +300,7 @@ struct Transform
   Quaternion rotation;
   Vec3F32 scale;
 };
-#define IdentityTransform() {.scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f}
+#define IdentityTransform() (Transform){.scale = {1.0f, 1.0f, 1.0f}, .rotation.w = 1.0f}
 Transform _transform_nil = IdentityTransform();
 DefineArray(Transform, TransformArray, _transform_nil)
 

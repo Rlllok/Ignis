@@ -103,6 +103,7 @@ struct AST_StaticMesh
   AST_GeometryList geometry_list;
   Skeleton skeleton;
   SkeletonAnimation animation;
+  SkeletalAnimation skeletal_animation;
 
   // --AlNov 3 December 2025: @Remove
   // It is there to test animation data from gltf loader.
