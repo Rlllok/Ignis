@@ -614,10 +614,21 @@ struct Camera
 };
 
 // Command Palette ----------------------------------------------------
+typedef struct Command Command;
+struct Command
+{
+  Str8 name;
+  void (*callback)(void* data);
+  void* data;
+};
+Command _command_nil = {0};
+DefineArray(Command, CommandArray, _command_nil)
+
 typedef struct CommandPalette CommandPalette;
 struct CommandPalette
 {
   Str8 input;
+  CommandArray commands;
 
   RectF32 rectangle;
   Vec4F32 background_color;
@@ -626,6 +637,12 @@ struct CommandPalette
 };
 
 func void ToggleCommandPalette(CommandPalette* command_palette) {command_palette->activated = !command_palette->activated;}
+func void
+ToggleCommandPaletteCommandCallback(void* command_palette_ptr)
+{
+  ToggleCommandPalette((CommandPalette*)(command_palette_ptr));
+}
+
 func void DrawCommandPalette(R_CommandBuffer command_buffer, R_Buffer buffer, CommandPalette* command_palette, U64 current_timestamp);
 
 // App ---------------------------------------------------------------
@@ -744,6 +761,15 @@ I32 main(void)
     .background_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 0.8f),
     .activated = 1,
   };
+  app_state.command_palette.commands = CommandArrayAllocate(app_state.arena, 3);
+  CommandArrayAdd(
+    &app_state.command_palette.commands,
+    (Command){
+      .name = Str8C("Toggle Command Palette"),
+      .callback = ToggleCommandPaletteCommandCallback,
+      .data = &app_state.command_palette,
+    }
+  );
 
   const I32 joint_count = 3;
   app_state.skeletons = SkeletonArrayAllocate(app_state.arena, 4);
@@ -1345,8 +1371,16 @@ I32 main(void)
         UI_SetParent(command_palette);
         {
           UI_SetSizeX(UI_ParentPercentSize(1.0f));
-          UI_SetSizeY(UI_FixedSize(20.0f));
+          UI_SetSizeY(UI_FixedSize(40.0f));
           UI_Text(&ui_context.elements, app_state.command_palette.input);
+          for (I32 i = 0; i < app_state.command_palette.commands.length; i += 1)
+          {
+            Command command = CommandArrayGet(&app_state.command_palette.commands, i);
+            if (UI_Button(&ui_context.elements, command.name))
+            {
+              command.callback(command.data);
+            }
+          }
         }
       }
     }
