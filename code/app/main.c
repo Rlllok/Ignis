@@ -613,6 +613,22 @@ struct Camera
   F32 pitch;
 };
 
+// Command Palette ----------------------------------------------------
+typedef struct CommandPalette CommandPalette;
+struct CommandPalette
+{
+  Str8 input;
+
+  RectF32 rectangle;
+  Vec4F32 background_color;
+  Vec4F32 border_radius;
+  B32 activated;
+};
+
+func void ToggleCommandPalette(CommandPalette* command_palette) {command_palette->activated = !command_palette->activated;}
+func void DrawCommandPalette(R_CommandBuffer command_buffer, R_Buffer buffer, CommandPalette* command_palette, U64 current_timestamp);
+
+// App ---------------------------------------------------------------
 typedef struct AppState AppState;
 struct AppState
 {
@@ -664,6 +680,8 @@ struct AppState
 
   B32 to_render;
   B32 draw_ui;
+
+  CommandPalette command_palette;
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
@@ -715,8 +733,17 @@ I32 main(void)
   app_state.camera.pitch = -30.0f;
   app_state.entities = EntityArrayAllocate(app_state.arena, 128);
   app_state.selected_entity = &EntityDefaultValue;
-  app_state.draw_ui = 0;
+  app_state.draw_ui = 1;
   app_state.to_render = 1;
+  app_state.command_palette = (CommandPalette){
+    .input = Str8C("Input string test"),
+    .rectangle = (RectF32){
+      .position = MakeVec2F32(0.0f, 0.0f),
+      .size = MakeVec2F32(400.0f, 400.0f),
+    },
+    .background_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 0.8f),
+    .activated = 1,
+  };
 
   const I32 joint_count = 3;
   app_state.skeletons = SkeletonArrayAllocate(app_state.arena, 4);
@@ -1094,6 +1121,7 @@ I32 main(void)
 
   // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
   AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
+  // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleBoneAnimation/SimpleBoneAnimataion.gltf"));
   dummy_mesh.simple_animation.looped = 1;
   UpdateSkeletonGlobalTransform(&dummy_mesh.skeleton);
   CreateEntity(
@@ -1299,6 +1327,28 @@ I32 main(void)
         }
       }
       UI_SetParent(0);
+      if (app_state.command_palette.activated)
+      {
+        UI_SetFixedPosition(app_state.command_palette.rectangle.position);
+        UI_SetSizeX(UI_FixedSize(app_state.command_palette.rectangle.size.x));
+        UI_SetSizeY(UI_FixedSize(app_state.command_palette.rectangle.size.y));
+        UI_Element* command_palette = UI_BuildElement(
+          &ui_context.elements,
+          (UI_ElementDescription){
+            .label = Str8C("CommandPalette"),
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = UI_LayoutDirection_TopToBottom,
+            .child_gap = 5.0f,
+            .border_radius = app_state.command_palette.border_radius,
+          }
+        );
+        UI_SetParent(command_palette);
+        {
+          UI_SetSizeX(UI_ParentPercentSize(1.0f));
+          UI_SetSizeY(UI_FixedSize(20.0f));
+          UI_Text(&ui_context.elements, app_state.command_palette.input);
+        }
+      }
     }
 
     if (app_state.to_render)
@@ -1490,6 +1540,11 @@ I32 main(void)
               .size = MakeVec2(20.0f, 20.0f),
             };
             DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(0.8f, 0.8f, 0.8f, 1.0f));
+          }
+
+          if (app_state.command_palette.activated)
+          {
+            // DrawCommandPalette(command_buffer, data_buffer, &app_state.command_palette, OS_GetTimeTicks());
           }
         }
         R_EndRenderPass(command_buffer, 0);
@@ -1854,6 +1909,10 @@ HandleEvents(Arena* arena, AppState* state)
   {
     state->draw_ui = !state->draw_ui;
   }
+  if (OS_IsKeyPressed(OS_KEY_F1))
+  {
+    ToggleCommandPalette(&state->command_palette);
+  }
 
   if (OS_IsKeyPressed(OS_KEY_U))
   {
@@ -2139,4 +2198,10 @@ DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 bor
   R_BindInstanceFragmentShaderData(command_buffer, 1, &square_fragment_shader_instance_uniform, 0, 0);
 
   R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+}
+
+func void
+DrawCommandPalette(R_CommandBuffer command_buffer, R_Buffer buffer, CommandPalette* command_palette, U64 current_timestamp)
+{
+  DrawRect(command_buffer, buffer, command_palette->rectangle, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), command_palette->background_color);
 }

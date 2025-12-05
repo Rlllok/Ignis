@@ -1,3 +1,8 @@
+## 5 December 2025
+Cannot read SimpleBoneAnimation.gltf. Doesn't understand the reason. And what is insteresting - there is no message, but LOG_ERROR is called (gltf.c:76).
+
+Will work on command_palette.
+
 ## 4 December 2025
 I didn't add helper functions to read data from accessors. This is what I want to do today.
 
