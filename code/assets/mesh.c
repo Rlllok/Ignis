@@ -174,7 +174,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     }
   }
 
-  gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 1);
+  gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 0);
   {
     GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
     GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
