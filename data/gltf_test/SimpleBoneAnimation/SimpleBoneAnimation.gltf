@@ -67,9 +67,9 @@
 					"output":9
 				},
 				{
-					"input":10,
-					"interpolation":"STEP",
-					"output":11
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":10
 				}
 			]
 		}
@@ -180,19 +180,7 @@
 		{
 			"bufferView":10,
 			"componentType":5126,
-			"count":2,
-			"max":[
-				5
-			],
-			"min":[
-				0.041666666666666664
-			],
-			"type":"SCALAR"
-		},
-		{
-			"bufferView":11,
-			"componentType":5126,
-			"count":2,
+			"count":120,
 			"type":"VEC3"
 		}
 	],
@@ -255,18 +243,13 @@
 		},
 		{
 			"buffer":0,
-			"byteLength":8,
+			"byteLength":1440,
 			"byteOffset":38572
-		},
-		{
-			"buffer":0,
-			"byteLength":24,
-			"byteOffset":38580
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":38604,
+			"byteLength":40012,
 			"uri":"SimpleBoneAnimation.bin"
 		}
 	]

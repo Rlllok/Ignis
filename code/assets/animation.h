@@ -9,6 +9,9 @@ enum AnimationCurveTypeEnum
   AnimationPointType_Linear,
 } AnimationPointTypeEnum;
 
+// -- AlNov 6 December 2025: @TODO
+// It can be better to create Animations for every member of transform.
+// AnimationValueType (F32, Vec3F32, Quaternion ...)
 typedef struct AnimationPoint AnimationPoint;
 struct AnimationPoint
 {

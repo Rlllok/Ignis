@@ -36,15 +36,13 @@ void main(void)
   total_skin_transform += joint_weights.z*joint_transform[joint_ids.z];
   total_skin_transform += joint_weights.w*joint_transform[joint_ids.w];
 
-  total_skin_transform = mat4(1.0f);
-
   out_position = vec3(total_skin_transform*vec4(position, 1.0f));
   out_norm = normalize(vec3(instance_matrix*vec4(norm, 0.0f)));
   out_tangent = tangent;
   out_uv = uv;
   out_weight_color = vec3(0.0f, 0.0f, 1.0f);
   
-  if (joint_ids.x == 1)
+  if (joint_ids.x == 0)
   {
     out_weight_color = mix(out_weight_color, vec3(1.0f, 0.0f, 0.0f), joint_weights.x);
   }

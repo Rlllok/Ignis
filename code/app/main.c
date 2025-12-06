@@ -1650,6 +1650,11 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
       Mat4 bone_transform[64];
     } mesh_instance_vertex_data;
     mesh_instance_vertex_data.instance_matrix = Mat4F32FromTransform(entity->transform);
+    for (I32 i = 0; i < entity->mesh.skeleton.joints.length; i += 1)
+    {
+      Joint joint = JointArrayGet(&entity->mesh.skeleton.joints, i);
+      mesh_instance_vertex_data.bone_transform[i] = Mat4F32FromTransform(joint.global_transform);
+    }
 
     U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
 
