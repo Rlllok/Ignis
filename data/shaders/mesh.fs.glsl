@@ -34,6 +34,4 @@ void main(void)
   vec3 specular_light = vec3(0.7f)*0.35f*pow(max(dot(view_direction, reflection_direction), 0.0f), log2(smoothness*10 + 1));
 
   out_color = texture(color_texture, uv)*vec4(ambient_color + diffuse_light + specular_light, 1.0f);
-  out_color = vec4(weight_color, 1.0f);
-  // out_id = uint(entity_id);
 }

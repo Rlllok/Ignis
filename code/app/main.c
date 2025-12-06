@@ -887,7 +887,7 @@ I32 main(void)
 
   OS_Init(Megabytes(32));
 
-  OS_CreateWindow(Str8C("Vulkan Triangle"), MakeVec2U32(1270, 720), &app_state.window);
+  OS_CreateWindow(Str8C("Ignis"), MakeVec2U32(1270, 720), &app_state.window);
   OS_ShowWindow(&app_state.window);
 
   R_Init(R_RENDERER_TYPE_VK, &app_state.window);
