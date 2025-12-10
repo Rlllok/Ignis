@@ -677,7 +677,6 @@ struct AppState
   Camera camera;
   AST_StaticMesh joint_mesh;
 
-  SkeletonArray skeletons;
   SkeletonAnimationArray skeleton_animations;
   SkeletonAnimationIDArray running_animations;
 
@@ -770,91 +769,6 @@ I32 main(void)
       .data = &app_state.command_palette,
     }
   );
-
-  const I32 joint_count = 3;
-  app_state.skeletons = SkeletonArrayAllocate(app_state.arena, 4);
-
-  for (I32 skeleton_id = 0; skeleton_id < app_state.skeletons.capacity; skeleton_id += 1)
-  {
-    Skeleton skeleton = SkeletonArrayGet(&app_state.skeletons, skeleton_id);
-    skeleton.joints = JointArrayAllocate(app_state.arena, joint_count);
-    
-    Vec3F32 translations[3] = {
-      MakeVec3F32(0.0f, 0.0f, 0.0f),
-      MakeVec3F32(0.0f, 1.0f, 0.0f),
-      MakeVec3F32(0.0f, 0.25f, 0.0f),
-    };
-
-    Quaternion rotations[3] = {
-      QuaternionFromEuler(RadiansFromDegrees(0.0f), 0.0f, 0.0f),
-      QuaternionFromEuler(RadiansFromDegrees(90.0f), 0.0f, 0.0f),
-      QuaternionFromEuler(RadiansFromDegrees(-15.0f), 0.0f, 0.0f),
-    };
-
-    for (I32 i = 0; i < skeleton.joints.capacity; i += 1)
-    {
-      Joint joint = {
-        .parent_id = ((i - 1) >= 0) ? (i - 1) : JointID_Nil,
-        .local_transform.translation = translations[i],
-        .local_transform.rotation = rotations[i],
-      };
-      JointArrayAdd(&skeleton.joints, joint);
-    }
-
-    UpdateSkeletonGlobalTransform(&skeleton);
-    SkeletonArrayAdd(&app_state.skeletons, skeleton);
-  }
-
-  app_state.skeleton_animations = SkeletonAnimationArrayAllocate(app_state.arena, app_state.skeletons.capacity);
-  app_state.running_animations = SkeletonAnimationIDArrayAllocate(app_state.arena, 16);
-  for (I32 animation_id = 0; animation_id < app_state.skeletons.length; animation_id += 1)
-  {
-    SkeletonAnimation animation = (SkeletonAnimation){
-      .id = animation_id,
-      .skeleton_id = animation_id,
-      .key_samples = SkeletonKeySampleArrayAllocate(app_state.arena, 3),
-      .duration = 4*1000/(animation_id + 1),
-      .start_time = 0,
-      .end_time = 0,
-    };
-
-    for (I32 i = 0; i < 3; i += 1)
-    {
-      Skeleton* skeleton = SkeletonArrayGetPointer(&app_state.skeletons, animation.skeleton_id);
-
-      SkeletonKeySample key_sample = _skeleton_key_sample_nil;
-      key_sample.local_joint_transforms = TransformArrayAllocate(app_state.arena, 3);
-      key_sample.timestamp = (animation.duration/2)*i;
-
-      Joint joint = JointArrayGet(&skeleton->joints, 0);
-      Transform local_transform = joint.local_transform;
-      Vec3F32 translation_table[3] = {
-        MakeVec3F32(0.0f, 0.0f + (animation_id*1.0f), 0.0f),
-        MakeVec3F32(1.0f, 1.0f + (animation_id*1.0f), 0.0f),
-        MakeVec3F32(3.0f, 0.0f + (animation_id*1.0f), 0.0f),
-      };
-      Quaternion rotation_table[3] = {
-        QuaternionFromEuler(0.0f, 0.0f, 0.0f),
-        QuaternionFromEuler(90.0f, RadiansFromDegrees(300.0f), 0.0f),
-        QuaternionFromEuler(180.0f, 0.0f, 0.0f),
-      };
-      local_transform.translation = translation_table[i];
-      local_transform.rotation = rotation_table[i];
-      TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
-
-      joint = JointArrayGet(&skeleton->joints, 1);
-      local_transform = joint.local_transform;
-      local_transform.rotation = rotation_table[i];
-      TransformArrayAdd(&key_sample.local_joint_transforms, local_transform);
-      joint = JointArrayGet(&skeleton->joints, 2);
-      local_transform = joint.local_transform;
-      TransformArrayAdd(&key_sample.local_joint_transforms, joint.local_transform);
-
-      SkeletonKeySampleArrayAdd(&animation.key_samples, key_sample);
-    }
-
-    SkeletonAnimationArrayAdd(&app_state.skeleton_animations, animation);
-  }
 
   app_state.animation = (Animation){
     .duration = 1*1000,
@@ -1430,7 +1344,6 @@ I32 main(void)
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
             Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
-            // entity->transform = AnimateTransform(entity->mesh.simple_animation, OS_GetTimeTicks());
             DrawEntity(command_buffer, data_buffer, entity);
           }
         }
@@ -1449,35 +1362,26 @@ I32 main(void)
         };
         R_BeginRenderPass(command_buffer, 1, &grid_color_target, &grid_depth_target);
         {
-          for (I32 i = 0; i < app_state.running_animations.length; i += 1)
-          {
-            SkeletonAnimationID id = SkeletonAnimationIDArrayGet(&app_state.running_animations, i);
-            if (id != SkeletonAnimationID_Nil)
-            {
-              LOG_DEBUG("Animation is going\n");
-              SkeletonAnimation* animation = SkeletonAnimationArrayGetPointer(&app_state.skeleton_animations, id);
-              Skeleton* skeleton = SkeletonArrayGetPointer(&app_state.skeletons, animation->skeleton_id);
-              AnimateSkeleton(skeleton, animation, OS_GetTimeTicks());
-            }
-          }
-
-          for (I32 i = 0; i < app_state.skeletons.length; i += 1)
-          {
-            Skeleton* skeleton = SkeletonArrayGetPointer(&app_state.skeletons, i);
-            DrawSkeleton(command_buffer, data_buffer, skeleton);
-          }
-          
           for (I32 i = 0; i < app_state.entities.length; i += 1)
           {
             Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
             Skeleton* skeleton = &entity->mesh.skeleton;
+
             for (I32 j = 0; j < skeleton->joints.length; j += 1)
             {
               Joint* joint = JointArrayGetPointer(&skeleton->joints, j);
               Animation* animation = AnimationArrayGetPointer(&entity->mesh.skeletal_animation.bone_animations, j);
-              animation->looped = 1;
-              joint->local_transform = AnimateTransform(*animation, OS_GetTimeTicks());
+              if (animation !=  &_animation_nil)
+              {
+                animation->looped = 1;
+                joint->local_transform = AnimateTransform(*animation, OS_GetTimeTicks());
+              }
+              else
+              {
+                LOG_DEBUG("Enitity %s. No animation for bone number (%i/%i)\n", CFromStr8(entity->name), j, skeleton->joints.length);
+              }
             }
+
             UpdateSkeletonGlobalTransform(skeleton);
             DrawSkeleton(command_buffer, data_buffer, skeleton);
           }
@@ -1737,11 +1641,10 @@ UpdateSkeletonGlobalTransform(Skeleton* skeleton)
         parent_joint->global_transform.rotation,
         joint->local_transform.rotation
       );
+      joint->global_transform.scale = MulVec3F32(parent_joint->global_transform.scale, joint->local_transform.scale);
     }
 
-    joint->inv_bind_pose = MakeMat4F32(1.0f);
-    joint->inv_bind_pose = MulMat4F32(Mat4F32FromQuaternion(joint->global_transform.rotation), joint->inv_bind_pose);
-    joint->inv_bind_pose = MulMat4F32(MakeTransposeMat4F32(joint->global_transform.translation), joint->inv_bind_pose);
+    joint->inv_bind_pose = Mat4F32FromTransform(joint->global_transform);
     joint->inv_bind_pose = InverseMat4F32(joint->inv_bind_pose);
   }
 }

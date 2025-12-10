@@ -424,16 +424,8 @@ GetGLTFData(GLTFReader* reader)
     }
     node.mesh_id = GetIDElement(node_element, Str8C("mesh"));
     node.translation = GetVec3F32Element(node_element, Str8C("translation"));
-    node.scale = GetVec3F32Element(node_element, Str8C("scale"));
-    if (node.scale.x == 0 && node.scale.y == 0 && node.scale.z == 0)
-    {
-      node.scale = MakeVec3F32(1.0f, 1.0f, 1.0f);
-    }
+    node.scale = GetScaleElement(node_element);
     node.rotation = GetQuaternionElement(node_element, Str8C("rotation"));
-    if (node.rotation.x == 0 && node.rotation.y == 0 && node.rotation.z == 0 && node.rotation.w)
-    {
-      node.rotation.w = 1;
-    }
 
     GLTFElement* node_children = LookUpElement(node_element, Str8C("children"));
     if (node_children)

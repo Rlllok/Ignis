@@ -1,3 +1,6 @@
+# 10 December 2025
+There is the problem when samples count for animation channels are not equal. For now, I turned of optimization when exporting Blender scene.
+
 # 6 December 2025
 Not sure what the problem was but SimpleBoneAnimation.gltf is now working without problem. Maybe, there was an error in path to file.
 

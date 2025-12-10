@@ -8,23 +8,45 @@
 		{
 			"name":"Scene",
 			"nodes":[
-				2
+				3
 			]
 		}
 	],
 	"nodes":[
 		{
+			"name":"Bone.001",
+			"rotation":[
+				0,
+				1.1920927533992653e-07,
+				0,
+				1
+			],
+			"scale":[
+				1,
+				0.9999999403953552,
+				1
+			],
+			"translation":[
+				0,
+				0.550562858581543,
+				0
+			]
+		},
+		{
+			"children":[
+				0
+			],
 			"name":"Bone"
 		},
 		{
 			"mesh":0,
-			"name":"Suzanne",
+			"name":"Cube",
 			"skin":0
 		},
 		{
 			"children":[
-				1,
-				0
+				2,
+				1
 			],
 			"name":"Armature"
 		}
@@ -35,26 +57,68 @@
 				{
 					"sampler":0,
 					"target":{
-						"node":0,
+						"node":1,
 						"path":"translation"
 					}
 				},
 				{
 					"sampler":1,
 					"target":{
-						"node":0,
+						"node":1,
 						"path":"rotation"
 					}
 				},
 				{
 					"sampler":2,
 					"target":{
+						"node":1,
+						"path":"scale"
+					}
+				},
+				{
+					"sampler":3,
+					"target":{
 						"node":0,
+						"path":"translation"
+					}
+				},
+				{
+					"sampler":4,
+					"target":{
+						"node":0,
+						"path":"rotation"
+					}
+				},
+				{
+					"sampler":5,
+					"target":{
+						"node":0,
+						"path":"scale"
+					}
+				},
+				{
+					"sampler":6,
+					"target":{
+						"node":3,
+						"path":"rotation"
+					}
+				},
+				{
+					"sampler":7,
+					"target":{
+						"node":3,
+						"path":"translation"
+					}
+				},
+				{
+					"sampler":8,
+					"target":{
+						"node":3,
 						"path":"scale"
 					}
 				}
 			],
-			"name":"ArmatureAction",
+			"name":"SimpleAnimation",
 			"samplers":[
 				{
 					"input":7,
@@ -70,13 +134,43 @@
 					"input":7,
 					"interpolation":"LINEAR",
 					"output":10
+				},
+				{
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":11
+				},
+				{
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":12
+				},
+				{
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":13
+				},
+				{
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":14
+				},
+				{
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":15
+				},
+				{
+					"input":7,
+					"interpolation":"LINEAR",
+					"output":10
 				}
 			]
 		}
 	],
 	"meshes":[
 		{
-			"name":"Suzanne",
+			"name":"Cube",
 			"primitives":[
 				{
 					"attributes":{
@@ -95,6 +189,7 @@
 		{
 			"inverseBindMatrices":6,
 			"joints":[
+				1,
 				0
 			],
 			"name":"Armature"
@@ -104,61 +199,61 @@
 		{
 			"bufferView":0,
 			"componentType":5126,
-			"count":555,
+			"count":56,
 			"max":[
-				1.3671875,
-				0.984375,
-				0.8515625
+				0.28850793838500977,
+				1.3654022216796875,
+				0.28850793838500977
 			],
 			"min":[
-				-1.3671875,
-				-0.984375,
-				-0.8515625
+				-0.28850793838500977,
+				0,
+				-0.28850793838500977
 			],
 			"type":"VEC3"
 		},
 		{
 			"bufferView":1,
 			"componentType":5126,
-			"count":555,
+			"count":56,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":2,
 			"componentType":5126,
-			"count":555,
+			"count":56,
 			"type":"VEC2"
 		},
 		{
 			"bufferView":3,
 			"componentType":5121,
-			"count":555,
+			"count":56,
 			"type":"VEC4"
 		},
 		{
 			"bufferView":4,
 			"componentType":5126,
-			"count":555,
+			"count":56,
 			"type":"VEC4"
 		},
 		{
 			"bufferView":5,
 			"componentType":5123,
-			"count":2904,
+			"count":132,
 			"type":"SCALAR"
 		},
 		{
 			"bufferView":6,
 			"componentType":5126,
-			"count":1,
+			"count":2,
 			"type":"MAT4"
 		},
 		{
 			"bufferView":7,
 			"componentType":5126,
-			"count":120,
+			"count":60,
 			"max":[
-				5
+				2.5
 			],
 			"min":[
 				0.041666666666666664
@@ -168,88 +263,143 @@
 		{
 			"bufferView":8,
 			"componentType":5126,
-			"count":120,
+			"count":60,
 			"type":"VEC3"
 		},
 		{
 			"bufferView":9,
 			"componentType":5126,
-			"count":120,
+			"count":60,
 			"type":"VEC4"
 		},
 		{
 			"bufferView":10,
 			"componentType":5126,
-			"count":120,
+			"count":60,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":11,
+			"componentType":5126,
+			"count":60,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":12,
+			"componentType":5126,
+			"count":60,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":13,
+			"componentType":5126,
+			"count":60,
+			"type":"VEC3"
+		},
+		{
+			"bufferView":14,
+			"componentType":5126,
+			"count":60,
+			"type":"VEC4"
+		},
+		{
+			"bufferView":15,
+			"componentType":5126,
+			"count":60,
 			"type":"VEC3"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":6660,
+			"byteLength":672,
 			"byteOffset":0,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":6660,
-			"byteOffset":6660,
+			"byteLength":672,
+			"byteOffset":672,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":4440,
-			"byteOffset":13320,
+			"byteLength":448,
+			"byteOffset":1344,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":2220,
-			"byteOffset":17760,
+			"byteLength":224,
+			"byteOffset":1792,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":8880,
-			"byteOffset":19980,
+			"byteLength":896,
+			"byteOffset":2016,
 			"target":34962
 		},
 		{
 			"buffer":0,
-			"byteLength":5808,
-			"byteOffset":28860,
+			"byteLength":264,
+			"byteOffset":2912,
 			"target":34963
 		},
 		{
 			"buffer":0,
-			"byteLength":64,
-			"byteOffset":34668
+			"byteLength":128,
+			"byteOffset":3176
 		},
 		{
 			"buffer":0,
-			"byteLength":480,
-			"byteOffset":34732
+			"byteLength":240,
+			"byteOffset":3304
 		},
 		{
 			"buffer":0,
-			"byteLength":1440,
-			"byteOffset":35212
+			"byteLength":720,
+			"byteOffset":3544
 		},
 		{
 			"buffer":0,
-			"byteLength":1920,
-			"byteOffset":36652
+			"byteLength":960,
+			"byteOffset":4264
 		},
 		{
 			"buffer":0,
-			"byteLength":1440,
-			"byteOffset":38572
+			"byteLength":720,
+			"byteOffset":5224
+		},
+		{
+			"buffer":0,
+			"byteLength":720,
+			"byteOffset":5944
+		},
+		{
+			"buffer":0,
+			"byteLength":960,
+			"byteOffset":6664
+		},
+		{
+			"buffer":0,
+			"byteLength":720,
+			"byteOffset":7624
+		},
+		{
+			"buffer":0,
+			"byteLength":960,
+			"byteOffset":8344
+		},
+		{
+			"buffer":0,
+			"byteLength":720,
+			"byteOffset":9304
 		}
 	],
 	"buffers":[
 		{
-			"byteLength":40012,
+			"byteLength":10024,
 			"uri":"SimpleBoneAnimation.bin"
 		}
 	]

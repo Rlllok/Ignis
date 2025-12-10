@@ -359,6 +359,25 @@ GetVec3F32Element(GLTFElement* element, Buffer label)
   return result;
 }
 
+func Vec3F32
+GetScaleElement(GLTFElement* element)
+{
+  Vec3F32 result = MakeVec3F32(1.0f, 1.0f, 1.0f);
+  
+  GLTFElement* v = LookUpElement(element, Str8C("scale"));
+  if (v)
+  {
+    GLTFElement* x_element = v->first_sub_element;
+    result.x = (F32)F64FromStr8(x_element->value);
+    GLTFElement* y_element = x_element->next_sibling;
+    result.y = (F32)F64FromStr8(y_element->value);
+    GLTFElement* z_element = y_element->next_sibling;
+    result.z = (F32)F64FromStr8(z_element->value);
+  }
+
+  return result;
+}
+
 func Quaternion
 GetQuaternionElement(GLTFElement* element, Buffer label)
 {

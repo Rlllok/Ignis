@@ -270,6 +270,11 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
           GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
           GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
 
+          if (input_accessor.count != bone_animation->points.capacity)
+          {
+            LOG_DEBUG("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation->points.capacity);
+          }
+
           bone_animation_point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
           bone_animation_point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
           bone_animation->duration = Max(bone_animation->duration, bone_animation_point.timestamp);
@@ -280,6 +285,17 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
           GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
           GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
 
+          // --AlNov 10 December 2025: @TODO
+          // There is a bug whene Blender optimize size of animation for gltf count.
+          // For example, SimpleBoneAnimation.gltf has 60 samples for Translation,
+          // 2 samples for Rotation and 2 samples for Scale (for root bone).
+          // Blender removes samples for chennels that was not changed.
+          // But we choose sample count for our animation based on the first chennel that we see in gltf_data.
+          if (output_accessor.count != bone_animation->points.capacity)
+          {
+            LOG_DEBUG("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
+          }
+
           bone_animation_point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
         }
         // Scale
@@ -287,6 +303,11 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
           GLTFChannel channel = GLTFChannelArrayGet(&scale_channels, i);
           GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
           GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+
+          if (output_accessor.count != bone_animation->points.capacity)
+          {
+            LOG_DEBUG("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
+          }
 
           bone_animation_point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
         }
