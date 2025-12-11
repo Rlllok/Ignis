@@ -559,9 +559,6 @@ UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
 func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color);
 
 func void UpdateSkeletonGlobalTransform(Skeleton* skeleton);
-func void StartAnimation(SkeletonAnimation* animation, U64 current_time);
-func void EndAnimation(SkeletonAnimation* animation);
-func void AnimateSkeleton(Skeleton* skeleton, SkeletonAnimation* animation, U64 current_time);
 func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton);
 
 // -------------------------------------------------------------------
@@ -689,11 +686,6 @@ struct AppState
   EntityArray entities;
   Entity* selected_entity;
 
-  // --AlNov: @TODO Remove. It is for test
-  F32 roll;
-  F32 pitch;
-  F32 yaw;
-
   B32 to_render;
   B32 draw_ui;
 
@@ -741,7 +733,7 @@ I32 main(void)
   app_state.frame_arena = AllocateArena(Megabytes(8));
   app_state.is_window_closed = 0;
   app_state.grid_scale = 2000.0f;
-  app_state.camera.position = MakeVec3(0.0f, 2.5f, 4.5f);
+  app_state.camera.position = MakeVec3(1.0f, 5.0f, 10.0f);
   app_state.camera.front = MakeVec3(1.0f, 0.0f, -1.0f);
   app_state.camera.right = MakeVec3(1.0f, 0.0f, 1.0f);
   app_state.camera.up = MakeVec3(0.0f, 1.0f, 0.0f);
@@ -758,7 +750,7 @@ I32 main(void)
       .size = MakeVec2F32(400.0f, 400.0f),
     },
     .background_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 0.8f),
-    .activated = 1,
+    .activated = 0,
   };
   app_state.command_palette.commands = CommandArrayAllocate(app_state.arena, 3);
   CommandArrayAdd(
@@ -1183,7 +1175,7 @@ I32 main(void)
     UI_ElementArrayReset(&ui_context.elements);
     if (app_state.draw_ui)
     {
-      UI_SetBackgroundColor(RGBAFromHex(0x1D1A26DD));
+      UI_SetBackgroundColor(RGBAFromHex(0x1D1A26FF));
       UI_SetFont(app_state.font, 16);
       UI_SetTextColor(RGBAFromHex(0xE8B4B8FF));
 
@@ -1199,9 +1191,9 @@ I32 main(void)
           .child_gap = 5.0f,
           .border_radius = {
             .top_left = 0.0f,
-            .top_right = 20.0f,
+            .top_right = 0.0f,
             .bottom_left = 0.0f,
-            .bottom_right = 20.0f,
+            .bottom_right = 0.0f,
           }
         }
       );
@@ -1614,12 +1606,6 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
   }
 }
 
-func SkeletonID CreateSkeleton()
-{
-  // --AlNov: @TODO
-  return  SkeletonID_Nil;
-}
-
 func void
 UpdateSkeletonGlobalTransform(Skeleton* skeleton)
 {
@@ -1647,100 +1633,6 @@ UpdateSkeletonGlobalTransform(Skeleton* skeleton)
     joint->inv_bind_pose = Mat4F32FromTransform(joint->global_transform);
     joint->inv_bind_pose = InverseMat4F32(joint->inv_bind_pose);
   }
-}
-
-func void
-StartAnimation(SkeletonAnimation* animation, U64 current_time)
-{
-  EndAnimation(animation);
-  
-  if (app_state.running_animations.length < app_state.running_animations.capacity)
-  {
-    U32 free_slot = U32_MAX;
-    for (I32 i = 0; i < app_state.running_animations.length; i += 1)
-    {
-      if (SkeletonAnimationIDArrayGet(&app_state.running_animations, i) == SkeletonAnimationID_Nil)
-      {
-        free_slot = i;
-      }
-    }
-
-    if (free_slot == U32_MAX)
-    {
-      SkeletonAnimationIDArrayAdd(&app_state.running_animations, animation->id);
-    }
-    else
-    {
-      SkeletonAnimationIDArraySet(&app_state.running_animations, free_slot, animation->id);
-    }
-  
-    animation->start_time = current_time;
-    animation->end_time = animation->start_time + animation->duration;
-  }
-}
-
-func void
-EndAnimation(SkeletonAnimation* animation)
-{
-  for (I32 i = 0; i < app_state.running_animations.length; i += 1)
-  {
-    if (SkeletonAnimationIDArrayGet(&app_state.running_animations, i) == animation->id)
-    {
-      SkeletonAnimationIDArraySet(&app_state.running_animations, i, SkeletonAnimationID_Nil);
-      animation->start_time = 0;
-      animation->end_time = 0;
-      break;
-    }
-  }
-}
-
-func void
-AnimateSkeleton(Skeleton* skeleton, SkeletonAnimation* animation, U64 current_time)
-{
-  U64 animation_time = current_time - animation->start_time;
-  if (animation_time > animation->duration)
-  {
-    EndAnimation(animation);
-    return;
-  }
-
-  SkeletonKeySample current_sample = SkeletonKeySampleArrayGet(&animation->key_samples, 0);
-  SkeletonKeySample next_sample = SkeletonKeySampleArrayGet(&animation->key_samples, 0);
-  for (I32 i = 1; i < animation->key_samples.length; i += 1)
-  {
-    next_sample = SkeletonKeySampleArrayGet(&animation->key_samples, i);
-    if (next_sample.timestamp > animation_time)
-    {
-      break;
-    }
-    current_sample = next_sample;
-  }
-  F32 blend_value = (F32)(animation_time - current_sample.timestamp)/(F32)(next_sample.timestamp - current_sample.timestamp);
-
-  for (I32 i = 0; i < skeleton->joints.length; i += 1)
-  {
-    Transform transform0 = TransformArrayGet(&current_sample.local_joint_transforms, i);
-    Transform transform1 = TransformArrayGet(&next_sample.local_joint_transforms, i);
-
-    Joint* target_joint = JointArrayGetPointer(&skeleton->joints, i);
-    target_joint->local_transform.translation = LerpVec3F32(transform0.translation, transform1.translation, blend_value);
-    target_joint->local_transform.rotation = SlerpQuaternion(transform0.rotation, transform1.rotation, blend_value);
-    if (i == 0)
-    {
-    #if 0
-      LOG_DEBUG("Transform 0\t: %.2fx %.2fy %.2fz\n", transform0.translation.x, transform0.translation.y, transform0.translation.z);
-      LOG_DEBUG("Animation Time\t%f\n", animation_time/1000.0f);
-      LOG_DEBUG("Current Time\t%f\n", current_sample.timestamp/1000.0f);
-      LOG_DEBUG("Next Time\t%f\n", next_sample.timestamp/1000.0f);
-      LOG_DEBUG("Blend value\t%f\n", blend_value);
-      LOG_DEBUG("CurrentTransform 0\t: %.2fx %.2fy %.2fz\n", target_joint->local_transform.translation.x, target_joint->local_transform.translation.y, target_joint->local_transform.translation.z);
-      LOG_DEBUG("Transform 1\t: %.2fx %.2fy %.2fz\n", transform1.translation.x, transform1.translation.y, transform1.translation.z);
-    #endif
-    }
-
-  }
-
-  UpdateSkeletonGlobalTransform(skeleton);
 }
 
 func void
@@ -1856,17 +1748,6 @@ HandleEvents(Arena* arena, AppState* state)
     ToggleCommandPalette(&state->command_palette);
   }
 
-  if (OS_IsKeyPressed(OS_KEY_U))
-  {
-    for (I32 i = 0; i < state->skeleton_animations.length; i += 1)
-    {
-      LOG_DEBUG("Start Animations\n");
-      StartAnimation(SkeletonAnimationArrayGetPointer(&state->skeleton_animations, i), OS_GetTimeTicks());
-    }
-
-    state->animation.start_timestamp = OS_GetTimeTicks();
-  }
-
   Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
   F32 speed = 2.0f;
   if (OS_IsKeyDown(OS_KEY_W))
@@ -1908,7 +1789,6 @@ HandleEvents(Arena* arena, AppState* state)
   rotation.y = sin(RadiansFromDegrees(state->camera.pitch));
   rotation.z = sin(RadiansFromDegrees(state->camera.yaw))*cos(RadiansFromDegrees(state->camera.pitch));
   state->camera.front = rotation;
-
   state->camera.right = NormalizeVec3(CrossVec3(state->camera.front, MakeVec3(0.0f, 1.0f, 0.0f)));
   state->camera.up = CrossVec3(state->camera.right, state->camera.front);
 
