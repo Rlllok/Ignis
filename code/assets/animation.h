@@ -49,4 +49,5 @@ struct SkeletalAnimation
   AnimationArray bone_animations;
 };
 
+func void BeginAnimation(Animation* animation, U64 start_timestamp);
 func Transform AnimateTransform(Animation animation, U32 timestamp);

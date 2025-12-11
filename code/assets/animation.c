@@ -2,6 +2,12 @@
 
 #include "animation.h"
 
+func void
+BeginAnimation(Animation* animation, U64 start_timestamp)
+{
+  animation->start_timestamp = start_timestamp;
+}
+
 func Transform
 AnimateTransform(Animation animation, U32 timestamp)
 {

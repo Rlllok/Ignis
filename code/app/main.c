@@ -1022,7 +1022,6 @@ I32 main(void)
   // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
   // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
   AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleBoneAnimation/SimpleBoneAnimation.gltf"));
-  dummy_mesh.simple_animation.looped = 1;
   UpdateSkeletonGlobalTransform(&dummy_mesh.skeleton);
   CreateEntity(
     &app_state.entities,
@@ -1331,7 +1330,6 @@ I32 main(void)
               Animation* animation = AnimationArrayGetPointer(&entity->mesh.skeletal_animation.bone_animations, j);
               if (animation !=  &_animation_nil)
               {
-                animation->looped = 1;
                 joint->local_transform = AnimateTransform(*animation, OS_GetTimeTicks());
               }
               else
@@ -1685,6 +1683,25 @@ HandleEvents(Arena* arena, AppState* state)
 {
   OS_EventList event_list = OS_GetEventList(arena, &state->window);
   state->last_mouse_position = OS_MousePosition(state->window);
+
+  if (OS_IsKeyPressed(OS_KEY_U))
+  {
+    for (I32 i = 0; i < app_state.entities.length; i += 1)
+    {
+      Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
+      Skeleton* skeleton = &entity->mesh.skeleton;
+
+      for (I32 j = 0; j < skeleton->joints.length; j += 1)
+      {
+        Joint* joint = JointArrayGetPointer(&skeleton->joints, j);
+        Animation* animation = AnimationArrayGetPointer(&entity->mesh.skeletal_animation.bone_animations, j);
+        if (animation !=  &_animation_nil)
+        {
+          BeginAnimation(animation, OS_GetTimeTicks());
+        }
+      }
+    }
+  }
 
   if (OS_IsKeyPressed(OS_KEY_ESC))
   {
