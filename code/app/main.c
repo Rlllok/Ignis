@@ -672,12 +672,6 @@ struct AppState
   R_Texture test_texture;
 
   Camera camera;
-  AST_StaticMesh joint_mesh;
-
-  SkeletonAnimationArray skeleton_animations;
-  SkeletonAnimationIDArray running_animations;
-
-  Animation animation;
 
   U32 hover_entity_id;
 
@@ -761,32 +755,6 @@ I32 main(void)
       .data = &app_state.command_palette,
     }
   );
-
-  app_state.animation = (Animation){
-    .duration = 1*1000,
-    .looped = 1,
-    .points = AnimationPointArrayAllocate(app_state.arena, 2)
-  };
-  AnimationPoint point = (AnimationPoint){
-    .type = AnimationPointType_Linear,
-    .timestamp = 0*1000,
-    .linear.transform = (Transform){
-      .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
-      .rotation = IdentityQuaternion(),
-      .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
-    }
-  };
-  AnimationPointArrayAdd(&app_state.animation.points, point);
-  point = (AnimationPoint){
-    .type = AnimationPointType_Linear,
-    .timestamp = 1*1000,
-    .linear.transform = (Transform){
-      .translation = MakeVec3F32(2.0f, 0.0f, 0.0f),
-      .rotation = IdentityQuaternion(),
-      .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
-    }
-  };
-  AnimationPointArrayAdd(&app_state.animation.points, point);
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
@@ -1069,8 +1037,6 @@ I32 main(void)
       .color_texture = app_state.default_color_texture,
     }
   );
-
-  app_state.joint_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Cone/Cone.gltf"));
 
   // Mesh Pipeline
   {
