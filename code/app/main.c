@@ -559,7 +559,7 @@ UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
 func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color);
 
 func void UpdateSkeletonGlobalTransform(Skeleton* skeleton);
-func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton);
+func void DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton, Vec4F32 color);
 
 // -------------------------------------------------------------------
 // Main
@@ -1341,7 +1341,7 @@ I32 main(void)
             }
 
             UpdateSkeletonGlobalTransform(skeleton);
-            DrawSkeleton(command_buffer, data_buffer, skeleton);
+            DrawSkeleton(command_buffer, data_buffer, skeleton, MakeVec4F32(0.9f, 0.7f, 0.5f, 1.0f));
           }
 
           struct
@@ -1602,23 +1602,8 @@ UpdateSkeletonGlobalTransform(Skeleton* skeleton)
 }
 
 func void
-DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton)
+DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton, Vec4F32 color)
 {
-#if 0
-  Vec4F32 colors[] = {
-    MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
-    MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
-    MakeVec4F32(0.0f, 0.0f, 1.0f, 1.0f),
-    MakeVec4F32(1.0f, 1.0f, 0.0f, 1.0f),
-    MakeVec4F32(1.0f, 0.0f, 1.0f, 1.0f),
-    MakeVec4F32(0.0f, 1.0f, 1.0f, 1.0f),
-  };
-#else
-  Vec4F32 colors[] = {
-    MakeVec4F32(1.0f, 0.0f, 1.0f, 1.0f),
-  };
-#endif
-
   for (I32 i = 0; i < skeleton->joints.length; i += 1)
   {
     Joint joint1 = JointArrayGet(&skeleton->joints, i);
@@ -1630,12 +1615,12 @@ DrawSkeleton(R_CommandBuffer command_buffer, R_Buffer buffer, Skeleton* skeleton
       Vec3F32 start = joint1.global_transform.translation;
       Vec3F32 end = joint2.global_transform.translation;
 
-      DrawLine3D(command_buffer, buffer, start, end, colors[i%CountArrayElements(colors)], 0.008f);
+      DrawLine3D(command_buffer, buffer, start, end, color, 0.008f);
     }
 
     DrawLine3D(
-      command_buffer, buffer,joint1.global_transform.translation,
-      AddVec3F32(joint1.global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.1f, 0.0f), joint1.global_transform.rotation)),
+      command_buffer, buffer, joint1.global_transform.translation,
+      AddVec3F32(joint1.global_transform.translation, RotateVec3F32(MakeVec3F32(0.0f, 0.15f, 0.0f), joint1.global_transform.rotation)),
       MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f), 0.0025f
     );
   }
