@@ -104,10 +104,6 @@ struct AST_StaticMesh
   Skeleton skeleton;
   SkeletonAnimation animation;
   SkeletalAnimation skeletal_animation;
-
-  // --AlNov 3 December 2025: @Remove
-  // It is there to test animation data from gltf loader.
-  Animation simple_animation;
 };
 
 func AST_Geometry AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name);

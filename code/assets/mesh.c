@@ -124,57 +124,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     JointArrayAdd(&result.skeleton.joints, joint);
   }
 
-  // --AlNov 3 December 2025: @Remove Hardcoded
-  // There is a lot of asumption about data inside gltf file
   GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 0);
-  {
-    GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
-    GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
-    result.simple_animation.points = AnimationPointArrayAllocate(arena, accessor.count);
-
-    for (I32 j = 0; j < result.simple_animation.points.capacity; j += 1)
-    {
-      AnimationPoint point = {0};
-      point.type = AnimationPointType_Linear;
-
-      for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
-      {
-        GLTFChannel channel = GLTFChannelListGetItem(&gltf_animation.channels, i);
-        GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
-        GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
-        GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
-
-        switch (channel.target.type)
-        {
-          default:
-          {
-            AssertMessage(0, "GLTF: Unsupported channel type");
-          } break;
-
-          case GLTFTargetType_Translation:
-          {
-            point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
-            point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
-            result.simple_animation.duration = Max(result.simple_animation.duration, point.timestamp);
-          } break;
-
-          case GLTFTargetType_Rotation:
-          {
-            point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
-          } break;
-
-          case GLTFTargetType_Scale:
-          {
-            point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
-          } break;
-        }
-      }
-
-      AnimationPointArrayAdd(&result.simple_animation.points, point);
-    }
-  }
-
-  gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 0);
   {
     GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
     GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
