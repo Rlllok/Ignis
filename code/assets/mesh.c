@@ -136,19 +136,13 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
       skeletal_animation.bone_animations = AnimationArrayAllocate(arena, result.skeleton.joints.length);
       // --AlNov. 12  December 2025: @TODO
       // What is going on there. Should .length = .capacity? Can AnimationArrayAdd(...) be used? 
-      skeletal_animation.bone_animations.length = skeletal_animation.bone_animations.capacity;
     }
 
-    // --AlNov. 12 December 2025: @TODO
-    // Change AllocateArena(..)/FreeArena(..) pair to DeferBlock(..).
     Arena* tmp_arena = AllocateArena(Megabytes(16));
     {
       GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-      translation_channels.length = translation_channels.capacity;
       GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-      rotation_channels.length = rotation_channels.capacity;
       GLTFChannelArray scale_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-      scale_channels.length = scale_channels.capacity;
 
       // @TODO List should be changed to Array
       for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
@@ -179,33 +173,30 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
           case GLTFTargetType_Translation:
           {
-            GLTFChannel* joint_translation_channel = GLTFChannelArrayGetPointer(&translation_channels, joint_id);
-            *joint_translation_channel = channel;
+            GLTFChannelArrayAdd(&translation_channels, channel);
           } break;
 
           case GLTFTargetType_Rotation:
           {
-            GLTFChannel* joint_rotation_channel = GLTFChannelArrayGetPointer(&rotation_channels, joint_id);
-            *joint_rotation_channel = channel;
+            GLTFChannelArrayAdd(&rotation_channels, channel);
           } break;
 
           case GLTFTargetType_Scale:
           {
-            GLTFChannel* joint_scale_channel = GLTFChannelArrayGetPointer(&scale_channels, joint_id);
-            *joint_scale_channel = channel;
+            GLTFChannelArrayAdd(&scale_channels, channel);
           } break;
         }
       }
 
-      for (I32 i = 0; i < skeletal_animation.bone_animations.length; i += 1)
+      for (I32 i = 0; i < skeletal_animation.bone_animations.capacity; i += 1)
       {
-        Animation* bone_animation = AnimationArrayGetPointer(&skeletal_animation.bone_animations, i);
+        Animation bone_animation = {0};
         GLTFChannel tmp_channel = GLTFChannelArrayGet(&translation_channels, i);
         GLTFSampler tmp_sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, tmp_channel.sampler_id);
         GLTFAccessor tmp_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, tmp_sampler.input_accessor_id);
-        bone_animation->points = AnimationPointArrayAllocate(arena, tmp_accessor.count);
+        bone_animation.points = AnimationPointArrayAllocate(arena, tmp_accessor.count);
 
-        for (I32 j = 0; j < bone_animation->points.capacity; j += 1)
+        for (I32 j = 0; j < bone_animation.points.capacity; j += 1)
         {
           AnimationPoint bone_animation_point = {0};
           bone_animation_point.type = AnimationPointType_Linear;
@@ -217,14 +208,14 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
             GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
             GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
 
-            if (input_accessor.count != bone_animation->points.capacity)
+            if (input_accessor.count != bone_animation.points.capacity)
             {
-              LOG_DEBUG("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation->points.capacity);
+              LOG_DEBUG("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation.points.capacity);
             }
 
             bone_animation_point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
             bone_animation_point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
-            bone_animation->duration = Max(bone_animation->duration, bone_animation_point.timestamp);
+            bone_animation.duration = Max(bone_animation.duration, bone_animation_point.timestamp);
           }
           // Rotation
           {
@@ -238,9 +229,9 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
             // 2 samples for Rotation and 2 samples for Scale (for root bone).
             // Blender removes samples for chennels that was not changed.
             // But we choose sample count for our animation based on the first chennel that we see in gltf_data.
-            if (output_accessor.count != bone_animation->points.capacity)
+            if (output_accessor.count != bone_animation.points.capacity)
             {
-              LOG_DEBUG("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
+              LOG_DEBUG("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation.points.capacity);
             }
 
             bone_animation_point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
@@ -251,16 +242,18 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
             GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
             GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
 
-            if (output_accessor.count != bone_animation->points.capacity)
+            if (output_accessor.count != bone_animation.points.capacity)
             {
-              LOG_DEBUG("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
+              LOG_DEBUG("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation.points.capacity);
             }
 
             bone_animation_point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
           }
 
-          AnimationPointArrayAdd(&bone_animation->points, bone_animation_point);
+          AnimationPointArrayAdd(&bone_animation.points, bone_animation_point);
         }
+
+        AnimationArrayAdd(&skeletal_animation.bone_animations, bone_animation);
       }
     }
     FreeArena(tmp_arena);
