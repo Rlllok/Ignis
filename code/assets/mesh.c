@@ -124,149 +124,149 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     JointArrayAdd(&result.skeleton.joints, joint);
   }
 
-  GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, 0);
+  result.skeletal_animations = SkeletalAnimationArrayAllocate(arena, gltf_data.animations.count);
+  for (I32 animation_index = 0; animation_index < result.skeletal_animations.capacity; animation_index += 1)
   {
-    GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
-    GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
-    result.skeletal_animation.bone_animations = AnimationArrayAllocate(arena, result.skeleton.joints.length);
-    result.skeletal_animation.bone_animations.length = result.skeletal_animation.bone_animations.capacity;
+    SkeletalAnimation skeletal_animation = {0};
 
-    for (I32 i = 0; i < result.animation.key_samples.length; i += 1)
+    GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, animation_index);
     {
-      SkeletonKeySample* sample = SkeletonKeySampleArrayGetPointer(&result.animation.key_samples, i);
-      sample->local_joint_transforms = TransformArrayAllocate(arena, result.skeleton.joints.length);
+      GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
+      GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+      skeletal_animation.bone_animations = AnimationArrayAllocate(arena, result.skeleton.joints.length);
+      // --AlNov. 12  December 2025: @TODO
+      // What is going on there. Should .length = .capacity? Can AnimationArrayAdd(...) be used? 
+      skeletal_animation.bone_animations.length = skeletal_animation.bone_animations.capacity;
+    }
 
-      for (I32 j = 0; j < result.skeleton.joints.length; j += 1)
+    // --AlNov. 12 December 2025: @TODO
+    // Change AllocateArena(..)/FreeArena(..) pair to DeferBlock(..).
+    Arena* tmp_arena = AllocateArena(Megabytes(16));
+    {
+      GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+      translation_channels.length = translation_channels.capacity;
+      GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+      rotation_channels.length = rotation_channels.capacity;
+      GLTFChannelArray scale_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+      scale_channels.length = scale_channels.capacity;
+
+      // @TODO List should be changed to Array
+      for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
       {
-        Joint joint = JointArrayGet(&result.skeleton.joints, j);
-        TransformArrayAdd(&sample->local_joint_transforms, joint.local_transform);
+        GLTFChannel channel = GLTFChannelListGetItem(&gltf_animation.channels, i);
+
+        JointID joint_id = JointID_Nil;
+        for (I32 j = 0; j < gltf_data.skin.joint_ids.length; j += 1)
+        {
+          if (GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, j) == channel.target.node_id)
+          {
+            joint_id = j;
+            break;
+          }
+        }
+
+        if (joint_id == JointID_Nil)
+        {
+          continue;
+        }
+
+        switch (channel.target.type)
+        {
+          default:
+          {
+            AssertMessage(0, "Wrong Channel Target\n");
+          }
+
+          case GLTFTargetType_Translation:
+          {
+            GLTFChannel* joint_translation_channel = GLTFChannelArrayGetPointer(&translation_channels, joint_id);
+            *joint_translation_channel = channel;
+          } break;
+
+          case GLTFTargetType_Rotation:
+          {
+            GLTFChannel* joint_rotation_channel = GLTFChannelArrayGetPointer(&rotation_channels, joint_id);
+            *joint_rotation_channel = channel;
+          } break;
+
+          case GLTFTargetType_Scale:
+          {
+            GLTFChannel* joint_scale_channel = GLTFChannelArrayGetPointer(&scale_channels, joint_id);
+            *joint_scale_channel = channel;
+          } break;
+        }
+      }
+
+      for (I32 i = 0; i < skeletal_animation.bone_animations.length; i += 1)
+      {
+        Animation* bone_animation = AnimationArrayGetPointer(&skeletal_animation.bone_animations, i);
+        GLTFChannel tmp_channel = GLTFChannelArrayGet(&translation_channels, i);
+        GLTFSampler tmp_sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, tmp_channel.sampler_id);
+        GLTFAccessor tmp_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, tmp_sampler.input_accessor_id);
+        bone_animation->points = AnimationPointArrayAllocate(arena, tmp_accessor.count);
+
+        for (I32 j = 0; j < bone_animation->points.capacity; j += 1)
+        {
+          AnimationPoint bone_animation_point = {0};
+          bone_animation_point.type = AnimationPointType_Linear;
+
+          // Translation
+          {
+            GLTFChannel channel = GLTFChannelArrayGet(&translation_channels, i);
+            GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+            GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+            GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+
+            if (input_accessor.count != bone_animation->points.capacity)
+            {
+              LOG_DEBUG("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation->points.capacity);
+            }
+
+            bone_animation_point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
+            bone_animation_point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
+            bone_animation->duration = Max(bone_animation->duration, bone_animation_point.timestamp);
+          }
+          // Rotation
+          {
+            GLTFChannel channel = GLTFChannelArrayGet(&rotation_channels, i);
+            GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+            GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+
+            // --AlNov 10 December 2025: @TODO
+            // There is a bug whene Blender optimize size of animation for gltf count.
+            // For example, SimpleBoneAnimation.gltf has 60 samples for Translation,
+            // 2 samples for Rotation and 2 samples for Scale (for root bone).
+            // Blender removes samples for chennels that was not changed.
+            // But we choose sample count for our animation based on the first chennel that we see in gltf_data.
+            if (output_accessor.count != bone_animation->points.capacity)
+            {
+              LOG_DEBUG("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
+            }
+
+            bone_animation_point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
+          }
+          // Scale
+          {
+            GLTFChannel channel = GLTFChannelArrayGet(&scale_channels, i);
+            GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
+            GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
+
+            if (output_accessor.count != bone_animation->points.capacity)
+            {
+              LOG_DEBUG("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
+            }
+
+            bone_animation_point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
+          }
+
+          AnimationPointArrayAdd(&bone_animation->points, bone_animation_point);
+        }
       }
     }
+    FreeArena(tmp_arena);
+
+    SkeletalAnimationArrayAdd(&result.skeletal_animations, skeletal_animation);
   }
-
-  Arena* tmp_arena = AllocateArena(Megabytes(16));
-  {
-    GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-    translation_channels.length = translation_channels.capacity;
-    GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-    rotation_channels.length = rotation_channels.capacity;
-    GLTFChannelArray scale_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-    scale_channels.length = scale_channels.capacity;
-
-    // @TODO List should be changed to Array
-    for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
-    {
-      GLTFChannel channel = GLTFChannelListGetItem(&gltf_animation.channels, i);
-
-      JointID joint_id = JointID_Nil;
-      for (I32 j = 0; j < gltf_data.skin.joint_ids.length; j += 1)
-      {
-        if (GLTFJointIDArrayGet(&gltf_data.skin.joint_ids, j) == channel.target.node_id)
-        {
-          joint_id = j;
-          break;
-        }
-      }
-
-      if (joint_id == JointID_Nil)
-      {
-        continue;
-      }
-
-      switch (channel.target.type)
-      {
-        default:
-        {
-          AssertMessage(0, "Wrong Channel Target\n");
-        }
-
-        case GLTFTargetType_Translation:
-        {
-          GLTFChannel* joint_translation_channel = GLTFChannelArrayGetPointer(&translation_channels, joint_id);
-          *joint_translation_channel = channel;
-        } break;
-
-        case GLTFTargetType_Rotation:
-        {
-          GLTFChannel* joint_rotation_channel = GLTFChannelArrayGetPointer(&rotation_channels, joint_id);
-          *joint_rotation_channel = channel;
-        } break;
-
-        case GLTFTargetType_Scale:
-        {
-          GLTFChannel* joint_scale_channel = GLTFChannelArrayGetPointer(&scale_channels, joint_id);
-          *joint_scale_channel = channel;
-        } break;
-      }
-    }
-
-    for (I32 i = 0; i < result.skeletal_animation.bone_animations.length; i += 1)
-    {
-      Animation* bone_animation = AnimationArrayGetPointer(&result.skeletal_animation.bone_animations, i);
-      GLTFChannel tmp_channel = GLTFChannelArrayGet(&translation_channels, i);
-      GLTFSampler tmp_sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, tmp_channel.sampler_id);
-      GLTFAccessor tmp_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, tmp_sampler.input_accessor_id);
-      bone_animation->points = AnimationPointArrayAllocate(arena, tmp_accessor.count);
-
-      for (I32 j = 0; j < bone_animation->points.capacity; j += 1)
-      {
-        AnimationPoint bone_animation_point = {0};
-        bone_animation_point.type = AnimationPointType_Linear;
-
-        // Translation
-        {
-          GLTFChannel channel = GLTFChannelArrayGet(&translation_channels, i);
-          GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
-          GLTFAccessor input_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
-          GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
-
-          if (input_accessor.count != bone_animation->points.capacity)
-          {
-            LOG_DEBUG("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation->points.capacity);
-          }
-
-          bone_animation_point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
-          bone_animation_point.timestamp = (U64)(GetF32FromGLTFAccessor(gltf_data, input_accessor, j)*1000.0f);
-          bone_animation->duration = Max(bone_animation->duration, bone_animation_point.timestamp);
-        }
-        // Rotation
-        {
-          GLTFChannel channel = GLTFChannelArrayGet(&rotation_channels, i);
-          GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
-          GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
-
-          // --AlNov 10 December 2025: @TODO
-          // There is a bug whene Blender optimize size of animation for gltf count.
-          // For example, SimpleBoneAnimation.gltf has 60 samples for Translation,
-          // 2 samples for Rotation and 2 samples for Scale (for root bone).
-          // Blender removes samples for chennels that was not changed.
-          // But we choose sample count for our animation based on the first chennel that we see in gltf_data.
-          if (output_accessor.count != bone_animation->points.capacity)
-          {
-            LOG_DEBUG("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
-          }
-
-          bone_animation_point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
-        }
-        // Scale
-        {
-          GLTFChannel channel = GLTFChannelArrayGet(&scale_channels, i);
-          GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, channel.sampler_id);
-          GLTFAccessor output_accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.output_accessor_id);
-
-          if (output_accessor.count != bone_animation->points.capacity)
-          {
-            LOG_DEBUG("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation->points.capacity);
-          }
-
-          bone_animation_point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
-        }
-
-        AnimationPointArrayAdd(&bone_animation->points, bone_animation_point);
-      }
-    }
-  }
-  FreeArena(tmp_arena);
 
   return result;
 }

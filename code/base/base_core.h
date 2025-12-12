@@ -51,3 +51,5 @@ typedef I32 B32;
 // --AlNov: Helper Macroses ------------------------------------------
 #define CountArrayElements(inArray) (sizeof(inArray) / sizeof((inArray)[0]))
 #define SizeOfMember(struct_type, memeber) (sizeof(((struct_type*)0)->member))
+
+#define DeferBlock(begin, end) for (I32 _defer_block_i = ((begin), 0); _defer_block_i == 0; _defer_block_i = ((end), 1))

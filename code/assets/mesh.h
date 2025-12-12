@@ -92,8 +92,6 @@ struct SkeletonAnimation
   U64 end_time;
   SkeletonKeySampleArray key_samples; // --AlNov: @TODO This is the same for every skeleton (start_time and end_time what is different)
 };
-SkeletonAnimation _skeletal_animation_nil = {0};
-DefineArray(SkeletonAnimation, SkeletonAnimationArray, _skeletal_animation_nil)
 
 typedef struct AST_StaticMesh AST_StaticMesh;
 struct AST_StaticMesh
@@ -102,8 +100,7 @@ struct AST_StaticMesh
 
   AST_GeometryList geometry_list;
   Skeleton skeleton;
-  SkeletonAnimation animation;
-  SkeletalAnimation skeletal_animation;
+  SkeletalAnimationArray skeletal_animations;
 };
 
 func AST_Geometry AST_LoadGeometryFromGLTF(Arena* arena, Str8 gltf_name);

@@ -684,6 +684,9 @@ struct AppState
   B32 draw_ui;
 
   CommandPalette command_palette;
+
+  // --AlNov. 12 December 2025: @TODO @TEST
+  I32 current_animation_index;
 } app_state;
 
 func void HandleEvents(Arena* arena, AppState* state);
@@ -755,6 +758,8 @@ I32 main(void)
       .data = &app_state.command_palette,
     }
   );
+
+  app_state.current_animation_index = 0;
 
   ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
@@ -1327,7 +1332,8 @@ I32 main(void)
             for (I32 j = 0; j < skeleton->joints.length; j += 1)
             {
               Joint* joint = JointArrayGetPointer(&skeleton->joints, j);
-              Animation* animation = AnimationArrayGetPointer(&entity->mesh.skeletal_animation.bone_animations, j);
+              SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, app_state.current_animation_index);
+              Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
               if (animation !=  &_animation_nil)
               {
                 joint->local_transform = AnimateTransform(*animation, OS_GetTimeTicks());
@@ -1691,10 +1697,13 @@ HandleEvents(Arena* arena, AppState* state)
       Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
       Skeleton* skeleton = &entity->mesh.skeleton;
 
+      state->current_animation_index = (state->current_animation_index + 1)%entity->mesh.skeletal_animations.length;
+      LOG_DEBUG("Current animation index = %i\n", state->current_animation_index);
+
       for (I32 j = 0; j < skeleton->joints.length; j += 1)
       {
-        Joint* joint = JointArrayGetPointer(&skeleton->joints, j);
-        Animation* animation = AnimationArrayGetPointer(&entity->mesh.skeletal_animation.bone_animations, j);
+        SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, app_state.current_animation_index);
+        Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
         if (animation !=  &_animation_nil)
         {
           BeginAnimation(animation, OS_GetTimeTicks());

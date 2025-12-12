@@ -232,13 +232,13 @@ struct GLTFData
 {
   GLTFAsset asset;
   GLTFScene scene;
-  GLTFNodeArray nodes;
-  GLTFMeshList meshes;
+  GLTFNodeArray nodes; // --AlNov. 12 December 2025: @TODO Should be Array
+  GLTFMeshList meshes; // --AlNov. 12 December 2025: @TODO Should be Array
   GLTFSkin skin;
-  GLTFBufferList buffers;
-  GLTFBufferViewList buffer_views;
-  GLTFAccessorList accessors;
-  GLTFAnimationList animations;
+  GLTFBufferList buffers; // --AlNov. 12 December 2025: @TODO Should be Array
+  GLTFBufferViewList buffer_views; // --AlNov. 12 December 2025: @TODO Should be Array
+  GLTFAccessorList accessors; // --AlNov. 12 December 2025: @TODO Should be Array
+  GLTFAnimationList animations; // --AlNov. 12 December 2025: @TODO Should be Array
 };
 
 func Buffer ReadGLTFFile(Buffer file_name);

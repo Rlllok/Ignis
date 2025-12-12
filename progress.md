@@ -1,3 +1,11 @@
+# 12 December 2025
+Skeletal animation is currently in a state when it working. There are a lot of room for improvement. The first thing I want to do is support loading multiple animations.
+
+For now I am going to store animations in Skeleton structure. I think this is not a kind of approach that I want to end with. As I see, Skeleton and Animations should be separated. I should play with other game engines to find what I like and don't like.
+
+# 11 December 2025
+Removed/moved code.
+
 # 10 December 2025
 There is the problem when samples count for animation channels are not equal. For now, I turned of optimization when exporting Blender scene.
 

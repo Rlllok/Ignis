@@ -48,6 +48,8 @@ struct SkeletalAnimation
 {
   AnimationArray bone_animations;
 };
+SkeletalAnimation _skeletal_animation_nil = {0};
+DefineArray(SkeletalAnimation, SkeletalAnimationArray, _skeletal_animation_nil)
 
 func void BeginAnimation(Animation* animation, U64 start_timestamp);
 func Transform AnimateTransform(Animation animation, U32 timestamp);
