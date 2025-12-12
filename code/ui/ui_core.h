@@ -4,6 +4,9 @@ typedef U32 UI_ID;
 
 // -------------------------------------------------------------------
 // -- UI Font --------------------------------------------------------
+// -- AlNov. 12 December 2025: @TODO
+// UI Layer should not depend on Render Layer. tIt should just build Layout and DrawCommands.
+// (Remove usage for R_Texture from there)
 typedef struct FontBitmap FontBitmap;
 struct FontBitmap
 {
