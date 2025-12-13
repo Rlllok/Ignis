@@ -4,11 +4,26 @@
 #include "base/base_include.c"
 #include "os/os_include.c"
 
+typedef U16 ConfigOptionType;
+enum ConfigOptionTypeEnum
+{
+  ConfigOptionType_None,
+  ConfigOptionType_I32,
+  ConfigOptionType_F32,
+  ConfigOptionType_B32,
+} ConfigOptionTypeEnum;
+
 typedef struct Config Config;
 struct Config
 {
   Str8 key;
-  Str8 value;
+  ConfigOptionType type;
+  union
+  {
+    I32 v_i32;
+    F32 v_f32;
+    B32 v_b32;
+  };
 };
 
 I32 main()
