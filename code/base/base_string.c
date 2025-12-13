@@ -21,6 +21,18 @@ MakeStr8(U8* str, U64 size)
 	return result;
 }
 
+func Str8
+CopyStr8(Arena* arena, Str8 str)
+{
+  Str8 result = {0};
+  
+  result.data = (U8*)PushArena(arena, str.length);
+  memcpy(result.data, str.data, str.length);
+  result.length = str.length;
+
+  return result;
+}
+
 func U64
 GetCStrLength(const char* c_str)
 {

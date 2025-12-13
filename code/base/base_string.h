@@ -14,6 +14,7 @@ struct Str8
 
 func Str8 AllocateStr8(Arena* arena, U64 size);
 func Str8 MakeStr8(U8* str, U64 size);
+func Str8 CopyStr8(Arena* arena, Str8 str);
 func U64 GetCStrLength(const char* c_str);
 #define Str8C(c_str) MakeStr8((U8*)c_str, GetCStrLength(c_str))
 #define CFromStr8(str) ((const char*)str.data)

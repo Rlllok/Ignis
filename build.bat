@@ -26,6 +26,7 @@ rem --- Build ---
 
 pushd build
     if "%main%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\app\main.c -o main.exe
+    if "%config%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\app\config.c -o config.exe
 popd
 
 @echo.
