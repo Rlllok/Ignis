@@ -632,35 +632,38 @@ I32 main(void)
         };
 
         UI_OpenElement({
-          .flags = UI_ElementFlag_DrawBackground,
-          .layout = {
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = {
             .width = UI_FixedSize(250.0f),
             .height = UI_FixedSize(app_state.window.size.y),
             .direction = UI_LayoutDirection_TopToBottom,
-           },
-          .rectangle = default_rectangle,
-        })
+            },
+            .rectangle = default_rectangle,
+            })
         {
-          Entity* entity = EntityArrayGetPointer(&app_state.entities, 0);
-          Skeleton* skeleton = &entity->mesh.skeleton;
-
-          for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
+          if (app_state.selected_entity != &EntityDefaultValue)
           {
-            UI_OpenElement(button_description)
+            Entity* entity = app_state.selected_entity;
+            Skeleton* skeleton = &entity->mesh.skeleton;
+
+            for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
             {
-              SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
-              UI_Text(skeletal_animation->name, default_text);
-              if (UI_IsClicked())
+              UI_OpenElement(button_description)
               {
-                for (I32 j = 0; j < skeleton->joints.length; j += 1)
+                SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
+                UI_Text(skeletal_animation->name, default_text);
+                if (UI_IsClicked())
                 {
-                  Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
-                  if (animation !=  &_animation_nil)
+                  for (I32 j = 0; j < skeleton->joints.length; j += 1)
                   {
-                    BeginAnimation(animation, OS_GetTimeTicks());
+                    Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
+                    if (animation !=  &_animation_nil)
+                    {
+                      BeginAnimation(animation, OS_GetTimeTicks());
+                    }
                   }
+                  app_state.current_animation_index = i;
                 }
-                app_state.current_animation_index = i;
               }
             }
           }
@@ -873,6 +876,10 @@ I32 main(void)
           {
             app_state.selected_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
           }
+        }
+        else
+        {
+          app_state.selected_entity = &EntityDefaultValue;
         }
       }
     }
