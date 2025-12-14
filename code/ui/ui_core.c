@@ -27,146 +27,114 @@ GetTextSize(FontBitmap font, Str8 text, U32 font_size)
 func void
 UI_BeginFrame(Vec2 mouse_position)
 {
-  ui_context.current_parent = 0;
   ui_context.mouse_position = mouse_position;
-  ui_context.size_x = (UI_Size){0};
-  ui_context.size_y = (UI_Size){0};
-  ui_context.fixed_position = MakeVec2(0.0f, 0.0f);
-  ui_context.font_size = 0.0f;
-  ui_context.font = (FontBitmap){0};
-  ui_context.text_color = MakeVec4(0.0f, 0.0f, 0.0f, 0.0f);
-  ui_context.background_color = MakeVec4(0.0f, 0.0f, 0.0f, 0.0f);
   ui_context.hot_id = 0;
   UI_DrawCommandArrayReset(&ui_context.draw_commands);
 }
 
-func void UI_EndFrame(UI_Context* context) {}
+func void UI_EndFrame() {}
 
 // -------------------------------------------------------------------
 // -- UI Default Elements --------------------------------------------
+func U32
+UI_CalculateSize(UI_Size size)
+{
+  U32 result = 0;
+  switch (size.type)
+  {
+    default: Assert(1); break;
+    
+    case UI_SizeType_Fixed:
+    {
+      result = size.value;
+    } break;
+    case UI_SizeType_WrapChildren:
+    {
+      // --AlNov: @TODO
+      Assert(1);
+    } break;
+    case UI_SizeType_ParentPercent:
+    {
+      UI_Element* parent = UI_GetParent();
+      result = parent->rect.size.x*size.value;
+    } break;
+  }
+
+  return result;
+}
+
 func UI_Element*
 UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 {
   UI_Element element = {0};
   element.id = array->length + 1;
-  element.label = description.label;
-  element.flags = description.flags;
-  element.parent = ui_context.current_parent;
-  element.layout = description.layout;
-  element.padding = description.padding;
-  element.child_gap = description.child_gap;
-  element.font = ui_context.font;
-  element.font_size = ui_context.font_size;
-  element.border_radius = description.border_radius;
-  element.text_color = ui_context.text_color;
+  element.description = description;
 
-  element.child_offset = MakeVec2(element.padding.left, element.padding.top);
+  UI_Element* parent = UI_GetParent();
 
-  switch (ui_context.size_x.type)
+  element.child_offset = MakeVec2(description.layout.padding.left, description.layout.padding.top);
+
+  element.rect.size.x = UI_CalculateSize(element.description.layout.width);
+  element.rect.size.y = UI_CalculateSize(element.description.layout.height);
+
+  if (parent != &UI_ElementDefaultValue)
   {
-    default: Assert(1); break;
-
-    case UI_SizeType_Fixed:
-    {
-      element.rect.size.x = ui_context.size_x.value;
-    } break;
-    case UI_SizeType_WrapLabel:
-    {
-      element.rect.size.x = GetTextSize(ui_context.font, element.label, element.font_size).x;
-    } break;
-    case UI_SizeType_WrapChildren:
-    {
-      // --AlNov: @TODO
-      Assert(1);
-    } break;
-    case UI_SizeType_ParentPercent:
-    {
-      element.rect.size.x = element.parent->rect.size.x*ui_context.size_x.value;
-    } break;
-  }
-  switch (ui_context.size_y.type)
-  {
-    default: Assert(1); break;
-
-    case UI_SizeType_Fixed:
-    {
-      element.rect.size.y = ui_context.size_y.value;
-    } break;
-    case UI_SizeType_WrapLabel:
-    {
-      element.rect.size.y = GetTextSize(ui_context.font, element.label, element.font_size).y;
-    } break;
-    case UI_SizeType_WrapChildren:
-    {
-      // --AlNov: @TODO
-      Assert(1);
-    } break;
-    case UI_SizeType_ParentPercent:
-    {
-      element.rect.size.y = element.parent->rect.size.y*ui_context.size_y.value;
-    } break;
-  }
-
-  if (element.parent)
-  {
-    switch (element.parent->layout)
+    switch (parent->description.layout.direction)
     {
       case UI_LayoutDirection_TopToBottom:
       {
-        element.rect.position = AddVec2(element.parent->rect.position, element.parent->child_offset);
-        element.parent->child_offset.y += element.rect.size.y + element.parent->child_gap;
+        element.rect.position = AddVec2(parent->rect.position, parent->child_offset);
+        parent->child_offset.y += element.rect.size.y + parent->description.layout.child_gap;
       } break;
       case UI_LayoutDirection_LeftToRight:
       {
-        element.rect.position = AddVec2(element.parent->rect.position, element.parent->child_offset);
-        element.parent->child_offset.x += element.rect.size.x + element.parent->child_gap;
+        element.rect.position = AddVec2(parent->rect.position, parent->child_offset);
+        parent->child_offset.x += element.rect.size.x + parent->description.layout.child_gap;
       } break;
     }
   }
   else
   {
-    element.rect.position = ui_context.fixed_position;
+    // --AlNov 14 December 2025: @TODO Floating Elements doesn't work
+    element.rect.position = MakeVec2F32(0, 0);
   }
 
-  element.text_color = ui_context.text_color;
-  element.background_color = ui_context.background_color;
-
-  if (element.flags & UI_ElementFlag_Hover)
+  if (element.description.flags & UI_ElementFlag_Hover)
   {
     if (InsideRectF32(element.rect, ui_context.mouse_position))
     {
       ui_context.hot_id = element.id;
-      element.background_color = AddVec4(element.background_color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
+      element.description.rectangle.color = AddVec4(element.description.rectangle.color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
     }
   }
-  if (element.flags & UI_ElementFlag_Clickable)
+  if (element.description.flags & UI_ElementFlag_Clickable)
   {
   }
-  if (element.flags & UI_ElementFlag_DrawBackground)
+  if (element.description.flags & UI_ElementFlag_DrawBackground)
   {
     UI_DrawCommandArrayAdd(
       &ui_context.draw_commands,
       (UI_DrawCommand){
         .type = UI_DrawCommandType_Rectangle,
         .rectangle = {
-          .color = element.background_color,
+          .color = element.description.rectangle.color,
           .bound = element.rect,
-          .radius = element.border_radius.values,
+          .radius = element.description.rectangle.radius.values,
         }
       }
     );
   }
-  if (element.flags & UI_ElementFlag_DrawLabel)
+  if (element.description.flags & UI_ElementFlag_DrawLabel)
   {
     UI_DrawCommandArrayAdd(
       &ui_context.draw_commands,
       (UI_DrawCommand){
         .type = UI_DrawCommandType_Text,
         .text = {
-          .content = element.label,
-          .font = element.font,
-          .font_size = element.font_size,
-          .color = element.text_color,
+          .content = element.description.text.str,
+          .font = element.description.text.font,
+          .font_size = element.description.text.font_size,
+          .color = element.description.text.color,
           .position = element.rect.position,
         }
       }
@@ -177,12 +145,27 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 }
 
 func UI_Element*
+UI_GetParent()
+{
+  return UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+}
+
+func void UI_PushElement(UI_ElementDescription description)
+{
+  UI_Element* element = UI_BuildElement(&ui_context.elements, description);
+}
+
+func void UI_PopElement()
+{
+  UI_ElementArrayPop(&ui_context.elements);
+}
+
+func UI_Element*
 UI_Layout(UI_ElementArray* array, Str8 label)
 {
   UI_Element* layout = UI_BuildElement(
     array,
     (UI_ElementDescription){
-      .label = label,
       .flags = UI_ElementFlag_DrawBackground,
     }
   );
@@ -190,15 +173,20 @@ UI_Layout(UI_ElementArray* array, Str8 label)
 }
 
 func void
-UI_Text(UI_ElementArray* array, Str8 label)
+UI_Text(Str8 text, UI_TextDescription text_description)
 {
-  UI_BuildElement(
-    array,
+  // --AlNov 14 December 2025: @TODO
+  // Roundtrip to set what text to draw. I am sure that there is a better way.
+  UI_TextDescription with_str = text_description;
+  with_str.str = text;
+
+  UI_PushElement(
     (UI_ElementDescription){
-      .label = label,
       .flags = UI_ElementFlag_DrawLabel,
+      .text = with_str,
     }
   );
+  UI_PopElement();
 }
 
 func void
@@ -209,7 +197,6 @@ UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
   UI_Element* input = UI_BuildElement(
     array,
     (UI_ElementDescription){
-      .label = label,
       .flags = UI_ElementFlag_Hover|
         UI_ElementFlag_DrawLabel|
         UI_ElementFlag_DrawBackground,
@@ -283,14 +270,8 @@ UI_Button(UI_ElementArray* array, Str8 label)
   UI_Element* button = UI_BuildElement(
     array,
     (UI_ElementDescription){
-      .label = label,
-      .flags = UI_ElementFlag_Hover|
-        UI_ElementFlag_DrawLabel|
-        UI_ElementFlag_DrawBackground,
-      .border_radius = {
-        .top_right = 10.0f,
-        .bottom_right = 10.0f,
-      },
+      .flags = UI_ElementFlag_Hover | UI_ElementFlag_DrawLabel | UI_ElementFlag_DrawBackground,
+      .rectangle.radius = {.top_right = 10.0f, .bottom_right = 10.0f},
     }
   );
 
@@ -316,7 +297,6 @@ UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
   UI_Element* slider = UI_BuildElement(
     array,
     (UI_ElementDescription){
-      .label = label,
       .flags = UI_ElementFlag_Hover|
         UI_ElementFlag_DrawLabel|
         UI_ElementFlag_DrawBackground,

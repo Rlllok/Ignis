@@ -104,27 +104,63 @@ enum UI_ElementFlagEnum
   UI_ElementFlag_DrawLabel = 1 << 3,
 } UI_ElementFlagEnum;
 
+typedef struct UI_LayoutDescription UI_LayoutDescription;
+struct UI_LayoutDescription
+{
+  UI_Size width;
+  UI_Size height;
+  UI_Padding padding;
+  F32 child_gap;
+  UI_LayoutDirection direction;
+};
+
+typedef struct UI_RectangleDescription UI_RectangleDescription;
+struct UI_RectangleDescription
+{
+  Vec4F32 color;
+  UI_BorderRadius radius;
+};
+
+typedef struct UI_TextDescription UI_TextDescription;
+struct UI_TextDescription
+{
+  Str8 str;
+  FontBitmap font;
+  Vec4F32 color;
+  U32 font_size;
+};
+
+typedef U16 UI_ElementType;
+enum UI_ElementTypeEnum
+{
+  UI_ElementType_None,
+  UI_ElementType_Rectangle,
+  UI_ElementType_Text
+} UI_ElementTypeEnum;
+
+typedef struct UI_ElementDescription UI_ElementDescription;
+struct UI_ElementDescription
+{
+  UI_ElementType type;
+  UI_ElementFlags flags;
+
+  UI_LayoutDescription layout;
+  union
+  {
+    UI_RectangleDescription rectangle;
+    UI_TextDescription text;
+  };
+};
+
 typedef struct UI_Element UI_Element;
 struct UI_Element
 {
   UI_ID id;
 
-  UI_Element* next;
-  UI_Element* previous;
-  UI_Element* parent;
-
-  Str8 label;
-  UI_ElementFlags flags;
-  FontBitmap font;
-  Vec4 text_color;
-  U32 font_size;
   RectF32 rect;
-  UI_LayoutDirection layout;
-  UI_Padding padding;
-  F32 child_gap;
   Vec2 child_offset;
-  Vec4 background_color;
-  UI_BorderRadius border_radius;
+
+  UI_ElementDescription description;
 };
 
 UI_Element UI_ElementDefaultValue = {0};
@@ -166,16 +202,6 @@ DefineArray(UI_DrawCommand, UI_DrawCommandArray, UI_DrawCommandDefaultValue)
 typedef struct UI_Context UI_Context;
 struct UI_Context
 {
-  UI_Element* current_parent;
-
-  UI_Size size_x;
-  UI_Size size_y;
-  Vec2 fixed_position;
-  U32 font_size;
-  FontBitmap font;
-  Vec4 text_color;
-  Vec4 background_color;
-
   // Interaction
   UI_ID hot_id;
   UI_ID active_id;
@@ -190,34 +216,23 @@ struct UI_Context
 // -------------------------------------------------------------------
 // -- UI Context Mutation --------------------------------------------
 func void UI_BeginFrame(Vec2 mouse_position);
-func void UI_EndFrame(UI_Context* context);
-
-func void UI_SetParent(UI_Element* parent)           {ui_context.current_parent = parent;}
-func void UI_SetSizeX(UI_Size size)                  {ui_context.size_x = size;}
-func void UI_SetSizeY(UI_Size size)                  {ui_context.size_y = size;}
-func void UI_SetFont(FontBitmap font, U32 font_size) {ui_context.font = font; ui_context.font_size = font_size;}
-func void UI_SetTextColor(Vec4 color)                {ui_context.text_color = color;}
-func void UI_SetBackgroundColor(Vec4 color)          {ui_context.background_color = color;}
-func void UI_SetFixedPosition(Vec2 position)         {ui_context.fixed_position = position;}
+func void UI_EndFrame();
 
 // -------------------------------------------------------------------
 // -- UI Elements ----------------------------------------------------
-typedef struct UI_ElementDescription UI_ElementDescription;
-struct UI_ElementDescription
-{
-  Str8 label;
-  UI_ElementFlags flags;
-  UI_LayoutDirection layout;
-  UI_Padding padding;
-  F32 child_gap;
-  UI_BorderRadius border_radius;
-};
+func U32 UI_CalculateSize(UI_Size size);
 
 func UI_Element* UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description);
 
+func UI_Element* UI_GetParent();
+
+func void UI_PushElement(UI_ElementDescription description);
+func void UI_PopElement();
+
+#define UI_OpenElement(...) DeferBlock(UI_PushElement((UI_ElementDescription)__VA_ARGS__), UI_PopElement())
+
 func UI_Element* UI_Layout(UI_ElementArray* array, Str8 label);
-func void        UI_Text(UI_ElementArray* array, Str8 label);
+func void        UI_Text(Str8 label, UI_TextDescription text);
 func void        UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value);
 func B32         UI_Button(UI_ElementArray* array, Str8 label);
 func F32         UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value);
-

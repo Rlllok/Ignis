@@ -64,6 +64,13 @@ func I32 ArrayName##Add(ArrayName* array, TypeName element)\
   return -1;\
 }\
 \
+func TypeName ArrayName##Pop(ArrayName* array)\
+{\
+  array->length -= 1;\
+  TypeName poped_element = array->elements[array->length];\
+  return poped_element;\
+}\
+\
 func TypeName ArrayName##Get(ArrayName* array, I32 index)\
 {\
   return (ArrayRangeCheck(index, array->length) ? array->elements[index]: DefaultValue);\

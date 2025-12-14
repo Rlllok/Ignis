@@ -601,121 +601,49 @@ I32 main(void)
     }
 
     // UI
-    UI_BeginFrame(app_state.last_mouse_position);
-    UI_ElementArrayReset(&ui_context.elements);
     if (app_state.draw_ui)
     {
-      UI_SetBackgroundColor(RGBAFromHex(0x1D1A26FF));
-      UI_SetFont(app_state.font, 16);
-      UI_SetTextColor(RGBAFromHex(0xE8B4B8FF));
+      DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
+      {
+        Vec4F32 background_color = RGBAFromHex(0x1D1A26FF);
 
-      UI_SetFixedPosition(MakeVec2(0.0f, 0.0f));
-      UI_SetSizeX(UI_FixedSize(250.0f));
-      UI_SetSizeY(UI_FixedSize(app_state.window.size.y));
-      UI_Element* right_box = UI_BuildElement(
-        &ui_context.elements,
-        (UI_ElementDescription){
-          .label = Str8C("Right Box"),
+        UI_RectangleDescription default_rectangle = {
+          .color = RGBAFromHex(0x1D1A26FF),
+          .radius = {0.0f, 0.0f, 0.0f, 0.0f},
+        };
+
+        UI_TextDescription default_text = {
+          .str = Str8C("DefaultText"),
+          .font = app_state.font,
+          .color = RGBAFromHex(0xFFFFFFFF),
+          .font_size = 24.0f,
+        };
+
+        UI_ElementDescription button_description = {
+          .flags = UI_ElementFlag_DrawBackground | UI_ElementFlag_Hover | UI_ElementFlag_Clickable,
+          .layout = {
+            .width = UI_ParentPercentSize(1.0f),
+            .height = UI_FixedSize(40.0f),
+          },
+          .rectangle = {
+            .color = RGBAFromHex(0xBBAA22FF),
+            .radius = {4.0f, 4.0f, 4.0f, 4.0f},
+          },
+        };
+
+        UI_OpenElement({
           .flags = UI_ElementFlag_DrawBackground,
-          .layout = UI_LayoutDirection_TopToBottom,
-          .child_gap = 5.0f,
-          .border_radius = {
-            .top_left = 0.0f,
-            .top_right = 0.0f,
-            .bottom_left = 0.0f,
-            .bottom_right = 0.0f,
-          }
-        }
-      );
-      UI_SetParent(right_box);
-      {
-        UI_SetSizeX(UI_ParentPercentSize(1.0f));
-        UI_SetSizeY(UI_FixedSize(20.0f));
-
-        if (app_state.selected_entity != &EntityDefaultValue)
+          .layout = {
+            .width = UI_FixedSize(250.0f),
+            .height = UI_FixedSize(app_state.window.size.y),
+            .direction = UI_LayoutDirection_TopToBottom,
+           },
+          .rectangle = default_rectangle,
+        })
         {
-          UI_Text(&ui_context.elements, app_state.selected_entity->name);
-
-          UI_Element* euler_rotation = UI_BuildElement(
-            &ui_context.elements,
-            (UI_ElementDescription) {
-              .layout = UI_LayoutDirection_LeftToRight,
-              .child_gap = 2.0f,
-            }
-          );
-
-          UI_SetParent(euler_rotation);
+          UI_OpenElement(button_description)
           {
-            Vec3F32 euler = EulerFromQuaternion(app_state.selected_entity->transform.rotation);
-            euler.x = DegreesFromRadians(euler.x);
-            euler.y = DegreesFromRadians(euler.y);
-            euler.z = DegreesFromRadians(euler.z);
-
-            Vec3F32 input_euler = euler;
-
-            char roll_cstring[128] = {0};
-            sprintf(roll_cstring, "Roll: %.2f", input_euler.x);
-            UI_NumberInput(&ui_context.elements, Str8C(roll_cstring), &input_euler.x);
-
-            char pitch_cstring[128] = {0};
-            sprintf(pitch_cstring, "Pitch: %.2f", input_euler.y);
-            UI_NumberInput(&ui_context.elements, Str8C(pitch_cstring), &input_euler.y);
-
-            char yaw_cstring[128] = {0};
-            sprintf(yaw_cstring, "Yaw: %.2f", input_euler.z);
-            UI_NumberInput(&ui_context.elements, Str8C(yaw_cstring), &input_euler.z);
-
-            app_state.selected_entity->transform.rotation = QuaternionFromEuler(
-              RadiansFromDegrees(input_euler.x),
-              RadiansFromDegrees(input_euler.y),
-              RadiansFromDegrees(input_euler.z)
-            );
-          }
-          UI_SetParent(right_box);
-
-          char position_x_slider_cstring[128] = {0};
-          sprintf(position_x_slider_cstring, "X: %.1f", app_state.selected_entity->transform.translation.x);
-          UI_SliderF32(&ui_context.elements, Str8C(position_x_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->transform.translation.x);
-          char position_y_slider_cstring[128] = {0};
-          sprintf(position_y_slider_cstring, "Y: %.1f", app_state.selected_entity->transform.translation.y);
-          UI_SliderF32(&ui_context.elements, Str8C(position_y_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->transform.translation.y);
-          char position_z_slider_cstring[128] = {0};
-          sprintf(position_z_slider_cstring, "Z: %.1f", app_state.selected_entity->transform.translation.z);
-          UI_SliderF32(&ui_context.elements, Str8C(position_z_slider_cstring), -5.0f, 5.0f, &app_state.selected_entity->transform.translation.z);
-
-          char smoothness_slider_cstring[128] = {0};
-          sprintf(smoothness_slider_cstring, "Smoothness: %.1f", app_state.selected_entity->smoothness);
-          UI_SliderF32(&ui_context.elements, Str8C(smoothness_slider_cstring), 0.0f, 1.0f, &app_state.selected_entity->smoothness);
-        }
-      }
-      UI_SetParent(0);
-      if (app_state.command_palette.activated)
-      {
-        UI_SetFixedPosition(app_state.command_palette.rectangle.position);
-        UI_SetSizeX(UI_FixedSize(app_state.command_palette.rectangle.size.x));
-        UI_SetSizeY(UI_FixedSize(app_state.command_palette.rectangle.size.y));
-        UI_Element* command_palette = UI_BuildElement(
-          &ui_context.elements,
-          (UI_ElementDescription){
-            .label = Str8C("CommandPalette"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = UI_LayoutDirection_TopToBottom,
-            .child_gap = 5.0f,
-            .border_radius = app_state.command_palette.border_radius,
-          }
-        );
-        UI_SetParent(command_palette);
-        {
-          UI_SetSizeX(UI_ParentPercentSize(1.0f));
-          UI_SetSizeY(UI_FixedSize(40.0f));
-          UI_Text(&ui_context.elements, app_state.command_palette.input);
-          for (I32 i = 0; i < app_state.command_palette.commands.length; i += 1)
-          {
-            Command command = CommandArrayGet(&app_state.command_palette.commands, i);
-            if (UI_Button(&ui_context.elements, command.name))
-            {
-              command.callback(command.data);
-            }
+            UI_Text(Str8C("Hello"), default_text);
           }
         }
       }
