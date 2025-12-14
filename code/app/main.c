@@ -114,6 +114,8 @@ struct AppState
   B32 mouse_inside;
   Vec2F32 last_mouse_position;
 
+  RectF32 viewport_rect;
+
   R_GraphicsPipeline grid_pipeline;
   R_GraphicsPipeline line_3d_pipeline;
   R_GraphicsPipeline square_pipeline;
@@ -601,72 +603,94 @@ I32 main(void)
     }
 
     // UI
-    if (app_state.draw_ui)
+    DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
     {
-      DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
+      UI_OpenElement({
+        // .flags = UI_ElementFlag_DrawBackground,
+        .layout = {
+          .width = UI_FixedSize(app_state.window.size.x),
+          .height = UI_FixedSize(app_state.window.size.y),
+          .direction = UI_LayoutDirection_LeftToRight,
+        },
+        .rectangle.color = RGBAFromHex(0xFF1A26FF),
+        .rectangle.radius = {0.0f, 0.0f, 0.0f, 0.0f},
+      })
       {
-        Vec4F32 background_color = RGBAFromHex(0x1D1A26FF);
-
-        UI_RectangleDescription default_rectangle = {
-          .color = RGBAFromHex(0x1D1A26FF),
-          .radius = {0.0f, 0.0f, 0.0f, 0.0f},
-        };
-
-        UI_TextDescription default_text = {
-          .str = Str8C("DefaultText"),
-          .font = app_state.font,
-          .color = RGBAFromHex(0xFFFFFFFF),
-          .font_size = 24.0f,
-        };
-
-        UI_ElementDescription button_description = {
-          .flags = UI_ElementFlag_DrawBackground | UI_ElementFlag_Hover | UI_ElementFlag_Clickable,
-          .layout = {
-            .width = UI_ParentPercentSize(1.0f),
-            .height = UI_FixedSize(40.0f),
-          },
-          .rectangle = {
-            .color = RGBAFromHex(0xBBAA22FF),
-            .radius = {4.0f, 4.0f, 4.0f, 4.0f},
-          },
-        };
-
-        UI_OpenElement({
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-            .width = UI_FixedSize(250.0f),
-            .height = UI_FixedSize(app_state.window.size.y),
-            .direction = UI_LayoutDirection_TopToBottom,
-            },
-            .rectangle = default_rectangle,
-            })
+        if (app_state.draw_ui)
         {
-          if (app_state.selected_entity != &EntityDefaultValue)
-          {
-            Entity* entity = app_state.selected_entity;
-            Skeleton* skeleton = &entity->mesh.skeleton;
+          Vec4F32 background_color = RGBAFromHex(0x1D1A26FF);
 
-            for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
+          UI_RectangleDescription default_rectangle = {
+            .color = RGBAFromHex(0x1D1A26FF),
+            .radius = {0.0f, 0.0f, 0.0f, 0.0f},
+          };
+
+          UI_TextDescription default_text = {
+            .str = Str8C("DefaultText"),
+            .font = app_state.font,
+            .color = RGBAFromHex(0xFFFFFFFF),
+            .font_size = 24.0f,
+          };
+
+          UI_ElementDescription button_description = {
+            .flags = UI_ElementFlag_DrawBackground | UI_ElementFlag_Hover | UI_ElementFlag_Clickable,
+            .layout = {
+              .width = UI_ParentPercentSize(1.0f),
+              .height = UI_FixedSize(40.0f),
+            },
+            .rectangle = {
+              .color = RGBAFromHex(0xBBAA22FF),
+              .radius = {4.0f, 4.0f, 4.0f, 4.0f},
+            },
+          };
+
+          UI_OpenElement({
+              .flags = UI_ElementFlag_DrawBackground,
+              .layout = {
+                .width = UI_ParentPercentSize(0.3f),
+                .height = UI_ParentPercentSize(1.0f),
+                .direction = UI_LayoutDirection_TopToBottom,
+              },
+              .rectangle = default_rectangle,
+          })
+          {
+            if (app_state.selected_entity != &EntityDefaultValue)
             {
-              UI_OpenElement(button_description)
+              Entity* entity = app_state.selected_entity;
+              Skeleton* skeleton = &entity->mesh.skeleton;
+
+              for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
               {
-                SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
-                UI_Text(skeletal_animation->name, default_text);
-                if (UI_IsClicked())
+                UI_OpenElement(button_description)
                 {
-                  for (I32 j = 0; j < skeleton->joints.length; j += 1)
+                  SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
+                  UI_Text(skeletal_animation->name, default_text);
+                  if (UI_IsClicked())
                   {
-                    Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
-                    if (animation !=  &_animation_nil)
+                    for (I32 j = 0; j < skeleton->joints.length; j += 1)
                     {
-                      BeginAnimation(animation, OS_GetTimeTicks());
+                      Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
+                      if (animation !=  &_animation_nil)
+                      {
+                        BeginAnimation(animation, OS_GetTimeTicks());
+                      }
                     }
+                    app_state.current_animation_index = i;
                   }
-                  app_state.current_animation_index = i;
                 }
               }
             }
           }
+        }
+
+        UI_OpenElement({
+          .layout = {
+            .width = UI_ParentFillSize(),
+            .height = UI_ParentFillSize(),
+          },
+        })
+        {
+          app_state.viewport_rect = UI_GetElementRectF32();
         }
       }
     }
@@ -681,10 +705,10 @@ I32 main(void)
       R_BeginCommandBuffer(command_buffer);
       {
         RectI32 viewport = {
-          .x = 0,
-          .y = 0,
-          .w = app_state.window.size.w,
-          .h = app_state.window.size.h,
+          .x = (I32)app_state.viewport_rect.x,
+          .y = (I32)app_state.viewport_rect.y,
+          .w = (I32)app_state.viewport_rect.w,
+          .h = (I32)app_state.viewport_rect.h,
         };
         RectI32 scissor = viewport;
         R_SetViewport(command_buffer, viewport);
@@ -769,7 +793,7 @@ I32 main(void)
             app_state.camera.up
           );
           grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
-            45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+            45.0f, (F32)app_state.viewport_rect.w/(F32)app_state.viewport_rect.h,
             0.1f, 100.0f
           );
           struct
@@ -813,6 +837,16 @@ I32 main(void)
           R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
         }
         R_EndRenderPass(command_buffer, 0);
+
+        viewport = (RectI32){
+          .x = 0,
+          .y = 0,
+          .w = app_state.window.size.w,
+          .h = app_state.window.size.h,
+        };
+        scissor = viewport;
+        R_SetViewport(command_buffer, viewport);
+        R_SetScissor(command_buffer, scissor);
 
         R_ColorTarget font_pass_color_target = {
           .texture = swapchain_texture,
@@ -916,7 +950,7 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
         AddVec3(app_state.camera.position, app_state.camera.front),
         app_state.camera.up);
     global_vertex_data.projection_matrix = MakePerspectiveMat4(
-        45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+        45.0f, (F32)app_state.viewport_rect.w/(F32)app_state.viewport_rect.h,
         0.1f, 100.0f);
 
     U64 global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&global_vertex_data, sizeof(global_vertex_data));
@@ -1059,7 +1093,7 @@ DrawLine3D(R_CommandBuffer command_buffer, R_Buffer buffer, Vec3F32 start, Vec3F
     app_state.camera.up
   );
   global_vertex_data.projection_matrix = MakePerspectiveMat4(
-    45.0f, (F32)app_state.window.size.w/(F32)app_state.window.size.h,
+    45.0f, (F32)app_state.viewport_rect.w/(F32)app_state.viewport_rect.h,
     0.1f, 100.0f
   );
   global_vertex_data.camera_direction = app_state.camera.front;

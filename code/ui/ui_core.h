@@ -46,6 +46,7 @@ enum UI_SizeTypeEnum
   UI_SizeType_WrapLabel,
   UI_SizeType_WrapChildren,
   UI_SizeType_ParentPercent,
+  UI_SizeType_ParentFill,
   UI_SizeType_Count,
 } UI_SizeTypeEnum;
 
@@ -59,6 +60,7 @@ struct UI_Size
 #define UI_FixedSize(coordinate) ((UI_Size){.type = UI_SizeType_Fixed, .value = coordinate})
 #define UI_WrapLabelSize() ((UI_Size){.type = UI_SizeType_WrapLabel})
 #define UI_ParentPercentSize(percent) ((UI_Size){.type = UI_SizeType_ParentPercent, .value = percent})
+#define UI_ParentFillSize() ((UI_Size){.type = UI_SizeType_ParentFill})
 
 typedef struct UI_BorderRadius UI_BorderRadius;
 struct UI_BorderRadius
@@ -220,7 +222,7 @@ func void UI_EndFrame();
 
 // -------------------------------------------------------------------
 // -- UI Elements ----------------------------------------------------
-func U32 UI_CalculateSize(UI_Size size);
+func U32 UI_CalculateSize(UI_Size size, B32 is_heigth);
 
 func UI_Element* UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description);
 
@@ -232,6 +234,8 @@ func void UI_PopElement();
 #define UI_OpenElement(...) DeferBlock(UI_PushElement((UI_ElementDescription)__VA_ARGS__), UI_PopElement())
 
 func B32 UI_IsClicked();
+
+func RectF32 UI_GetElementRectF32();
 
 func UI_Element* UI_Layout(UI_ElementArray* array, Str8 label);
 func void        UI_Text(Str8 label, UI_TextDescription text);

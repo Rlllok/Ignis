@@ -37,7 +37,7 @@ func void UI_EndFrame() {}
 // -------------------------------------------------------------------
 // -- UI Default Elements --------------------------------------------
 func U32
-UI_CalculateSize(UI_Size size)
+UI_CalculateSize(UI_Size size, B32 is_heigth)
 {
   U32 result = 0;
   switch (size.type)
@@ -56,8 +56,16 @@ UI_CalculateSize(UI_Size size)
     case UI_SizeType_ParentPercent:
     {
       UI_Element* parent = UI_GetParent();
-      result = parent->rect.size.x*size.value;
+      U32 parent_size = (is_heigth) ? parent->rect.size.y : parent->rect.size.x;
+      result = parent_size*size.value;
     } break;
+    case UI_SizeType_ParentFill:
+    {
+      UI_Element* parent = UI_GetParent();
+      U32 parent_size = (is_heigth) ? parent->rect.size.y : parent->rect.size.x;
+      U32 offset = (is_heigth) ? parent->child_offset.y : parent->child_offset.x;
+      result = parent_size - offset;
+    };
   }
 
   return result;
@@ -74,8 +82,8 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 
   element.child_offset = MakeVec2(description.layout.padding.left, description.layout.padding.top);
 
-  element.rect.size.x = UI_CalculateSize(element.description.layout.width);
-  element.rect.size.y = UI_CalculateSize(element.description.layout.height);
+  element.rect.size.x = UI_CalculateSize(element.description.layout.width, 0);
+  element.rect.size.y = UI_CalculateSize(element.description.layout.height, 1);
 
   if (parent != &UI_ElementDefaultValue)
   {
@@ -282,6 +290,13 @@ UI_IsClicked()
   }
 
   return result;
+}
+
+func RectF32
+UI_GetElementRectF32()
+{
+  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+  return current_element->rect;
 }
 
 func B32
