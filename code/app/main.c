@@ -922,21 +922,24 @@ I32 main(void)
 
       R_PresentTexture(command_buffer, swapchain_texture);
 
-      if (app_state.last_mouse_position.x >= 0.0f && app_state.last_mouse_position.y >= 0)
+      if (InsideRectF32(app_state.viewport_rect, app_state.last_mouse_position) && app_state.last_mouse_position.x >= 0.0f && app_state.last_mouse_position.y >= 0)
       {
-        U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
-        R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
-
-        if (app_state.hover_entity_id != 0)
+        if (OS_IsMousePressed(OS_MouseButton_Left))
         {
-          i f (OS_IsMousePressed(OS_MouseButton_Left))
+          U64 pixel_offset = sizeof(U16)*(((I32)app_state.window.size.x*(I32)app_state.last_mouse_position.y) + (I32)app_state.last_mouse_position.x);
+          R_VK_BufferGetData(transfer_buffer, test_texture_values_offset + pixel_offset, &app_state.hover_entity_id, sizeof(U16));
+
+          if (app_state.hover_entity_id != 0)
           {
             app_state.selected_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
+          }
+          else
+          {
+            app_state.selected_entity = &EntityDefaultValue;
           }
         }
       }
     }
-    // LOG_DEBUG("MOUSE: %.1fx, %.1fy\tOFFSET: %d, PIXEL VALUE: %d\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y, pixel_offset, app_state.hover_entity_id);
 
     ResetArena(app_state.frame_arena);
 
