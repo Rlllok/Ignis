@@ -641,9 +641,28 @@ I32 main(void)
           .rectangle = default_rectangle,
         })
         {
-          UI_OpenElement(button_description)
+          Entity* entity = EntityArrayGetPointer(&app_state.entities, 0);
+          Skeleton* skeleton = &entity->mesh.skeleton;
+
+          for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
           {
-            UI_Text(Str8C("Hello"), default_text);
+            UI_OpenElement(button_description)
+            {
+              SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
+              UI_Text(skeletal_animation->name, default_text);
+              if (UI_IsClicked())
+              {
+                for (I32 j = 0; j < skeleton->joints.length; j += 1)
+                {
+                  Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
+                  if (animation !=  &_animation_nil)
+                  {
+                    BeginAnimation(animation, OS_GetTimeTicks());
+                  }
+                }
+                app_state.current_animation_index = i;
+              }
+            }
           }
         }
       }

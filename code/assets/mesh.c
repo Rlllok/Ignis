@@ -130,6 +130,8 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     SkeletalAnimation skeletal_animation = {0};
 
     GLTFAnimation gltf_animation = GLTFAnimationListGetItem(&gltf_data.animations, animation_index);
+    skeletal_animation.name = gltf_animation.name;
+
     {
       GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
       GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);

@@ -231,6 +231,8 @@ func void UI_PopElement();
 
 #define UI_OpenElement(...) DeferBlock(UI_PushElement((UI_ElementDescription)__VA_ARGS__), UI_PopElement())
 
+func B32 UI_IsClicked();
+
 func UI_Element* UI_Layout(UI_ElementArray* array, Str8 label);
 func void        UI_Text(Str8 label, UI_TextDescription text);
 func void        UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value);

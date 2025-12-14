@@ -46,6 +46,7 @@ DefineArray(Animation, AnimationArray, _animation_nil)
 typedef struct SkeletalAnimation SkeletalAnimation;
 struct SkeletalAnimation
 {
+  Str8 name;
   AnimationArray bone_animations;
 };
 SkeletalAnimation _skeletal_animation_nil = {0};

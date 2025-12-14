@@ -263,6 +263,28 @@ UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
 }
 
 func B32
+UI_IsClicked()
+{
+  B32 result = 0;
+  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+  
+  if (ui_context.active_id == current_element->id)
+  {
+    if ((ui_context.hot_id == current_element->id) && OS_IsMouseReleased(OS_MouseButton_Left))
+    {
+      ui_context.active_id = 0;
+      result = 1;
+    }
+  }
+  else if (ui_context.hot_id == current_element->id)
+  {
+    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = current_element->id;
+  }
+
+  return result;
+}
+
+func B32
 UI_Button(UI_ElementArray* array, Str8 label)
 {
   B32 result = 0;
