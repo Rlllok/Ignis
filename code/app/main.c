@@ -911,10 +911,6 @@ I32 main(void)
             app_state.selected_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
           }
         }
-        else
-        {
-          app_state.selected_entity = &EntityDefaultValue;
-        }
       }
     }
     // LOG_DEBUG("MOUSE: %.1fx, %.1fy\tOFFSET: %d, PIXEL VALUE: %d\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y, pixel_offset, app_state.hover_entity_id);
