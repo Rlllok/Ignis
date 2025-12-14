@@ -835,6 +835,29 @@ I32 main(void)
           R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
           R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
           R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+
+          // --AlNov 14 December 2025: @TODO
+          // This is hardcoded navigation gizmo. I don't know how to implement it well.
+          F32 gizmo_size = 85.0f;
+          F32 gizmo_padding = 50.0f;
+          viewport = (RectI32){
+            .x = (I32)(app_state.viewport_rect.x + app_state.viewport_rect.w - gizmo_size - gizmo_padding),
+            .y = gizmo_padding,
+            .w = gizmo_size,
+            .h = gizmo_size,
+          };
+          scissor = viewport;
+          R_SetViewport(command_buffer, viewport);
+          R_SetScissor(command_buffer, scissor);
+
+          Vec3F32 gizmo_position = AddVec3F32(app_state.camera.position, ScaleVec3F32(app_state.camera.front, 2.0f));
+          Vec3F32 x_axis = AddVec3F32(gizmo_position, MakeVec3F32(1.0f, 0.0f, 0.0f));
+          Vec3F32 y_axis = AddVec3F32(gizmo_position, MakeVec3F32(0.0f, 1.0f, 0.0f));
+          Vec3F32 z_axis = AddVec3F32(gizmo_position, MakeVec3F32(0.0f, 0.0f, 1.0f));
+          F32 gizmo_width = 0.01f;
+          DrawLine3D(command_buffer, data_buffer, gizmo_position, x_axis, MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f), gizmo_width);
+          DrawLine3D(command_buffer, data_buffer, gizmo_position, y_axis, MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f), gizmo_width);
+          DrawLine3D(command_buffer, data_buffer, gizmo_position, z_axis, MakeVec4F32(0.0f, 0.0f, 1.0f, 1.0f), gizmo_width);
         }
         R_EndRenderPass(command_buffer, 0);
 
@@ -906,7 +929,7 @@ I32 main(void)
 
         if (app_state.hover_entity_id != 0)
         {
-          if (OS_IsMousePressed(OS_MouseButton_Left))
+          i f (OS_IsMousePressed(OS_MouseButton_Left))
           {
             app_state.selected_entity = EntityArrayGetPointer(&app_state.entities, app_state.hover_entity_id - 1);
           }
