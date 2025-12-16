@@ -231,7 +231,16 @@ func UI_Element* UI_GetParent();
 func void UI_PushElement(UI_ElementDescription description);
 func void UI_PopElement();
 
-#define UI_OpenElement(...) DeferBlock(UI_PushElement((UI_ElementDescription)__VA_ARGS__), UI_PopElement())
+// --AlNov 16 December 2025: @NOTE
+// Macroses below solve next problem - warning: C99 forbids casting nonscalar type 'UI_ElementDescription'
+// With wrapper it is possilbe to use api with inline structure definition (1) and predefined structure (2).
+// (1) - UI_OpenElement(.layout.width = UI_FixedSize(100)) {}
+// (2) - UI_ElementDescription default_element = {.layout.width = UI_FixedSize(100)};
+//       UI_OpenElement(default_element) {}
+#define UI_DefineElementDescriptionStructWrapper() typedef struct {UI_ElementDescription package;} UI_ElementDescriptionWrapper;
+UI_DefineElementDescriptionStructWrapper()
+#define UI_OpenElementDescriptionWrapper(...) ((UI_ElementDescriptionWrapper){__VA_ARGS__}).package
+#define UI_OpenElement(...) DeferBlock(UI_PushElement(UI_OpenElementDescriptionWrapper(__VA_ARGS__)), UI_PopElement())
 
 func B32 UI_IsClicked();
 
