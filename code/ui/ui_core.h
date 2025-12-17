@@ -1,6 +1,8 @@
 #pragma once
 
-typedef U32 UI_ID;
+typedef I32 UI_ID;
+UI_ID _ui_id_nil = -1;
+DefineArray(UI_ID, UI_IDArray, _ui_id_nil)
 
 // -------------------------------------------------------------------
 // -- UI Font --------------------------------------------------------
@@ -41,13 +43,10 @@ enum UI_LayoutDirectionEnum
 typedef U8 UI_SizeType;
 enum UI_SizeTypeEnum
 {
-  UI_SizeType_None,
-  UI_SizeType_Fixed,
-  UI_SizeType_WrapLabel,
-  UI_SizeType_WrapChildren,
+  UI_SizeType_FitChildren,
   UI_SizeType_ParentPercent,
-  UI_SizeType_ParentFill,
-  UI_SizeType_Count,
+  UI_SizeType_FillParent,
+  UI_SizeType_Pixel,
 } UI_SizeTypeEnum;
 
 typedef struct UI_Size UI_Size;
@@ -57,10 +56,10 @@ struct UI_Size
   F32 value;
 };
 
-#define UI_FixedSize(coordinate) ((UI_Size){.type = UI_SizeType_Fixed, .value = coordinate})
-#define UI_WrapLabelSize() ((UI_Size){.type = UI_SizeType_WrapLabel})
+#define UI_FitChildrenSize()          ((UI_Size){.type = UI_SizeType_FitChildren,   .value = 0.0f})
 #define UI_ParentPercentSize(percent) ((UI_Size){.type = UI_SizeType_ParentPercent, .value = percent})
-#define UI_ParentFillSize() ((UI_Size){.type = UI_SizeType_ParentFill})
+#define UI_FillParentSize()           ((UI_Size){.type = UI_SizeType_FillParent,    .value = 0.0f})
+#define UI_PixelSize(coordinate)      ((UI_Size){.type = UI_SizeType_Pixel,         .value = coordinate})
 
 typedef struct UI_BorderRadius UI_BorderRadius;
 struct UI_BorderRadius
@@ -143,6 +142,8 @@ enum UI_ElementTypeEnum
 typedef struct UI_ElementDescription UI_ElementDescription;
 struct UI_ElementDescription
 {
+  Str8 name;
+
   UI_ElementType type;
   UI_ElementFlags flags;
 
@@ -158,6 +159,12 @@ typedef struct UI_Element UI_Element;
 struct UI_Element
 {
   UI_ID id;
+
+  struct
+  {
+    UI_ID* ids;
+    I32 length;
+  } children_array_slice;
 
   RectF32 rect;
   Vec2 child_offset;
@@ -209,27 +216,32 @@ struct UI_Context
   UI_ID active_id;
   Vec2 mouse_position;
 
-  // Draw
-  UI_DrawCommandArray draw_commands;
-
   UI_ElementArray elements;
+  UI_IDArray open_elements_stack;
+  UI_IDArray roots;
+  UI_IDArray children;
+
+  UI_DrawCommandArray draw_commands;
 } ui_context; // -- AlNov. 12 December 2025: @TODO Multiole contexts?
+
+func void UI_Init(Arena* arena, U32 max_elements_count);
 
 // -------------------------------------------------------------------
 // -- UI Context Mutation --------------------------------------------
+func void UI_CalculateSizes(B32 is_width);
+
 func void UI_BeginFrame(Vec2 mouse_position);
 func void UI_EndFrame();
 
 // -------------------------------------------------------------------
 // -- UI Elements ----------------------------------------------------
-func U32 UI_CalculateSize(UI_Size size, B32 is_heigth);
+func UI_Element* UI_GetOpenedElement();
 
-func UI_Element* UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description);
+func UI_ID   UI_GetID()                {return UI_GetOpenedElement()->id;}
+func RectF32 UI_GetRectangle(UI_ID id) {return UI_ElementArrayGet(&ui_context.elements, id).rect;}
 
-func UI_Element* UI_GetParent();
-
-func void UI_PushElement(UI_ElementDescription description);
-func void UI_PopElement();
+func void UI_OpenElement(UI_ElementDescription description);
+func void UI_CloseElement();
 
 // --AlNov 16 December 2025: @NOTE
 // Macroses below solve next problem - warning: C99 forbids casting nonscalar type 'UI_ElementDescription'
@@ -239,11 +251,10 @@ func void UI_PopElement();
 //       UI_OpenElement(default_element) {}
 #define UI_DefineElementDescriptionStructWrapper() typedef struct {UI_ElementDescription package;} UI_ElementDescriptionWrapper;
 UI_DefineElementDescriptionStructWrapper()
-#define UI_OpenElementDescriptionWrapper(...) ((UI_ElementDescriptionWrapper){__VA_ARGS__}).package
-#define UI_OpenElement(...) DeferBlock(UI_PushElement(UI_OpenElementDescriptionWrapper(__VA_ARGS__)), UI_PopElement())
+#define UI_ElementDescriptionWrapper(...) ((UI_ElementDescriptionWrapper){__VA_ARGS__}).package
+#define UI_ElementBlock(...) DeferBlock(UI_OpenElement(UI_ElementDescriptionWrapper(__VA_ARGS__)), UI_CloseElement())
 
 func B32 UI_IsClicked();
-
 func RectF32 UI_GetElementRectF32();
 
 func UI_Element* UI_Layout(UI_ElementArray* array, Str8 label);

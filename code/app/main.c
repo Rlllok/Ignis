@@ -114,6 +114,7 @@ struct AppState
   B32 mouse_inside;
   Vec2F32 last_mouse_position;
 
+  UI_ID viewport_ui_element_id;
   RectF32 viewport_rect;
 
   R_GraphicsPipeline grid_pipeline;
@@ -223,8 +224,7 @@ I32 main(void)
 
   app_state.current_animation_index = 0;
 
-  ui_context.elements = UI_ElementArrayAllocate(app_state.arena, 1024);
-  ui_context.draw_commands = UI_DrawCommandArrayAllocate(app_state.arena, 1024);
+  UI_Init(app_state.arena, 1024);
 
   OS_Init(Megabytes(32));
 
@@ -605,150 +605,89 @@ I32 main(void)
     // UI
     DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
     {
-      UI_OpenElement({
-        // .flags = UI_ElementFlag_DrawBackground,
+      UI_ElementBlock({
+        .name = Str8C("0"),
+        .flags = UI_ElementFlag_DrawBackground,
         .layout = {
-          .width = UI_FixedSize(app_state.window.size.x),
-          .height = UI_FixedSize(app_state.window.size.y),
+          .width = UI_PixelSize(app_state.window.size.x),
+          .height = UI_PixelSize(app_state.window.size.y),
           .direction = UI_LayoutDirection_LeftToRight,
         },
-        .rectangle.color = RGBAFromHex(0xFF1A26FF),
+        .rectangle.color = RGBAFromHex(0xFFFFFFFF),
         .rectangle.radius = {0.0f, 0.0f, 0.0f, 0.0f},
       })
       {
-        if (app_state.draw_ui)
-        {
-          Vec4F32 background_color = RGBAFromHex(0x1D1A26FF);
+        UI_RectangleDescription default_rectangle = {
+          .color = RGBAFromHex(0x221A26FF),
+          .radius = {0.0f, 0.0f, 0.0f, 0.0f},
+        };
 
-          UI_RectangleDescription default_rectangle = {
-            .color = RGBAFromHex(0x1D1A26FF),
-            .radius = {0.0f, 0.0f, 0.0f, 0.0f},
-          };
-
-          UI_TextDescription default_text = {
-            .str = Str8C("DefaultText"),
-            .font = app_state.font,
-            .color = RGBAFromHex(0xFFFFFFFF),
-            .font_size = 24.0f,
-          };
-
-          UI_ElementDescription button_description = {
-            .flags = UI_ElementFlag_DrawBackground | UI_ElementFlag_Hover | UI_ElementFlag_Clickable,
+        UI_ElementBlock({
+          .name = Str8C("1"),
+            .flags = UI_ElementFlag_DrawBackground,
             .layout = {
-              .width = UI_ParentPercentSize(1.0f),
-              .height = UI_FixedSize(25.0f),
+              .width = UI_ParentPercentSize(0.35f),
+              .height = UI_ParentPercentSize(1.0f),
+              .direction = UI_LayoutDirection_TopToBottom,
             },
-            .rectangle = {
-              .color = RGBAFromHex(0x1D1A26FF),
-              .radius = {4.0f, 4.0f, 4.0f, 4.0f},
+            .rectangle = default_rectangle,
+        })
+        {
+          UI_ElementBlock({
+            .name = Str8C("3"),
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = {
+              .width = UI_ParentPercentSize(0.35f),
+              .height = UI_ParentPercentSize(1.0f),
+              .direction = UI_LayoutDirection_TopToBottom,
             },
-          };
-
-          UI_OpenElement({
-              .flags = UI_ElementFlag_DrawBackground,
-              .layout = {
-                .width = UI_ParentPercentSize(0.3f),
-                .height = UI_ParentPercentSize(1.0f),
-                .direction = UI_LayoutDirection_TopToBottom,
-              },
-              .rectangle = default_rectangle,
+            .rectangle = default_rectangle,
           })
           {
-            UI_OpenElement({
-              .flags = UI_ElementFlag_DrawBackground,
-              .layout = {
-                .width = UI_ParentPercentSize(1.0f),
-                .height = UI_ParentPercentSize(0.5f),
-                .direction = UI_LayoutDirection_TopToBottom,
-              },
-              .rectangle = default_rectangle,
-            })
-            {
-              UI_OpenElement({
-                .layout = {
-                  .width = UI_ParentPercentSize(1.0f),
-                  .height = UI_FixedSize(40.0f),
-                },
-              })
-              {
-                UI_Text(Str8C("Entities:"), default_text);
-              }
-              for (I32 i = 0; i < app_state.entities.length; i += 1)
-              {
-                Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
-                UI_ElementDescription entity_element_description = button_description;
-                entity_element_description.layout.padding.left = 10.0f;
-                UI_OpenElement(entity_element_description)
-                {
-                  UI_Text(entity->name, default_text);
-                  if (UI_IsClicked())
-                  {
-                    app_state.selected_entity = entity;
-                  }
-                }
-              }
-            }
+          }
 
-            UI_OpenElement({
-              .flags = UI_ElementFlag_DrawBackground,
-              .layout = {
-                .width = UI_ParentPercentSize(1.0f),
-                .height = UI_ParentPercentSize(0.5f),
-                .direction = UI_LayoutDirection_TopToBottom,
-              },
-              .rectangle = default_rectangle,
-            })
-            {
-              UI_OpenElement({
-                .layout = {
-                  .width = UI_ParentPercentSize(1.0f),
-                  .height = UI_FixedSize(40.0f),
-                },
-              })
-              {
-                UI_Text(Str8C("Selected Entity:"), default_text);
-              }
-              if (app_state.selected_entity != &EntityDefaultValue)
-              {
-                Entity* entity = app_state.selected_entity;
-                Skeleton* skeleton = &entity->mesh.skeleton;
-
-                for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
-                {
-                  UI_OpenElement(button_description)
-                  {
-                    SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
-                    UI_Text(skeletal_animation->name, default_text);
-                    if (UI_IsClicked())
-                    {
-                      for (I32 j = 0; j < skeleton->joints.length; j += 1)
-                      {
-                        Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
-                        if (animation !=  &_animation_nil)
-                        {
-                          BeginAnimation(animation, OS_GetTimeTicks());
-                        }
-                      }
-                      app_state.current_animation_index = i;
-                    }
-                  }
-                }
-              }
-            }
+          UI_ElementBlock({
+            .name = Str8C("4"),
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = {
+              .width = UI_ParentPercentSize(0.35f),
+              .height = UI_ParentPercentSize(1.0f),
+              .direction = UI_LayoutDirection_TopToBottom,
+            },
+            .rectangle = default_rectangle,
+          })
+          {
           }
         }
 
-        UI_OpenElement({
+        UI_ElementBlock({
+          .name = Str8C("2"),
+          .flags = UI_ElementFlag_DrawBackground,
           .layout = {
-            .width = UI_ParentFillSize(),
-            .height = UI_ParentFillSize(),
+            .width = UI_ParentPercentSize(0.35f),
+            .height = UI_ParentPercentSize(1.0f),
+            .direction = UI_LayoutDirection_TopToBottom,
           },
+          .rectangle = default_rectangle,
         })
         {
-          app_state.viewport_rect = UI_GetElementRectF32();
+          UI_ElementBlock({
+            .name = Str8C("5"),
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = {
+              .width = UI_ParentPercentSize(0.35f),
+              .height = UI_ParentPercentSize(1.0f),
+              .direction = UI_LayoutDirection_TopToBottom,
+            },
+            .rectangle = default_rectangle,
+          })
+          {
+          }
         }
       }
     }
+
+    // app_state.viewport_rect = UI_GetRectangle(app_state.viewport_ui_element_id);
 
     if (app_state.to_render)
     {
@@ -936,6 +875,7 @@ I32 main(void)
           char frame_time_cstring[128] = {0};
           sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
 
+          LOG_DEBUG("UI Draw Commands Count: %d\n", ui_context.draw_commands.length);
           for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
           {
             UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, i);

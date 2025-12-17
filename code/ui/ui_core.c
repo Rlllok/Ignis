@@ -21,165 +21,195 @@ GetTextSize(FontBitmap font, Str8 text, U32 font_size)
   return result;
 }
 
+func void
+UI_Init(Arena* arena, U32 max_elements_count)
+{
+  ui_context.elements = UI_ElementArrayAllocate(arena, max_elements_count);
+  ui_context.open_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.roots = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.children = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.draw_commands = UI_DrawCommandArrayAllocate(arena, max_elements_count);
+}
 
 // -------------------------------------------------------------------
 // -- UI Context Mutation --------------------------------------------
+func void
+UI_CalculateSizes(B32 is_width)
+{
+  for (I32 root_index = 0; root_index < ui_context.roots.length; root_index += 1)
+  {
+    UI_Element root = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.roots, root_index));
+
+    for (I32 child_offset = 0; child_offset < root.children_array_slice.length; child_offset += 1)
+    {
+      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, root.children_array_slice.ids[child_offset]);
+
+      UI_Size child_element_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
+      F32* child_element_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
+
+      if (child_element_size.type == UI_SizeType_ParentPercent)
+      {
+      F32 parent_element_size_value = (is_width) ? root.rect.size.x : root.rect.size.y;
+        *child_element_size_value = parent_element_size_value*child_element_size.value;
+      }
+    }
+  }
+}
+
 func void
 UI_BeginFrame(Vec2 mouse_position)
 {
   ui_context.mouse_position = mouse_position;
   ui_context.hot_id = 0;
+  UI_ElementArrayReset(&ui_context.elements);
+  UI_IDArrayReset(&ui_context.open_elements_stack);
+  UI_IDArrayReset(&ui_context.roots);
+  UI_IDArrayReset(&ui_context.children);
   UI_DrawCommandArrayReset(&ui_context.draw_commands);
 }
 
-func void UI_EndFrame() {}
+func void UI_EndFrame()
+{
+  UI_CalculateSizes(0);
+  UI_CalculateSizes(1);
+
+  // --AlNov 17 December 2025:
+  // Calculate positions.
+  for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
+  {
+    UI_Element element = UI_ElementArrayGet(&ui_context.elements, element_index);
+  }
+
+  for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
+  {
+    UI_Element element = UI_ElementArrayGet(&ui_context.elements, element_index);
+
+    if (element.description.flags & UI_ElementFlag_Hover)
+    {
+      if (InsideRectF32(element.rect, ui_context.mouse_position))
+      {
+        ui_context.hot_id = element.id;
+        element.description.rectangle.color = AddVec4(element.description.rectangle.color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
+      }
+    }
+    if (element.description.flags & UI_ElementFlag_Clickable)
+    {
+    }
+    if (element.description.flags & UI_ElementFlag_DrawBackground)
+    {
+      UI_DrawCommandArrayAdd(
+        &ui_context.draw_commands,
+        (UI_DrawCommand){
+          .type = UI_DrawCommandType_Rectangle,
+          .rectangle = {
+            .color = element.description.rectangle.color,
+            .bound = element.rect,
+            .radius = element.description.rectangle.radius.values,
+          }
+        }
+      );
+    }
+    if (element.description.flags & UI_ElementFlag_DrawLabel)
+    {
+      UI_DrawCommandArrayAdd(
+        &ui_context.draw_commands,
+        (UI_DrawCommand){
+          .type = UI_DrawCommandType_Text,
+          .text = {
+            .content = element.description.text.str,
+            .font = element.description.text.font,
+            .font_size = element.description.text.font_size,
+            .color = element.description.text.color,
+            .position = element.rect.position,
+          }
+        }
+      );
+    }
+  }
+}
 
 // -------------------------------------------------------------------
 // -- UI Default Elements --------------------------------------------
-func U32
-UI_CalculateSize(UI_Size size, B32 is_heigth)
+func UI_Element*
+UI_GetOpenedElement()
 {
-  U32 result = 0;
-  switch (size.type)
+  UI_ID opened_element_id = UI_IDArrayGet(&ui_context.open_elements_stack, ui_context.open_elements_stack.length - 1);
+  return UI_ElementArrayGetPointer(&ui_context.elements, opened_element_id);
+}
+
+func void UI_OpenElement(UI_ElementDescription description)
+{
+  UI_Element element = {
+    .id = ui_context.elements.length,
+    .description = description,
+  };
+
+  // LOG_DEBUG("Open Element Name: %s\n", CFromStr8(element.description.name));
+
+  if (element.description.layout.width.type == UI_SizeType_Pixel)
   {
-    default: Assert(1); break;
-    
-    case UI_SizeType_Fixed:
+    element.rect.size.x = element.description.layout.width.value;
+  }
+  if (element.description.layout.height.type == UI_SizeType_Pixel)
+  {
+    element.rect.size.y = element.description.layout.height.value;
+  }
+
+  if (ui_context.open_elements_stack.length == 0)
+  {
+    UI_IDArrayAdd(&ui_context.roots, element.id);
+  }
+
+  UI_ElementArrayAdd(&ui_context.elements, element);
+  UI_IDArrayAdd(&ui_context.open_elements_stack, element.id);
+}
+
+func void UI_CloseElement()
+{
+  UI_Element* current_element = UI_GetOpenedElement();
+  UI_LayoutDescription layout = current_element->description.layout;
+
+  LOG_DEBUG("Close Element Name: %s\n", CFromStr8(current_element->description.name));
+
+  current_element->children_array_slice.ids = ui_context.children.elements + ui_context.children.length;
+
+  UI_IDArrayPop(&ui_context.open_elements_stack);
+
+  if (ui_context.open_elements_stack.length > 0)
+  {
+    UI_Element* parent_element = UI_GetOpenedElement();
+    UI_IDArrayAdd(&ui_context.children, current_element->id);
+    parent_element->children_array_slice.length += 1;
+  }
+}
+
+func B32
+UI_IsClicked()
+{
+  B32 result = 0;
+  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+  
+  if (ui_context.active_id == current_element->id)
+  {
+    if ((ui_context.hot_id == current_element->id) && OS_IsMouseReleased(OS_MouseButton_Left))
     {
-      result = size.value;
-    } break;
-    case UI_SizeType_WrapChildren:
-    {
-      // --AlNov: @TODO
-      Assert(1);
-    } break;
-    case UI_SizeType_ParentPercent:
-    {
-      UI_Element* parent = UI_GetParent();
-      U32 parent_size = (is_heigth) ? parent->rect.size.y : parent->rect.size.x;
-      result = parent_size*size.value;
-    } break;
-    case UI_SizeType_ParentFill:
-    {
-      UI_Element* parent = UI_GetParent();
-      U32 parent_size = (is_heigth) ? parent->rect.size.y : parent->rect.size.x;
-      U32 offset = (is_heigth) ? parent->child_offset.y : parent->child_offset.x;
-      result = parent_size - offset;
-    };
+      ui_context.active_id = 0;
+      result = 1;
+    }
+  }
+  else if (ui_context.hot_id == current_element->id)
+  {
+    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = current_element->id;
   }
 
   return result;
 }
 
-func UI_Element*
-UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
+func RectF32
+UI_GetElementRectF32()
 {
-  UI_Element element = {0};
-  element.id = array->length + 1;
-  element.description = description;
-
-  UI_Element* parent = UI_GetParent();
-
-  // element.child_offset = MakeVec2(description.layout.padding.left, description.layout.padding.top);
-
-  element.rect.size.x = UI_CalculateSize(element.description.layout.width, 0) - description.layout.padding.left - description.layout.padding.right;
-  element.rect.size.y = UI_CalculateSize(element.description.layout.height, 1) - description.layout.padding.top - description.layout.padding.bottom;
-  
-  if (parent != &UI_ElementDefaultValue)
-  {
-    switch (parent->description.layout.direction)
-    {
-      case UI_LayoutDirection_TopToBottom:
-      {
-        element.rect.position = AddVec2(parent->rect.position, parent->child_offset);
-        element.rect.position = AddVec2F32(element.rect.position, MakeVec2F32(description.layout.padding.left, description.layout.padding.top));
-        parent->child_offset.y += element.rect.size.y + parent->description.layout.child_gap;
-      } break;
-      case UI_LayoutDirection_LeftToRight:
-      {
-        element.rect.position = AddVec2(parent->rect.position, parent->child_offset);
-        element.rect.position = AddVec2F32(element.rect.position, MakeVec2F32(description.layout.padding.left, description.layout.padding.top));
-        parent->child_offset.x += element.rect.size.x + parent->description.layout.child_gap;
-      } break;
-    }
-  }
-  else
-  {
-    // --AlNov 14 December 2025: @TODO Floating Elements doesn't work
-    element.rect.position = MakeVec2F32(0, 0);
-  }
-
-  if (element.description.flags & UI_ElementFlag_Hover)
-  {
-    if (InsideRectF32(element.rect, ui_context.mouse_position))
-    {
-      ui_context.hot_id = element.id;
-      element.description.rectangle.color = AddVec4(element.description.rectangle.color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
-    }
-  }
-  if (element.description.flags & UI_ElementFlag_Clickable)
-  {
-  }
-  if (element.description.flags & UI_ElementFlag_DrawBackground)
-  {
-    UI_DrawCommandArrayAdd(
-      &ui_context.draw_commands,
-      (UI_DrawCommand){
-        .type = UI_DrawCommandType_Rectangle,
-        .rectangle = {
-          .color = element.description.rectangle.color,
-          .bound = element.rect,
-          .radius = element.description.rectangle.radius.values,
-        }
-      }
-    );
-  }
-  if (element.description.flags & UI_ElementFlag_DrawLabel)
-  {
-    UI_DrawCommandArrayAdd(
-      &ui_context.draw_commands,
-      (UI_DrawCommand){
-        .type = UI_DrawCommandType_Text,
-        .text = {
-          .content = element.description.text.str,
-          .font = element.description.text.font,
-          .font_size = element.description.text.font_size,
-          .color = element.description.text.color,
-          .position = element.rect.position,
-        }
-      }
-    );
-  }
-
-  return UI_ElementArrayGetPointer(array, UI_ElementArrayAdd(array, element));
-}
-
-func UI_Element*
-UI_GetParent()
-{
-  return UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
-}
-
-func void UI_PushElement(UI_ElementDescription description)
-{
-  UI_Element* element = UI_BuildElement(&ui_context.elements, description);
-}
-
-func void UI_PopElement()
-{
-  UI_ElementArrayPop(&ui_context.elements);
-}
-
-func UI_Element*
-UI_Layout(UI_ElementArray* array, Str8 label)
-{
-  UI_Element* layout = UI_BuildElement(
-    array,
-    (UI_ElementDescription){
-      .flags = UI_ElementFlag_DrawBackground,
-    }
-  );
-  return layout;
+  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+  return current_element->rect;
 }
 
 func void
@@ -190,13 +220,26 @@ UI_Text(Str8 text, UI_TextDescription text_description)
   UI_TextDescription with_str = text_description;
   with_str.str = text;
 
-  UI_PushElement(
+  UI_OpenElement(
     (UI_ElementDescription){
       .flags = UI_ElementFlag_DrawLabel,
       .text = with_str,
     }
   );
-  UI_PopElement();
+  UI_CloseElement();
+}
+
+#if 0
+func UI_Element*
+UI_Layout(UI_ElementArray* array, Str8 label)
+{
+  UI_Element* layout = UI_BuildElement(
+    array,
+    (UI_ElementDescription){
+      .flags = UI_ElementFlag_DrawBackground,
+    }
+  );
+  return layout;
 }
 
 func void
@@ -268,35 +311,6 @@ UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
   }
 
   *value = result;
-}
-
-func B32
-UI_IsClicked()
-{
-  B32 result = 0;
-  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
-  
-  if (ui_context.active_id == current_element->id)
-  {
-    if ((ui_context.hot_id == current_element->id) && OS_IsMouseReleased(OS_MouseButton_Left))
-    {
-      ui_context.active_id = 0;
-      result = 1;
-    }
-  }
-  else if (ui_context.hot_id == current_element->id)
-  {
-    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = current_element->id;
-  }
-
-  return result;
-}
-
-func RectF32
-UI_GetElementRectF32()
-{
-  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
-  return current_element->rect;
 }
 
 func B32
@@ -380,3 +394,4 @@ UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
 
   return 0.0f;
 }
+#endif
