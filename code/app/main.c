@@ -15,7 +15,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
 
-func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color);
+func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color);
 func void IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
 
 func void UpdateSkeletonGlobalTransform(Skeleton* skeleton);
@@ -636,10 +636,10 @@ I32 main(void)
             .flags = UI_ElementFlag_DrawBackground | UI_ElementFlag_Hover | UI_ElementFlag_Clickable,
             .layout = {
               .width = UI_ParentPercentSize(1.0f),
-              .height = UI_FixedSize(40.0f),
+              .height = UI_FixedSize(25.0f),
             },
             .rectangle = {
-              .color = RGBAFromHex(0xBBAA22FF),
+              .color = RGBAFromHex(0x1D1A26FF),
               .radius = {4.0f, 4.0f, 4.0f, 4.0f},
             },
           };
@@ -654,28 +654,83 @@ I32 main(void)
               .rectangle = default_rectangle,
           })
           {
-            if (app_state.selected_entity != &EntityDefaultValue)
+            UI_OpenElement({
+              .flags = UI_ElementFlag_DrawBackground,
+              .layout = {
+                .width = UI_ParentPercentSize(1.0f),
+                .height = UI_ParentPercentSize(0.5f),
+                .direction = UI_LayoutDirection_TopToBottom,
+              },
+              .rectangle = default_rectangle,
+            })
             {
-              Entity* entity = app_state.selected_entity;
-              Skeleton* skeleton = &entity->mesh.skeleton;
-
-              for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
+              UI_OpenElement({
+                .layout = {
+                  .width = UI_ParentPercentSize(1.0f),
+                  .height = UI_FixedSize(40.0f),
+                },
+              })
               {
-                UI_OpenElement(button_description)
+                UI_Text(Str8C("Entities:"), default_text);
+              }
+              for (I32 i = 0; i < app_state.entities.length; i += 1)
+              {
+                Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
+                UI_ElementDescription entity_element_description = button_description;
+                entity_element_description.layout.padding.left = 10.0f;
+                UI_OpenElement(entity_element_description)
                 {
-                  SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
-                  UI_Text(skeletal_animation->name, default_text);
+                  UI_Text(entity->name, default_text);
                   if (UI_IsClicked())
                   {
-                    for (I32 j = 0; j < skeleton->joints.length; j += 1)
+                    app_state.selected_entity = entity;
+                  }
+                }
+              }
+            }
+
+            UI_OpenElement({
+              .flags = UI_ElementFlag_DrawBackground,
+              .layout = {
+                .width = UI_ParentPercentSize(1.0f),
+                .height = UI_ParentPercentSize(0.5f),
+                .direction = UI_LayoutDirection_TopToBottom,
+              },
+              .rectangle = default_rectangle,
+            })
+            {
+              UI_OpenElement({
+                .layout = {
+                  .width = UI_ParentPercentSize(1.0f),
+                  .height = UI_FixedSize(40.0f),
+                },
+              })
+              {
+                UI_Text(Str8C("Selected Entity:"), default_text);
+              }
+              if (app_state.selected_entity != &EntityDefaultValue)
+              {
+                Entity* entity = app_state.selected_entity;
+                Skeleton* skeleton = &entity->mesh.skeleton;
+
+                for (I32 i = 0; i < entity->mesh.skeletal_animations.length; i += 1)
+                {
+                  UI_OpenElement(button_description)
+                  {
+                    SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&entity->mesh.skeletal_animations, i);
+                    UI_Text(skeletal_animation->name, default_text);
+                    if (UI_IsClicked())
                     {
-                      Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
-                      if (animation !=  &_animation_nil)
+                      for (I32 j = 0; j < skeleton->joints.length; j += 1)
                       {
-                        BeginAnimation(animation, OS_GetTimeTicks());
+                        Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
+                        if (animation !=  &_animation_nil)
+                        {
+                          BeginAnimation(animation, OS_GetTimeTicks());
+                        }
                       }
+                      app_state.current_animation_index = i;
                     }
-                    app_state.current_animation_index = i;
                   }
                 }
               }
@@ -890,7 +945,7 @@ I32 main(void)
 
               case UI_DrawCommandType_Rectangle:
               {
-                DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color);
+                DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color, draw_command->rectangle.color);
               } break;
 
               case UI_DrawCommandType_Text:
@@ -906,7 +961,8 @@ I32 main(void)
               .position = app_state.last_mouse_position,
               .size = MakeVec2(20.0f, 20.0f),
             };
-            DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), MakeVec4(0.8f, 0.8f, 0.8f, 1.0f));
+            Vec4F32 cursor_color = MakeVec4(0.8f, 0.8f, 0.8f, 1.0f);
+            DrawRect(command_buffer, data_buffer, cursor, MakeVec4(0.0f, 10.0f, 10.0f, 10.0f), cursor_color, cursor_color);
           }
 
           if (app_state.command_palette.activated)
@@ -1401,7 +1457,7 @@ IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, S
 }
 
 func void
-DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color)
+DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color)
 {
   R_BindGraphicsPipeline(command_buffer,app_state.square_pipeline);
   struct
@@ -1434,10 +1490,12 @@ DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 bor
 
   struct
   {
-    Vec4 color;
-    Vec4 border_radius;
+    Vec4F32 color;
+    Vec4F32 border_color;
+    Vec4F32 border_radius;
   } square_instance_fragment_data;
   square_instance_fragment_data.color = color;
+  square_instance_fragment_data.border_color = border_color;
   square_instance_fragment_data.border_radius = border_radius;
   U64 square_instance_fragment_shader_data_offset = R_PushBuffer(buffer, (U8*)&square_instance_fragment_data, sizeof(square_instance_fragment_data));
   R_UniformBufferBindingInfo square_fragment_shader_instance_uniform = {
@@ -1453,5 +1511,5 @@ DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 bor
 func void
 DrawCommandPalette(R_CommandBuffer command_buffer, R_Buffer buffer, CommandPalette* command_palette, U64 current_timestamp)
 {
-  DrawRect(command_buffer, buffer, command_palette->rectangle, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), command_palette->background_color);
+  DrawRect(command_buffer, buffer, command_palette->rectangle, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), command_palette->background_color, command_palette->background_color);
 }

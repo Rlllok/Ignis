@@ -3,6 +3,7 @@
 layout(set = 3, binding = 0) uniform InstanceData
 {
   vec4 color;
+  vec4 border_color;
   vec4 radius;
 };
 
@@ -33,6 +34,6 @@ void main()
   border = smoothstep(0.0f, 2.0f, border);
   border = max(-rectangle, border);
 
-  out_color = mix(color, vec4(1.0f), border);
+  out_color = mix(color, border_color, border);
   out_color.a *= 1.0f - rectangle;
 }

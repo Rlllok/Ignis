@@ -80,11 +80,11 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
 
   UI_Element* parent = UI_GetParent();
 
-  element.child_offset = MakeVec2(description.layout.padding.left, description.layout.padding.top);
+  // element.child_offset = MakeVec2(description.layout.padding.left, description.layout.padding.top);
 
-  element.rect.size.x = UI_CalculateSize(element.description.layout.width, 0);
-  element.rect.size.y = UI_CalculateSize(element.description.layout.height, 1);
-
+  element.rect.size.x = UI_CalculateSize(element.description.layout.width, 0) - description.layout.padding.left - description.layout.padding.right;
+  element.rect.size.y = UI_CalculateSize(element.description.layout.height, 1) - description.layout.padding.top - description.layout.padding.bottom;
+  
   if (parent != &UI_ElementDefaultValue)
   {
     switch (parent->description.layout.direction)
@@ -92,11 +92,13 @@ UI_BuildElement(UI_ElementArray* array, UI_ElementDescription description)
       case UI_LayoutDirection_TopToBottom:
       {
         element.rect.position = AddVec2(parent->rect.position, parent->child_offset);
+        element.rect.position = AddVec2F32(element.rect.position, MakeVec2F32(description.layout.padding.left, description.layout.padding.top));
         parent->child_offset.y += element.rect.size.y + parent->description.layout.child_gap;
       } break;
       case UI_LayoutDirection_LeftToRight:
       {
         element.rect.position = AddVec2(parent->rect.position, parent->child_offset);
+        element.rect.position = AddVec2F32(element.rect.position, MakeVec2F32(description.layout.padding.left, description.layout.padding.top));
         parent->child_offset.x += element.rect.size.x + parent->description.layout.child_gap;
       } break;
     }
@@ -205,9 +207,7 @@ UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
   UI_Element* input = UI_BuildElement(
     array,
     (UI_ElementDescription){
-      .flags = UI_ElementFlag_Hover|
-        UI_ElementFlag_DrawLabel|
-        UI_ElementFlag_DrawBackground,
+      .flags = UI_ElementFlag_Hover | UI_ElementFlag_DrawLabel | UI_ElementFlag_DrawBackground,
     }
   );
 
