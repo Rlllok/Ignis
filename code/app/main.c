@@ -606,8 +606,7 @@ I32 main(void)
     DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
     {
       UI_ElementBlock({
-        .name = Str8C("0"),
-        .flags = UI_ElementFlag_DrawBackground,
+        .name = Str8C("Canvas"),
         .layout = {
           .width = UI_PixelSize(app_state.window.size.x),
           .height = UI_PixelSize(app_state.window.size.y),
@@ -623,63 +622,28 @@ I32 main(void)
         };
 
         UI_ElementBlock({
-          .name = Str8C("1"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-              .width = UI_ParentPercentSize(0.35f),
-              .height = UI_ParentPercentSize(1.0f),
-              .direction = UI_LayoutDirection_TopToBottom,
-            },
-            .rectangle = default_rectangle,
-        })
-        {
-          UI_ElementBlock({
-            .name = Str8C("3"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-              .width = UI_ParentPercentSize(0.35f),
-              .height = UI_ParentPercentSize(1.0f),
-              .direction = UI_LayoutDirection_TopToBottom,
-            },
-            .rectangle = default_rectangle,
-          })
-          {
-          }
-
-          UI_ElementBlock({
-            .name = Str8C("4"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-              .width = UI_ParentPercentSize(0.35f),
-              .height = UI_ParentPercentSize(1.0f),
-              .direction = UI_LayoutDirection_TopToBottom,
-            },
-            .rectangle = default_rectangle,
-          })
-          {
-          }
-        }
-
-        UI_ElementBlock({
-          .name = Str8C("2"),
+          .name = Str8C("Left Side Bar"),
           .flags = UI_ElementFlag_DrawBackground,
           .layout = {
-            .width = UI_ParentPercentSize(0.35f),
+            .width = UI_ParentPercentSize(0.1f),
             .height = UI_ParentPercentSize(1.0f),
             .direction = UI_LayoutDirection_TopToBottom,
           },
           .rectangle = default_rectangle,
         })
         {
+          UI_LayoutDescription box_layout = {
+            .width = UI_PixelSize(70.0f),
+            .height = UI_ParentPercentSize(0.5f),
+          };
+
           UI_ElementBlock({
-            .name = Str8C("5"),
+            .name = Str8C("Red Box"),
             .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-              .width = UI_ParentPercentSize(0.35f),
-              .height = UI_ParentPercentSize(1.0f),
-              .direction = UI_LayoutDirection_TopToBottom,
+            .layout = box_layout,
+            .rectangle = {
+              .color = RGBAFromHex(0xFF0000FF),
             },
-            .rectangle = default_rectangle,
           })
           {
           }
@@ -687,7 +651,12 @@ I32 main(void)
       }
     }
 
-    // app_state.viewport_rect = UI_GetRectangle(app_state.viewport_ui_element_id);
+    app_state.viewport_rect = (RectF32){
+      .x = 0,
+      .y = 0,
+      .w = (F32)app_state.window.size.x,
+      .h = (F32)app_state.window.size.y,
+    };
 
     if (app_state.to_render)
     {

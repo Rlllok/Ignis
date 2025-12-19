@@ -159,6 +159,7 @@ typedef struct UI_Element UI_Element;
 struct UI_Element
 {
   UI_ID id;
+  UI_ElementDescription description;
 
   struct
   {
@@ -167,9 +168,7 @@ struct UI_Element
   } children_array_slice;
 
   RectF32 rect;
-  Vec2 child_offset;
-
-  UI_ElementDescription description;
+  Vec2 child_position_offset;
 };
 
 UI_Element UI_ElementDefaultValue = {0};
@@ -218,7 +217,7 @@ struct UI_Context
 
   UI_ElementArray elements;
   UI_IDArray open_elements_stack;
-  UI_IDArray roots;
+  UI_IDArray branches;
   UI_IDArray children;
   UI_IDArray children_formation_buffer;
 
@@ -230,6 +229,7 @@ func void UI_Init(Arena* arena, U32 max_elements_count);
 // -------------------------------------------------------------------
 // -- UI Context Mutation --------------------------------------------
 func void UI_CalculateSizes(B32 is_width);
+func void UI_CalculatePositions();
 
 func void UI_BeginFrame(Vec2 mouse_position);
 func void UI_EndFrame();

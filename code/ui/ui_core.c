@@ -26,7 +26,7 @@ UI_Init(Arena* arena, U32 max_elements_count)
 {
   ui_context.elements = UI_ElementArrayAllocate(arena, max_elements_count);
   ui_context.open_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.roots = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.branches = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.children = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.children_formation_buffer = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(arena, max_elements_count);
@@ -37,21 +37,52 @@ UI_Init(Arena* arena, U32 max_elements_count)
 func void
 UI_CalculateSizes(B32 is_width)
 {
-  for (I32 root_index = 0; root_index < ui_context.roots.length; root_index += 1)
+  // for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
+  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element root = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.roots, root_index));
+    UI_Element branch = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
 
-    for (I32 child_offset = 0; child_offset < root.children_array_slice.length; child_offset += 1)
+    for (I32 child_offset = 0; child_offset < branch.children_array_slice.length; child_offset += 1)
     {
-      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, root.children_array_slice.ids[child_offset]);
+      UI_ID child_id = branch.children_array_slice.ids[child_offset];
+      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
 
       UI_Size child_element_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
       F32* child_element_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
 
       if (child_element_size.type == UI_SizeType_ParentPercent)
       {
-      F32 parent_element_size_value = (is_width) ? root.rect.size.x : root.rect.size.y;
+        F32 parent_element_size_value = (is_width) ? branch.rect.size.x : branch.rect.size.y;
         *child_element_size_value = parent_element_size_value*child_element_size.value;
+      }
+    }
+  }
+}
+
+func void
+UI_CalculatePositions()
+{
+  for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
+  {
+    UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+
+    for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
+    {
+      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
+
+      switch (branch->description.layout.direction)
+      {
+        case UI_LayoutDirection_TopToBottom:
+        {
+          child_element->rect.y += branch->child_position_offset.y;
+          branch->child_position_offset.y += child_element->rect.h;
+        } break;
+
+        case UI_LayoutDirection_LeftToRight:
+        {
+          child_element->rect.x += branch->child_position_offset.x;
+          branch->child_position_offset.x += child_element->rect.w;
+        } break;
       }
     }
   }
@@ -64,7 +95,7 @@ UI_BeginFrame(Vec2 mouse_position)
   ui_context.hot_id = 0;
   UI_ElementArrayReset(&ui_context.elements);
   UI_IDArrayReset(&ui_context.open_elements_stack);
-  UI_IDArrayReset(&ui_context.roots);
+  UI_IDArrayReset(&ui_context.branches);
   UI_IDArrayReset(&ui_context.children);
   UI_IDArrayReset(&ui_context.children_formation_buffer);
   UI_DrawCommandArrayReset(&ui_context.draw_commands);
@@ -77,14 +108,14 @@ func void UI_EndFrame()
 
   // --AlNov 17 December 2025:
   // Calculate positions.
-  for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
+  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element element = UI_ElementArrayGet(&ui_context.elements, element_index);
+    UI_Element branch = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
 
-    LOG_DEBUG("\tElementName: %s. ElementID: %d. Children Count: %d\n", CFromStr8(element.description.name), element.id, element.children_array_slice.length);
-    for (I32 i = 0; i < element.children_array_slice.length; i += 1)
+    LOG_DEBUG("\tElementName: %s. ElementID: %d. Children Count: %d\n", CFromStr8(branch.description.name), branch.id, branch.children_array_slice.length);
+    for (I32 i = 0; i < branch.children_array_slice.length; i += 1)
     {
-      UI_ID child_id = element.children_array_slice.ids[i];
+      UI_ID child_id = branch.children_array_slice.ids[i];
       UI_Element child = UI_ElementArrayGet(&ui_context.elements, child_id);
       LOG_DEBUG("\t\tChildName: %s, ChildID:  %d\n", CFromStr8(child.description.name), child_id);
     }
@@ -154,8 +185,6 @@ func void UI_OpenElement(UI_ElementDescription description)
     .description = description,
   };
 
-  // LOG_DEBUG("Open Element Name: %s\n", CFromStr8(element.description.name));
-
   if (element.description.layout.width.type == UI_SizeType_Pixel)
   {
     element.rect.size.x = element.description.layout.width.value;
@@ -165,11 +194,6 @@ func void UI_OpenElement(UI_ElementDescription description)
     element.rect.size.y = element.description.layout.height.value;
   }
 
-  if (ui_context.open_elements_stack.length == 0)
-  {
-    UI_IDArrayAdd(&ui_context.roots, element.id);
-  }
-
   UI_ElementArrayAdd(&ui_context.elements, element);
   UI_IDArrayAdd(&ui_context.open_elements_stack, element.id);
 }
@@ -177,7 +201,6 @@ func void UI_OpenElement(UI_ElementDescription description)
 func void UI_CloseElement()
 {
   UI_Element* current_element = UI_GetOpenedElement();
-  UI_LayoutDescription layout = current_element->description.layout;
 
   current_element->children_array_slice.ids = ui_context.children.elements + ui_context.children.length;
   for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
@@ -187,6 +210,11 @@ func void UI_CloseElement()
     UI_IDArrayAdd(&ui_context.children, child_id);
   }
   ui_context.children_formation_buffer.length -= current_element->children_array_slice.length;
+
+  if (current_element->children_array_slice.length)
+  {
+    UI_IDArrayAdd(&ui_context.branches, current_element->id);
+  }
 
   UI_IDArrayPop(&ui_context.open_elements_stack);
 
