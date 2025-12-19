@@ -1,3 +1,6 @@
+# 16 December 2025
+Started UI rewrite. It is not working for now. There is a problem about how to build child array and slice it for every parent.
+
 # 12 December 2025
 Skeletal animation is currently in a state when it working. There are a lot of room for improvement. The first thing I want to do is support loading multiple animations.
 

@@ -28,6 +28,7 @@ UI_Init(Arena* arena, U32 max_elements_count)
   ui_context.open_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.roots = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.children = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.children_formation_buffer = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(arena, max_elements_count);
 }
 
@@ -65,6 +66,7 @@ UI_BeginFrame(Vec2 mouse_position)
   UI_IDArrayReset(&ui_context.open_elements_stack);
   UI_IDArrayReset(&ui_context.roots);
   UI_IDArrayReset(&ui_context.children);
+  UI_IDArrayReset(&ui_context.children_formation_buffer);
   UI_DrawCommandArrayReset(&ui_context.draw_commands);
 }
 
@@ -78,6 +80,14 @@ func void UI_EndFrame()
   for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
   {
     UI_Element element = UI_ElementArrayGet(&ui_context.elements, element_index);
+
+    LOG_DEBUG("\tElementName: %s. ElementID: %d. Children Count: %d\n", CFromStr8(element.description.name), element.id, element.children_array_slice.length);
+    for (I32 i = 0; i < element.children_array_slice.length; i += 1)
+    {
+      UI_ID child_id = element.children_array_slice.ids[i];
+      UI_Element child = UI_ElementArrayGet(&ui_context.elements, child_id);
+      LOG_DEBUG("\t\tChildName: %s, ChildID:  %d\n", CFromStr8(child.description.name), child_id);
+    }
   }
 
   for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
@@ -169,16 +179,21 @@ func void UI_CloseElement()
   UI_Element* current_element = UI_GetOpenedElement();
   UI_LayoutDescription layout = current_element->description.layout;
 
-  LOG_DEBUG("Close Element Name: %s\n", CFromStr8(current_element->description.name));
-
   current_element->children_array_slice.ids = ui_context.children.elements + ui_context.children.length;
+  for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
+  {
+    I32 buffer_offset = ui_context.children_formation_buffer.length - current_element->children_array_slice.length + i;
+    UI_ID child_id = UI_IDArrayGet(&ui_context.children_formation_buffer, buffer_offset);
+    UI_IDArrayAdd(&ui_context.children, child_id);
+  }
+  ui_context.children_formation_buffer.length -= current_element->children_array_slice.length;
 
   UI_IDArrayPop(&ui_context.open_elements_stack);
 
   if (ui_context.open_elements_stack.length > 0)
   {
     UI_Element* parent_element = UI_GetOpenedElement();
-    UI_IDArrayAdd(&ui_context.children, current_element->id);
+    UI_IDArrayAdd(&ui_context.children_formation_buffer, current_element->id);
     parent_element->children_array_slice.length += 1;
   }
 }

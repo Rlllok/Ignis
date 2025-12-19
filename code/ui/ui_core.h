@@ -220,6 +220,7 @@ struct UI_Context
   UI_IDArray open_elements_stack;
   UI_IDArray roots;
   UI_IDArray children;
+  UI_IDArray children_formation_buffer;
 
   UI_DrawCommandArray draw_commands;
 } ui_context; // -- AlNov. 12 December 2025: @TODO Multiole contexts?
