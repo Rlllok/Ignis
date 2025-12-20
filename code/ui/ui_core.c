@@ -37,7 +37,6 @@ UI_Init(Arena* arena, U32 max_elements_count)
 func void
 UI_CalculateSizes(B32 is_width)
 {
-  // for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
     UI_Element branch = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
@@ -62,9 +61,11 @@ UI_CalculateSizes(B32 is_width)
 func void
 UI_CalculatePositions()
 {
-  for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
+  // for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
+  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
     UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    LOG_DEBUG("BranchName: %s\n", branch->description.name);
 
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
@@ -74,13 +75,13 @@ UI_CalculatePositions()
       {
         case UI_LayoutDirection_TopToBottom:
         {
-          child_element->rect.y += branch->child_position_offset.y;
+          child_element->rect.y = branch->rect.y + branch->child_position_offset.y;
           branch->child_position_offset.y += child_element->rect.h;
         } break;
 
         case UI_LayoutDirection_LeftToRight:
         {
-          child_element->rect.x += branch->child_position_offset.x;
+          child_element->rect.x = branch->rect.position.x + branch->child_position_offset.x;
           branch->child_position_offset.x += child_element->rect.w;
         } break;
       }
@@ -291,9 +292,15 @@ UI_Text(Str8 text, UI_TextDescription text_description)
   UI_TextDescription with_str = text_description;
   with_str.str = text;
 
+  Vec2F32 text_dimension = GetTextSize(text_description.font, text, text_description.font_size);
+
   UI_ElementBlock({
     .flags = UI_ElementFlag_DrawLabel,
     .text = with_str,
+    .layout = {
+      .width = UI_PixelSize(text_dimension.x),
+      .height = UI_PixelSize(text_dimension.y),
+    }
   });
 }
 
