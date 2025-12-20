@@ -99,9 +99,8 @@ UI_BeginFrame(Vec2 mouse_position)
   {
     UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
     UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
-    if (InsideRectF32(element->rect, ui_context.mouse_position))
+    if (element->description.type == UI_ElementType_Rectangle && InsideRectF32(element->rect, ui_context.mouse_position))
     {
-      LOG_DEBUG("Hover over %s\n", CFromStr8(element->description.name));
       ui_context.hot_id = element_id;
       break;
     }
@@ -280,8 +279,7 @@ UI_IsClicked()
 func RectF32
 UI_GetElementRectF32()
 {
-  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
-  return current_element->rect;
+  return UI_GetOpenedElement()->rect;
 }
 
 func void
@@ -295,6 +293,7 @@ UI_Text(Str8 text, UI_TextDescription text_description)
   Vec2F32 text_dimension = GetTextSize(text_description.font, text, text_description.font_size);
 
   UI_ElementBlock({
+    .type = UI_ElementType_Text,
     .flags = UI_ElementFlag_DrawLabel,
     .text = with_str,
     .layout = {

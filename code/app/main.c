@@ -169,17 +169,15 @@ func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path, R_TextureFormat for
   }
   I32 texture_size = tex_width * tex_height * 4;
 
-   result = R_CreateTexture(
-    &(R_TextureCreateInfo){
-      .type = R_TEXTURE_TYPE_2D,
-      .format = format,
-      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-      .width = tex_width,
-      .height = tex_height,
-      .depth = 1,
-      .num_levels = 1,
-    }
-  );
+  result = R_CreateTexture(&(R_TextureCreateInfo){
+    .type = R_TEXTURE_TYPE_2D,
+    .format = format,
+    .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+    .width = tex_width,
+    .height = tex_height,
+    .depth = 1,
+    .num_levels = 1,
+  });
 
   U64 texture_offset = R_PushBuffer(buffer, tex_pixels, texture_size);
   R_CopyBufferToTexture(0, buffer, texture_offset, texture_size, result);
@@ -603,8 +601,42 @@ I32 main(void)
     }
 
     // UI
+    UI_ID viewport_element_id = UI_ID_Nil;
+
     DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
     {
+      struct
+      {
+        Vec4F32 text;
+        Vec4F32 accent;
+        Vec4F32 bg;
+        Vec4F32 button;
+        Vec4F32 hover;
+      } colors = {
+        .text = RGBAFromHex(0xf9e2afff),
+        .accent = RGBAFromHex(0xfcbf3bff),
+        .bg = RGBAFromHex(0x32383bff),
+        .button = RGBAFromHex(0x39394eff),
+        .hover = RGBAFromHex(0x44445cff),
+      };
+
+      UI_RectangleDescription default_rectangle = {
+        .color = colors.bg,
+        .radius = {0.0f, 0.0f, 0.0f, 0.0f},
+      };
+
+      UI_TextDescription default_text = {
+        .font = app_state.font,
+        .color = colors.text,
+        .font_size = 20,
+      };
+
+      UI_TextDescription title_text = {
+        .font = app_state.font,
+        .color = colors.accent,
+        .font_size = 26,
+      };
+
       UI_ElementBlock({
         .name = Str8C("Canvas"),
         .layout = {
@@ -612,15 +644,8 @@ I32 main(void)
           .height = UI_PixelSize(app_state.window.size.y),
           .direction = UI_LayoutDirection_LeftToRight,
         },
-        .rectangle.color = RGBAFromHex(0xFFFFFFFF),
-        .rectangle.radius = {0.0f, 0.0f, 0.0f, 0.0f},
       })
       {
-        UI_RectangleDescription default_rectangle = {
-          .color = RGBAFromHex(0x221A26FF),
-          .radius = {0.0f, 0.0f, 0.0f, 0.0f},
-        };
-
         UI_ElementBlock({
           .name = Str8C("Left Side Bar"),
           .flags = UI_ElementFlag_DrawBackground,
@@ -632,48 +657,121 @@ I32 main(void)
           .rectangle = default_rectangle,
         })
         {
-          UI_LayoutDescription box_layout = {
-            .width = UI_PercentSize(1.0f),
-            .height = UI_PercentSize(0.5f),
-          };
-
           UI_ElementBlock({
-            .name = Str8C("Red Box"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = box_layout,
-            .rectangle = {
-              .color = RGBAFromHex(0xFF0000FF),
-              .border_color = UI_Hovered() ? RGBAFromHex(0xFFFFFFFF) : RGBAFromHex(0xFF0000FF),
+            .name = Str8C("Scene List"),
+            .layout = {
+              .width = UI_PercentSize(1.0f),
+              .height = UI_PercentSize(0.3f),
             },
           })
           {
-            if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
+            UI_Text(Str8C("Entities:"), title_text);
+            for (I32 i = 0; i < app_state.entities.length; i += 1)
             {
-              LOG_DEBUG("Red Box is clicked\n");
+              Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
+              UI_ElementBlock({
+                .flags = UI_ElementFlag_DrawBackground,
+                .name = entity->name,
+                .layout = {
+                  .width = UI_PercentSize(1.0f),
+                  .height = UI_PixelSize(30.0f),
+                },
+                .rectangle = {
+                  .color = UI_Hovered() ? colors.hover : colors.button,
+                },
+              })
+              {
+                UI_Text(entity->name, default_text);
+                if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
+                {
+                  app_state.selected_entity = entity;
+                }
+              }
             }
           }
 
           UI_ElementBlock({
-            .name = Str8C("Green Box"),
             .flags = UI_ElementFlag_DrawBackground,
-            .layout = box_layout,
-            .rectangle = {
-              .color = RGBAFromHex(0x00FF00FF),
-              .border_color = UI_Hovered() ? RGBAFromHex(0xFFFFFFFF) : RGBAFromHex(0x00FF00FF),
+            .name = Str8C("Entity Details"),
+            .layout = {
+              .width = UI_PercentSize(1.0f),
+              .height = UI_PercentSize(0.7f),
             },
+            .rectangle = {
+              .color = colors.bg,
+            }
           })
           {
+            UI_Text(Str8C("Entity Details"), title_text);
+            if (app_state.selected_entity)
+            {
+              UI_ElementBlock({
+                .flags = UI_ElementFlag_DrawBackground,
+                .name = Str8C("Animation"),
+                .layout = {
+                  .width = UI_PercentSize(1.0f),
+                  .height = UI_PixelSize(60.0f),
+                },
+                .rectangle = {
+                  .color = colors.button,
+                },
+              })
+              {
+                UI_Text(Str8C("Animation"), default_text);
+                local_persist B32 toggle = 1;
+
+                if (1)
+                {
+                  for (I32 i = 0; i < app_state.selected_entity->mesh.skeletal_animations.length; i += 1)
+                  {
+                    SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&app_state.selected_entity->mesh.skeletal_animations, i);
+                    UI_ElementBlock({
+                      .flags = UI_ElementFlag_DrawBackground,
+                      .name = skeletal_animation->name,
+                      .layout = {
+                        .width = UI_PercentSize(1.0f),
+                        .height = UI_PixelSize(30.0f),
+                      },
+                      .rectangle = {
+                        .color = UI_Hovered() ? colors.hover : colors.button,
+                      }
+                    })
+                    {
+                      UI_Text(skeletal_animation->name, default_text);
+
+                      if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
+                      {
+                        for (I32 j = 0; j < skeletal_animation->bone_animations.length; j += 1)
+                        {
+                          Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
+                          if (animation !=  &_animation_nil)
+                          {
+                            BeginAnimation(animation, OS_GetTimeTicks());
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
+        }
+
+        UI_ElementBlock({
+          .name = Str8C("Viewport"),
+          .layout = {
+            .width = UI_PercentSize(0.7f),
+            .height = UI_PercentSize(1.0f),
+          },
+        })
+        {
+          viewport_element_id = UI_GetID();
         }
       }
     }
 
-    app_state.viewport_rect = (RectF32){
-      .x = 0,
-      .y = 0,
-      .w = (F32)app_state.window.size.x,
-      .h = (F32)app_state.window.size.y,
-    };
+    app_state.viewport_rect = UI_GetRectangle(viewport_element_id);
 
     if (app_state.to_render)
     {
@@ -861,7 +959,6 @@ I32 main(void)
           char frame_time_cstring[128] = {0};
           sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
 
-          LOG_DEBUG("UI Draw Commands Count: %d\n", ui_context.draw_commands.length);
           for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
           {
             UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, i);

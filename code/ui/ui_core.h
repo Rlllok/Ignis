@@ -1,7 +1,11 @@
 #pragma once
 
+#include "base/base_include.h"
+#include "render/r_include.h"
+
 typedef I32 UI_ID;
-UI_ID _ui_id_nil = -1;
+#define UI_ID_Nil -1
+UI_ID _ui_id_nil = UI_ID_Nil;
 DefineArray(UI_ID, UI_IDArray, _ui_id_nil)
 
 // -------------------------------------------------------------------
@@ -133,7 +137,6 @@ struct UI_TextDescription
 typedef U16 UI_ElementType;
 enum UI_ElementTypeEnum
 {
-  UI_ElementType_None,
   UI_ElementType_Rectangle,
   UI_ElementType_Text
 } UI_ElementTypeEnum;
@@ -242,7 +245,7 @@ func UI_ID   UI_GetID()                {return UI_GetOpenedElement()->id;}
 func RectF32 UI_GetRectangle(UI_ID id) {return UI_ElementArrayGet(&ui_context.elements, id).rect;}
 
 // --AlNov 20 December 2025:
-// Separate Open and Configure to be able to use UI_Hovered in UI_ElementBlock.
+// Separate Open and Configure to be able to use UI_Hovered, UI_GetRectangle, etc in UI_ElementBlock.
 func void UI_OpenElement();
 func void UI_ConfigureElement(UI_ElementDescription description);
 func void UI_CloseElement();
