@@ -44,8 +44,7 @@ typedef U8 UI_SizeType;
 enum UI_SizeTypeEnum
 {
   UI_SizeType_FitChildren,
-  UI_SizeType_ParentPercent,
-  UI_SizeType_FillParent,
+  UI_SizeType_Percent,
   UI_SizeType_Pixel,
 } UI_SizeTypeEnum;
 
@@ -56,10 +55,9 @@ struct UI_Size
   F32 value;
 };
 
-#define UI_FitChildrenSize()          ((UI_Size){.type = UI_SizeType_FitChildren,   .value = 0.0f})
-#define UI_ParentPercentSize(percent) ((UI_Size){.type = UI_SizeType_ParentPercent, .value = percent})
-#define UI_FillParentSize()           ((UI_Size){.type = UI_SizeType_FillParent,    .value = 0.0f})
-#define UI_PixelSize(coordinate)      ((UI_Size){.type = UI_SizeType_Pixel,         .value = coordinate})
+#define UI_FitChildrenSize()     ((UI_Size){.type = UI_SizeType_FitChildren,   .value = 0.0f})
+#define UI_PercentSize(percent)  ((UI_Size){.type = UI_SizeType_Percent, .value = percent})
+#define UI_PixelSize(coordinate) ((UI_Size){.type = UI_SizeType_Pixel,         .value = coordinate})
 
 typedef struct UI_BorderRadius UI_BorderRadius;
 struct UI_BorderRadius
@@ -241,10 +239,13 @@ func UI_Element* UI_GetOpenedElement();
 func UI_ID   UI_GetID()                {return UI_GetOpenedElement()->id;}
 func RectF32 UI_GetRectangle(UI_ID id) {return UI_ElementArrayGet(&ui_context.elements, id).rect;}
 
-func void UI_OpenElement(UI_ElementDescription description);
+// --AlNov 20 December 2025:
+// Separate Open and Configure to be able to use UI_Hovered in UI_ElementBlock.
+func void UI_OpenElement();
+func void UI_ConfigureElement(UI_ElementDescription description);
 func void UI_CloseElement();
 
-// --AlNov 16 December 2025: @NOTE
+// --AlNov 16 December 2025:
 // Macroses below solve next problem - warning: C99 forbids casting nonscalar type 'UI_ElementDescription'
 // With wrapper it is possilbe to use api with inline structure definition (1) and predefined structure (2).
 // (1) - UI_OpenElement(.layout.width = UI_FixedSize(100)) {}
@@ -253,9 +254,10 @@ func void UI_CloseElement();
 #define UI_DefineElementDescriptionStructWrapper() typedef struct {UI_ElementDescription package;} UI_ElementDescriptionWrapper;
 UI_DefineElementDescriptionStructWrapper()
 #define UI_ElementDescriptionWrapper(...) ((UI_ElementDescriptionWrapper){__VA_ARGS__}).package
-#define UI_ElementBlock(...) DeferBlock(UI_OpenElement(UI_ElementDescriptionWrapper(__VA_ARGS__)), UI_CloseElement())
+#define UI_ElementBlock(...) DeferBlock((UI_OpenElement(), UI_ConfigureElement(UI_ElementDescriptionWrapper(__VA_ARGS__))), UI_CloseElement())
 
-func B32 UI_IsClicked();
+func B32 UI_Hovered();
+func B32 UI_Clicked();
 func RectF32 UI_GetElementRectF32();
 
 func UI_Element* UI_Layout(UI_ElementArray* array, Str8 label);

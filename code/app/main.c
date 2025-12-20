@@ -625,16 +625,16 @@ I32 main(void)
           .name = Str8C("Left Side Bar"),
           .flags = UI_ElementFlag_DrawBackground,
           .layout = {
-            .width = UI_ParentPercentSize(0.1f),
-            .height = UI_ParentPercentSize(1.0f),
+            .width = UI_PercentSize(0.3f),
+            .height = UI_PercentSize(1.0f),
             .direction = UI_LayoutDirection_TopToBottom,
           },
           .rectangle = default_rectangle,
         })
         {
           UI_LayoutDescription box_layout = {
-            .width = UI_PixelSize(70.0f),
-            .height = UI_ParentPercentSize(0.5f),
+            .width = UI_PercentSize(1.0f),
+            .height = UI_PercentSize(0.5f),
           };
 
           UI_ElementBlock({
@@ -642,7 +642,22 @@ I32 main(void)
             .flags = UI_ElementFlag_DrawBackground,
             .layout = box_layout,
             .rectangle = {
-              .color = RGBAFromHex(0xFF0000FF),
+              .color = UI_Hovered() ? RGBAFromHex(0xFF00FFFF) : RGBAFromHex(0xFF0000FF),
+            },
+          })
+          {
+            if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
+            {
+              LOG_DEBUG("Red Box is clicked\n");
+            }
+          }
+
+          UI_ElementBlock({
+            .name = Str8C("Green Box"),
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = box_layout,
+            .rectangle = {
+              .color = RGBAFromHex(0x00FF00FF),
             },
           })
           {

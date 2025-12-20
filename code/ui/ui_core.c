@@ -50,7 +50,7 @@ UI_CalculateSizes(B32 is_width)
       UI_Size child_element_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
       F32* child_element_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
 
-      if (child_element_size.type == UI_SizeType_ParentPercent)
+      if (child_element_size.type == UI_SizeType_Percent)
       {
         F32 parent_element_size_value = (is_width) ? branch.rect.size.x : branch.rect.size.y;
         *child_element_size_value = parent_element_size_value*child_element_size.value;
@@ -93,6 +93,19 @@ UI_BeginFrame(Vec2 mouse_position)
 {
   ui_context.mouse_position = mouse_position;
   ui_context.hot_id = 0;
+
+  for (I32 i = 0; i < ui_context.children.length; i += 1)
+  {
+    UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
+    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
+    if (InsideRectF32(element->rect, ui_context.mouse_position))
+    {
+      LOG_DEBUG("Hover over %s\n", CFromStr8(element->description.name));
+      ui_context.hot_id = element_id;
+      break;
+    }
+  }
+
   UI_ElementArrayReset(&ui_context.elements);
   UI_IDArrayReset(&ui_context.open_elements_stack);
   UI_IDArrayReset(&ui_context.branches);
@@ -120,6 +133,8 @@ func void UI_EndFrame()
       LOG_DEBUG("\t\tChildName: %s, ChildID:  %d\n", CFromStr8(child.description.name), child_id);
     }
   }
+
+  UI_CalculatePositions();
 
   for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
   {
@@ -178,24 +193,29 @@ UI_GetOpenedElement()
   return UI_ElementArrayGetPointer(&ui_context.elements, opened_element_id);
 }
 
-func void UI_OpenElement(UI_ElementDescription description)
+func void
+UI_OpenElement()
 {
-  UI_Element element = {
-    .id = ui_context.elements.length,
-    .description = description,
-  };
-
-  if (element.description.layout.width.type == UI_SizeType_Pixel)
-  {
-    element.rect.size.x = element.description.layout.width.value;
-  }
-  if (element.description.layout.height.type == UI_SizeType_Pixel)
-  {
-    element.rect.size.y = element.description.layout.height.value;
-  }
+  UI_Element element = {.id = ui_context.elements.length};
 
   UI_ElementArrayAdd(&ui_context.elements, element);
   UI_IDArrayAdd(&ui_context.open_elements_stack, element.id);
+}
+
+func void
+UI_ConfigureElement(UI_ElementDescription description)
+{
+  UI_Element* element = UI_GetOpenedElement();
+  element->description = description;
+
+  if (element->description.layout.width.type == UI_SizeType_Pixel)
+  {
+    element->rect.size.x = element->description.layout.width.value;
+  }
+  if (element->description.layout.height.type == UI_SizeType_Pixel)
+  {
+    element->rect.size.y = element->description.layout.height.value;
+  }
 }
 
 func void UI_CloseElement()
@@ -224,6 +244,13 @@ func void UI_CloseElement()
     UI_IDArrayAdd(&ui_context.children_formation_buffer, current_element->id);
     parent_element->children_array_slice.length += 1;
   }
+}
+
+func B32
+UI_Hovered()
+{
+  UI_Element* element = UI_GetOpenedElement();
+  return ui_context.hot_id == element->id;
 }
 
 func B32
@@ -263,13 +290,10 @@ UI_Text(Str8 text, UI_TextDescription text_description)
   UI_TextDescription with_str = text_description;
   with_str.str = text;
 
-  UI_OpenElement(
-    (UI_ElementDescription){
-      .flags = UI_ElementFlag_DrawLabel,
-      .text = with_str,
-    }
-  );
-  UI_CloseElement();
+  UI_ElementBlock({
+    .flags = UI_ElementFlag_DrawLabel,
+    .text = with_str,
+  });
 }
 
 #if 0
