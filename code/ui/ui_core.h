@@ -117,6 +117,7 @@ typedef struct UI_RectangleDescription UI_RectangleDescription;
 struct UI_RectangleDescription
 {
   Vec4F32 color;
+  Vec4F32 border_color;
   UI_BorderRadius radius;
 };
 
@@ -187,8 +188,9 @@ struct UI_DrawCommand
   {
     struct
     {
-      Vec4 color;
       RectF32 bound;
+      Vec4F32 color;
+      Vec4F32 border_color;
       Vec4 radius;
     } rectangle;
 
@@ -256,6 +258,10 @@ UI_DefineElementDescriptionStructWrapper()
 #define UI_ElementDescriptionWrapper(...) ((UI_ElementDescriptionWrapper){__VA_ARGS__}).package
 #define UI_ElementBlock(...) DeferBlock((UI_OpenElement(), UI_ConfigureElement(UI_ElementDescriptionWrapper(__VA_ARGS__))), UI_CloseElement())
 
+// --AlNov 20 December 2025:
+// Interaction with UI is delayed by 1 frame.
+// While we adding Widgets we don't know the final configuration of layout.
+// The layout is in the final state after UI_EndFrame() is called.
 func B32 UI_Hovered();
 func B32 UI_Clicked();
 func RectF32 UI_GetElementRectF32();

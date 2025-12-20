@@ -158,8 +158,9 @@ func void UI_EndFrame()
         (UI_DrawCommand){
           .type = UI_DrawCommandType_Rectangle,
           .rectangle = {
-            .color = element.description.rectangle.color,
             .bound = element.rect,
+            .color = element.description.rectangle.color,
+            .border_color = element.description.rectangle.border_color,
             .radius = element.description.rectangle.radius.values,
           }
         }

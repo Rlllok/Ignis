@@ -642,7 +642,8 @@ I32 main(void)
             .flags = UI_ElementFlag_DrawBackground,
             .layout = box_layout,
             .rectangle = {
-              .color = UI_Hovered() ? RGBAFromHex(0xFF00FFFF) : RGBAFromHex(0xFF0000FF),
+              .color = RGBAFromHex(0xFF0000FF),
+              .border_color = UI_Hovered() ? RGBAFromHex(0xFFFFFFFF) : RGBAFromHex(0xFF0000FF),
             },
           })
           {
@@ -658,6 +659,7 @@ I32 main(void)
             .layout = box_layout,
             .rectangle = {
               .color = RGBAFromHex(0x00FF00FF),
+              .border_color = UI_Hovered() ? RGBAFromHex(0xFFFFFFFF) : RGBAFromHex(0x00FF00FF),
             },
           })
           {
@@ -869,7 +871,7 @@ I32 main(void)
 
               case UI_DrawCommandType_Rectangle:
               {
-                DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color, draw_command->rectangle.color);
+                DrawRect(command_buffer, data_buffer, draw_command->rectangle.bound, draw_command->rectangle.radius, draw_command->rectangle.color, draw_command->rectangle.border_color);
               } break;
 
               case UI_DrawCommandType_Text:
