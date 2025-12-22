@@ -46,13 +46,15 @@ UI_CalculateSizes(B32 is_width)
       UI_ID child_id = branch.children_array_slice.ids[child_offset];
       UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
 
-      UI_Size child_element_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
-      F32* child_element_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
+      UI_Size child_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
+      F32* child_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
 
-      if (child_element_size.type == UI_SizeType_Percent)
+      if (child_size.type == UI_SizeType_Percent)
       {
-        F32 parent_element_size_value = (is_width) ? branch.rect.size.x : branch.rect.size.y;
-        *child_element_size_value = parent_element_size_value*child_element_size.value;
+        F32 parent_size_value = (is_width) ? branch.rect.size.x : branch.rect.size.y;
+        F32 parent_padding_value_0 = (is_width) ? branch.description.layout.padding.left : branch.description.layout.padding.top;
+        F32 parent_padding_value_1 = (is_width) ? branch.description.layout.padding.left : branch.description.layout.padding.bottom;
+        *child_size_value = (parent_size_value*child_size.value) - parent_padding_value_0 - parent_padding_value_1;
       }
     }
   }
@@ -70,6 +72,11 @@ UI_CalculatePositions()
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
       UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
+
+      child_element->rect.position = branch->rect.position;
+
+      child_element->rect.x += branch->description.layout.padding.left;
+      child_element->rect.y += branch->description.layout.padding.top;
 
       switch (branch->description.layout.direction)
       {

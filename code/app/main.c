@@ -488,12 +488,41 @@ I32 main(void)
   // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
   AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleBoneAnimation/SimpleBoneAnimation.gltf"));
   UpdateSkeletonGlobalTransform(&dummy_mesh.skeleton);
+
   CreateEntity(
     &app_state.entities,
     (Entity){
       .name = Str8C("Dummy"),
       .transform = (Transform){
         .translation = MakeVec3(0.0f, 0.0f, 0.0f),
+        .rotation = IdentityQuaternion(),
+        .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+      },
+      .mesh = dummy_mesh,
+      .color_texture = app_state.default_color_texture,
+    }
+  );
+
+  CreateEntity(
+    &app_state.entities,
+    (Entity){
+      .name = Str8C("Dummy_1"),
+      .transform = (Transform){
+        .translation = MakeVec3(1.5f, 0.0f, 0.0f),
+        .rotation = IdentityQuaternion(),
+        .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+      },
+      .mesh = dummy_mesh,
+      .color_texture = app_state.default_color_texture,
+    }
+  );
+
+  CreateEntity(
+    &app_state.entities,
+    (Entity){
+      .name = Str8C("Dummy_2"),
+      .transform = (Transform){
+        .translation = MakeVec3(3.0f, 0.0f, 0.0f),
         .rotation = IdentityQuaternion(),
         .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
       },
@@ -610,12 +639,14 @@ I32 main(void)
         Vec4F32 text;
         Vec4F32 accent;
         Vec4F32 bg;
+        Vec4F32 bg_tint;
         Vec4F32 button;
         Vec4F32 hover;
       } colors = {
         .text = RGBAFromHex(0xf9e2afff),
         .accent = RGBAFromHex(0xfcbf3bff),
         .bg = RGBAFromHex(0x32383bff),
+        .bg_tint = RGBAFromHex(0x474c4fff),
         .button = RGBAFromHex(0x39394eff),
         .hover = RGBAFromHex(0x44445cff),
       };
@@ -696,6 +727,7 @@ I32 main(void)
             .layout = {
               .width = UI_PercentSize(1.0f),
               .height = UI_PercentSize(0.7f),
+              .padding = {10.0f, 10.0f, 10.0f, 10.0f},
             },
             .rectangle = {
               .color = colors.bg,
@@ -703,24 +735,55 @@ I32 main(void)
           })
           {
             UI_Text(Str8C("Entity Details"), title_text);
-            if (app_state.selected_entity)
+            if (app_state.selected_entity != &EntityDefaultValue)
             {
+              UI_LayoutDescription details_category_layout = {
+                .width = UI_PercentSize(1.0f),
+                .height = UI_FitChildrenSize(),
+                .padding = UI_EqualPadding(5.0f),
+              };
+
+              UI_RectangleDescription details_category_rectangle = {
+                .color = colors.bg_tint,
+              };
+
+              UI_ElementBlock({
+                .flags = UI_ElementFlag_DrawBackground,
+                .name = Str8C("Transform"),
+                .layout = details_category_layout,
+                .rectangle = details_category_rectangle,
+              })
+              {
+                UI_Text(Str8C("Transform"), default_text); 
+              }
+
               UI_ElementBlock({
                 .flags = UI_ElementFlag_DrawBackground,
                 .name = Str8C("Animation"),
-                .layout = {
-                  .width = UI_PercentSize(1.0f),
-                  .height = UI_FitChildrenSize(),
-                },
-                .rectangle = {
-                  .color = RGBAFromHex(0xff0000ff),
-                },
+                .layout = details_category_layout,
+                .rectangle = details_category_rectangle,
               })
               {
-                UI_Text(Str8C("Animation"), default_text);
-                local_persist B32 toggle = 1;
+                local_persist B32 toggle = 0;
+                UI_ElementBlock({
+                  .name = Str8C("AnimationToggle"),
+                  .layout = {
+                    .width = UI_PercentSize(1.0f),
+                    .height = UI_FitChildrenSize(),
+                  },
+                  .rectangle = {
+                    .color = colors.button,
+                  },
+                })
+                {
+                  UI_Text(Str8C("Animation"), default_text);
+                  if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
+                  {
+                    toggle = !toggle;
+                  }
+                }
 
-                if (1)
+                if (toggle)
                 {
                   for (I32 i = 0; i < app_state.selected_entity->mesh.skeletal_animations.length; i += 1)
                   {

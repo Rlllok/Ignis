@@ -95,6 +95,8 @@ struct UI_Padding
   };
 };
 
+#define UI_EqualPadding(value) {value, value, value, value}
+
 typedef U16 UI_ElementFlags;
 enum UI_ElementFlagEnum
 {
