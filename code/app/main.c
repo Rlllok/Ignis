@@ -734,19 +734,33 @@ I32 main(void)
             }
           })
           {
+            UI_LayoutDescription details_category_layout = {
+              .width = UI_PercentSize(1.0f),
+              .height = UI_FitChildrenSize(),
+              .padding = UI_EqualPadding(5.0f),
+            };
+
+            UI_RectangleDescription details_category_rectangle = {
+              .color = colors.bg_tint,
+            };
+
             UI_Text(Str8C("Entity Details"), title_text);
+
+            for (I32 i = 0; i < 40; i += 1)
+            {
+              UI_ElementBlock({
+                .flags = UI_ElementFlag_DrawBackground,
+                .name = Str8C("Test"),
+                .layout = details_category_layout,
+                .rectangle = details_category_rectangle,
+              })
+              {
+                UI_Text(Str8C("Testing 40 elements for scrolling"), default_text);
+              }
+            }
+
             if (app_state.selected_entity != &EntityDefaultValue)
             {
-              UI_LayoutDescription details_category_layout = {
-                .width = UI_PercentSize(1.0f),
-                .height = UI_FitChildrenSize(),
-                .padding = UI_EqualPadding(5.0f),
-              };
-
-              UI_RectangleDescription details_category_rectangle = {
-                .color = colors.bg_tint,
-              };
-
               UI_ElementBlock({
                 .flags = UI_ElementFlag_DrawBackground,
                 .name = Str8C("Transform"),
