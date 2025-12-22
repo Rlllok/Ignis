@@ -59,9 +59,9 @@ struct UI_Size
   F32 value;
 };
 
-#define UI_FitChildrenSize()     ((UI_Size){.type = UI_SizeType_FitChildren,   .value = 0.0f})
-#define UI_PercentSize(percent)  ((UI_Size){.type = UI_SizeType_Percent, .value = percent})
-#define UI_PixelSize(coordinate) ((UI_Size){.type = UI_SizeType_Pixel,         .value = coordinate})
+#define UI_FitChildrenSize()     ((UI_Size){.type = UI_SizeType_FitChildren, .value = 0.0f})
+#define UI_PercentSize(percent)  ((UI_Size){.type = UI_SizeType_Percent,     .value = percent})
+#define UI_PixelSize(coordinate) ((UI_Size){.type = UI_SizeType_Pixel,       .value = coordinate})
 
 typedef struct UI_BorderRadius UI_BorderRadius;
 struct UI_BorderRadius

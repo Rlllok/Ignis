@@ -710,10 +710,10 @@ I32 main(void)
                 .name = Str8C("Animation"),
                 .layout = {
                   .width = UI_PercentSize(1.0f),
-                  .height = UI_PixelSize(60.0f),
+                  .height = UI_FitChildrenSize(),
                 },
                 .rectangle = {
-                  .color = colors.button,
+                  .color = RGBAFromHex(0xff0000ff),
                 },
               })
               {

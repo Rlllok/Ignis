@@ -229,6 +229,17 @@ func void UI_CloseElement()
     I32 buffer_offset = ui_context.children_formation_buffer.length - current_element->children_array_slice.length + i;
     UI_ID child_id = UI_IDArrayGet(&ui_context.children_formation_buffer, buffer_offset);
     UI_IDArrayAdd(&ui_context.children, child_id);
+
+    if (current_element->description.layout.height.type == UI_SizeType_FitChildren)
+    {
+      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
+      current_element->rect.size.y += child_element->rect.size.y;
+    }
+    if (current_element->description.layout.width.type == UI_SizeType_FitChildren)
+    {
+      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
+      current_element->rect.size.x += child_element->rect.size.x;
+    }
   }
   ui_context.children_formation_buffer.length -= current_element->children_array_slice.length;
 
