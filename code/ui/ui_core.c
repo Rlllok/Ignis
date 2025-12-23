@@ -25,7 +25,9 @@ func void
 UI_Init(Arena* arena, U32 max_elements_count)
 {
   ui_context.elements = UI_ElementArrayAllocate(arena, max_elements_count);
+  ui_context.final_elements = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.open_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.clip_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.branches = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.children = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.children_formation_buffer = UI_IDArrayAllocate(arena, max_elements_count);
@@ -39,11 +41,11 @@ UI_CalculateSizes(B32 is_width)
 {
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element branch = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
 
-    for (I32 child_offset = 0; child_offset < branch.children_array_slice.length; child_offset += 1)
+    for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
-      UI_ID child_id = branch.children_array_slice.ids[child_offset];
+      UI_ID child_id = branch->children_array_slice.ids[child_offset];
       UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
 
       UI_Size child_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
@@ -51,9 +53,9 @@ UI_CalculateSizes(B32 is_width)
 
       if (child_size.type == UI_SizeType_Percent)
       {
-        F32 parent_size_value = (is_width) ? branch.rect.size.x : branch.rect.size.y;
-        F32 parent_padding_value_0 = (is_width) ? branch.description.layout.padding.left : branch.description.layout.padding.top;
-        F32 parent_padding_value_1 = (is_width) ? branch.description.layout.padding.left : branch.description.layout.padding.bottom;
+        F32 parent_size_value = (is_width) ? branch->rect.size.x : branch->rect.size.y;
+        F32 parent_padding_value_0 = (is_width) ? branch->description.layout.padding.left : branch->description.layout.padding.top;
+        F32 parent_padding_value_1 = (is_width) ? branch->description.layout.padding.left : branch->description.layout.padding.bottom;
         *child_size_value = (parent_size_value*child_size.value) - parent_padding_value_0 - parent_padding_value_1;
       }
     }
@@ -67,8 +69,6 @@ UI_CalculatePositions()
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
     UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
-    LOG_DEBUG("BranchName: %s\n", branch->description.name);
-
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
       UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
@@ -114,7 +114,9 @@ UI_BeginFrame(Vec2 mouse_position)
   }
 
   UI_ElementArrayReset(&ui_context.elements);
+  UI_IDArrayReset(&ui_context.final_elements);
   UI_IDArrayReset(&ui_context.open_elements_stack);
+  UI_IDArrayReset(&ui_context.clip_elements_stack);
   UI_IDArrayReset(&ui_context.branches);
   UI_IDArrayReset(&ui_context.children);
   UI_IDArrayReset(&ui_context.children_formation_buffer);
@@ -128,6 +130,7 @@ func void UI_EndFrame()
 
   // --AlNov 17 December 2025:
   // Calculate positions.
+  #if 0
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
     UI_Element branch = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
@@ -140,55 +143,153 @@ func void UI_EndFrame()
       LOG_DEBUG("\t\tChildName: %s, ChildID:  %d\n", CFromStr8(child.description.name), child_id);
     }
   }
+  #endif
 
-  UI_CalculatePositions();
-
-  for (I32 element_index = 0; element_index < ui_context.elements.length; element_index += 1)
+  // UI_CalculatePositions();
+  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element element = UI_ElementArrayGet(&ui_context.elements, element_index);
+    UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    // LOG_DEBUG("BranchName: %s\n", branch->description.name);
 
-    if (element.description.flags & UI_ElementFlag_Hover)
+    // UI_IDArrayAdd(&ui_context.final_elements, branch->id);
+
+    for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
-      if (InsideRectF32(element.rect, ui_context.mouse_position))
+      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
+
+      child_element->rect.position = branch->rect.position;
+
+      child_element->rect.x += branch->description.layout.padding.left;
+      child_element->rect.y += branch->description.layout.padding.top;
+
+      switch (branch->description.layout.direction)
       {
-        ui_context.hot_id = element.id;
-        element.description.rectangle.color = AddVec4(element.description.rectangle.color, MakeVec4(0.2f, 0.2f, 0.2f, 0.0f));
+        case UI_LayoutDirection_TopToBottom:
+        {
+          child_element->rect.y = branch->rect.y + branch->child_position_offset.y;
+          branch->child_position_offset.y += child_element->rect.h;
+        } break;
+
+        case UI_LayoutDirection_LeftToRight:
+        {
+          child_element->rect.x = branch->rect.position.x + branch->child_position_offset.x;
+          branch->child_position_offset.x += child_element->rect.w;
+        } break;
+      }
+
+      B32 to_add = 1;
+
+      if (child_element->clip_element_id)
+      {
+        UI_Element* clip_element = UI_ElementArrayGetPointer(&ui_context.elements, child_element->clip_element_id);
+        F32 scroll_offset = 100.0f;
+        child_element->rect.y -= scroll_offset;
+      }
+
+      if (to_add)
+      {
+        UI_IDArrayAdd(&ui_context.final_elements, child_element->id);
       }
     }
-    if (element.description.flags & UI_ElementFlag_Clickable)
+  }
+
+  I32 final_offset = ui_context.children.length - 1;
+  // for (I32 final_offset = 0; final_offset < ui_context.children.length; final_offset += 1)
+  LOG_DEBUG("Being: \n");
+  while (final_offset >= 0)
+  {
+    UI_ID element_id = UI_IDArrayGet(&ui_context.children, final_offset);
+    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
+
+    LOG_DEBUG("Element: %s\n", element->description.name);
+    
+    if (element->clip_element_id)
     {
+      // LOG_DEBUG("Clip start\n");
     }
-    if (element.description.flags & UI_ElementFlag_DrawBackground)
+    
+    if (element->description.layout.clip)
+    {
+      // LOG_DEBUG("Clip end\n");
+    }
+
+    if (element->description.flags & UI_ElementFlag_DrawBackground)
     {
       UI_DrawCommandArrayAdd(
         &ui_context.draw_commands,
         (UI_DrawCommand){
           .type = UI_DrawCommandType_Rectangle,
           .rectangle = {
-            .bound = element.rect,
-            .color = element.description.rectangle.color,
-            .border_color = element.description.rectangle.border_color,
-            .radius = element.description.rectangle.radius.values,
+            .bound = element->rect,
+            .color = element->description.rectangle.color,
+            .border_color = element->description.rectangle.border_color,
+            .radius = element->description.rectangle.radius.values,
           }
         }
       );
     }
-    if (element.description.flags & UI_ElementFlag_DrawLabel)
+    if (element->description.flags & UI_ElementFlag_DrawLabel)
     {
       UI_DrawCommandArrayAdd(
         &ui_context.draw_commands,
         (UI_DrawCommand){
           .type = UI_DrawCommandType_Text,
           .text = {
-            .content = element.description.text.str,
-            .font = element.description.text.font,
-            .font_size = element.description.text.font_size,
-            .color = element.description.text.color,
-            .position = element.rect.position,
+            .content = element->description.text.str,
+            .font = element->description.text.font,
+            .font_size = element->description.text.font_size,
+            .color = element->description.text.color,
+            .position = element->rect.position,
           }
         }
       );
     }
+
+    final_offset -= 1;
+
+    #if 0
+    for (I32 i = 0; i < element->children_array_slice.length; i += 1)
+    {
+      UI_ID child_id = element->children_array_slice.ids[i];
+      UI_Element* child = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
+
+      LOG_DEBUG("\tElement: %s\n", child->description.name);
+        
+      if (child->description.flags & UI_ElementFlag_DrawBackground)
+      {
+        UI_DrawCommandArrayAdd(
+          &ui_context.draw_commands,
+          (UI_DrawCommand){
+            .type = UI_DrawCommandType_Rectangle,
+            .rectangle = {
+              .bound = child->rect,
+              .color = child->description.rectangle.color,
+              .border_color = child->description.rectangle.border_color,
+              .radius = child->description.rectangle.radius.values,
+            }
+          }
+        );
+      }
+      if (child->description.flags & UI_ElementFlag_DrawLabel)
+      {
+        UI_DrawCommandArrayAdd(
+          &ui_context.draw_commands,
+          (UI_DrawCommand){
+            .type = UI_DrawCommandType_Text,
+            .text = {
+              .content = child->description.text.str,
+              .font = child->description.text.font,
+              .font_size = child->description.text.font_size,
+              .color = child->description.text.color,
+              .position = child->rect.position,
+            }
+          }
+        );
+      }
+    }
+      
+    final_offset -= element->children_array_slice.length;
+    #endif
   }
 }
 
@@ -216,6 +317,12 @@ UI_ConfigureElement(UI_ElementDescription description)
   UI_Element* element = UI_GetOpenedElement();
   element->description = description;
 
+  if (ui_context.clip_elements_stack.length > 0)
+  {
+    UI_ID clip_element_id = UI_IDArrayGet(&ui_context.clip_elements_stack, ui_context.clip_elements_stack.length - 1);
+    element->clip_element_id = clip_element_id;
+  }
+
   if (element->description.layout.width.type == UI_SizeType_Pixel)
   {
     element->rect.size.x = element->description.layout.width.value;
@@ -223,6 +330,11 @@ UI_ConfigureElement(UI_ElementDescription description)
   if (element->description.layout.height.type == UI_SizeType_Pixel)
   {
     element->rect.size.y = element->description.layout.height.value;
+  }
+
+  if (element->description.layout.clip)
+  {
+    UI_IDArrayAdd(&ui_context.clip_elements_stack, element->id);
   }
 }
 
@@ -255,13 +367,17 @@ func void UI_CloseElement()
     UI_IDArrayAdd(&ui_context.branches, current_element->id);
   }
 
-  UI_IDArrayPop(&ui_context.open_elements_stack);
-
   if (ui_context.open_elements_stack.length > 0)
   {
+    UI_IDArrayPop(&ui_context.open_elements_stack);
     UI_Element* parent_element = UI_GetOpenedElement();
     UI_IDArrayAdd(&ui_context.children_formation_buffer, current_element->id);
     parent_element->children_array_slice.length += 1;
+  }
+
+  if (current_element->description.layout.clip && ui_context.clip_elements_stack.length > 0)
+  {
+    UI_IDArrayPop(&ui_context.clip_elements_stack);
   }
 }
 

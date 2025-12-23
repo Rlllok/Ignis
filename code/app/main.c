@@ -678,172 +678,63 @@ I32 main(void)
       })
       {
         UI_ElementBlock({
-          .name = Str8C("Left Side Bar"),
+          .name = Str8C("Side Bar"),
           .flags = UI_ElementFlag_DrawBackground,
           .layout = {
-            .width = UI_PercentSize(0.3f),
+            .width = UI_PercentSize(0.5f),
             .height = UI_PercentSize(1.0f),
-            .direction = UI_LayoutDirection_TopToBottom,
           },
-          .rectangle = default_rectangle,
+          .rectangle = {
+            .color = colors.text,
+          },
         })
         {
           UI_ElementBlock({
-            .name = Str8C("Scene List"),
-            .layout = {
-              .width = UI_PercentSize(1.0f),
-              .height = UI_PercentSize(0.3f),
-            },
-          })
-          {
-            UI_Text(Str8C("Entities:"), title_text);
-            for (I32 i = 0; i < app_state.entities.length; i += 1)
-            {
-              Entity* entity = EntityArrayGetPointer(&app_state.entities, i);
-              UI_ElementBlock({
-                .flags = UI_ElementFlag_DrawBackground,
-                .name = entity->name,
-                .layout = {
-                  .width = UI_PercentSize(1.0f),
-                  .height = UI_PixelSize(30.0f),
-                },
-                .rectangle = {
-                  .color = UI_Hovered() ? colors.hover : colors.button,
-                },
-              })
-              {
-                UI_Text(entity->name, default_text);
-                if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
-                {
-                  app_state.selected_entity = entity;
-                }
-              }
-            }
-          }
-
-          UI_ElementBlock({
+            .name = Str8C("Scene"),
             .flags = UI_ElementFlag_DrawBackground,
-            .name = Str8C("Entity Details"),
             .layout = {
               .width = UI_PercentSize(1.0f),
-              .height = UI_PercentSize(0.7f),
-              .padding = {10.0f, 10.0f, 10.0f, 10.0f},
+              .height = UI_PercentSize(0.35f),
             },
             .rectangle = {
-              .color = colors.bg,
-            }
+              .color = RGBAFromHex(0xff0000ff),
+            },
           })
           {
-            UI_LayoutDescription details_category_layout = {
+            UI_Text(Str8C("Scene"), title_text);
+          }
+
+          UI_ElementBlock({
+            .name = Str8C("Details"),
+            .flags = UI_ElementFlag_DrawBackground,
+            .layout = {
               .width = UI_PercentSize(1.0f),
-              .height = UI_FitChildrenSize(),
-              .padding = UI_EqualPadding(5.0f),
-            };
-
-            UI_RectangleDescription details_category_rectangle = {
-              .color = colors.bg_tint,
-            };
-
-            UI_Text(Str8C("Entity Details"), title_text);
-
-            for (I32 i = 0; i < 40; i += 1)
+              .height = UI_PercentSize(0.64f),
+              .clip = 1,
+            },
+            .rectangle = {
+              .color = RGBAFromHex(0xff00f0ff),
+            },
+          })
+          {
+            UI_Text(Str8C("Details"), title_text);
+            for (I32 i = 0; i < 10; i += 1)
             {
               UI_ElementBlock({
-                .flags = UI_ElementFlag_DrawBackground,
                 .name = Str8C("Test"),
-                .layout = details_category_layout,
-                .rectangle = details_category_rectangle,
-              })
-              {
-                UI_Text(Str8C("Testing 40 elements for scrolling"), default_text);
-              }
-            }
-
-            if (app_state.selected_entity != &EntityDefaultValue)
-            {
-              UI_ElementBlock({
                 .flags = UI_ElementFlag_DrawBackground,
-                .name = Str8C("Transform"),
-                .layout = details_category_layout,
-                .rectangle = details_category_rectangle,
+                .layout = {
+                  .width = UI_PercentSize(1.0f),
+                  .height = UI_PixelSize(100.0f),
+                },
+                .rectangle = {
+                  .color = RGBAFromHex(0xa0cff0ff),
+                },
               })
               {
-                UI_Text(Str8C("Transform"), default_text); 
-              }
-
-              UI_ElementBlock({
-                .flags = UI_ElementFlag_DrawBackground,
-                .name = Str8C("Animation"),
-                .layout = details_category_layout,
-                .rectangle = details_category_rectangle,
-              })
-              {
-                local_persist B32 toggle = 0;
-                UI_ElementBlock({
-                  .name = Str8C("AnimationToggle"),
-                  .layout = {
-                    .width = UI_PercentSize(1.0f),
-                    .height = UI_FitChildrenSize(),
-                  },
-                  .rectangle = {
-                    .color = colors.button,
-                  },
-                })
-                {
-                  UI_Text(Str8C("Animation"), default_text);
-                  if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
-                  {
-                    toggle = !toggle;
-                  }
-                }
-
-                if (toggle)
-                {
-                  for (I32 i = 0; i < app_state.selected_entity->mesh.skeletal_animations.length; i += 1)
-                  {
-                    SkeletalAnimation* skeletal_animation = SkeletalAnimationArrayGetPointer(&app_state.selected_entity->mesh.skeletal_animations, i);
-                    UI_ElementBlock({
-                      .flags = UI_ElementFlag_DrawBackground,
-                      .name = skeletal_animation->name,
-                      .layout = {
-                        .width = UI_PercentSize(1.0f),
-                        .height = UI_PixelSize(30.0f),
-                      },
-                      .rectangle = {
-                        .color = UI_Hovered() ? colors.hover : colors.button,
-                      }
-                    })
-                    {
-                      UI_Text(skeletal_animation->name, default_text);
-
-                      if (UI_Hovered() && OS_IsMouseReleased(OS_MouseButton_Left))
-                      {
-                        for (I32 j = 0; j < skeletal_animation->bone_animations.length; j += 1)
-                        {
-                          Animation* animation = AnimationArrayGetPointer(&skeletal_animation->bone_animations, j);
-                          if (animation !=  &_animation_nil)
-                          {
-                            BeginAnimation(animation, OS_GetTimeTicks());
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
               }
             }
           }
-        }
-
-        UI_ElementBlock({
-          .name = Str8C("Viewport"),
-          .layout = {
-            .width = UI_PercentSize(0.7f),
-            .height = UI_PercentSize(1.0f),
-          },
-        })
-        {
-          viewport_element_id = UI_GetID();
         }
       }
     }
@@ -1051,7 +942,17 @@ I32 main(void)
               case UI_DrawCommandType_Text:
               {
                 IGN_DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
-              }
+              } break;
+
+              case UI_DrawCommandType_Scissor:
+              {
+                R_SetScissor(command_buffer, (RectI32){
+                  .x = (I32)draw_command->scissor.bound.x,
+                  .y = (I32)draw_command->scissor.bound.y,
+                  .w = (I32)draw_command->scissor.bound.w,
+                  .h = (I32)draw_command->scissor.bound.h,
+                });
+              } break;
             }
           }
 

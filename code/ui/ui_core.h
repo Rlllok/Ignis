@@ -117,6 +117,7 @@ struct UI_LayoutDescription
   UI_Padding padding;
   F32 child_gap;
   UI_LayoutDirection direction;
+  B32 clip;
 };
 
 typedef struct UI_RectangleDescription UI_RectangleDescription;
@@ -165,6 +166,8 @@ struct UI_Element
   UI_ID id;
   UI_ElementDescription description;
 
+  UI_ID clip_element_id; // --AlNov 23 December 2025: @TEST
+
   struct
   {
     UI_ID* ids;
@@ -183,6 +186,7 @@ enum UI_DrawCommandTypeEnum
 {
   UI_DrawCommandType_Rectangle,
   UI_DrawCommandType_Text,
+  UI_DrawCommandType_Scissor,
 } UI_DrawCommandTypeEnum;
 
 typedef struct UI_DrawCommand UI_DrawCommand;
@@ -207,6 +211,11 @@ struct UI_DrawCommand
       Vec4 color;
       Vec2 position;
     } text;
+
+    struct
+    {
+      RectF32 bound;
+    } scissor;
   };
 };
 UI_DrawCommand UI_DrawCommandDefaultValue = {0};
@@ -221,7 +230,10 @@ struct UI_Context
   Vec2 mouse_position;
 
   UI_ElementArray elements;
+
+  UI_IDArray final_elements;
   UI_IDArray open_elements_stack;
+  UI_IDArray clip_elements_stack;
   UI_IDArray branches;
   UI_IDArray children;
   UI_IDArray children_formation_buffer;
