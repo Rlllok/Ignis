@@ -701,6 +701,10 @@ I32 main(void)
             },
           })
           {
+            char frame_time_cstring[128] = {0};
+            sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
+
+            UI_Text(Str8C(frame_time_cstring), default_text);
             UI_Text(Str8C("Scene"), title_text);
           }
 
@@ -925,9 +929,6 @@ I32 main(void)
         };
         R_BeginRenderPass(command_buffer, 1, &font_pass_color_target, 0);
         {
-          char frame_time_cstring[128] = {0};
-          sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
-
           for (I32 i = 0; i < ui_context.draw_commands.length; i += 1)
           {
             UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, i);
@@ -945,6 +946,8 @@ I32 main(void)
                 IGN_DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
               } break;
 
+              // --AlNov 24 December 2025: @TODO
+              // Doesn't save previous scissor rectangle, so it is lost.
               case UI_DrawCommandType_ScissorBegin:
               {
                 R_SetScissor(command_buffer, (RectI32){
