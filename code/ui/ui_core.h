@@ -238,6 +238,9 @@ struct UI_Context
   UI_IDArray children;
   UI_IDArray children_formation_buffer;
 
+  UI_IDArray traversal_stack;
+  B32Array   visited_lookup;
+
   UI_DrawCommandArray draw_commands;
 } ui_context; // -- AlNov. 12 December 2025: @TODO Multiole contexts?
 

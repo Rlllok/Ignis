@@ -53,6 +53,15 @@ func void ArrayName##Reset(ArrayName* array)\
   array->length = 0;\
 }\
 \
+func void ArrayName##ResetDefault(ArrayName* array)\
+{\
+  for (I32 i = 0; i < array->length; i += 1)\
+  {\
+    array->elements[i] = (TypeName){0};\
+  }\
+  array->length = 0;\
+}\
+\
 func I32 ArrayName##Add(ArrayName* array, TypeName element)\
 {\
   if (array->length < array->capacity)\
@@ -292,3 +301,8 @@ func type_name HashMap##type_name##Get(HashMap##type_name map, Str8 key) \
      \
   return value; \
 } 
+
+// -------------------------------------------------------------------
+// -- Common types
+B32 _b32_array_nil = 0;
+DefineArray(B32, B32Array, _b32_array_nil)

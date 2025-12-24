@@ -32,6 +32,10 @@ UI_Init(Arena* arena, U32 max_elements_count)
   ui_context.children = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.children_formation_buffer = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.draw_commands = UI_DrawCommandArrayAllocate(arena, max_elements_count);
+
+  ui_context.traversal_stack = UI_IDArrayAllocate(arena, max_elements_count);
+  ui_context.visited_lookup = B32ArrayAllocate(arena, max_elements_count);
+  ui_context.visited_lookup.length = ui_context.visited_lookup.capacity;
 }
 
 // -------------------------------------------------------------------
@@ -121,6 +125,15 @@ UI_BeginFrame(Vec2 mouse_position)
   UI_IDArrayReset(&ui_context.children);
   UI_IDArrayReset(&ui_context.children_formation_buffer);
   UI_DrawCommandArrayReset(&ui_context.draw_commands);
+
+  UI_IDArrayReset(&ui_context.traversal_stack);
+  // --AlNov 24 December 2025: @TODO @NOTE
+  // This is table that contains visited flag per every element_id.
+  // It means that length should be equal capacity. And we should reset values inside.
+  // The problem - I don't like usage code. I spent 20 minutes debuging why elements always visited.
+  // I forgot that ArrayResetDefault(..) sets length to 0.
+  B32ArrayResetDefault(&ui_context.visited_lookup);
+  ui_context.visited_lookup.length = ui_context.visited_lookup.capacity;
 }
 
 func void UI_EndFrame()
@@ -196,12 +209,88 @@ func void UI_EndFrame()
   I32 final_offset = ui_context.children.length - 1;
   // for (I32 final_offset = 0; final_offset < ui_context.children.length; final_offset += 1)
   LOG_DEBUG("Being: \n");
-  while (final_offset >= 0)
+
   {
     UI_ID element_id = UI_IDArrayGet(&ui_context.children, final_offset);
     UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
 
-    LOG_DEBUG("Element: %s\n", element->description.name);
+    if (element != &UI_ElementDefaultValue)
+    {
+      LOG_DEBUG("Open Root: %s\n", CFromStr8(element->description.name));
+      // UI_IDArrayAdd(&ui_context.traversal_stack, element->id);
+      
+      UI_IDArrayAdd(&ui_context.traversal_stack, element->id);
+    
+      while (ui_context.traversal_stack.length)
+      {
+        UI_ID current_id = UI_IDArrayGet(&ui_context.traversal_stack, ui_context.traversal_stack.length - 1);
+        UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, current_id);
+
+        if (!ui_context.visited_lookup.elements[current_id])
+        {
+          LOG_DEBUG("Open Element: %s\n", CFromStr8(current_element->description.name));
+          ui_context.visited_lookup.elements[current_id] = 1;
+
+          if (element->description.flags & UI_ElementFlag_DrawBackground)
+          {
+            UI_DrawCommandArrayAdd(
+              &ui_context.draw_commands,
+              (UI_DrawCommand){
+                .type = UI_DrawCommandType_Rectangle,
+                .rectangle = {
+                  .bound = element->rect,
+                  .color = element->description.rectangle.color,
+                  .border_color = element->description.rectangle.border_color,
+                  .radius = element->description.rectangle.radius.values,
+                }
+              }
+            );
+          }
+          if (element->description.flags & UI_ElementFlag_DrawLabel)
+          {
+            UI_DrawCommandArrayAdd(
+              &ui_context.draw_commands,
+              (UI_DrawCommand){
+                .type = UI_DrawCommandType_Text,
+                .text = {
+                  .content = element->description.text.str,
+                  .font = element->description.text.font,
+                  .font_size = element->description.text.font_size,
+                  .color = element->description.text.color,
+                  .position = element->rect.position,
+                }
+              }
+            );
+          }
+
+          for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
+          {
+            UI_IDArrayAdd(&ui_context.traversal_stack, current_element->children_array_slice.ids[i]);
+          }
+
+          if (current_element->children_array_slice.length)
+          {
+            // continue;
+          }
+        }
+        else
+        {
+          UI_IDArrayPop(&ui_context.traversal_stack);
+          LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
+        }
+      }
+
+      LOG_DEBUG("Close Root: %s\n", CFromStr8(element->description.name));
+    }
+  }
+
+  while (0)
+  // while (final_offset >= 0)
+  {
+    UI_ID element_id = UI_IDArrayGet(&ui_context.children, final_offset);
+    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
+
+    LOG_DEBUG("Element: %s\n", CFromStr8(element->description.name));
     
     if (element->clip_element_id)
     {

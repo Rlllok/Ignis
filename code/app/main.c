@@ -669,7 +669,7 @@ I32 main(void)
       };
 
       UI_ElementBlock({
-        .name = Str8C("Canvas"),
+        .name = Str8C("A"),
         .layout = {
           .width = UI_PixelSize(app_state.window.size.x),
           .height = UI_PixelSize(app_state.window.size.y),
@@ -678,7 +678,7 @@ I32 main(void)
       })
       {
         UI_ElementBlock({
-          .name = Str8C("Side Bar"),
+          .name = Str8C("B"),
           .flags = UI_ElementFlag_DrawBackground,
           .layout = {
             .width = UI_PercentSize(0.5f),
@@ -690,7 +690,7 @@ I32 main(void)
         })
         {
           UI_ElementBlock({
-            .name = Str8C("Scene"),
+            .name = Str8C("C"),
             .flags = UI_ElementFlag_DrawBackground,
             .layout = {
               .width = UI_PercentSize(1.0f),
@@ -701,11 +701,11 @@ I32 main(void)
             },
           })
           {
-            UI_Text(Str8C("Scene"), title_text);
+            // UI_Text(Str8C("Scene"), title_text);
           }
 
           UI_ElementBlock({
-            .name = Str8C("Details"),
+            .name = Str8C("D"),
             .flags = UI_ElementFlag_DrawBackground,
             .layout = {
               .width = UI_PercentSize(1.0f),
@@ -717,11 +717,11 @@ I32 main(void)
             },
           })
           {
-            UI_Text(Str8C("Details"), title_text);
-            for (I32 i = 0; i < 10; i += 1)
+            // UI_Text(Str8C("Details"), title_text);
+            for (I32 i = 0; i < 1; i += 1)
             {
               UI_ElementBlock({
-                .name = Str8C("Test"),
+                .name = Str8C("E"),
                 .flags = UI_ElementFlag_DrawBackground,
                 .layout = {
                   .width = UI_PercentSize(1.0f),
