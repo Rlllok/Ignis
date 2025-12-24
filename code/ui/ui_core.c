@@ -210,77 +210,67 @@ func void UI_EndFrame()
   // for (I32 final_offset = 0; final_offset < ui_context.children.length; final_offset += 1)
   LOG_DEBUG("Being: \n");
 
+  if (ui_context.children.length != 0)
   {
-    UI_ID element_id = UI_IDArrayGet(&ui_context.children, final_offset);
-    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
-
-    if (element != &UI_ElementDefaultValue)
+    UI_IDArrayAdd(&ui_context.traversal_stack, UI_IDArrayGet(&ui_context.children, final_offset));
+  
+    while (ui_context.traversal_stack.length)
     {
-      LOG_DEBUG("Open Root: %s\n", CFromStr8(element->description.name));
-      // UI_IDArrayAdd(&ui_context.traversal_stack, element->id);
-      
-      UI_IDArrayAdd(&ui_context.traversal_stack, element->id);
-    
-      while (ui_context.traversal_stack.length)
+      UI_ID current_id = UI_IDArrayGet(&ui_context.traversal_stack, ui_context.traversal_stack.length - 1);
+      UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, current_id);
+
+      if (!ui_context.visited_lookup.elements[current_id])
       {
-        UI_ID current_id = UI_IDArrayGet(&ui_context.traversal_stack, ui_context.traversal_stack.length - 1);
-        UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, current_id);
+        LOG_DEBUG("Open Element: %s\n", CFromStr8(current_element->description.name));
+        ui_context.visited_lookup.elements[current_id] = 1;
 
-        if (!ui_context.visited_lookup.elements[current_id])
+        if (current_element->description.flags & UI_ElementFlag_DrawBackground)
         {
-          LOG_DEBUG("Open Element: %s\n", CFromStr8(current_element->description.name));
-          ui_context.visited_lookup.elements[current_id] = 1;
-
-          if (element->description.flags & UI_ElementFlag_DrawBackground)
-          {
-            UI_DrawCommandArrayAdd(
-              &ui_context.draw_commands,
-              (UI_DrawCommand){
-                .type = UI_DrawCommandType_Rectangle,
-                .rectangle = {
-                  .bound = element->rect,
-                  .color = element->description.rectangle.color,
-                  .border_color = element->description.rectangle.border_color,
-                  .radius = element->description.rectangle.radius.values,
-                }
+          UI_DrawCommandArrayAdd(
+            &ui_context.draw_commands,
+            (UI_DrawCommand){
+              .type = UI_DrawCommandType_Rectangle,
+              .rectangle = {
+                .bound = current_element->rect,
+                .color = current_element->description.rectangle.color,
+                .border_color = current_element->description.rectangle.border_color,
+                .radius = current_element->description.rectangle.radius.values,
               }
-            );
-          }
-          if (element->description.flags & UI_ElementFlag_DrawLabel)
-          {
-            UI_DrawCommandArrayAdd(
-              &ui_context.draw_commands,
-              (UI_DrawCommand){
-                .type = UI_DrawCommandType_Text,
-                .text = {
-                  .content = element->description.text.str,
-                  .font = element->description.text.font,
-                  .font_size = element->description.text.font_size,
-                  .color = element->description.text.color,
-                  .position = element->rect.position,
-                }
-              }
-            );
-          }
-
-          for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
-          {
-            UI_IDArrayAdd(&ui_context.traversal_stack, current_element->children_array_slice.ids[i]);
-          }
-
-          if (current_element->children_array_slice.length)
-          {
-            // continue;
-          }
+            }
+          );
         }
-        else
+        if (current_element->description.flags & UI_ElementFlag_DrawLabel)
         {
-          UI_IDArrayPop(&ui_context.traversal_stack);
-          LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
+          UI_DrawCommandArrayAdd(
+            &ui_context.draw_commands,
+            (UI_DrawCommand){
+              .type = UI_DrawCommandType_Text,
+              .text = {
+                .content = current_element->description.text.str,
+                .font = current_element->description.text.font,
+                .font_size = current_element->description.text.font_size,
+                .color = current_element->description.text.color,
+                .position = current_element->rect.position,
+              }
+            }
+          );
+        }
+
+        for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
+        {
+          UI_IDArrayAdd(&ui_context.traversal_stack, current_element->children_array_slice.ids[i]);
+        }
+
+        if (current_element->children_array_slice.length)
+        {
+          // continue;
         }
       }
-
-      LOG_DEBUG("Close Root: %s\n", CFromStr8(element->description.name));
+      else
+      {
+        UI_IDArrayPop(&ui_context.traversal_stack);
+        LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
+      }
     }
   }
 
@@ -516,6 +506,7 @@ UI_Text(Str8 text, UI_TextDescription text_description)
   Vec2F32 text_dimension = GetTextSize(text_description.font, text, text_description.font_size);
 
   UI_ElementBlock({
+    .name = text,
     .type = UI_ElementType_Text,
     .flags = UI_ElementFlag_DrawLabel,
     .text = with_str,

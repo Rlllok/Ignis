@@ -701,7 +701,7 @@ I32 main(void)
             },
           })
           {
-            // UI_Text(Str8C("Scene"), title_text);
+            UI_Text(Str8C("Scene"), title_text);
           }
 
           UI_ElementBlock({
@@ -717,7 +717,7 @@ I32 main(void)
             },
           })
           {
-            // UI_Text(Str8C("Details"), title_text);
+            UI_Text(Str8C("Details"), title_text);
             for (I32 i = 0; i < 1; i += 1)
             {
               UI_ElementBlock({
