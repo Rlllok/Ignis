@@ -184,9 +184,12 @@ DefineArray(UI_Element, UI_ElementArray, UI_ElementDefaultValue)
 typedef U8 UI_DrawCommandType;
 enum UI_DrawCommandTypeEnum
 {
+  UI_DrawCommandType_None,
   UI_DrawCommandType_Rectangle,
   UI_DrawCommandType_Text,
-  UI_DrawCommandType_Scissor,
+  UI_DrawCommandType_ScissorBegin,
+  UI_DrawCommandType_ScissorEnd,
+  UI_DrawCommandTpye_Count,
 } UI_DrawCommandTypeEnum;
 
 typedef struct UI_DrawCommand UI_DrawCommand;

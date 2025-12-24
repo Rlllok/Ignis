@@ -110,7 +110,12 @@ UI_BeginFrame(Vec2 mouse_position)
   {
     UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
     UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
-    if (element->description.type == UI_ElementType_Rectangle && InsideRectF32(element->rect, ui_context.mouse_position))
+    
+    B32 item_is_hot = element->description.type == UI_ElementType_Rectangle
+      && InsideRectF32(element->rect, ui_context.mouse_position)
+      && InsideRectF32(UI_ElementArrayGetPointer(&ui_context.elements, element->clip_element_id)->rect, ui_context.mouse_position);
+
+    if (item_is_hot)
     {
       ui_context.hot_id = element_id;
       break;
@@ -189,30 +194,14 @@ func void UI_EndFrame()
           branch->child_position_offset.x += child_element->rect.w;
         } break;
       }
-
-      B32 to_add = 1;
-
-      if (child_element->clip_element_id)
-      {
-        UI_Element* clip_element = UI_ElementArrayGetPointer(&ui_context.elements, child_element->clip_element_id);
-        F32 scroll_offset = 100.0f;
-        child_element->rect.y -= scroll_offset;
-      }
-
-      if (to_add)
-      {
-        UI_IDArrayAdd(&ui_context.final_elements, child_element->id);
-      }
     }
   }
 
-  I32 final_offset = ui_context.children.length - 1;
-  // for (I32 final_offset = 0; final_offset < ui_context.children.length; final_offset += 1)
   LOG_DEBUG("Being: \n");
 
   if (ui_context.children.length != 0)
   {
-    UI_IDArrayAdd(&ui_context.traversal_stack, UI_IDArrayGet(&ui_context.children, final_offset));
+    UI_IDArrayAdd(&ui_context.traversal_stack, UI_IDArrayGet(&ui_context.children, ui_context.children.length - 1));
   
     while (ui_context.traversal_stack.length)
     {
@@ -255,120 +244,34 @@ func void UI_EndFrame()
             }
           );
         }
+        if (current_element->description.layout.clip)
+        {
+          LOG_DEBUG("Begin Clip\n");
+          UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
+            .type = UI_DrawCommandType_ScissorBegin,
+            .scissor = current_element->rect,
+          });
+        }
 
         for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
         {
           UI_IDArrayAdd(&ui_context.traversal_stack, current_element->children_array_slice.ids[i]);
         }
-
-        if (current_element->children_array_slice.length)
-        {
-          // continue;
-        }
       }
       else
       {
+        if (current_element->description.layout.clip)
+        {
+          LOG_DEBUG("End Clip\n");
+          UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
+            .type = UI_DrawCommandType_ScissorEnd,
+          });
+        }
+
         UI_IDArrayPop(&ui_context.traversal_stack);
         LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
       }
     }
-  }
-
-  while (0)
-  // while (final_offset >= 0)
-  {
-    UI_ID element_id = UI_IDArrayGet(&ui_context.children, final_offset);
-    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
-
-    LOG_DEBUG("Element: %s\n", CFromStr8(element->description.name));
-    
-    if (element->clip_element_id)
-    {
-      // LOG_DEBUG("Clip start\n");
-    }
-    
-    if (element->description.layout.clip)
-    {
-      // LOG_DEBUG("Clip end\n");
-    }
-
-    if (element->description.flags & UI_ElementFlag_DrawBackground)
-    {
-      UI_DrawCommandArrayAdd(
-        &ui_context.draw_commands,
-        (UI_DrawCommand){
-          .type = UI_DrawCommandType_Rectangle,
-          .rectangle = {
-            .bound = element->rect,
-            .color = element->description.rectangle.color,
-            .border_color = element->description.rectangle.border_color,
-            .radius = element->description.rectangle.radius.values,
-          }
-        }
-      );
-    }
-    if (element->description.flags & UI_ElementFlag_DrawLabel)
-    {
-      UI_DrawCommandArrayAdd(
-        &ui_context.draw_commands,
-        (UI_DrawCommand){
-          .type = UI_DrawCommandType_Text,
-          .text = {
-            .content = element->description.text.str,
-            .font = element->description.text.font,
-            .font_size = element->description.text.font_size,
-            .color = element->description.text.color,
-            .position = element->rect.position,
-          }
-        }
-      );
-    }
-
-    final_offset -= 1;
-
-    #if 0
-    for (I32 i = 0; i < element->children_array_slice.length; i += 1)
-    {
-      UI_ID child_id = element->children_array_slice.ids[i];
-      UI_Element* child = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
-
-      LOG_DEBUG("\tElement: %s\n", child->description.name);
-        
-      if (child->description.flags & UI_ElementFlag_DrawBackground)
-      {
-        UI_DrawCommandArrayAdd(
-          &ui_context.draw_commands,
-          (UI_DrawCommand){
-            .type = UI_DrawCommandType_Rectangle,
-            .rectangle = {
-              .bound = child->rect,
-              .color = child->description.rectangle.color,
-              .border_color = child->description.rectangle.border_color,
-              .radius = child->description.rectangle.radius.values,
-            }
-          }
-        );
-      }
-      if (child->description.flags & UI_ElementFlag_DrawLabel)
-      {
-        UI_DrawCommandArrayAdd(
-          &ui_context.draw_commands,
-          (UI_DrawCommand){
-            .type = UI_DrawCommandType_Text,
-            .text = {
-              .content = child->description.text.str,
-              .font = child->description.text.font,
-              .font_size = child->description.text.font_size,
-              .color = child->description.text.color,
-              .position = child->rect.position,
-            }
-          }
-        );
-      }
-    }
-      
-    final_offset -= element->children_array_slice.length;
-    #endif
   }
 }
 

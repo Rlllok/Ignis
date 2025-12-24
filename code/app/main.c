@@ -709,29 +709,30 @@ I32 main(void)
             .flags = UI_ElementFlag_DrawBackground,
             .layout = {
               .width = UI_PercentSize(1.0f),
-              .height = UI_PercentSize(0.64f),
+              .height = UI_PercentSize(0.34f),
               .clip = 1,
             },
             .rectangle = {
-              .color = RGBAFromHex(0xff00f0ff),
+              .color = RGBAFromHex(0xff0cf0ff),
             },
           })
           {
             UI_Text(Str8C("Details"), title_text);
-            for (I32 i = 0; i < 1; i += 1)
+            for (I32 i = 0; i < 15; i += 1)
             {
               UI_ElementBlock({
                 .name = Str8C("E"),
                 .flags = UI_ElementFlag_DrawBackground,
                 .layout = {
                   .width = UI_PercentSize(1.0f),
-                  .height = UI_PixelSize(100.0f),
+                  .height = UI_PixelSize(50.0f),
                 },
                 .rectangle = {
-                  .color = RGBAFromHex(0xa0cff0ff),
+                  .color = UI_Hovered() ? RGBAFromHex(0xa0cff0ff) : RGBAFromHex(0x0aa033ff),
                 },
               })
               {
+                UI_Text(Str8C("Clip Testing"), title_text);
               }
             }
           }
@@ -944,13 +945,23 @@ I32 main(void)
                 IGN_DrawText(command_buffer, data_buffer, draw_command->text.font, draw_command->text.content, draw_command->text.font_size, draw_command->text.position, draw_command->text.color);
               } break;
 
-              case UI_DrawCommandType_Scissor:
+              case UI_DrawCommandType_ScissorBegin:
               {
                 R_SetScissor(command_buffer, (RectI32){
                   .x = (I32)draw_command->scissor.bound.x,
                   .y = (I32)draw_command->scissor.bound.y,
                   .w = (I32)draw_command->scissor.bound.w,
                   .h = (I32)draw_command->scissor.bound.h,
+                });
+              } break;
+
+              case UI_DrawCommandType_ScissorEnd:
+              {
+                R_SetScissor(command_buffer, (RectI32){
+                  .x = 0,
+                  .y = 0,
+                  .w = (I32)app_state.window.size.w,
+                  .h = (I32)app_state.window.size.h,
                 });
               } break;
             }
