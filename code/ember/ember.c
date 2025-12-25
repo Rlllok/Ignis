@@ -4,8 +4,6 @@
 #include "base/base_include.c"
 #include "os/os_include.c"
 
-#include "ember_include.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -50,9 +48,11 @@ enum Ember_TokenTypeEnum
   // One Symbol
   Ember_TokenType_OpenParanthesis,
   Ember_TokenType_CloseParanthesis,
+  Ember_TokenType_Comma,
   Ember_TokenType_End,
   
   Ember_TokenType_Identifier,
+  Ember_TokenType_Number,
 } Ember_TokenTypeEnum;
 
 typedef struct Ember_Token Ember_Token;
@@ -104,12 +104,6 @@ Ember_SkipSymbols(Ember_Tokenizer* tokenizer)
   }
 }
 
-func void
-Ember_ParseTweakB32(Ember_Tokenizer* tokenizer)
-{ 
-  LOG_DEBUG("Found TweakB32\n");
-}
-
 func Ember_Token
 Ember_GetToken(Ember_Tokenizer* tokenizer)
 {
@@ -128,6 +122,7 @@ Ember_GetToken(Ember_Tokenizer* tokenizer)
     case '\0': {result.type = Ember_TokenType_End;              tokenizer->position += 1;} break;
     case  '(': {result.type = Ember_TokenType_OpenParanthesis;  tokenizer->position += 1;} break;
     case  ')': {result.type = Ember_TokenType_CloseParanthesis; tokenizer->position += 1;} break;
+    case  ',': {result.type = Ember_TokenType_Comma;            tokenizer->position += 1;} break;
 
     default:
     {
@@ -147,6 +142,19 @@ Ember_GetToken(Ember_Tokenizer* tokenizer)
 
         result.str = SubStr8(ember_state.arena, tokenizer->content, start_position, tokenizer->position - start_position);
       }
+      else if (IsDigit(tokenizer->content, tokenizer->position))
+      {
+        result.type = Ember_TokenType_Number;
+        
+        U64 start_position = tokenizer->position;
+
+        while (IsDigit(tokenizer->content, tokenizer->position))
+        {
+          tokenizer->position += 1;
+        }
+
+        result.str = SubStr8(ember_state.arena, tokenizer->content, start_position, tokenizer->position - start_position);
+      }
       else
       {
         result.type = Ember_TokenType_None;
@@ -159,6 +167,30 @@ Ember_GetToken(Ember_Tokenizer* tokenizer)
 
   return result;
 }
+
+func void
+Ember_ParseTweakB32(Ember_Tokenizer* tokenizer)
+{ 
+  if (Ember_GetToken(tokenizer).type == Ember_TokenType_OpenParanthesis)
+  {
+    Ember_Token name = Ember_GetToken(tokenizer);
+    if (name.type == Ember_TokenType_Identifier)
+    {
+      if (Ember_GetToken(tokenizer).type == Ember_TokenType_Comma)
+      {
+        Ember_Token value = Ember_GetToken(tokenizer);
+        if (value.type == Ember_TokenType_Number)
+        {
+          if (Ember_GetToken(tokenizer).type == Ember_TokenType_CloseParanthesis)
+          {
+            LOG_DEBUG("B32 ember_tweak_b32_%.*s = %.*s;\n", name.str.length, name.str.data, value.str.length, value.str.data);
+          }
+        }
+      }
+    }
+  }
+}
+
 
 I32 main()
 {
