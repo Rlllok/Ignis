@@ -62,6 +62,73 @@ ConcatStr8(Arena* arena, Str8 str_a, Str8 str_b)
   return result;
 }
 
+// -- Symbol Type ----------------------------------------------------
+func B32
+IsWhitespace(Str8 str, U64 position)
+{
+  B32 result = 0;
+
+  U8 symbol = str.data[position];
+  result = (symbol == ' ' || symbol == '\t' || symbol == '\n' || symbol == '\r');
+
+  return result;
+}
+
+func B32
+IsLineEnd(Str8 str, U64 position)
+{
+  B32 result = 0;
+
+  if (position < str.length)
+  {
+    U8 symbol = str.data[position];
+    result = (symbol == '\r' || symbol == '\n');
+  }
+
+  return result;
+}
+
+func B32
+IsAlphabet(Str8 str, U64 position)
+{
+  B32 result = 0;
+
+  if (position < str.length)
+  {
+    U8 symbol = str.data[position];
+    result = ((symbol >= 'a' && symbol <= 'z') || (symbol >= 'A' && symbol <= 'Z'));
+  }
+
+  return result;
+}
+
+func B32
+IsDigit(Str8 str, U64 position)
+{
+  B32 result = 0;
+
+  if (position < str.length)
+  {
+    U8 symbol = str.data[position];
+    result = (symbol >= '0' && symbol <= '9');
+  }
+
+  return result;
+}
+
+func U8
+Str8GetSymbol(Str8 str, U64 position)
+{
+  U8 result = 0;
+  
+  if (position < str.length)
+  {
+    result = str.data[position];
+  }
+
+  return result;
+}
+
 func U64
 GetSymbolPosition(Str8 str, U8 symbol)
 {
