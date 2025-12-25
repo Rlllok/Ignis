@@ -198,7 +198,7 @@ I32 main()
   Ember_Init();
 
   Ember_Tokenizer tokenizer = {0};
-  tokenizer.content = Ember_ReadEntireFile(Str8C("D:/Programming/Ignis/code/ember/ember_test.c"));
+  tokenizer.content = Ember_ReadEntireFile(Str8C("../code/ember/ember_test.c"));
 
   B32 parsing = 1;
   while (parsing)

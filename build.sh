@@ -1,5 +1,3 @@
-set echo on
-
 mkdir -p build
 cp -r data/ build/data
 
@@ -28,8 +26,13 @@ default_links="-lm"
 defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_WAYLAND"
 #defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_X11"
 
-echo "#######################"
-echo "--   Building Main   --"
-echo "#######################"
+echo "**************************************************"
+echo "Compilation started."
+echo "**************************************************"
 
-clang -g code/app/main.c -o build/main $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links
+if [ "$1" == "main"  ]; then clang -g code/app/main.c    -o build/main  $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
+if [ "$1" == "ember" ]; then clang -g code/ember/ember.c -o build/ember $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
+
+echo "**************************************************"
+echo "Compilation ended."
+echo "**************************************************"
