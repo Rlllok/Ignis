@@ -12,11 +12,12 @@
 #include "assets/mesh.c"
 #include "ui/ui_include.c"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "third_party/stb_image.h"
-
+#include "ignis.h"
+#include "ignis_r.h"
 #include "ignis_ui.h"
 
+#include "ignis.c"
+#include "ignis_r.c"
 #include "ignis_ui.c"
 
 func void DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color);
@@ -121,22 +122,7 @@ struct AppState
   UI_ID viewport_ui_element_id;
   RectF32 viewport_rect;
 
-  R_GraphicsPipeline grid_pipeline;
-  R_GraphicsPipeline line_3d_pipeline;
-  R_GraphicsPipeline square_pipeline;
-  R_GraphicsPipeline mesh_pipeline;
-  R_GraphicsPipeline font_pipeline;
-  R_GraphicsPipeline joint_pipeline;
-
-  R_TextureSampler texture_sampler;
-  R_Texture default_color_texture;
-  R_Texture mesh_color_texture;
-  R_Texture mesh_normal_texture;
-
   FontBitmap font;
-
-  R_Texture depth_texture; // -AlNov: @TODO should it be created for R_VK_Swapchain?
-  R_Texture test_texture;
 
   Camera camera;
 
@@ -155,6 +141,14 @@ struct AppState
   // --AlNov. 12 December 2025: @TODO @TEST
   I32 current_animation_index;
 } app_state;
+
+typedef struct Ignis_State Ignis_State;
+struct Ignis_state
+{
+  Arena* arena;
+} _ignis_state;
+
+func void Ignis_Init();
 
 func void HandleEvents(Arena* arena, AppState* state);
 
@@ -189,7 +183,7 @@ func R_Texture CreateLoadTexture(R_Buffer buffer, Str8 path, R_TextureFormat for
   return result;
 }
 
-I32 main(void)
+I32 main()
 {
   app_state.arena = AllocateArena(Megabytes(64));
   app_state.frame_arena = AllocateArena(Megabytes(8));
@@ -226,62 +220,16 @@ I32 main(void)
 
   app_state.current_animation_index = 0;
 
-  UI_Init(app_state.arena, 1024);
-
-  OS_Init(Megabytes(32));
-
   OS_CreateWindow(Str8C("Ignis"), MakeVec2U32(1270, 720), &app_state.window);
   OS_ShowWindow(&app_state.window);
 
-  R_Init(R_RENDERER_TYPE_VK, &app_state.window);
+  Ignis_R_Init(R_RENDERER_TYPE_VK, &app_state.window);
 
   R_CommandBuffer command_buffer = R_GetCommandBuffer();
 
   R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX|R_BUFFER_USAGE_FLAG_UNIFORM;
   R_Buffer data_buffer = R_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
   R_Buffer transfer_buffer = R_CreateBuffer(Megabytes(128), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
-
-  app_state.texture_sampler = R_CreateTextureSampler(
-    &(R_TextureSamplerCreateInfo){
-      .mag_filter = R_FILTER_TYPE_LINEAR,
-      .min_filter = R_FILTER_TYPE_LINEAR,
-      .address_mode_u = R_SAMPLER_ADDRESS_MODE_REPEAT,
-      .address_mode_v = R_SAMPLER_ADDRESS_MODE_REPEAT,
-      .address_mode_w = R_SAMPLER_ADDRESS_MODE_REPEAT,
-      .mipmap_mode = R_SAMPLER_MIPMAP_MODE_LINEAR,
-    }
-  );
-
-  app_state.test_texture = R_CreateTexture(
-    &(R_TextureCreateInfo){
-      .type = R_TEXTURE_TYPE_2D,
-      .format = R_TEXTURE_FORMAT_R16_UINT,
-      .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC,
-      .width = app_state.window.size.w,
-      .height = app_state.window.size.h,
-      .depth = 1,
-      .num_levels = 1
-    }
-  );
-
-  app_state.depth_texture = R_CreateTexture(
-    &(R_TextureCreateInfo){
-      .type = R_TEXTURE_TYPE_2D,
-      .format = R_TEXTURE_FORMAT_D16_UNORM,
-      .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
-      .width = app_state.window.size.w,
-      .height = app_state.window.size.h,
-      .depth = 1,
-      .num_levels = 1,
-    }
-  );
-
-  // Mesh Texture
-  {
-    app_state.default_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"), R_TEXTURE_FORMAT_R8G8B8A8_SRGB);
-    app_state.mesh_color_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"), R_TEXTURE_FORMAT_R8G8B8A8_SRGB);
-    app_state.mesh_normal_texture = CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"), R_TEXTURE_FORMAT_R8G8B8A8_UNORM);
-  }
 
   // Font Texture
   {
@@ -315,179 +263,6 @@ I32 main(void)
     R_CopyBufferToTexture(0, data_buffer, font_texture_offset, texture_size, app_state.font.bitmap);
   }
 
-  // --AlNov: Word Grid
-  {
-    R_Shader grid_vertex_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/grid.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 1,
-      }
-    );
-
-    R_Shader grid_fragment_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/grid.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 0,
-      }
-    );
-
-    app_state.grid_pipeline = R_CreateGraphicsPipeline(
-      &(R_GraphicsPipelineCreateInfo){
-        .vertex_shader = grid_vertex_shader,
-        .fragment_shader = grid_fragment_shader,
-        .color_targets_count = 1,
-        .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
-          .format = R_GetSwapchainTextureFormat(),
-          .blend_enable = 1,
-        },
-        .depth_stencil_state = {
-          .depth_test_enable = 1,
-          .depth_write_enable = 0,
-          .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-          .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
-        },
-      }
-    );
-  }
-
-  // 3D Line Pipeline
-  {
-    R_Shader line_vertex_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/line3d.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 1,
-      }
-    );
-
-    R_Shader line_fragment_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/line3d.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-      }
-    );
-
-    app_state.line_3d_pipeline = R_CreateGraphicsPipeline(
-      &(R_GraphicsPipelineCreateInfo){
-        .vertex_shader = line_vertex_shader,
-        .fragment_shader = line_fragment_shader,
-        .color_targets_count = 1,
-        .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
-          .format = R_GetSwapchainTextureFormat(),
-        },
-        .depth_stencil_state = {
-          .depth_test_enable = 0,
-          .depth_write_enable = 0,
-          .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-          .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
-        },
-      }
-    );
-  }
-
-  // Font Pipeline
-  {
-    R_Shader font_vertex_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/font.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-      }
-    );
-
-    R_Shader font_fragment_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/font.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-        .global_samplers_count = 1,
-      }
-    );
-
-    R_VertexAttribute font_vertex_attributes[] = {
-      {
-        .location = 0,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = offsetof(TextVertex, position),
-      },
-      {
-        .location = 1,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = offsetof(TextVertex, uv),
-      },
-    };
-    R_GraphicsPipelineColorTargetInfo font_pipeline_color_target = {
-      .format = R_GetSwapchainTextureFormat(),
-      .blend_enable = 1,
-    };
-    R_GraphicsPipelineCreateInfo font_pipeline_info = {
-      .vertex_shader = font_vertex_shader,
-      .fragment_shader = font_fragment_shader,
-      .vertex_attributes_count = CountArrayElements(font_vertex_attributes),
-      .vertex_attributes = font_vertex_attributes,
-      .color_targets_count = 1,
-      .color_target_infos = &font_pipeline_color_target,
-      .depth_stencil_state = {
-        .depth_test_enable = 0,
-      },
-    };
-    app_state.font_pipeline = R_CreateGraphicsPipeline(&font_pipeline_info);
-  }
-
-  // Square Pipeline
-  {
-    R_Shader square_vertex_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/square.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 1,
-      }
-    );
-    R_Shader square_fragment_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/square.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-        .global_uniforms_count = 0,
-        .instance_uniforms_count = 1,
-      }
-    );
-
-    R_GraphicsPipelineColorTargetInfo square_pipeline_color_target_infos[] = {
-      {
-        .format = R_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      },
-    };
-
-    R_GraphicsPipelineCreateInfo square_pipeline_info = {
-      .vertex_shader = square_vertex_shader,
-      .fragment_shader = square_fragment_shader,
-      .color_targets_count = CountArrayElements(square_pipeline_color_target_infos),
-      .color_target_infos = square_pipeline_color_target_infos,
-      .depth_stencil_state = {
-        .depth_test_enable = 0,
-        .depth_write_enable = 0,
-        .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-        .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
-      },
-    };
-    app_state.square_pipeline = R_CreateGraphicsPipeline(&square_pipeline_info);
-  }
-
-
   // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleAnimation/SimpleAnimation.gltf"));
   // AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/Dummy/Dummy.gltf"));
   AST_StaticMesh dummy_mesh = AST_LoadStaticMeshFromGLTF(app_state.arena, Str8C("data/gltf_test/SimpleBoneAnimation/SimpleBoneAnimation.gltf"));
@@ -503,7 +278,7 @@ I32 main(void)
         .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
       },
       .mesh = dummy_mesh,
-      .color_texture = app_state.default_color_texture,
+      .color_texture = _ignis_r_state.default_color_texture,
     }
   );
 
@@ -517,7 +292,7 @@ I32 main(void)
         .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
       },
       .mesh = dummy_mesh,
-      .color_texture = app_state.default_color_texture,
+      .color_texture = _ignis_r_state.default_color_texture,
     }
   );
 
@@ -531,91 +306,11 @@ I32 main(void)
         .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
       },
       .mesh = dummy_mesh,
-      .color_texture = app_state.default_color_texture,
+      .color_texture = _ignis_r_state.default_color_texture,
     }
   );
 
-  // Mesh Pipeline
-  {
-    R_Shader mesh_vertex_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/mesh.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 1,
-      }
-    );
-    R_Shader mesh_fragment_shader = R_CreateShader(
-      app_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/mesh.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-        .global_uniforms_count = 0,
-        .instance_uniforms_count = 1,
-        .instance_samplers_count = 2,
-      }
-    );
-
-    R_VertexAttribute mesh_vertex_attributes[] = {
-      {
-        .location = 0,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
-        .offset = offsetof(AST_Vertex, position),
-      },
-      {
-        .location = 1,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
-        .offset = offsetof(AST_Vertex, normal),
-      },
-      {
-        .location = 2,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
-        .offset = offsetof(AST_Vertex, tangent),
-      },
-      {
-        .location = 3,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = offsetof(AST_Vertex, uv),
-      },
-      {
-        .location = 4,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4I32,
-        .offset = offsetof(AST_Vertex, joint_ids),
-      },
-      {
-        .location = 5,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
-        .offset = offsetof(AST_Vertex, joint_weights),
-      },
-    };
-
-    R_GraphicsPipelineColorTargetInfo mesh_pipeline_color_target_infos[] = {
-      {
-        .format = R_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      },
-      {
-        .format = R_GetTextureFormat(app_state.test_texture),
-        .blend_enable = 0,
-      },
-    };
-    R_GraphicsPipelineCreateInfo mesh_pipeline_info = {
-      .vertex_shader = mesh_vertex_shader,
-      .fragment_shader = mesh_fragment_shader,
-      .vertex_attributes_count = CountArrayElements(mesh_vertex_attributes),
-      .vertex_attributes = mesh_vertex_attributes,
-      .color_targets_count = CountArrayElements(mesh_pipeline_color_target_infos),
-      .color_target_infos = mesh_pipeline_color_target_infos,
-      .depth_stencil_state = {
-        .depth_test_enable = 1,
-        .depth_write_enable = 1,
-        .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-        .depth_target_format = R_GetTextureFormat(app_state.depth_texture),
-      },
-    };
-    app_state.mesh_pipeline = R_CreateGraphicsPipeline(&mesh_pipeline_info);
-  }
+  Ignis_Init();
 
   // AlNov: -- AppLoop
   U64 begin_time_ms = OS_GetTimeTicks();
@@ -624,161 +319,12 @@ I32 main(void)
   {
     HandleEvents(app_state.frame_arena, &app_state);
 
-    if (OS_IsMousePressed(OS_MouseButton_Left))
-    {
-      LOG_INFO("Mouse Pressed: %.3fx, %.3fy\n", app_state.last_mouse_position.x, app_state.last_mouse_position.y);
-    }
+    Vec2I32 context_size = {
+      .x = app_state.window.size.x,
+      .y = app_state.window.size.y,
+    };
+    Ignis_UI_Configure(context_size, app_state.last_mouse_position, app_state.delta_time_sec);
 
-    // Update World
-    {
-    }
-
-    // UI
-    UI_ID viewport_element_id = UI_ID_Nil;
-
-    DeferBlock(UI_BeginFrame(app_state.last_mouse_position, OS_MouseScroll()), UI_EndFrame())
-    {
-      struct
-      {
-        Vec4F32 text;
-        Vec4F32 accent;
-        Vec4F32 bg;
-        Vec4F32 bg_tint;
-        Vec4F32 button;
-        Vec4F32 hover;
-      } colors = {
-        .text = RGBAFromHex(0xf9e2afff),
-        .accent = RGBAFromHex(0xfcbf3bff),
-        .bg = RGBAFromHex(0x32383bff),
-        .bg_tint = RGBAFromHex(0x474c4fff),
-        .button = RGBAFromHex(0x39394eff),
-        .hover = RGBAFromHex(0x44445cff),
-      };
-
-      UI_RectangleDescription default_rectangle = {
-        .color = colors.bg,
-        .radius = {0.0f, 0.0f, 0.0f, 0.0f},
-      };
-
-      UI_TextDescription default_text = {
-        .font = app_state.font,
-        .color = colors.text,
-        .font_size = 20,
-      };
-
-      UI_TextDescription title_text = {
-        .font = app_state.font,
-        .color = colors.accent,
-        .font_size = 26,
-      };
-
-      UI_ElementBlock({
-        .name = Str8C("A"),
-        .layout = {
-          .width = UI_PixelSize(app_state.window.size.x),
-          .height = UI_PixelSize(app_state.window.size.y),
-          .direction = UI_LayoutDirection_LeftToRight,
-        },
-      })
-      {
-        UI_ElementBlock({
-          .name = Str8C("B"),
-          .flags = UI_ElementFlag_DrawBackground,
-          .layout = {
-            .width = UI_PercentSize(0.5f),
-            .height = UI_PercentSize(1.0f),
-          },
-          .rectangle = {
-            .color = colors.text,
-          },
-        })
-        {
-          UI_ElementBlock({
-            .name = Str8C("C"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-              .width = UI_PercentSize(1.0f),
-              .height = UI_PercentSize(0.35f),
-            },
-            .rectangle = {
-              .color = RGBAFromHex(0xff0000ff),
-            },
-          })
-          {
-            char frame_time_cstring[128] = {0};
-            sprintf(frame_time_cstring, "%.3f", app_state.delta_time_sec*1000.0f);
-
-            UI_Text(Str8C(frame_time_cstring), default_text);
-            UI_Text(Str8C("Scene"), title_text);
-
-            UI_ElementBlock({
-              .name = Str8C("Testing"),
-              .layout = {
-                .width = UI_PercentSize(1.0f),
-                .height = UI_PercentSize(0.5f),
-                .clip = 1,
-                .scroll_offset = UI_GetScrollOffset(),
-              }
-            })
-            {
-              for (I32 i = 0; i < 5; i += 1)
-              {
-                UI_ElementBlock({
-                  .name = Str8C("E"),
-                  .flags = UI_ElementFlag_DrawBackground,
-                  .layout = {
-                    .width = UI_PercentSize(1.0f),
-                    .height = UI_PixelSize(50.0f),
-                  },
-                  .rectangle = {
-                    .color = UI_Hovered() ? RGBAFromHex(0xa0cff0ff) : RGBAFromHex(0x0aa033ff),
-                  },
-                })
-                {
-                  UI_Text(Str8C("Clip Testing"), title_text);
-                }
-              }
-            }
-          }
-
-          UI_ElementBlock({
-            .name = Str8C("D"),
-            .flags = UI_ElementFlag_DrawBackground,
-            .layout = {
-              .width = UI_PercentSize(1.0f),
-              .height = UI_PercentSize(0.34f),
-              .clip = 1,
-              .scroll_offset = UI_GetScrollOffset(),
-            },
-            .rectangle = {
-              .color = RGBAFromHex(0xff0cf0ff),
-            },
-          })
-          {
-            UI_Text(Str8C("Details"), title_text);
-            for (I32 i = 0; i < 5; i += 1)
-            {
-              UI_ElementBlock({
-                .name = Str8C("E"),
-                .flags = UI_ElementFlag_DrawBackground,
-                .layout = {
-                  .width = UI_PercentSize(1.0f),
-                  .height = UI_PixelSize(50.0f),
-                },
-                .rectangle = {
-                  .color = UI_Hovered() ? RGBAFromHex(0xa0cff0ff) : RGBAFromHex(0x0aa033ff),
-                },
-              })
-              {
-                UI_Text(Str8C("Clip Testing"), title_text);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    app_state.viewport_rect = UI_GetRectangle(viewport_element_id);
     app_state.viewport_rect = (RectF32){
       .x = 0.0f,
       .y = 0.0f,
@@ -814,14 +360,14 @@ I32 main(void)
             .clear_color = RGBAFromHex(0x1A1D26FF),
           },
           {
-            .texture = app_state.test_texture,
+            .texture = _ignis_r_state.test_texture,
             .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
             .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
             .clear_color = RGBAFromHex(0x00000000),
           },
         };
         R_DepthStencilTarget depth_target = {
-          .texture = app_state.depth_texture,
+          .texture = _ignis_r_state.depth_texture,
           .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
           .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
           .clear_depth = 0.0f,
@@ -843,7 +389,7 @@ I32 main(void)
           .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
         };
         R_DepthStencilTarget grid_depth_target = {
-          .texture = app_state.depth_texture,
+          .texture = _ignis_r_state.depth_texture,
           .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
           .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
         };
@@ -921,7 +467,7 @@ I32 main(void)
             .size = sizeof(grid_global_fragment_data),
           };
 
-          R_BindGraphicsPipeline(command_buffer, app_state.grid_pipeline);
+          R_BindGraphicsPipeline(command_buffer, _ignis_r_state.grid_pipeline);
           R_BindGlobalVertexShaderData(command_buffer, 1, &grid_vertex_shader_global_uniform, 0, 0);
           R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
           R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
@@ -1027,7 +573,7 @@ I32 main(void)
         }
         R_EndRenderPass(command_buffer, 0);
 
-        test_texture_values_offset = R_CopyTextureToBuffer(command_buffer, app_state.test_texture, transfer_buffer);
+        test_texture_values_offset = R_CopyTextureToBuffer(command_buffer, _ignis_r_state.test_texture, transfer_buffer);
       }
       R_SubmitCommandBuffer(command_buffer);
 
@@ -1138,16 +684,16 @@ DrawEntity(R_CommandBuffer command_buffer, R_Buffer buffer, Entity* entity)
     };
     R_SamplerBindingInfo mesh_fragment_shader_instance_samplers[2] = {
       {
-        .sampler = app_state.texture_sampler,
+        .sampler = _ignis_r_state.texture_sampler,
         .texture = entity->color_texture,
       },
       {
-        .sampler = app_state.texture_sampler,
-        .texture = app_state.mesh_normal_texture,
+        .sampler = _ignis_r_state.texture_sampler,
+        .texture = _ignis_r_state.mesh_normal_texture,
       }
     };
 
-    R_BindGraphicsPipeline(command_buffer, app_state.mesh_pipeline);
+    R_BindGraphicsPipeline(command_buffer, _ignis_r_state.mesh_pipeline);
     R_BindGlobalVertexShaderData(command_buffer, 1, &mesh_vertex_shader_global_uniform, 0, 0);
     R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
     R_BindInstanceFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_instance_uniform, 2, mesh_fragment_shader_instance_samplers);
@@ -1259,7 +805,7 @@ DrawLine3D(R_CommandBuffer command_buffer, R_Buffer buffer, Vec3F32 start, Vec3F
     .size = sizeof(instance_vertex_data),
   };
 
-  R_BindGraphicsPipeline(command_buffer, app_state.line_3d_pipeline);
+  R_BindGraphicsPipeline(command_buffer, _ignis_r_state.line_3d_pipeline);
   R_BindGlobalVertexShaderData(command_buffer, 1, &line_vertex_global_uniform, 0, 0);
   R_BindInstanceVertexShaderData(command_buffer, 1, &line_vertex_instance_uniform, 0, 0);
   R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
@@ -1310,7 +856,6 @@ HandleEvents(Arena* arena, AppState* state)
   F32 speed = 2.0f;
   direction = ScaleVec3F32(state->camera.front, OS_MouseScroll().y);
   state->camera.position = AddVec3(state->camera.position, ScaleVec3F32(state->camera.front, OS_MouseScroll().y*state->delta_time_sec));
-  LOG_DEBUG("MouseScroll x: %f y: %f\n", OS_MouseScroll().x, OS_MouseScroll().y);
 
   if (OS_IsKeyDown(OS_KEY_W))
   {
@@ -1379,7 +924,7 @@ HandleEvents(Arena* arena, AppState* state)
           {
             R_VK_HandleResize(&state->window);
 
-            R_VK_DestroyTexture(app_state.depth_texture);
+            R_VK_DestroyTexture(_ignis_r_state.depth_texture);
             R_TextureCreateInfo depth_texture_info = {
               .type = R_TEXTURE_TYPE_2D,
               .format = R_TEXTURE_FORMAT_D16_UNORM,
@@ -1389,9 +934,9 @@ HandleEvents(Arena* arena, AppState* state)
               .depth = 1,
               .num_levels = 1
             };
-            app_state.depth_texture = R_CreateTexture(&depth_texture_info);
+            _ignis_r_state.depth_texture = R_CreateTexture(&depth_texture_info);
 
-            R_VK_DestroyTexture(app_state.test_texture);
+            R_VK_DestroyTexture(_ignis_r_state.test_texture);
             R_TextureCreateInfo test_texture_info = {
               .type = R_TEXTURE_TYPE_2D,
               .format = R_TEXTURE_FORMAT_R16_UINT,
@@ -1401,7 +946,7 @@ HandleEvents(Arena* arena, AppState* state)
               .depth = 1,
               .num_levels = 1
             };
-            app_state.test_texture = R_CreateTexture(&test_texture_info);
+            _ignis_r_state.test_texture = R_CreateTexture(&test_texture_info);
           }
           else
           {
@@ -1485,7 +1030,7 @@ IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, S
   U64 vertex_buffer_offset = R_PushBuffer(buffer, (U8*)vertecies, sizeof(vertecies[0])*vertecies_count);
   U64 index_buffer_offset = R_PushBuffer(buffer, (U8*)indecies, sizeof(indecies[0])*indecies_count);
 
-  R_BindGraphicsPipeline(command_buffer, app_state.font_pipeline);
+  R_BindGraphicsPipeline(command_buffer, _ignis_r_state.font_pipeline);
 
   struct
   {
@@ -1504,7 +1049,7 @@ IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, S
   R_BindGlobalVertexShaderData(command_buffer, 1, &font_vertex_shader_global_uniform, 0, 0);
 
   R_SamplerBindingInfo font_sampler = {
-    .sampler = app_state.texture_sampler,
+    .sampler = _ignis_r_state.texture_sampler,
     .texture = app_state.font.bitmap,
   };
   R_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1, &font_sampler);
@@ -1518,7 +1063,7 @@ IGN_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, FontBitmap font, S
 func void
 DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color)
 {
-  R_BindGraphicsPipeline(command_buffer,app_state.square_pipeline);
+  R_BindGraphicsPipeline(command_buffer, _ignis_r_state.square_pipeline);
   struct
   {
     Mat4 projection;
@@ -1571,4 +1116,13 @@ func void
 DrawCommandPalette(R_CommandBuffer command_buffer, R_Buffer buffer, CommandPalette* command_palette, U64 current_timestamp)
 {
   DrawRect(command_buffer, buffer, command_palette->rectangle, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), command_palette->background_color, command_palette->background_color);
+}
+
+func void
+Ignis_Init()
+{
+  _ignis_state.arena = AllocateArena(Megabytes(128));
+
+  OS_Init(Megabytes(32));
+  Ignis_UI_Init(_ignis_state.arena, 1024, app_state.font);
 }

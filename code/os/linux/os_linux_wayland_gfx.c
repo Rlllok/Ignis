@@ -105,13 +105,11 @@ _PointerHandleAxisStop(void* data, wl_pointer* pointer, U32 time, U32 axis)
 func void
 _PointerHandleAxisDiscrete(void* data, wl_pointer* pointer, U32 axis, I32 discrete)
 {
-  LOG_DEBUG("Discrete\n");
 }
 
 func void
 _PointerHandleAxisValue120(void* data, wl_pointer* pointer, U32 axis, I32 value120)
 {
-  LOG_DEBUG("Value 120: %d\n", value120);
 }
 
 func void
