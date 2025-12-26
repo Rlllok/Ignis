@@ -87,6 +87,7 @@ IsInBound(Buffer source, U64 position)
   return result;
 }
 
+#if 0
 func B32
 IsDigit(Buffer source, U64 position)
 {
@@ -116,6 +117,7 @@ IsWhitespace(Buffer source, U64 position)
 
   return result;
 }
+#endif
 
 func B32
 AreBuffersEqual(Buffer a, Buffer b)
