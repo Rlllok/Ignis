@@ -745,6 +745,12 @@ I32 main(void)
     }
 
     app_state.viewport_rect = UI_GetRectangle(viewport_element_id);
+    app_state.viewport_rect = (RectF32){
+      .x = 0.0f,
+      .y = 0.0f,
+      .w = app_state.window.size.w,
+      .h = app_state.window.size.h,
+    };
 
     if (app_state.to_render)
     {
@@ -1266,8 +1272,12 @@ HandleEvents(Arena* arena, AppState* state)
     ToggleCommandPalette(&state->command_palette);
   }
 
-  Vec3 direction = MakeVec3(0.0f, 0.0f, 0.0f);
+  Vec3F32 direction = MakeVec3(0.0f, 0.0f, 0.0f);
   F32 speed = 2.0f;
+  direction = ScaleVec3F32(state->camera.front, OS_MouseScroll().y);
+  state->camera.position = AddVec3(state->camera.position, ScaleVec3F32(state->camera.front, OS_MouseScroll().y*state->delta_time_sec));
+  LOG_DEBUG("MouseScroll x: %f y: %f\n", OS_MouseScroll().x, OS_MouseScroll().y);
+
   if (OS_IsKeyDown(OS_KEY_W))
   {
     direction = AddVec3(direction, state->camera.front);

@@ -197,7 +197,7 @@ func void UI_EndFrame()
     }
   }
 
-  LOG_DEBUG("Being: \n");
+  // LOG_DEBUG("Being: \n");
 
   if (ui_context.children.length != 0)
   {
@@ -210,7 +210,7 @@ func void UI_EndFrame()
 
       if (!ui_context.visited_lookup.elements[current_id])
       {
-        LOG_DEBUG("Open Element: %s\n", CFromStr8(current_element->description.name));
+        // LOG_DEBUG("Open Element: %s\n", CFromStr8(current_element->description.name));
         ui_context.visited_lookup.elements[current_id] = 1;
 
         if (current_element->description.flags & UI_ElementFlag_DrawBackground)
@@ -246,7 +246,7 @@ func void UI_EndFrame()
         }
         if (current_element->description.layout.clip)
         {
-          LOG_DEBUG("Begin Clip\n");
+          // LOG_DEBUG("Begin Clip\n");
           UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
             .type = UI_DrawCommandType_ScissorBegin,
             .scissor = current_element->rect,
@@ -262,14 +262,14 @@ func void UI_EndFrame()
       {
         if (current_element->description.layout.clip)
         {
-          LOG_DEBUG("End Clip\n");
+          // LOG_DEBUG("End Clip\n");
           UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
             .type = UI_DrawCommandType_ScissorEnd,
           });
         }
 
         UI_IDArrayPop(&ui_context.traversal_stack);
-        LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
+        // LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
       }
     }
   }

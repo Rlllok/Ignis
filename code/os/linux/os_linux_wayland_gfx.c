@@ -79,6 +79,12 @@ _PointerHandleButton(void* data, wl_pointer* pointer, U32 serial, U32 time, U32 
 func void
 _PointerHandleAxis(void*data, wl_pointer* pointer, U32 time, U32 axis, I32 value)
 {
+  OS_Event event = {
+    .type = OS_EVENT_TYPE_MOUSE_SCROLL,
+    .mouse_scroll = MakeVec2F32(axis*value, !axis*value),
+  };
+
+  OS_EventListPush(&_os_state.mouse_event_list, event);
 }
 
 func void
@@ -86,13 +92,45 @@ _PointerHandleFrame(void* data, wl_pointer* pointer)
 {
 }
 
+func void
+_PointerHandleAxisSource(void* data, wl_pointer* pointer, U32 axis_source)
+{
+}
+
+func void
+_PointerHandleAxisStop(void* data, wl_pointer* pointer, U32 time, U32 axis)
+{
+}
+
+func void
+_PointerHandleAxisDiscrete(void* data, wl_pointer* pointer, U32 axis, I32 discrete)
+{
+  LOG_DEBUG("Discrete\n");
+}
+
+func void
+_PointerHandleAxisValue120(void* data, wl_pointer* pointer, U32 axis, I32 value120)
+{
+  LOG_DEBUG("Value 120: %d\n", value120);
+}
+
+func void
+_PointerHandleAxisRelativeDirection(void* data, wl_pointer* pointer, U32 axis, U32 direction)
+{
+}
+
 struct wl_pointer_listener _pointer_listener = {
-  .enter = _PointerHandleEnter,
-  .leave = _PointerHandleLeave,
-  .motion = _PointerHandleMotion,
-  .button = _PointerHandleButton,
-  .axis = _PointerHandleAxis,
-  .frame = _PointerHandleFrame,
+  .enter         = _PointerHandleEnter,
+  .leave         = _PointerHandleLeave,
+  .motion        = _PointerHandleMotion,
+  .button        = _PointerHandleButton,
+  .axis          = _PointerHandleAxis,
+  .frame         = _PointerHandleFrame,
+  .axis_source   = _PointerHandleAxisSource,
+  .axis_stop     = _PointerHandleAxisStop,
+  .axis_discrete = _PointerHandleAxisDiscrete,
+  .axis_value120 = _PointerHandleAxisValue120,
+  .axis_relative_direction = _PointerHandleAxisRelativeDirection,
 };
 
 func void
@@ -449,6 +487,12 @@ OS_MousePosition(OS_Window window)
   return window.cursor_position;
 }
 
+func Vec2F32
+OS_MouseScroll()
+{
+  return _os_state.mouse.scroll;
+}
+
 func void
 _LockedPointerHandleLocked(void* data, zwp_locked_pointer_v1* pointer)
 {
@@ -551,12 +595,15 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 		}
 	}
 
+  _os_state.mouse = (OS_Mouse){0};
+#if 0
   for (I32 i = 0; i < OS_MouseButton_Count; i += 1)
   {
     OS_MouseButtonState* button = _os_state.mouse.buttons + i;
     button->pressed = 0;
     button->released = 0;
   }
+#endif
 
   for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next)
   {
@@ -564,6 +611,10 @@ OS_GetEventList(Arena* arena, OS_Window* window)
     if (event->type == OS_EVENT_TYPE_MOUSE_MOVE)
     {
       window->cursor_position = event->mouse_position;
+    }
+    else if (event->type == OS_EVENT_TYPE_MOUSE_SCROLL)
+    {
+      _os_state.mouse.scroll = ScaleVec2F32(event->mouse_scroll, 1.0f/WL_DEFAULT_UNITS_PER_SCROLL_TICK);
     }
     else
     {

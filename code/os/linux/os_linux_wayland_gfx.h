@@ -14,6 +14,9 @@
 #include "third_party/wayland/pointer_constraints_unstable_v1.h"
 #include "third_party/wayland/pointer_constraints_unstable_v1.cpp"
 
+// -- Hyprland uses 10 by default
+#define WL_DEFAULT_UNITS_PER_SCROLL_TICK 10
+
 typedef struct wl_display wl_display;
 typedef struct wl_registry wl_registry;
 typedef struct wl_compositor wl_compositor;

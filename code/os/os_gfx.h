@@ -147,6 +147,7 @@ typedef struct OS_Mouse OS_Mouse;
 struct OS_Mouse
 {
   Vec2F32 position;
+  Vec2F32 scroll;
   OS_MouseButtonState buttons[OS_MouseButton_Count];
 };
 
@@ -164,6 +165,7 @@ typedef enum OS_EventTypeEnum
     OS_EVENT_TYPE_MOUSE_PRESS,
     OS_EVENT_TYPE_MOUSE_ENTER,
     OS_EVENT_TYPE_MOUSE_LEAVE,
+    OS_EVENT_TYPE_MOUSE_SCROLL,
     OS_EVENT_TYPE_KEYBOARD,
 
     OS_EVENT_TYPE_COUNT
@@ -176,6 +178,7 @@ struct OS_Event
 
     Vec2U32 window_size;
     Vec2F32 mouse_position;
+    Vec2F32 mouse_scroll;
     OS_KeyCode key;
     OS_MouseButtonCode mouse_button;
     B32 pressed;
@@ -209,6 +212,7 @@ func F32 OS_GetMonitorHZ(void);
 
 func U64 OS_GetTimeTicks(void);
 func Vec2F32 OS_MousePosition(OS_Window window);
+func Vec2F32 OS_MouseScroll();
 
 func void OS_ChangeKeyState(OS_KeyCode key_code, OS_KeyState state)
 {
