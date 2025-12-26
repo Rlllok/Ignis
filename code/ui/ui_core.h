@@ -118,6 +118,7 @@ struct UI_LayoutDescription
   F32 child_gap;
   UI_LayoutDirection direction;
   B32 clip;
+  Vec2I32 scroll_offset;
 };
 
 typedef struct UI_RectangleDescription UI_RectangleDescription;
@@ -160,13 +161,23 @@ struct UI_ElementDescription
   };
 };
 
+typedef struct UI_ScrollOffset UI_ScrollOffset;
+struct UI_ScrollOffset
+{
+  UI_ID element_id;
+  Vec2I32 offset;
+};
+UI_ScrollOffset _scroll_offset_nil = {0};
+DefineArray(UI_ScrollOffset, UI_ScrollOffsetArray, _scroll_offset_nil)
+
 typedef struct UI_Element UI_Element;
 struct UI_Element
 {
   UI_ID id;
   UI_ElementDescription description;
 
-  UI_ID clip_element_id; // --AlNov 23 December 2025: @TEST
+  // --AlNov 23 December 2025: @TEST
+  UI_ID   clip_element_id;
 
   struct
   {
@@ -231,6 +242,7 @@ struct UI_Context
   UI_ID hot_id;
   UI_ID active_id;
   Vec2 mouse_position;
+  Vec2F32 mouse_scroll;
 
   UI_ElementArray elements;
 
@@ -242,7 +254,9 @@ struct UI_Context
   UI_IDArray children_formation_buffer;
 
   UI_IDArray traversal_stack;
-  B32Array   visited_lookup;
+  B32Array visited_lookup;
+
+  UI_ScrollOffsetArray scroll_offsets;
 
   UI_DrawCommandArray draw_commands;
 } ui_context; // -- AlNov. 12 December 2025: @TODO Multiole contexts?
@@ -254,7 +268,7 @@ func void UI_Init(Arena* arena, U32 max_elements_count);
 func void UI_CalculateSizes(B32 is_width);
 func void UI_CalculatePositions();
 
-func void UI_BeginFrame(Vec2 mouse_position);
+func void UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll);
 func void UI_EndFrame();
 
 // -------------------------------------------------------------------
@@ -263,6 +277,8 @@ func UI_Element* UI_GetOpenedElement();
 
 func UI_ID   UI_GetID()                {return UI_GetOpenedElement()->id;}
 func RectF32 UI_GetRectangle(UI_ID id) {return UI_ElementArrayGet(&ui_context.elements, id).rect;}
+
+func Vec2I32 UI_GetScrollOffset();
 
 // --AlNov 20 December 2025:
 // Separate Open and Configure to be able to use UI_Hovered, UI_GetRectangle, etc in UI_ElementBlock.

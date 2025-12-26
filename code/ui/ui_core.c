@@ -36,6 +36,8 @@ UI_Init(Arena* arena, U32 max_elements_count)
   ui_context.traversal_stack = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.visited_lookup = B32ArrayAllocate(arena, max_elements_count);
   ui_context.visited_lookup.length = ui_context.visited_lookup.capacity;
+
+  ui_context.scroll_offsets = UI_ScrollOffsetArrayAllocate(arena, 64);
 }
 
 // -------------------------------------------------------------------
@@ -69,8 +71,8 @@ UI_CalculateSizes(B32 is_width)
 func void
 UI_CalculatePositions()
 {
-  // for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
-  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
+  for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
+  // for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
     UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
@@ -101,9 +103,10 @@ UI_CalculatePositions()
 }
 
 func void
-UI_BeginFrame(Vec2 mouse_position)
+UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll)
 {
   ui_context.mouse_position = mouse_position;
+  ui_context.mouse_scroll = mouse_scroll;
   ui_context.hot_id = 0;
 
   for (I32 i = 0; i < ui_context.children.length; i += 1)
@@ -120,6 +123,16 @@ UI_BeginFrame(Vec2 mouse_position)
       ui_context.hot_id = element_id;
       break;
     }
+  }
+
+  for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
+  {
+    UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
+    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, scroll_offset->element_id);
+    
+    scroll_offset->offset = AddVec2I32(scroll_offset->offset, Vec2IFromVec2F32(mouse_scroll));
+    scroll_offset->offset.y = Max(Min(0, element->rect.h - element->child_position_offset.y), Min(0, scroll_offset->offset.y));
+    LOG_DEBUG("ScrollOffset: %dx, %dy\n", scroll_offset->offset.x, scroll_offset->offset.y);
   }
 
   UI_ElementArrayReset(&ui_context.elements);
@@ -146,8 +159,6 @@ func void UI_EndFrame()
   UI_CalculateSizes(0);
   UI_CalculateSizes(1);
 
-  // --AlNov 17 December 2025:
-  // Calculate positions.
   #if 0
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
@@ -163,13 +174,9 @@ func void UI_EndFrame()
   }
   #endif
 
-  // UI_CalculatePositions();
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
     UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
-    // LOG_DEBUG("BranchName: %s\n", branch->description.name);
-
-    // UI_IDArrayAdd(&ui_context.final_elements, branch->id);
 
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
@@ -180,24 +187,32 @@ func void UI_EndFrame()
       child_element->rect.x += branch->description.layout.padding.left;
       child_element->rect.y += branch->description.layout.padding.top;
 
+      for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
+      {
+        UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
+        if (scroll_offset->element_id == branch->id)
+        {
+          I32 offset = scroll_offset->offset.y;
+          child_element->rect.y += offset;
+        }
+      }
+
       switch (branch->description.layout.direction)
       {
         case UI_LayoutDirection_TopToBottom:
         {
-          child_element->rect.y = branch->rect.y + branch->child_position_offset.y;
+          child_element->rect.y += branch->child_position_offset.y;
           branch->child_position_offset.y += child_element->rect.h;
         } break;
 
         case UI_LayoutDirection_LeftToRight:
         {
-          child_element->rect.x = branch->rect.position.x + branch->child_position_offset.x;
+          child_element->rect.x += branch->child_position_offset.x;
           branch->child_position_offset.x += child_element->rect.w;
         } break;
       }
     }
   }
-
-  // LOG_DEBUG("Being: \n");
 
   if (ui_context.children.length != 0)
   {
@@ -210,7 +225,6 @@ func void UI_EndFrame()
 
       if (!ui_context.visited_lookup.elements[current_id])
       {
-        // LOG_DEBUG("Open Element: %s\n", CFromStr8(current_element->description.name));
         ui_context.visited_lookup.elements[current_id] = 1;
 
         if (current_element->description.flags & UI_ElementFlag_DrawBackground)
@@ -246,7 +260,6 @@ func void UI_EndFrame()
         }
         if (current_element->description.layout.clip)
         {
-          // LOG_DEBUG("Begin Clip\n");
           UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
             .type = UI_DrawCommandType_ScissorBegin,
             .scissor = current_element->rect,
@@ -262,14 +275,11 @@ func void UI_EndFrame()
       {
         if (current_element->description.layout.clip)
         {
-          // LOG_DEBUG("End Clip\n");
           UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
             .type = UI_DrawCommandType_ScissorEnd,
           });
         }
-
         UI_IDArrayPop(&ui_context.traversal_stack);
-        // LOG_DEBUG("Close Element: %s\n", CFromStr8(current_element->description.name));
       }
     }
   }
@@ -282,6 +292,25 @@ UI_GetOpenedElement()
 {
   UI_ID opened_element_id = UI_IDArrayGet(&ui_context.open_elements_stack, ui_context.open_elements_stack.length - 1);
   return UI_ElementArrayGetPointer(&ui_context.elements, opened_element_id);
+}
+
+func Vec2I32
+UI_GetScrollOffset()
+{
+  Vec2I32 result = {0};
+  
+  UI_Element* element = UI_GetOpenedElement();
+  for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
+  {
+    UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
+    if (scroll_offset->element_id == element->id)
+    {
+      result = scroll_offset->offset;
+      break;
+    }
+  }
+
+  return result;
 }
 
 func void
@@ -316,6 +345,22 @@ UI_ConfigureElement(UI_ElementDescription description)
 
   if (element->description.layout.clip)
   {
+    UI_ScrollOffset* scroll_offset = 0;
+    for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
+    {
+      UI_ScrollOffset* found_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
+      if (found_offset->element_id == element->id)
+      {
+        scroll_offset = found_offset;
+        break;
+      }
+    }
+
+    if (!scroll_offset)
+    {
+      UI_ScrollOffsetArrayAdd(&ui_context.scroll_offsets, (UI_ScrollOffset){.element_id = element->id});
+    }
+
     UI_IDArrayAdd(&ui_context.clip_elements_stack, element->id);
   }
 }

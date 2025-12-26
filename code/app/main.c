@@ -632,7 +632,7 @@ I32 main(void)
     // UI
     UI_ID viewport_element_id = UI_ID_Nil;
 
-    DeferBlock(UI_BeginFrame(app_state.last_mouse_position), UI_EndFrame())
+    DeferBlock(UI_BeginFrame(app_state.last_mouse_position, OS_MouseScroll()), UI_EndFrame())
     {
       struct
       {
@@ -706,6 +706,35 @@ I32 main(void)
 
             UI_Text(Str8C(frame_time_cstring), default_text);
             UI_Text(Str8C("Scene"), title_text);
+
+            UI_ElementBlock({
+              .name = Str8C("Testing"),
+              .layout = {
+                .width = UI_PercentSize(1.0f),
+                .height = UI_PercentSize(0.5f),
+                .clip = 1,
+                .scroll_offset = UI_GetScrollOffset(),
+              }
+            })
+            {
+              for (I32 i = 0; i < 5; i += 1)
+              {
+                UI_ElementBlock({
+                  .name = Str8C("E"),
+                  .flags = UI_ElementFlag_DrawBackground,
+                  .layout = {
+                    .width = UI_PercentSize(1.0f),
+                    .height = UI_PixelSize(50.0f),
+                  },
+                  .rectangle = {
+                    .color = UI_Hovered() ? RGBAFromHex(0xa0cff0ff) : RGBAFromHex(0x0aa033ff),
+                  },
+                })
+                {
+                  UI_Text(Str8C("Clip Testing"), title_text);
+                }
+              }
+            }
           }
 
           UI_ElementBlock({
@@ -715,6 +744,7 @@ I32 main(void)
               .width = UI_PercentSize(1.0f),
               .height = UI_PercentSize(0.34f),
               .clip = 1,
+              .scroll_offset = UI_GetScrollOffset(),
             },
             .rectangle = {
               .color = RGBAFromHex(0xff0cf0ff),
@@ -722,7 +752,7 @@ I32 main(void)
           })
           {
             UI_Text(Str8C("Details"), title_text);
-            for (I32 i = 0; i < 15; i += 1)
+            for (I32 i = 0; i < 5; i += 1)
             {
               UI_ElementBlock({
                 .name = Str8C("E"),
