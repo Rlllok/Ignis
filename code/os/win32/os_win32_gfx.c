@@ -182,6 +182,12 @@ OS_MousePosition(OS_Window window)
   return MakeVec2F32((F32)mouse_point.x, (F32)mouse_point.y);
 }
 
+func Vec2F32
+OS_MouseScroll()
+{
+  return _os_state.mouse.scroll;
+}
+
 func B32
 OS_IsWindowClosed(void)
 {

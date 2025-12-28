@@ -4,6 +4,7 @@ func void
 Ignis_UI_Init(Arena* arena, U32 max_widgets_count, FontBitmap font)
 {
   _ignis_ui_state = (Ignis_UI_State){0};
+  _ignis_ui_state.font = font;
 
   UI_Init(arena, max_widgets_count);
   Ignis_UI_ApplyColors();
