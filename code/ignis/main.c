@@ -56,6 +56,9 @@ Init_Ignis()
   OS_Init(Megabytes(32));
   OS_CreateWindow(Str8C("Ignis"), MakeVec2U32(1280, 720), &_ignis_state.window);
   OS_ShowWindow(&_ignis_state.window);
+
+  Ignis_R_Init(R_RENDERER_TYPE_VK, &_ignis_state.window);
+  Ignis_UI_Init(_ignis_state.arena, 1024);
 }
 
 func void

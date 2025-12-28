@@ -23,7 +23,7 @@ struct Ignis_UI_State
   UI_TextDescription      title_text;
 } _ignis_ui_state;
 
-func void Ignis_UI_Init(Arena* arena, U32 max_widgets_count, FontBitmap font);
+func void Ignis_UI_Init(Arena* arena, U32 max_widgets_count);
 func void Ignis_UI_ApplyColors();
 
 // --AlNov 26 December 2025: @TODO pointer_position should be I32

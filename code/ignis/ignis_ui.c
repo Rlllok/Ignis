@@ -1,15 +1,44 @@
 #include "ignis_ui.h"
 
 func void
-Ignis_UI_Init(Arena* arena, U32 max_widgets_count, FontBitmap font)
+Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
 {
   _ignis_ui_state = (Ignis_UI_State){0};
-  _ignis_ui_state.font = font;
+
+#if 0
+  Str8 texture_path = Str8C("./data/fonts/RobotoMonoBitmap.png");
+  I32 tex_width = 0;
+  I32 tex_height = 0;
+  I32 tex_channels = 0;
+  U8* tex_pixels = stbi_load(CFromStr8(texture_path), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+
+  if (!tex_pixels)
+  {
+    LOG_ERROR("Cannot load texture %s\n", CFromStr8(texture_path));
+  }
+  I32 texture_size = tex_width * tex_height * 4;
+
+  app_state.font.bitmap = R_CreateTexture(
+    &(R_TextureCreateInfo){
+      .type = R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+      .width = tex_width,
+      .height = tex_height,
+      .depth = 1,
+      .num_levels = 1,
+    }
+  );
+  app_state.font.bitmap_size = MakeVec2U32(tex_width, tex_height);
+  app_state.font.glyph_size = MakeVec2U32(30, 30);
+  app_state.font.glyphs_per_row = 19;
+  U64 font_texture_offset = R_PushBuffer(data_buffer, tex_pixels, texture_size);
+  R_CopyBufferToTexture(0, data_buffer, font_texture_offset, texture_size, app_state.font.bitmap);
+  #endif
 
   UI_Init(arena, max_widgets_count);
   Ignis_UI_ApplyColors();
   
-  _ignis_ui_state.font = font;
   _ignis_ui_state.rectangle = (UI_RectangleDescription){
     .color  = _ignis_ui_state.colors.bg,
     .radius = {0.0f, 0.0f, 0.0f, 0.0f},
