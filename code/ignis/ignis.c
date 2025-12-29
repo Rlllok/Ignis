@@ -19,5 +19,10 @@ Ignis_CreateEntity(Ignis_Scene* scene, Ignis_Entity entity)
   entity.id = scene->entities.length;
   Ignis_EntityArrayAdd(&scene->entities, entity);
 
+  if (entity.type == Ignis_EntityType_Camera)
+  {
+    scene->camera_id = entity.id;
+  }
+
   return result;
 }

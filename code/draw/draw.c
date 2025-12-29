@@ -7,257 +7,278 @@ func void
 D_Init(U64 arena_size)
 {
   _d_state.arena = AllocateArena(arena_size);
+  D_PreparePipelines();
+}
 
-  // --AlNov: Create quad Vertex and Index Buffers
+func void
+D_PreparePipelines()
+{
+  // 3D Line Pipeline
   {
-    Vec2f vertecies[] = {
-      MakeVec2f(-1.0f, -1.0f),
-      MakeVec2f(+1.0f, -1.0f),
-      MakeVec2f(+1.0f, +1.0f),
-      MakeVec2f(-1.0f, +1.0f),
-    };
-    U16 indecies[] = {0, 1, 2, 2, 3, 0};
+    R_Shader line_vertex_shader = R_CreateShader(
+      _d_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/line3d.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 1,
+      }
+    );
 
-    _d_state.geometry = {};
-    _d_state.geometry.index_data = (U8*)PushCopyArena(_d_state.arena, sizeof(indecies), &indecies);
-    _d_state.geometry.index_size = sizeof(indecies[0]);
-    _d_state.geometry.index_count = CountArrayElements(indecies);
-    _d_state.geometry.vertex_data = (U8*)PushCopyArena(_d_state.arena, sizeof(vertecies), vertecies);
-    _d_state.geometry.vertex_size = sizeof(vertecies[0]);
-    _d_state.geometry.vertex_count = CountArrayElements(vertecies);
+    R_Shader line_fragment_shader = R_CreateShader(
+      _d_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/line3d.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+      }
+    );
+
+    _d_state.line_3d_pipeline = R_CreateGraphicsPipeline(
+      &(R_GraphicsPipelineCreateInfo){
+        .vertex_shader = line_vertex_shader,
+        .fragment_shader = line_fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
+          .format = R_GetSwapchainTextureFormat(),
+        },
+    });
   }
 
-#if 0
-  // --AlNov: Create SDF 2D Box pipeline
+  // Font Pipeline
   {
-    R_VertexAttributeFormat vertex_attributes[] = {
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+    R_Shader font_vertex_shader = R_CreateShader(
+      _d_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/font.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+      }
+    );
+
+    R_Shader font_fragment_shader = R_CreateShader(
+      _d_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/font.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .global_samplers_count = 1,
+      }
+    );
+
+    R_VertexAttribute font_vertex_attributes[] = {
+      {
+        .location = 0,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .offset = offsetof(TextVertex, position),
+      },
+      {
+        .location = 1,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .offset = offsetof(TextVertex, uv),
+      },
     };
-    R_PipelineAssignAttributes(
-        &_d_state.box_pipeline,
-        vertex_attributes,
-        CountArrayElements(vertex_attributes));
-
-    R_BindingInfo scene_bindings[] = 
-    {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
+    R_GraphicsPipelineColorTargetInfo font_pipeline_color_target = {
+      .format = R_GetSwapchainTextureFormat(),
+      .blend_enable = 1,
     };
-    R_PipelineAssignSceneBindingLayout(
-        &_d_state.box_pipeline, scene_bindings, CountArrayElements(scene_bindings));
-
-    R_H_LoadShader(
-        _d_state.arena, "data/shaders/sdf/sdf_vs.glsl",
-        "main", R_SHADER_TYPE_VERTEX,
-        &_d_state.box_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(
-        _d_state.arena, "data/shaders/sdf/sdf_box_fs.glsl",
-        "main", R_SHADER_TYPE_FRAGMENT,
-        &_d_state.box_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-
-    _d_state.box_pipeline.is_depth_test_enabled = false;
-
-    Renderer.CreatePipeline(&_d_state.box_pipeline);
+    R_GraphicsPipelineCreateInfo font_pipeline_info = {
+      .vertex_shader = font_vertex_shader,
+      .fragment_shader = font_fragment_shader,
+      .vertex_attributes_count = CountArrayElements(font_vertex_attributes),
+      .vertex_attributes = font_vertex_attributes,
+      .color_targets_count = 1,
+      .color_target_infos = &font_pipeline_color_target,
+      .depth_stencil_state = {
+        .depth_test_enable = 0,
+      },
+    };
+    _d_state.font_pipeline = R_CreateGraphicsPipeline(&font_pipeline_info);
   }
 
-  // --AlNov: Create SDF 2D Circle pipeline
+  // Square Pipeline
   {
-    R_VertexAttributeFormat vertex_attributes[] = {
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
+    R_Shader square_vertex_shader = R_CreateShader(
+      _d_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/square.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .global_uniforms_count = 1,
+        .instance_uniforms_count = 1,
+      }
+    );
+    R_Shader square_fragment_shader = R_CreateShader(
+      _d_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/square.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+        .global_uniforms_count = 0,
+        .instance_uniforms_count = 1,
+      }
+    );
+
+    R_GraphicsPipelineColorTargetInfo square_pipeline_color_target_infos[] = {
+      {
+        .format = R_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
+      },
     };
-    R_PipelineAssignAttributes(
-        &_d_state.circle_pipeline, vertex_attributes,
-        CountArrayElements(vertex_attributes));
 
-    R_BindingInfo scene_bindings[] = 
-    {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
+    R_GraphicsPipelineCreateInfo square_pipeline_info = {
+      .vertex_shader = square_vertex_shader,
+      .fragment_shader = square_fragment_shader,
+      .color_targets_count = CountArrayElements(square_pipeline_color_target_infos),
+      .color_target_infos = square_pipeline_color_target_infos,
     };
-    R_PipelineAssignSceneBindingLayout(&_d_state.circle_pipeline, scene_bindings, CountArrayElements(scene_bindings));
 
-    R_BindingInfo instance_bindings[] = 
-    {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX}
-    };
-    R_PipelineAssignInstanceBindingLayout(&_d_state.circle_pipeline, instance_bindings, CountArrayElements(instance_bindings));
-
-    R_H_LoadShader(
-        _d_state.arena, "data/shaders/sdf/sdf_vs.glsl",
-        "main", R_SHADER_TYPE_VERTEX,
-        &_d_state.circle_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(
-        _d_state.arena, "data/shaders/sdf/sdf_circle_fs.glsl",
-        "main", R_SHADER_TYPE_FRAGMENT,
-        &_d_state.circle_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-
-    _d_state.circle_pipeline.is_depth_test_enabled = false;
-
-    Renderer.CreatePipeline(&_d_state.circle_pipeline);
-  }
-#endif 
-  
-  // --AlNov: Bezier Curve Pipeline
-  {
-    R_VertexAttributeFormat attributes[] = {
-      R_VERTEX_ATTRIBUTE_FORMAT_VEC2F
-    };
-    R_PipelineAssignAttributes(&_d_state.bezier_pipeline, attributes, CountArrayElements(attributes));
-
-    R_BindingInfo global_bindings[] = {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
-    };
-		R_PipelineAssignGlobalBindingLayout(&_d_state.bezier_pipeline, global_bindings, CountArrayElements(global_bindings));
-
-    R_BindingInfo instance_bindings[] = {
-      {R_BINDING_TYPE_UNIFORM_BUFFER, R_SHADER_TYPE_VERTEX},
-    };
-    R_PipelineAssignInstanceBindingLayout(&_d_state.bezier_pipeline, instance_bindings, CountArrayElements(instance_bindings));
-
-    R_H_LoadShader(_d_state.arena, "data/shaders/square.vs.glsl",
-                   "main", R_SHADER_TYPE_VERTEX,
-                   &_d_state.bezier_pipeline.shaders[R_SHADER_TYPE_VERTEX]);
-    R_H_LoadShader(_d_state.arena, "data/shaders/bline.fs.glsl",
-                   "main", R_SHADER_TYPE_FRAGMENT,
-                   &_d_state.bezier_pipeline.shaders[R_SHADER_TYPE_FRAGMENT]);
-  
-    _d_state.bezier_pipeline.is_back_culing_enabled = false;
-    _d_state.bezier_pipeline.is_depth_test_enabled = false;
-    Renderer.CreatePipeline(&_d_state.bezier_pipeline);
+    _d_state.square_pipeline = R_CreateGraphicsPipeline(&square_pipeline_info);
   }
 }
 
 func void
-D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation)
+D_DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color)
 {
-	struct
-	{
-		alignas(4) F32 dt;
-	} global_data;
-	global_data.dt = 0.5f;
-
+  R_BindGraphicsPipeline(command_buffer, _d_state.square_pipeline);
   struct
   {
-    alignas(16) Mat4x4f projection;
-    alignas(4)  F32 rotation;
-    alignas(8)  Vec2f translate;
-    alignas(8)  Vec2f size;
-    alignas(16) Vec3f color;
-  } u_data;
-  u_data.projection = MakeOrthographic4x4f(
-      0.0f, window->size.x, 0.0f, window->size.y, 0.0f, 1.0f
-      );
-  u_data.rotation = rotation;
-  u_data.translate.x = rectangle.position.x;
-  u_data.translate.y = rectangle.position.y;
-  u_data.size.x = rectangle.size.x;
-  u_data.size.y = rectangle.size.y;
-  u_data.color = color;
-
-  R_DrawGeometryInfo draw_info = {};
-  draw_info.pipeline = &_d_state.box_pipeline;
-  draw_info.geometry = &_d_state.geometry;
-  draw_info.instance_data = (U8*)&u_data;
-  draw_info.instance_data_size = sizeof(u_data);
-  
-  RectI viewport = {};
-  viewport.x = 0;
-  viewport.y = 0;
-  viewport.w = window->size.x;
-  viewport.h = window->size.y;
-  draw_info.viewport = viewport;
-
-  // --AlNov: @TODO @NOTE There is "magic" with max size because of how sdf rendere.
-  //          It uses scissor, so there is problem when box rotate, as we should
-  //          change scissor area to fit box in it.
-  F32 max_size = Max(rectangle.w, rectangle.h);
-  RectI scissor = {};
-  scissor.position.x = Max(0, rectangle.position.x - max_size/2.0f);
-  scissor.position.y = Max(0, rectangle.position.y - max_size/2.0f);
-  scissor.size = MakeVec2I(max_size*2.0f, max_size*2.0f);
-  draw_info.scissor = scissor;
-
-  Renderer.BindPipeline(draw_info.pipeline, (U8*)&global_data, sizeof(global_data));
-  Renderer.PrepareGeometry(&_d_state.geometry);
-  Renderer.DrawGeometry(&draw_info);
-}
-
-func void
-D_DrawCircle(Vec2I position, I32 radius, Vec3f color)
-{
-  struct
-  {
-    alignas(16) Mat4x4f projection;
-  } scene_data;
-  scene_data.projection = MakeOrthographic4x4f(
-    0.0f, 1280.0f, 0.0f, 720.0f, 0.0f, 1.0f
+    Mat4 projection;
+  } square_global_vertex_data;
+  square_global_vertex_data.projection = MakeOrthographicMat4(
+    viewport.x, viewport.w,
+    viewport.y, viewport.h,
+    -1.0f, 1.0f
   );
+  U64 square_global_vertex_data_offset = R_PushBuffer(buffer, (U8*)&square_global_vertex_data, sizeof(square_global_vertex_data));
+  R_UniformBufferBindingInfo square_vertex_shader_global_uniform = {
+    .buffer = buffer,
+    .offset = square_global_vertex_data_offset,
+    .size = sizeof(square_global_vertex_data),
+  };
+  R_BindGlobalVertexShaderData(command_buffer, 1, &square_vertex_shader_global_uniform, 0, 0);
 
   struct
   {
-    alignas(4)  F32   rotation;
-    alignas(8)  Vec2f translate;
-    alignas(8)  Vec2f size;
-    alignas(16) Vec3f color;
-  } draw_vs_data;
-  draw_vs_data.rotation = 0.0f;
-  draw_vs_data.translate = Vec2FFromVec(position);
-  draw_vs_data.size = MakeVec2f(radius, radius);
-  draw_vs_data.color = color;
-
-  RectI viewport = {
-    .x = 0,
-    .y = 0,
-    .w = 1280,
-    .h = 720
+    Vec2 position;
+    Vec2 size;
+  } square_instance_vertex_data;
+  square_instance_vertex_data.position = rect.position;
+  square_instance_vertex_data.size = rect.size;
+  U64 square_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&square_instance_vertex_data, sizeof(square_instance_vertex_data));
+  R_UniformBufferBindingInfo square_vertex_shader_instance_uniform = {
+    .buffer = buffer,
+    .offset = square_instance_vertex_data_offset,
+    .size = sizeof(square_instance_vertex_data),
   };
+  R_BindInstanceVertexShaderData(command_buffer, 1, &square_vertex_shader_instance_uniform, 0, 0);
 
-  RectI scissor = {
-    .position.x = Max(0, position.x - radius),
-    .position.y = Max(0, position.y - radius),
-    .size = MakeVec2I(radius*2.0f, radius*2.0f)
+  struct
+  {
+    Vec4F32 color;
+    Vec4F32 border_color;
+    Vec4F32 border_radius;
+  } square_instance_fragment_data;
+  square_instance_fragment_data.color = color;
+  square_instance_fragment_data.border_color = border_color;
+  square_instance_fragment_data.border_radius = border_radius;
+  U64 square_instance_fragment_shader_data_offset = R_PushBuffer(buffer, (U8*)&square_instance_fragment_data, sizeof(square_instance_fragment_data));
+  R_UniformBufferBindingInfo square_fragment_shader_instance_uniform = {
+    .buffer = buffer,
+    .offset = square_instance_fragment_shader_data_offset,
+    .size = sizeof(square_instance_fragment_data),
   };
+  R_BindInstanceFragmentShaderData(command_buffer, 1, &square_fragment_shader_instance_uniform, 0, 0);
 
-  R_DrawGeometryInfo draw_info = {};
-  draw_info.pipeline = &_d_state.circle_pipeline;
-  draw_info.geometry = &_d_state.geometry;
-  draw_info.viewport = viewport;
-  draw_info.scissor = scissor;
+  R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 
-  Renderer.DrawGeometry(&draw_info);
 }
 
 func void
-D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color)
+D_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, R_TextureSampler sampler, RectI32 viewport, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
 {
-	struct
-	{
-		alignas(4) F32 dt = 0.3f;
-	} global_data;
-  
+  TextVertex vertecies[1028] = {0};
+  U32 vertecies_count = 0;
+  U16 indecies[1028] = {0};
+  U32 indecies_count = 0;
+
+  I32 line_count = 0;
+  I32 symbols_on_line = 0;
+
+  for (I32 i = 0; i < text.length; i += 1)
+  {
+    if (text.data[i] == '\n')
+    {
+      line_count += 1;
+      symbols_on_line = 0;
+      continue;
+    }
+
+    I32 glyph_id = text.data[i] - '!' + 1;
+    
+    Vec2 glyph_position = AddVec2(position, MakeVec2(symbols_on_line*(F32)font_size*0.5f, line_count*font_size*0.7f));
+    Vec2 glyph_grid_xy = MakeVec2(glyph_id%font.glyphs_per_row, glyph_id/font.glyphs_per_row);
+    Vec2 glyph_uv_size = DivVec2(MakeVec2(font.glyph_size.x, font.glyph_size.y), MakeVec2(font.bitmap_size.x, font.bitmap_size.y));
+    
+    vertecies[vertecies_count].position = glyph_position;;
+    vertecies[vertecies_count].uv = MulVec2(glyph_grid_xy, glyph_uv_size);
+    vertecies_count += 1;
+    vertecies[vertecies_count].position = AddVec2(glyph_position, MakeVec2(font_size, 0.0f));
+    vertecies[vertecies_count].uv = AddVec2(MulVec2(glyph_grid_xy, glyph_uv_size), MakeVec2(glyph_uv_size.x, 0.0f));
+    vertecies_count += 1;
+    vertecies[vertecies_count].position = AddVec2(glyph_position, MakeVec2(font_size, font_size));
+    vertecies[vertecies_count].uv = AddVec2(MulVec2(glyph_grid_xy, glyph_uv_size), glyph_uv_size);
+    vertecies_count += 1;
+    vertecies[vertecies_count].position = AddVec2(glyph_position, MakeVec2(0.0f, font_size));
+    vertecies[vertecies_count].uv = AddVec2(MulVec2(glyph_grid_xy, glyph_uv_size), MakeVec2(0.0f, glyph_uv_size.y));
+    vertecies_count += 1;
+
+    U16 offset = i*4;
+    indecies[indecies_count] = 0 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 2 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 1 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 2 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 0 + offset;
+    indecies_count += 1;
+    indecies[indecies_count] = 3 + offset;
+    indecies_count += 1;
+
+    symbols_on_line += 1;
+  }
+  U64 vertex_buffer_offset = R_PushBuffer(buffer, (U8*)vertecies, sizeof(vertecies[0])*vertecies_count);
+  U64 index_buffer_offset = R_PushBuffer(buffer, (U8*)indecies, sizeof(indecies[0])*indecies_count);
+
+  R_BindGraphicsPipeline(command_buffer, _d_state.font_pipeline);
+
   struct
   {
-    alignas(16) Vec3f color;
-    alignas(8) Vec2f p0;
-    alignas(8) Vec2f p1;
-    alignas(8) Vec2f c0;
-  } u_data;
-  u_data.color = color;
-  u_data.p0 = Vec2fFromVec(p0);
-  u_data.p1 = Vec2fFromVec(p1);
-  u_data.c0 = Vec2fFromVec(c0);
-
-  R_DrawGeometryInfo draw_info = {
-    .pipeline = &_d_state.bezier_pipeline,
-    .viewport.x = 0,
-    .viewport.y = 0,
-    .viewport.w = 1280,
-    .viewport.h = 720,
-    .geometry = &_d_state.geometry,
-    .instance_data = (U8*)&u_data,
-    .instance_data_size = sizeof(u_data)
+    Mat4 projection;
+    Vec4 text_color;
+  } font_vertex_shader_global_uniform_data;
+  font_vertex_shader_global_uniform_data.projection = MakeOrthographicMat4(
+    viewport.x, viewport.w,
+    viewport.y, viewport.h,
+    -1.0f, 1.0f
+  );
+  font_vertex_shader_global_uniform_data.text_color = color;
+  U64 font_vertex_shader_global_uniform_data_offset = R_PushBuffer(buffer, (U8*)&font_vertex_shader_global_uniform_data, sizeof(font_vertex_shader_global_uniform_data));
+  R_UniformBufferBindingInfo font_vertex_shader_global_uniform = 
+  {
+    .buffer = buffer,
+    .offset = font_vertex_shader_global_uniform_data_offset,
+    .size = sizeof(font_vertex_shader_global_uniform_data),
   };
-  draw_info.scissor = draw_info.viewport;
-  
-  Renderer.BindPipeline(draw_info.pipeline, (U8*)&global_data, sizeof(global_data));
-  Renderer.PrepareGeometry(&_d_state.geometry);
-  Renderer.DrawGeometry(&draw_info);
+  R_BindGlobalVertexShaderData(command_buffer, 1, &font_vertex_shader_global_uniform, 0, 0);
+
+  R_SamplerBindingInfo font_sampler_binding = {
+    .sampler = sampler,
+    .texture = font.bitmap,
+  };
+  R_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1, &font_sampler_binding);
+
+  R_BindVertexBuffer(command_buffer, buffer, vertex_buffer_offset);
+  R_BindIndexBuffer(command_buffer, buffer, index_buffer_offset, R_INDEX_SIZE_U16);
+  // R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+  R_DrawIndexedPrimitives(command_buffer, indecies_count, 1, 0, 0, 0);
+
 }

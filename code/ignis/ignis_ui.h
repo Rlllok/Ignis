@@ -27,14 +27,14 @@ func void Ignis_UI_Init(Arena* arena, U32 max_widgets_count);
 func void Ignis_UI_ApplyColors();
 
 // --AlNov 26 December 2025: @TODO pointer_position should be I32
-func void Ignis_UI_Configure(Vec2I32 context_size, Vec2F32 pointer_position, F32 dt);
-func void Ignis_UI_Draw();
+func void                Ignis_UI_Configure      (Ignis_Scene* scene, Vec2I32 context_size, Vec2F32 pointer_position, F32 dt);
+func UI_DrawCommandArray Ignis_UI_GetDrawCommands();
 
 // -------------------------------------------------------------------
 // -- Ignis UI Components --------------------------------------------
 func void Ignis_UI_Text(Str8 str);
 func void Ignis_UI_Title(Str8 str);
 
-func void Ignis_UI_SideBar();
-func void Ignis_UI_SceneDetails();
+func void Ignis_UI_SideBar(Ignis_Scene* scene);
+func void Ignis_UI_SceneDetails(Ignis_Scene* scene);
 func void Ignis_UI_EntityDetails();

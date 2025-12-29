@@ -7,6 +7,7 @@ func void
 Ignis_R_Init(R_RendererType type, OS_Window* window)
 {
   R_Init(type, window);
+  D_Init(Megabytes(16));
 
   R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX|R_BUFFER_USAGE_FLAG_UNIFORM;
 
@@ -14,6 +15,7 @@ Ignis_R_Init(R_RendererType type, OS_Window* window)
   _ignis_r_state.window          = window;
   _ignis_r_state.data_buffer     = R_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
   _ignis_r_state.transfer_buffer = R_CreateBuffer(Megabytes(128), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
+  _ignis_r_state.command_buffer  = R_GetCommandBuffer();
 
   Ignis_R_PreparePipelines();
   Ignis_R_PrepareTextures();
@@ -95,136 +97,6 @@ Ignis_R_PreparePipelines()
     );
   }
 
-  // 3D Line Pipeline
-  {
-    R_Shader line_vertex_shader = R_CreateShader(
-      _ignis_r_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/line3d.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 1,
-      }
-    );
-
-    R_Shader line_fragment_shader = R_CreateShader(
-      _ignis_r_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/line3d.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-      }
-    );
-
-    _ignis_r_state.line_3d_pipeline = R_CreateGraphicsPipeline(
-      &(R_GraphicsPipelineCreateInfo){
-        .vertex_shader = line_vertex_shader,
-        .fragment_shader = line_fragment_shader,
-        .color_targets_count = 1,
-        .color_target_infos = &(R_GraphicsPipelineColorTargetInfo){
-          .format = R_GetSwapchainTextureFormat(),
-        },
-        .depth_stencil_state = {
-          .depth_test_enable = 0,
-          .depth_write_enable = 0,
-          .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-          .depth_target_format = R_GetTextureFormat(_ignis_r_state.depth_texture),
-        },
-      }
-    );
-  }
-
-  // Font Pipeline
-  {
-    R_Shader font_vertex_shader = R_CreateShader(
-      _ignis_r_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/font.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-      }
-    );
-
-    R_Shader font_fragment_shader = R_CreateShader(
-      _ignis_r_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/font.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-        .global_samplers_count = 1,
-      }
-    );
-
-    R_VertexAttribute font_vertex_attributes[] = {
-      {
-        .location = 0,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = offsetof(TextVertex, position),
-      },
-      {
-        .location = 1,
-        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
-        .offset = offsetof(TextVertex, uv),
-      },
-    };
-    R_GraphicsPipelineColorTargetInfo font_pipeline_color_target = {
-      .format = R_GetSwapchainTextureFormat(),
-      .blend_enable = 1,
-    };
-    R_GraphicsPipelineCreateInfo font_pipeline_info = {
-      .vertex_shader = font_vertex_shader,
-      .fragment_shader = font_fragment_shader,
-      .vertex_attributes_count = CountArrayElements(font_vertex_attributes),
-      .vertex_attributes = font_vertex_attributes,
-      .color_targets_count = 1,
-      .color_target_infos = &font_pipeline_color_target,
-      .depth_stencil_state = {
-        .depth_test_enable = 0,
-      },
-    };
-    _ignis_r_state.font_pipeline = R_CreateGraphicsPipeline(&font_pipeline_info);
-  }
-
-  // Square Pipeline
-  {
-    R_Shader square_vertex_shader = R_CreateShader(
-      _ignis_r_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/square.vs.glsl"),
-        .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
-        .instance_uniforms_count = 1,
-      }
-    );
-    R_Shader square_fragment_shader = R_CreateShader(
-      _ignis_r_state.arena,
-      &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/square.fs.glsl"),
-        .type = R_SHADER_TYPE_FRAGMENT,
-        .global_uniforms_count = 0,
-        .instance_uniforms_count = 1,
-      }
-    );
-
-    R_GraphicsPipelineColorTargetInfo square_pipeline_color_target_infos[] = {
-      {
-        .format = R_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      },
-    };
-
-    R_GraphicsPipelineCreateInfo square_pipeline_info = {
-      .vertex_shader = square_vertex_shader,
-      .fragment_shader = square_fragment_shader,
-      .color_targets_count = CountArrayElements(square_pipeline_color_target_infos),
-      .color_target_infos = square_pipeline_color_target_infos,
-      .depth_stencil_state = {
-        .depth_test_enable = 0,
-        .depth_write_enable = 0,
-        .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
-        .depth_target_format = R_GetTextureFormat(_ignis_r_state.depth_texture),
-      },
-    };
-    _ignis_r_state.square_pipeline = R_CreateGraphicsPipeline(&square_pipeline_info);
-  }
 
   // Mesh Pipeline
   {
@@ -352,5 +224,206 @@ Ignis_R_PrepareTextures()
       .num_levels = 1,
     }
   );
-  
+}
+
+func void
+Ignis_R_Resize(Vec2I32 size)
+{
+  if (size.x != 0 && size.y != 0)
+  {
+    R_VK_HandleResize(_ignis_r_state.window);
+  }
+}
+
+// -------------------------------------------------------------------
+// -- Render ---------------------------------------------------------
+func void
+Ignis_R_BeginFrame()
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+
+  R_ResetBuffer(_ignis_r_state.data_buffer);
+  R_ResetBuffer(_ignis_r_state.transfer_buffer);
+
+  _ignis_r_state.swapchain = R_AcquireSwapchainTexture(_ignis_r_state.command_buffer);
+  R_BeginCommandBuffer(command_buffer);
+}
+
+func void
+Ignis_R_EndFrame()
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+  R_Texture swapchain_texture = _ignis_r_state.swapchain;
+
+  R_SubmitCommandBuffer(command_buffer);
+  R_PresentTexture(command_buffer, swapchain_texture);
+}
+
+func void
+Ignis_R_RenderScene(Ignis_Scene* scene)
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+  R_Texture swapchain_texture = _ignis_r_state.swapchain;
+  {
+    RectI32 viewport = {
+      .x = 0,
+      .y = 0,
+      .w = (I32)_ignis_r_state.window->size.x,
+      .h = (I32)_ignis_r_state.window->size.y,
+    };
+    RectI32 scissor = viewport;
+    R_SetViewport(command_buffer, viewport);
+    R_SetScissor(command_buffer, scissor);
+
+    R_ColorTarget color_target = {
+      .texture = swapchain_texture,
+      .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+      .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+      .clear_color = RGBAFromHex(0x1A1D26FF),
+    };
+
+    R_DepthStencilTarget depth_target = {
+      .texture = _ignis_r_state.depth_texture,
+      .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+      .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+    };
+
+    R_BeginRenderPass(command_buffer, 1, &color_target, 0);
+    {
+      Ignis_R_RenderGrid(scene, color_target, depth_target);
+    }
+    R_EndRenderPass(command_buffer, 0);
+  }
+}
+
+func void
+Ignis_R_RenderUI(UI_DrawCommandArray commands)
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+  R_Texture swapchain_texture = _ignis_r_state.swapchain;
+  R_Buffer data_buffer = _ignis_r_state.data_buffer;
+
+  RectI32 viewport = {
+    .x = 0,
+    .y = 0,
+    .w = _ignis_r_state.window->size.w,
+    .h = _ignis_r_state.window->size.h,
+  };
+  RectI32 scissor = viewport;
+  R_SetViewport(command_buffer, viewport);
+  R_SetScissor(command_buffer, scissor);
+
+  R_ColorTarget color_target = {
+    .texture = swapchain_texture,
+    .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+    .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+  };
+
+  R_BeginRenderPass(command_buffer, 1, &color_target, 0);
+  {
+    for (I32 i = 0; i < commands.length; i += 1)
+    {
+      UI_DrawCommand* command = UI_DrawCommandArrayGetPointer(&commands, i);
+
+      switch (command->type)
+      {
+        defaul: {}break;
+
+        case UI_DrawCommandType_Rectangle:
+        {
+          D_DrawRect(command_buffer, data_buffer, viewport, command->rectangle.bound, command->rectangle.radius, command->rectangle.color, command->rectangle.border_color);
+        } break;
+
+        case UI_DrawCommandType_Text:
+        {
+          D_DrawText(command_buffer, data_buffer, _ignis_r_state.texture_sampler, viewport, command->text.font, command->text.content, command->text.font_size, command->text.position, command->text.color);
+        } break;
+
+        // --AlNov 24 December 2025: @TODO
+        // Doesn't save previous scissor rectangle, so it is lost.
+        case UI_DrawCommandType_ScissorBegin:
+        {
+          R_SetScissor(command_buffer, (RectI32){
+            .x = (I32)command->scissor.bound.x,
+            .y = (I32)command->scissor.bound.y,
+            .w = (I32)command->scissor.bound.w,
+            .h = (I32)command->scissor.bound.h,
+          });
+        } break;
+
+        case UI_DrawCommandType_ScissorEnd:
+        {
+          R_SetScissor(command_buffer, (RectI32){
+            .x = 0,
+            .y = 0,
+            .w = (I32)_ignis_r_state.window->size.w,
+            .h = (I32)_ignis_r_state.window->size.h,
+          });
+        } break;
+      }
+    }
+  }
+  R_EndRenderPass(command_buffer, 0);
+}
+
+func void
+Ignis_R_RenderGrid(Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget depth)
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+  R_Buffer data_buffer = _ignis_r_state.data_buffer;
+  Ignis_Entity* camera = Ignis_GetCamera(scene);
+
+  struct
+  {
+    Mat4 view_matrix;
+    Mat4 projection_matrix;
+  } grid_global_vertex_data;
+  grid_global_vertex_data.view_matrix = MakeLookAtMat4(
+    camera->transform.translation,
+    AddVec3(camera->transform.translation, camera->camera.front),
+    camera->camera.up
+  );
+  grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
+    45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
+    0.1f, 100.0f
+  );
+  struct
+  {
+    Vec3 position;
+    F32 grid_scale;
+  } grid_instance_vertex_data;
+  grid_instance_vertex_data.position = MakeVec3(camera->transform.translation.x, 0.0f, camera->transform.translation.z);
+  grid_instance_vertex_data.grid_scale = 2000.0f;
+
+  struct
+  {
+    Vec4 color;
+  } grid_global_fragment_data;
+  grid_global_fragment_data.color = RGBAFromHex(0x95B8D1AA);
+
+  U64 grid_global_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_vertex_data, sizeof(grid_global_vertex_data));
+  U64 grid_instance_vertex_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_instance_vertex_data, sizeof(grid_instance_vertex_data));
+  U64 grid_global_fragment_data_offset = R_PushBuffer(data_buffer, (U8*)&grid_global_fragment_data, sizeof(grid_global_fragment_data));
+
+  R_UniformBufferBindingInfo grid_vertex_shader_global_uniform = {
+    .buffer = data_buffer,
+    .offset = grid_global_vertex_data_offset,
+    .size = sizeof(grid_global_vertex_data),
+  };
+  R_UniformBufferBindingInfo grid_vertex_shader_instance_uniform = {
+    .buffer = data_buffer,
+    .offset = grid_instance_vertex_data_offset,
+    .size = sizeof(grid_instance_vertex_data),
+  };
+  R_UniformBufferBindingInfo grid_fragment_shader_global_uniform = {
+    .buffer = data_buffer,
+    .offset = grid_global_fragment_data_offset,
+    .size = sizeof(grid_global_fragment_data),
+  };
+
+  R_BindGraphicsPipeline(command_buffer, _ignis_r_state.grid_pipeline);
+  R_BindGlobalVertexShaderData(command_buffer, 1, &grid_vertex_shader_global_uniform, 0, 0);
+  R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
+  R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
+  R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 }

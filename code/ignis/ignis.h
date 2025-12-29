@@ -41,7 +41,7 @@ struct Ignis_Entity
       Vec3F32 up;
       F32     yaw;
       F32     pitch;
-    };
+    } camera;
   };
 };
 Ignis_Entity _ignis_entity_nil = {0};

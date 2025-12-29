@@ -7,18 +7,16 @@ struct D_State
 {
   Arena* arena;
 
-  R_Pipeline box_pipeline;
-  R_Pipeline circle_pipeline;
-  R_Pipeline bezier_pipeline;
+  // -- 2D
+  R_GraphicsPipeline square_pipeline;
+  R_GraphicsPipeline font_pipeline;
 
-  R_VertexBuffer quad_vertex_buffer = {};
-  R_IndexBuffer  quad_index_buffer = {};
-
-  AST_Geometry geometry;
+  // -- 3D
+  R_GraphicsPipeline line_3d_pipeline;
 } _d_state;
 
-func void D_Init(Arena* arena);
+func void D_Init(U64 arena_size);
+func void D_PreparePipelines();
 
-func void D_DrawRectangle(OS_Window* window, RectI rectangle, Vec3f color, F32 rotation);
-func void D_DrawCircle(Vec2I position, I32 radius, Vec3f color);
-func void D_DrawBezier(Vec2I p0, Vec2I p1, Vec2I c0, Vec3f color);
+func void D_DrawRect(R_CommandBuffer command_buffer, R_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color);
+func void D_DrawText(R_CommandBuffer command_buffer, R_Buffer buffer, R_TextureSampler sampler, RectI32 viewport, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);

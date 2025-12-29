@@ -9,12 +9,13 @@ struct Ignis_R_State
 
   R_Buffer data_buffer;
   R_Buffer transfer_buffer;
+  
+  R_CommandBuffer command_buffer;
+
+  R_Texture swapchain;
 
   R_GraphicsPipeline grid_pipeline;
-  R_GraphicsPipeline line_3d_pipeline;
-  R_GraphicsPipeline square_pipeline;
   R_GraphicsPipeline mesh_pipeline;
-  R_GraphicsPipeline font_pipeline;
   R_GraphicsPipeline joint_pipeline;
 
   R_TextureSampler texture_sampler;
@@ -33,4 +34,13 @@ func R_Texture Ignis_R_CreateLoadTexture(R_Buffer buffer, Str8 path, R_TextureFo
 func void Ignis_R_PreparePipelines();
 func void Ignis_R_PrepareTextures();
 
-func void Ignis_R_DrawEntity(R_CommandBuffer, R_Buffer buffer);
+// -------------------------------------------------------------------
+// -- Render ---------------------------------------------------------
+func void Ignis_R_BeginFrame();
+func void Ignis_R_EndFrame();
+
+func void Ignis_R_RenderScene(Ignis_Scene* scene);
+func void Ignis_R_RenderUI(UI_DrawCommandArray commands);
+
+func void Ignis_R_RenderGrid  (Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget depth);
+func void Ignis_R_RenderEntity(R_CommandBuffer, R_Buffer buffer);

@@ -5,7 +5,6 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
 {
   _ignis_ui_state = (Ignis_UI_State){0};
 
-#if 0
   Str8 texture_path = Str8C("./data/fonts/RobotoMonoBitmap.png");
   I32 tex_width = 0;
   I32 tex_height = 0;
@@ -18,7 +17,7 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
   }
   I32 texture_size = tex_width * tex_height * 4;
 
-  app_state.font.bitmap = R_CreateTexture(
+  _ignis_ui_state.font.bitmap = R_CreateTexture(
     &(R_TextureCreateInfo){
       .type = R_TEXTURE_TYPE_2D,
       .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
@@ -29,12 +28,11 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
       .num_levels = 1,
     }
   );
-  app_state.font.bitmap_size = MakeVec2U32(tex_width, tex_height);
-  app_state.font.glyph_size = MakeVec2U32(30, 30);
-  app_state.font.glyphs_per_row = 19;
-  U64 font_texture_offset = R_PushBuffer(data_buffer, tex_pixels, texture_size);
-  R_CopyBufferToTexture(0, data_buffer, font_texture_offset, texture_size, app_state.font.bitmap);
-  #endif
+  _ignis_ui_state.font.bitmap_size = MakeVec2U32(tex_width, tex_height);
+  _ignis_ui_state.font.glyph_size = MakeVec2U32(30, 30);
+  _ignis_ui_state.font.glyphs_per_row = 19;
+  U64 font_texture_offset = R_PushBuffer(_ignis_r_state.transfer_buffer, tex_pixels, texture_size);
+  R_CopyBufferToTexture(0, _ignis_r_state.transfer_buffer, font_texture_offset, texture_size, _ignis_ui_state.font.bitmap);
 
   UI_Init(arena, max_widgets_count);
   Ignis_UI_ApplyColors();
@@ -67,7 +65,7 @@ Ignis_UI_ApplyColors()
 }
 
 func void
-Ignis_UI_Configure(Vec2I32 context_size, Vec2F32 pointer_position, F32 dt)
+Ignis_UI_Configure(Ignis_Scene* scene, Vec2I32 context_size, Vec2F32 pointer_position, F32 dt)
 {
   DeferBlock(UI_BeginFrame(pointer_position, OS_MouseScroll()), UI_EndFrame())
   {
@@ -80,11 +78,16 @@ Ignis_UI_Configure(Vec2I32 context_size, Vec2F32 pointer_position, F32 dt)
       },
     })
     {
-      Ignis_UI_SideBar();
+      Ignis_UI_SideBar(scene);
     }
   }
 }
-func void Ignis_UI_Draw();
+
+func UI_DrawCommandArray
+Ignis_UI_GetDrawCommands()
+{
+  return ui_context.draw_commands;
+}
 
 // -------------------------------------------------------------------
 // -- Ignis UI Components --------------------------------------------
@@ -120,7 +123,7 @@ Ignis_UI_Title(Str8 str)
 }
 
 func void
-Ignis_UI_SideBar()
+Ignis_UI_SideBar(Ignis_Scene* scene)
 {
   UI_ElementBlock({
     .flags = UI_ElementFlag_DrawBackground,
@@ -140,7 +143,7 @@ Ignis_UI_SideBar()
       }
     })
     {
-      Ignis_UI_SceneDetails();
+      Ignis_UI_SceneDetails(scene);
     }
 
     UI_ElementBlock({
@@ -157,7 +160,7 @@ Ignis_UI_SideBar()
 }
 
 func void
-Ignis_UI_SceneDetails()
+Ignis_UI_SceneDetails(Ignis_Scene* scene)
 {
   UI_ElementBlock({
     .name = Str8C("Ignis_SceneDetails"),
@@ -168,6 +171,11 @@ Ignis_UI_SceneDetails()
   })
   {
     Ignis_UI_Title(Str8C("Scene"));
+    for (I32 i = 1; i < scene->entities.length; i += 1)
+    {
+      Ignis_Entity* enitity = Ignis_EntityArrayGetPointer(&scene->entities, i);
+      Ignis_UI_Button(enitity->name, UI_PercentSize(1.0f), UI_PixelSize(40.0f));
+    }
   }
 }
 
