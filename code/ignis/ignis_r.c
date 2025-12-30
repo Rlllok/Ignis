@@ -327,7 +327,7 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
 
       switch (command->type)
       {
-        defaul: {}break;
+        default: {}break;
 
         case UI_DrawCommandType_Rectangle:
         {

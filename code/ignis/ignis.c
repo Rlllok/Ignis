@@ -11,17 +11,17 @@ Ignis_CreateScene(Arena* arena, U32 max_entity_count)
   return result;
 }
 
-func Ignis_ID
+func Ignis_EntityID
 Ignis_CreateEntity(Ignis_Scene* scene, Ignis_Entity entity)
 {
-  Ignis_ID result = 0;
+  Ignis_EntityID result = {0};
 
-  entity.id = scene->entities.length;
+  entity.id.id = scene->entities.length;
   Ignis_EntityArrayAdd(&scene->entities, entity);
 
   if (entity.type == Ignis_EntityType_Camera)
   {
-    scene->camera_id = entity.id;
+    scene->active_camera_id = entity.id;
   }
 
   return result;
