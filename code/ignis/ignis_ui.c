@@ -154,7 +154,11 @@ Ignis_UI_SideBar(Ignis_Scene* scene)
       }
     })
     {
-      Ignis_UI_EntityDetails();
+      Ignis_Entity* camera = Ignis_GetEntity(scene, Str8C("Camera"));
+      if (Ignis_EntityValid(camera))
+      {
+        Ignis_UI_EntityDetails(camera);
+      }
     }
   }
 }
@@ -179,7 +183,7 @@ Ignis_UI_SceneDetails(Ignis_Scene* scene)
   }
 }
 
-func void Ignis_UI_EntityDetails()
+func void Ignis_UI_EntityDetails(Ignis_Entity* entity)
 {
   UI_ElementBlock({
     .name = Str8C("Ignis_EntityDetails"),
@@ -189,7 +193,6 @@ func void Ignis_UI_EntityDetails()
     }
   })
   {
-    Ignis_UI_Title(Str8C("Entity"));
-    Ignis_UI_Button(Str8C("Button Test"), UI_PercentSize(1.0f), UI_PixelSize(40.0f));
+    Ignis_UI_Title(entity->name);
   }
 }

@@ -184,125 +184,33 @@ func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) \
 	return node->data; \
 }
  
-// --------------------------------------------------
-// HashMap
-inline I32 CalculateHash(Str8 word)
-{
-  I32 result = 0;
-
-  result = (word.data[0]*57423 + word.data[word.length-1]*2344)*word.length;
-
-  return result;
-}
-
-#define DefineHashMap(type_name) \
-typedef struct HashMapElement##type_name HashMapElement##type_name; \
-struct HashMapElement##type_name \
-{ \
-  HashMapElement##type_name* next; \
-  Str8 key; \
-  type_name value; \
-}; \
-\
-typedef struct HashMap##type_name HashMap##type_name; \
-struct HashMap##type_name \
-{ \
-  Arena* arena; \
-  HashMapElement##type_name* elements; \
-   \
-  U32 capacity; \
-}; \
-\
-func HashMap##type_name HashMap##type_name##Create(Arena* arena, U32 capacity) \
-{ \
-  HashMap##type_name map = {0}; \
-   \
-  map.arena = arena; \
-  map.elements = (HashMapElement##type_name*)PushArena(arena, capacity*sizeof(HashMapElement##type_name)); \
-  map.capacity = capacity; \
-   \
-  return map; \
-} \
- \
-func void HashMap##type_name##Put(HashMap##type_name* map, Str8 key, type_name value) \
-{ \
-  I32 hash_value = CalculateHash(key); \
-  I32 hash_slot = hash_slot%map->capacity; \
-   \
-  if (map->elements[hash_slot].value == 0) \
-  { \
-    map->elements[hash_slot].key = key; \
-    map->elements[hash_slot].value = value; \
-  } \
-  else \
-  { \
-    if (map->elements[hash_slot].next == 0) \
-    { \
-      HashMapElement##type_name* new_element = (HashMapElement##type_name*)PushArena(map->arena, sizeof(HashMapElement##type_name)); \
-      new_element->key = key; \
-      new_element->value = value; \
-       \
-      map->elements[hash_slot].next = new_element; \
-    } \
-    else \
-    { \
-      HashMapElement##type_name* current_element = map->elements[hash_slot].next; \
-      while (current_element) \
-      { \
-        if (Str8Equal(map->elements[hash_slot].key, key)) \
-        { \
-          current_element->key = key; \
-          current_element->value = value; \
-           \
-          break; \
-        } \
-        else \
-        { \
-          if (current_element->next == 0) \
-          { \
-            HashMapElement##type_name* new_element = (HashMapElement##type_name*)PushArena(map->arena, sizeof(HashMapElement##type_name)); \
-            new_element->key = key; \
-            new_element->value = value; \
-             \
-            current_element->next = new_element; \
-            break; \
-          } \
-        } \
-         \
-        current_element = current_element->next; \
-      } \
-    } \
-  } \
-} \
- \
-func type_name HashMap##type_name##Get(HashMap##type_name map, Str8 key) \
-{ \
-  type_name value = {0}; \
-   \
-  I32 hash_value = CalculateHash(key); \
-  I32 hash_slot = hash_slot % map.capacity; \
-   \
-  if (Str8Equal(map.elements[hash_slot].key, key)) \
-  { \
-    value = map.elements[hash_slot].value; \
-  } \
-  else \
-  { \
-    HashMapElement##type_name* current_element = map.elements[hash_slot].next; \
-    while (current_element) \
-    { \
-      if (Str8Equal(current_element->key, key)) \
-      { \
-        value = current_element->value; \
-      } \
-      current_element = current_element->next; \
-    } \
-  } \
-     \
-  return value; \
-} 
-
-// -------------------------------------------------------------------
-// -- Common types
+// -- Common type Array ----------------------------------------------
 B32 _b32_array_nil = 0;
 DefineArray(B32, B32Array, _b32_array_nil)
+I32 _i32_array_nil = 0;
+DefineArray(I32, I32Array, _i32_array_nil)
+
+ // -- Hash Map ------------------------------------------------------
+#define HashMap_Key_Nil 0
+
+func I32 HashI32(Str8 key, I32 seed);
+
+typedef struct HashItemI32 HashItemI32;
+struct HashItemI32
+{
+  Str8 key;
+  I32  value;
+};
+HashItemI32 _hash_item_i32_nil = ZeroStruct();
+DefineArray(HashItemI32, HashItemI32Array, _hash_item_i32_nil)
+
+typedef struct HashMapI32 HashMapI32;
+struct HashMapI32
+{
+  HashItemI32Array elements;
+  I32 seed;
+};
+
+func HashMapI32 HashMapI32Allocate(Arena* arena, I32 capacity);
+func void HashMapI32Set(HashMapI32* map, Str8 key, I32 value);
+func I32  HashMapI32Get(HashMapI32* map, Str8 key);

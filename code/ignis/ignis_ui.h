@@ -37,4 +37,4 @@ func void Ignis_UI_Title(Str8 str);
 
 func void Ignis_UI_SideBar(Ignis_Scene* scene);
 func void Ignis_UI_SceneDetails(Ignis_Scene* scene);
-func void Ignis_UI_EntityDetails();
+func void Ignis_UI_EntityDetails(Ignis_Entity* entity);

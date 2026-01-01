@@ -60,6 +60,7 @@ typedef struct Ignis_Scene Ignis_Scene;
 struct Ignis_Scene
 {
   Ignis_EntityArray entities;
+  HashMapI32  entity_hash_map;
 
   Ignis_EntityID active_camera_id;
   Ignis_EntityID selected_entity_id;
@@ -67,6 +68,7 @@ struct Ignis_Scene
 
 func Ignis_Scene    Ignis_CreateScene (Arena* arena, U32 max_entity_count);
 func Ignis_EntityID Ignis_CreateEntity(Ignis_Scene* scene, Ignis_Entity entity);
+func Ignis_Entity*  Ignis_GetEntity   (Ignis_Scene* scene, Str8 name);
 
 func Ignis_Entity* Ignis_GetCamera        (Ignis_Scene* scene) {return Ignis_EntityArrayGetPointer(&scene->entities, scene->active_camera_id.id);}
 func Ignis_Entity* Ignis_GetSelectedEntity(Ignis_Scene* scene) {return Ignis_EntityArrayGetPointer(&scene->entities, scene->selected_entity_id.id);}
