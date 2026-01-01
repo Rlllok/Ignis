@@ -32,6 +32,7 @@ struct Ignis_State
   Ignis_Scene scene;
 
   B32 finished;
+  F32 dt;
 } _ignis_state;
 
 func void Init_Ignis();
@@ -41,6 +42,7 @@ I32 main()
 {
   Init_Ignis();
 
+  U64 begin_ms = OS_GetTimeTicks();
   while (!_ignis_state.finished)
   {
     Ignis_HandleEvents(_ignis_state.arena);
@@ -53,6 +55,13 @@ I32 main()
       Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
     }
     Ignis_R_EndFrame();
+
+    U64 end_ms = OS_GetTimeTicks();
+    F32 sleep_dt = _ignis_state.dt - (F32)(end_ms - begin_ms);
+    if (sleep_dt > 0)
+    {
+      OS_Sleep((U64)(sleep_dt*1000.0f));
+    }
   }
 
   return 0;
@@ -64,6 +73,7 @@ Init_Ignis()
   _ignis_state = (Ignis_State){0};
   _ignis_state.arena = AllocateArena(Megabytes(32));
   _ignis_state.scene = Ignis_CreateScene(_ignis_state.arena, 64);
+  _ignis_state.dt    = 1.0f/60.0f;
 
   Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
     .name = Str8C("Camera"),
@@ -76,6 +86,20 @@ Init_Ignis()
       .yaw = -90.0f,
       .pitch = -30.0f,
     },
+  });
+
+  AST_StaticMesh mesh = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/gltf_test/SimpleBoneAnimation/SimpleBoneAnimation.gltf"));
+  // UpdateSkeletonGlobalTransform(&mesh.skeleton);
+  Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
+    .name      = Str8C("Actor"),
+    .type      = Ignis_EntityType_Actor,
+    .transform = (Transform){
+      .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+      .rotation    = IdentityQuaternion(),
+      .scale       = MakeVec3F32(1.0f, 1.0f, 1.0f),
+    },
+    .actor.mesh          = mesh,
+    .actor.color_texture = _ignis_r_state.default_color_texture,
   });
 
   OS_Init(Megabytes(32));
@@ -95,6 +119,32 @@ Ignis_HandleEvents(Arena* arena)
   {
     _ignis_state.finished = 1;
   }
+
+  Ignis_Entity* camera = Ignis_GetCamera(&_ignis_state.scene);
+
+  if (OS_IsKeyDown(OS_KEY_ARROW_LEFT))
+  {
+    camera->camera.yaw -= 25.0f*_ignis_state.dt;
+  }
+  if (OS_IsKeyDown(OS_KEY_ARROW_RIGHT))
+  {
+    camera->camera.yaw += 25.0f*_ignis_state.dt;
+  }
+  if (OS_IsKeyDown(OS_KEY_ARROW_UP))
+  {
+    camera->camera.pitch += 25.0f*_ignis_state.dt;
+  }
+  if (OS_IsKeyDown(OS_KEY_ARROW_DOWN))
+  {
+    camera->camera.pitch -= 25.0f*_ignis_state.dt;
+  }
+  Vec3 rotation = {0};
+  rotation.x = cos(RadiansFromDegrees(camera->camera.yaw))*cos(RadiansFromDegrees(camera->camera.pitch));
+  rotation.y = sin(RadiansFromDegrees(camera->camera.pitch));
+  rotation.z = sin(RadiansFromDegrees(camera->camera.yaw))*cos(RadiansFromDegrees(camera->camera.pitch));
+  camera->camera.front = rotation;
+  camera->camera.right = NormalizeVec3(CrossVec3(camera->camera.front, MakeVec3(0.0f, 1.0f, 0.0f)));
+  camera->camera.up = CrossVec3(camera->camera.right, camera->camera.front);
 
   for (OS_EventListNode *event_node = event_list.first; event_node; event_node = event_node->next)
   {

@@ -209,8 +209,10 @@ func void OS_UnlockCursor(OS_Window* window);
 func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window);
 
 func F32 OS_GetMonitorHZ(void);
-
 func U64 OS_GetTimeTicks(void);
+
+func void OS_Sleep(U64 ms);
+
 func Vec2F32 OS_MousePosition(OS_Window window);
 func Vec2F32 OS_MouseScroll();
 
