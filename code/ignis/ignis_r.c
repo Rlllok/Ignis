@@ -525,7 +525,7 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity)
       Vec3F32 ambient_color;
     } mesh_global_fragment_data = {
       .light_direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, -1.0f)),
-      .ambient_color = MakeVec3F32(0.05f, 0.05f, 0.05f),
+      .ambient_color = MakeVec3F32(0.1f, 0.1f, 0.1f),
     };
 
     U64 mesh_global_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_global_fragment_data, sizeof(mesh_global_fragment_data));
