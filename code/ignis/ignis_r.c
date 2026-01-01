@@ -299,7 +299,7 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
         .texture = swapchain_texture,
         .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
         .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-        .clear_color = RGBAFromHex(0x1A1D26FF),
+        .clear_color = RGBAFromHex(0x111111FF),
       },
     };
 

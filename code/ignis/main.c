@@ -122,6 +122,27 @@ Ignis_HandleEvents(Arena* arena)
 
   Ignis_Entity* camera = Ignis_GetCamera(&_ignis_state.scene);
 
+  Vec3F32 direction = MakeVec3(0.0f, 0.0f, 0.0f);
+  F32 speed = 2.0f;
+
+  if (OS_IsKeyDown(OS_KEY_W))
+  {
+    direction = AddVec3(direction, camera->camera.front);
+  }
+  if (OS_IsKeyDown(OS_KEY_S))
+  {
+    direction = SubVec3(direction, camera->camera.front);
+  }
+  if (OS_IsKeyDown(OS_KEY_D))
+  {
+    direction = AddVec3(direction, camera->camera.right);
+  }
+  if (OS_IsKeyDown(OS_KEY_A))
+  {
+    direction = SubVec3(direction, camera->camera.right);
+  }
+  camera->transform.translation= AddVec3(camera->transform.translation, ScaleVec3(NormalizeVec3(direction), speed*_ignis_state.dt));
+
   if (OS_IsKeyDown(OS_KEY_ARROW_LEFT))
   {
     camera->camera.yaw -= 25.0f*_ignis_state.dt;
