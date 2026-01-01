@@ -15,6 +15,7 @@ struct Ignis_R_State
   R_Texture swapchain;
 
   R_GraphicsPipeline grid_pipeline;
+  R_GraphicsPipeline depth_prepass_pipeline;
   R_GraphicsPipeline mesh_pipeline;
   R_GraphicsPipeline joint_pipeline;
 
@@ -42,5 +43,6 @@ func void Ignis_R_EndFrame();
 func void Ignis_R_RenderScene(Ignis_Scene* scene);
 func void Ignis_R_RenderUI(UI_DrawCommandArray commands);
 
-func void Ignis_R_RenderGrid  (Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget depth);
-func void Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity);
+func void Ignis_R_RenderGrid         (Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget depth);
+func void Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity);
+func void Ignis_R_RenderEntity       (Ignis_Entity* camera, Ignis_Entity* entity);

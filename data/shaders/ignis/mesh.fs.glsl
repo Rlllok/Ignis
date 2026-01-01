@@ -7,6 +7,7 @@ layout(set = 2, binding = 0) uniform GlobalData
 {
   vec3 light_direction;
   vec3 ambient_color;
+  vec3 diffuse_color;
 };
 
 const int   cel_shading_steps  = 4;
@@ -22,5 +23,5 @@ void main()
   float diffuse_weight = diffuse_level*cel_shading_weight;
   vec3  diffuse_light  = vec3(max(0.0f, diffuse_weight));
 
-  out_color = vec4((ambient_light + diffuse_light)*vec3(0.87f, 0.85f, 0.42f), 1.0f);
+  out_color = vec4((ambient_light + diffuse_light)*diffuse_color, 1.0f);
 }
