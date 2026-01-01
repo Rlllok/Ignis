@@ -1,6 +1,7 @@
 #include "os_linux_x11_gfx.h"
 
 #include <X11/Xlib.h>
+#include <unistd.h>
 #include <time.h>
 
 func void OS_Init(U64 arena_size)
@@ -142,4 +143,16 @@ OS_GetTimeTicks(void)
 func Vec2F32 OS_MousePosition(OS_Window window)
 {
 	return MakeVec2F32(0.0f, 0.0f);
+}
+
+func Vec2F32
+OS_MouseScroll()
+{
+  return _os_state.mouse.scroll;
+}
+
+func void
+OS_Sleep(U64 ms)
+{
+  sleep((F32)(ms)/1000.0f);
 }

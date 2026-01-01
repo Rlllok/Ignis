@@ -17,8 +17,8 @@ Ignis_R_Init(R_RendererType type, OS_Window* window)
   _ignis_r_state.transfer_buffer = R_CreateBuffer(Megabytes(128), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
   _ignis_r_state.command_buffer  = R_GetCommandBuffer();
 
-  Ignis_R_PreparePipelines();
   Ignis_R_PrepareTextures();
+  Ignis_R_PreparePipelines();
 }
 
 func R_Texture
@@ -103,20 +103,16 @@ Ignis_R_PreparePipelines()
     R_Shader mesh_vertex_shader = R_CreateShader(
       _ignis_r_state.arena,
       &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/mesh.vs.glsl"),
+        .file_name = Str8C("./data/shaders/ignis/mesh.vs.glsl"),
         .type = R_SHADER_TYPE_VERTEX,
-        .global_uniforms_count = 1,
         .instance_uniforms_count = 1,
       }
     );
     R_Shader mesh_fragment_shader = R_CreateShader(
       _ignis_r_state.arena,
       &(R_ShaderCreateInfo){
-        .file_name = Str8C("./data/shaders/mesh.fs.glsl"),
+        .file_name = Str8C("./data/shaders/ignis/mesh.fs.glsl"),
         .type = R_SHADER_TYPE_FRAGMENT,
-        .global_uniforms_count = 0,
-        .instance_uniforms_count = 1,
-        .instance_samplers_count = 2,
       }
     );
 
@@ -157,10 +153,6 @@ Ignis_R_PreparePipelines()
       {
         .format = R_GetSwapchainTextureFormat(),
         .blend_enable = 1,
-      },
-      {
-        .format = R_GetTextureFormat(_ignis_r_state.test_texture),
-        .blend_enable = 0,
       },
     };
     R_GraphicsPipelineCreateInfo mesh_pipeline_info = {
@@ -232,6 +224,30 @@ Ignis_R_Resize(Vec2I32 size)
   if (size.x != 0 && size.y != 0)
   {
     R_VK_HandleResize(_ignis_r_state.window);
+
+    R_VK_DestroyTexture(_ignis_r_state.depth_texture);
+    R_TextureCreateInfo depth_texture_info = {
+      .type = R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_D16_UNORM,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+      .width = _ignis_r_state.window->size.w,
+      .height = _ignis_r_state.window->size.h,
+      .depth = 1,
+      .num_levels = 1
+    };
+    _ignis_r_state.depth_texture = R_CreateTexture(&depth_texture_info);
+
+    R_VK_DestroyTexture(_ignis_r_state.test_texture);
+    R_TextureCreateInfo test_texture_info = {
+      .type = R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_R16_UINT,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | R_TEXTURE_USAGE_FLAG_TRANSFER_SRC | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+      .width = _ignis_r_state.window->size.w,
+      .height = _ignis_r_state.window->size.h,
+      .depth = 1,
+      .num_levels = 1
+    };
+    _ignis_r_state.test_texture = R_CreateTexture(&test_texture_info);
   }
 }
 
@@ -264,6 +280,8 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
 {
   R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
   R_Texture swapchain_texture = _ignis_r_state.swapchain;
+  Ignis_Entity* camera = Ignis_GetCamera(scene);
+
   {
     RectI32 viewport = {
       .x = 0,
@@ -275,11 +293,39 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
     R_SetViewport(command_buffer, viewport);
     R_SetScissor(command_buffer, scissor);
 
+    R_ColorTarget entity_color_targets[] = {
+      {
+        .texture = swapchain_texture,
+        .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+        .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+        .clear_color = RGBAFromHex(0x1A1D26FF),
+      },
+    };
+
+    R_DepthStencilTarget entity_depth_target = {
+      .texture = _ignis_r_state.depth_texture,
+      .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+      .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+      .clear_depth = 0.0f,
+    };
+
+    R_BeginRenderPass(command_buffer, CountArrayElements(entity_color_targets), entity_color_targets, &entity_depth_target);
+    {
+      for (I32 i = 0; i < scene->entities.length; i += 1)
+      {
+        Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
+        if (entity->type == Ignis_EntityType_Actor)
+        {
+          Ignis_R_RenderEntity(camera, entity);
+        }
+      }
+    }
+    R_EndRenderPass(command_buffer, 0);
+
     R_ColorTarget color_target = {
       .texture = swapchain_texture,
-      .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+      .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
       .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-      .clear_color = RGBAFromHex(0x1A1D26FF),
     };
 
     R_DepthStencilTarget depth_target = {
@@ -288,7 +334,7 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
       .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
     };
 
-    R_BeginRenderPass(command_buffer, 1, &color_target, 0);
+    R_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
     {
       Ignis_R_RenderGrid(scene, color_target, depth_target);
     }
@@ -426,4 +472,55 @@ Ignis_R_RenderGrid(Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget
   R_BindInstanceVertexShaderData(command_buffer, 1, &grid_vertex_shader_instance_uniform, 0, 0);
   R_BindGlobalFragmentShaderData(command_buffer, 1, &grid_fragment_shader_global_uniform, 0, 0);
   R_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+}
+
+func void
+Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity)
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+  R_Buffer buffer = _ignis_r_state.data_buffer;
+
+  for (AST_GeometryListNode* geometry_node = entity->actor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
+  {
+    AST_Geometry* geometry = &geometry_node->data;
+
+    Mat4F32 view_matrix = MakeLookAtMat4(
+      camera->transform.translation,
+      AddVec3(camera->transform.translation, camera->camera.front),
+      camera->camera.up
+    );
+    Mat4F32 projection_matrix = MakePerspectiveMat4(
+      45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
+      0.1f, 100.0f
+    );
+
+    U64 mesh_vertex_data_offset = R_PushBuffer(buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+    U64 mesh_index_data_offset = R_PushBuffer(buffer, geometry->index_data, geometry->index_size*geometry->index_count);
+
+    struct
+    {
+      Mat4 mvp;
+      Mat4 bone_transform[64];
+    } mesh_instance_vertex_data;
+    mesh_instance_vertex_data.mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(entity->transform)));
+    for (I32 i = 0; i < entity->actor.mesh.skeleton.joints.length; i += 1)
+    {
+      Joint joint = JointArrayGet(&entity->actor.mesh.skeleton.joints, i);
+      mesh_instance_vertex_data.bone_transform[i] = Mat4F32FromTransform(joint.global_transform);
+    }
+
+    U64 mesh_instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&mesh_instance_vertex_data, sizeof(mesh_instance_vertex_data));
+
+    R_UniformBufferBindingInfo mesh_vertex_shader_instance_uniform = {
+      .buffer = buffer,
+      .offset = mesh_instance_vertex_data_offset,
+      .size = sizeof(mesh_instance_vertex_data),
+    };
+
+    R_BindGraphicsPipeline(command_buffer, _ignis_r_state.mesh_pipeline);
+    R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
+    R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
+    R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
+    R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
+  }
 }

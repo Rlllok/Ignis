@@ -88,7 +88,7 @@ Init_Ignis()
     },
   });
 
-  AST_StaticMesh mesh = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/gltf_test/SimpleBoneAnimation/SimpleBoneAnimation.gltf"));
+  AST_StaticMesh mesh = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/sphere_gltf/sphere.gltf"));
   // UpdateSkeletonGlobalTransform(&mesh.skeleton);
   Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
     .name      = Str8C("Actor"),
