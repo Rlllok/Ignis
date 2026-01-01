@@ -24,7 +24,7 @@ GetTextSize(FontBitmap font, Str8 text, U32 font_size)
 func void
 UI_Init(Arena* arena, U32 max_elements_count)
 {
-  ui_context.elements = UI_ElementArrayAllocate(arena, max_elements_count);
+  ui_context.elements = UI_WidgetArrayAllocate(arena, max_elements_count);
   ui_context.final_elements = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.open_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
   ui_context.clip_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
@@ -47,12 +47,12 @@ UI_CalculateSizes(B32 is_width)
 {
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    UI_Widget* branch = UI_WidgetArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
 
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
       UI_ID child_id = branch->children_array_slice.ids[child_offset];
-      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
+      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
 
       UI_Size child_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
       F32* child_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
@@ -74,10 +74,10 @@ UI_CalculatePositions()
   for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
   // for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    UI_Widget* branch = UI_WidgetArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
-      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
+      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
 
       child_element->rect.position = branch->rect.position;
 
@@ -112,11 +112,11 @@ UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll)
   for (I32 i = 0; i < ui_context.children.length; i += 1)
   {
     UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
-    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, element_id);
+    UI_Widget* element = UI_WidgetArrayGetPointer(&ui_context.elements, element_id);
     
-    B32 item_is_hot = element->description.type == UI_ElementType_Rectangle
+    B32 item_is_hot = element->description.type == UI_WidgetType_Rectangle
       && InsideRectF32(element->rect, ui_context.mouse_position)
-      && InsideRectF32(UI_ElementArrayGetPointer(&ui_context.elements, element->clip_element_id)->rect, ui_context.mouse_position);
+      && InsideRectF32(UI_WidgetArrayGetPointer(&ui_context.elements, element->clip_element_id)->rect, ui_context.mouse_position);
 
     if (item_is_hot)
     {
@@ -128,14 +128,14 @@ UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll)
   for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
   {
     UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
-    UI_Element* element = UI_ElementArrayGetPointer(&ui_context.elements, scroll_offset->element_id);
+    UI_Widget* element = UI_WidgetArrayGetPointer(&ui_context.elements, scroll_offset->element_id);
     
     scroll_offset->offset = AddVec2I32(scroll_offset->offset, Vec2IFromVec2F32(mouse_scroll));
     scroll_offset->offset.y = Max(Min(0, element->rect.h - element->child_position_offset.y), Min(0, scroll_offset->offset.y));
     LOG_DEBUG("ScrollOffset: %dx, %dy\n", scroll_offset->offset.x, scroll_offset->offset.y);
   }
 
-  UI_ElementArrayReset(&ui_context.elements);
+  UI_WidgetArrayReset(&ui_context.elements);
   UI_IDArrayReset(&ui_context.final_elements);
   UI_IDArrayReset(&ui_context.open_elements_stack);
   UI_IDArrayReset(&ui_context.clip_elements_stack);
@@ -162,13 +162,13 @@ func void UI_EndFrame()
   #if 0
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element branch = UI_ElementArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    UI_Widget branch = UI_WidgetArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
 
-    LOG_DEBUG("\tElementName: %s. ElementID: %d. Children Count: %d\n", CFromStr8(branch.description.name), branch.id, branch.children_array_slice.length);
+    LOG_DEBUG("\tWidgetName: %s. WidgetID: %d. Children Count: %d\n", CFromStr8(branch.description.name), branch.id, branch.children_array_slice.length);
     for (I32 i = 0; i < branch.children_array_slice.length; i += 1)
     {
       UI_ID child_id = branch.children_array_slice.ids[i];
-      UI_Element child = UI_ElementArrayGet(&ui_context.elements, child_id);
+      UI_Widget child = UI_WidgetArrayGet(&ui_context.elements, child_id);
       LOG_DEBUG("\t\tChildName: %s, ChildID:  %d\n", CFromStr8(child.description.name), child_id);
     }
   }
@@ -176,11 +176,11 @@ func void UI_EndFrame()
 
   for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
   {
-    UI_Element* branch = UI_ElementArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
+    UI_Widget* branch = UI_WidgetArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
 
     for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
     {
-      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
+      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
 
       child_element->rect.position = branch->rect.position;
 
@@ -221,13 +221,13 @@ func void UI_EndFrame()
     while (ui_context.traversal_stack.length)
     {
       UI_ID current_id = UI_IDArrayGet(&ui_context.traversal_stack, ui_context.traversal_stack.length - 1);
-      UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, current_id);
+      UI_Widget* current_element = UI_WidgetArrayGetPointer(&ui_context.elements, current_id);
 
       if (!ui_context.visited_lookup.elements[current_id])
       {
         ui_context.visited_lookup.elements[current_id] = 1;
 
-        if (current_element->description.flags & UI_ElementFlag_DrawBackground)
+        if (current_element->description.flags & UI_WidgetFlag_DrawBackground)
         {
           UI_DrawCommandArrayAdd(
             &ui_context.draw_commands,
@@ -242,7 +242,7 @@ func void UI_EndFrame()
             }
           );
         }
-        if (current_element->description.flags & UI_ElementFlag_DrawLabel)
+        if (current_element->description.flags & UI_WidgetFlag_DrawLabel)
         {
           UI_DrawCommandArrayAdd(
             &ui_context.draw_commands,
@@ -286,12 +286,12 @@ func void UI_EndFrame()
 }
 
 // -------------------------------------------------------------------
-// -- UI Default Elements --------------------------------------------
-func UI_Element*
-UI_GetOpenedElement()
+// -- UI Default Widgets --------------------------------------------
+func UI_Widget*
+UI_GetOpenedWidget()
 {
   UI_ID opened_element_id = UI_IDArrayGet(&ui_context.open_elements_stack, ui_context.open_elements_stack.length - 1);
-  return UI_ElementArrayGetPointer(&ui_context.elements, opened_element_id);
+  return UI_WidgetArrayGetPointer(&ui_context.elements, opened_element_id);
 }
 
 func Vec2I32
@@ -299,7 +299,7 @@ UI_GetScrollOffset()
 {
   Vec2I32 result = {0};
   
-  UI_Element* element = UI_GetOpenedElement();
+  UI_Widget* element = UI_GetOpenedWidget();
   for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
   {
     UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
@@ -314,18 +314,18 @@ UI_GetScrollOffset()
 }
 
 func void
-UI_OpenElement()
+UI_OpenWidget()
 {
-  UI_Element element = {.id = ui_context.elements.length};
+  UI_Widget element = {.id = ui_context.elements.length};
 
-  UI_ElementArrayAdd(&ui_context.elements, element);
+  UI_WidgetArrayAdd(&ui_context.elements, element);
   UI_IDArrayAdd(&ui_context.open_elements_stack, element.id);
 }
 
 func void
-UI_ConfigureElement(UI_ElementDescription description)
+UI_ConfigureWidget(UI_WidgetDescription description)
 {
-  UI_Element* element = UI_GetOpenedElement();
+  UI_Widget* element = UI_GetOpenedWidget();
   element->description = description;
 
   if (ui_context.clip_elements_stack.length > 0)
@@ -365,9 +365,9 @@ UI_ConfigureElement(UI_ElementDescription description)
   }
 }
 
-func void UI_CloseElement()
+func void UI_CloseWidget()
 {
-  UI_Element* current_element = UI_GetOpenedElement();
+  UI_Widget* current_element = UI_GetOpenedWidget();
 
   current_element->children_array_slice.ids = ui_context.children.elements + ui_context.children.length;
   for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
@@ -378,12 +378,12 @@ func void UI_CloseElement()
 
     if (current_element->description.layout.height.type == UI_SizeType_FitChildren)
     {
-      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
+      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
       current_element->rect.size.y += child_element->rect.size.y;
     }
     if (current_element->description.layout.width.type == UI_SizeType_FitChildren)
     {
-      UI_Element* child_element = UI_ElementArrayGetPointer(&ui_context.elements, child_id);
+      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
       current_element->rect.size.x += child_element->rect.size.x;
     }
   }
@@ -397,7 +397,7 @@ func void UI_CloseElement()
   if (ui_context.open_elements_stack.length > 0)
   {
     UI_IDArrayPop(&ui_context.open_elements_stack);
-    UI_Element* parent_element = UI_GetOpenedElement();
+    UI_Widget* parent_element = UI_GetOpenedWidget();
     UI_IDArrayAdd(&ui_context.children_formation_buffer, current_element->id);
     parent_element->children_array_slice.length += 1;
   }
@@ -411,7 +411,7 @@ func void UI_CloseElement()
 func B32
 UI_Hovered()
 {
-  UI_Element* element = UI_GetOpenedElement();
+  UI_Widget* element = UI_GetOpenedWidget();
   return ui_context.hot_id == element->id;
 }
 
@@ -419,7 +419,7 @@ func B32
 UI_IsClicked()
 {
   B32 result = 0;
-  UI_Element* current_element = UI_ElementArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+  UI_Widget* current_element = UI_WidgetArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
   
   if (ui_context.active_id == current_element->id)
   {
@@ -438,9 +438,9 @@ UI_IsClicked()
 }
 
 func RectF32
-UI_GetElementRectF32()
+UI_GetWidgetRectF32()
 {
-  return UI_GetOpenedElement()->rect;
+  return UI_GetOpenedWidget()->rect;
 }
 
 func void
@@ -453,10 +453,10 @@ UI_Text(Str8 text, UI_TextDescription text_description)
 
   Vec2F32 text_dimension = GetTextSize(text_description.font, text, text_description.font_size);
 
-  UI_ElementBlock({
+  UI_WidgetBlock({
     .name = text,
-    .type = UI_ElementType_Text,
-    .flags = UI_ElementFlag_DrawLabel,
+    .type = UI_WidgetType_Text,
+    .flags = UI_WidgetFlag_DrawLabel,
     .text = with_str,
     .layout = {
       .width = UI_PixelSize(text_dimension.x),
@@ -466,27 +466,27 @@ UI_Text(Str8 text, UI_TextDescription text_description)
 }
 
 #if 0
-func UI_Element*
-UI_Layout(UI_ElementArray* array, Str8 label)
+func UI_Widget*
+UI_Layout(UI_WidgetArray* array, Str8 label)
 {
-  UI_Element* layout = UI_BuildElement(
+  UI_Widget* layout = UI_BuildWidget(
     array,
-    (UI_ElementDescription){
-      .flags = UI_ElementFlag_DrawBackground,
+    (UI_WidgetDescription){
+      .flags = UI_WidgetFlag_DrawBackground,
     }
   );
   return layout;
 }
 
 func void
-UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
+UI_NumberInput(UI_WidgetArray* array, Str8 label, F32* value)
 {
   F32 result = *value;
 
-  UI_Element* input = UI_BuildElement(
+  UI_Widget* input = UI_BuildWidget(
     array,
-    (UI_ElementDescription){
-      .flags = UI_ElementFlag_Hover | UI_ElementFlag_DrawLabel | UI_ElementFlag_DrawBackground,
+    (UI_WidgetDescription){
+      .flags = UI_WidgetFlag_Hover | UI_WidgetFlag_DrawLabel | UI_WidgetFlag_DrawBackground,
     }
   );
 
@@ -550,14 +550,14 @@ UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value)
 }
 
 func B32
-UI_Button(UI_ElementArray* array, Str8 label)
+UI_Button(UI_WidgetArray* array, Str8 label)
 {
   B32 result = 0;
 
-  UI_Element* button = UI_BuildElement(
+  UI_Widget* button = UI_BuildWidget(
     array,
-    (UI_ElementDescription){
-      .flags = UI_ElementFlag_Hover | UI_ElementFlag_DrawLabel | UI_ElementFlag_DrawBackground,
+    (UI_WidgetDescription){
+      .flags = UI_WidgetFlag_Hover | UI_WidgetFlag_DrawLabel | UI_WidgetFlag_DrawBackground,
       .rectangle.radius = {.top_right = 10.0f, .bottom_right = 10.0f},
     }
   );
@@ -579,14 +579,14 @@ UI_Button(UI_ElementArray* array, Str8 label)
 }
 
 func F32
-UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value)
+UI_SliderF32(UI_WidgetArray* array, Str8 label, F32 min, F32 max, F32* value)
 {
-  UI_Element* slider = UI_BuildElement(
+  UI_Widget* slider = UI_BuildWidget(
     array,
-    (UI_ElementDescription){
-      .flags = UI_ElementFlag_Hover|
-        UI_ElementFlag_DrawLabel|
-        UI_ElementFlag_DrawBackground,
+    (UI_WidgetDescription){
+      .flags = UI_WidgetFlag_Hover|
+        UI_WidgetFlag_DrawLabel|
+        UI_WidgetFlag_DrawBackground,
     }
   );
 

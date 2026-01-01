@@ -97,17 +97,17 @@ struct UI_Padding
 
 #define UI_EqualPadding(value) {value, value, value, value}
 
-typedef U16 UI_ElementFlags;
-enum UI_ElementFlagEnum
+typedef U16 UI_WidgetFlags;
+enum UI_WidgetFlagEnum
 {
   // Interaction Flags
-  UI_ElementFlag_Hover = 1 << 0,
-  UI_ElementFlag_Clickable = 1 << 1,
+  UI_WidgetFlag_Hover = 1 << 0,
+  UI_WidgetFlag_Clickable = 1 << 1,
 
   // Draw Flags
-  UI_ElementFlag_DrawBackground = 1 << 2,
-  UI_ElementFlag_DrawLabel = 1 << 3,
-} UI_ElementFlagEnum;
+  UI_WidgetFlag_DrawBackground = 1 << 2,
+  UI_WidgetFlag_DrawLabel = 1 << 3,
+} UI_WidgetFlagEnum;
 
 typedef struct UI_LayoutDescription UI_LayoutDescription;
 struct UI_LayoutDescription
@@ -138,20 +138,20 @@ struct UI_TextDescription
   U32 font_size;
 };
 
-typedef U16 UI_ElementType;
-enum UI_ElementTypeEnum
+typedef U16 UI_WidgetType;
+enum UI_WidgetTypeEnum
 {
-  UI_ElementType_Rectangle,
-  UI_ElementType_Text
-} UI_ElementTypeEnum;
+  UI_WidgetType_Rectangle,
+  UI_WidgetType_Text
+} UI_WidgetTypeEnum;
 
-typedef struct UI_ElementDescription UI_ElementDescription;
-struct UI_ElementDescription
+typedef struct UI_WidgetDescription UI_WidgetDescription;
+struct UI_WidgetDescription
 {
   Str8 name;
 
-  UI_ElementType type;
-  UI_ElementFlags flags;
+  UI_WidgetType type;
+  UI_WidgetFlags flags;
 
   UI_LayoutDescription layout;
   union
@@ -170,11 +170,11 @@ struct UI_ScrollOffset
 UI_ScrollOffset _scroll_offset_nil = {0};
 DefineArray(UI_ScrollOffset, UI_ScrollOffsetArray, _scroll_offset_nil)
 
-typedef struct UI_Element UI_Element;
-struct UI_Element
+typedef struct UI_Widget UI_Widget;
+struct UI_Widget
 {
   UI_ID id;
-  UI_ElementDescription description;
+  UI_WidgetDescription description;
 
   // --AlNov 23 December 2025: @TEST
   UI_ID   clip_element_id;
@@ -189,8 +189,8 @@ struct UI_Element
   Vec2 child_position_offset;
 };
 
-UI_Element UI_ElementDefaultValue = {0};
-DefineArray(UI_Element, UI_ElementArray, UI_ElementDefaultValue)
+UI_Widget UI_WidgetDefaultValue = {0};
+DefineArray(UI_Widget, UI_WidgetArray, UI_WidgetDefaultValue)
 
 typedef U8 UI_DrawCommandType;
 enum UI_DrawCommandTypeEnum
@@ -244,7 +244,7 @@ struct UI_Context
   Vec2 mouse_position;
   Vec2F32 mouse_scroll;
 
-  UI_ElementArray elements;
+  UI_WidgetArray elements;
 
   UI_IDArray final_elements;
   UI_IDArray open_elements_stack;
@@ -272,30 +272,30 @@ func void UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll);
 func void UI_EndFrame();
 
 // -------------------------------------------------------------------
-// -- UI Elements ----------------------------------------------------
-func UI_Element* UI_GetOpenedElement();
+// -- UI Widgets ----------------------------------------------------
+func UI_Widget* UI_GetOpenedWidget();
 
-func UI_ID   UI_GetID()                {return UI_GetOpenedElement()->id;}
-func RectF32 UI_GetRectangle(UI_ID id) {return UI_ElementArrayGet(&ui_context.elements, id).rect;}
+func UI_ID   UI_GetID()                {return UI_GetOpenedWidget()->id;}
+func RectF32 UI_GetRectangle(UI_ID id) {return UI_WidgetArrayGet(&ui_context.elements, id).rect;}
 
 func Vec2I32 UI_GetScrollOffset();
 
 // --AlNov 20 December 2025:
-// Separate Open and Configure to be able to use UI_Hovered, UI_GetRectangle, etc in UI_ElementBlock.
-func void UI_OpenElement();
-func void UI_ConfigureElement(UI_ElementDescription description);
-func void UI_CloseElement();
+// Separate Open and Configure to be able to use UI_Hovered, UI_GetRectangle, etc in UI_WidgetBlock.
+func void UI_OpenWidget();
+func void UI_ConfigureWidget(UI_WidgetDescription description);
+func void UI_CloseWidget();
 
 // --AlNov 16 December 2025:
-// Macroses below solve next problem - warning: C99 forbids casting nonscalar type 'UI_ElementDescription'
+// Macroses below solve next problem - warning: C99 forbids casting nonscalar type 'UI_WidgetDescription'
 // With wrapper it is possilbe to use api with inline structure definition (1) and predefined structure (2).
-// (1) - UI_OpenElement(.layout.width = UI_FixedSize(100)) {}
-// (2) - UI_ElementDescription default_element = {.layout.width = UI_FixedSize(100)};
-//       UI_OpenElement(default_element) {}
-#define UI_DefineElementDescriptionStructWrapper() typedef struct {UI_ElementDescription package;} UI_ElementDescriptionWrapper;
-UI_DefineElementDescriptionStructWrapper()
-#define UI_ElementDescriptionWrapper(...) ((UI_ElementDescriptionWrapper){__VA_ARGS__}).package
-#define UI_ElementBlock(...) DeferBlock((UI_OpenElement(), UI_ConfigureElement(UI_ElementDescriptionWrapper(__VA_ARGS__))), UI_CloseElement())
+// (1) - UI_OpenWidget(.layout.width = UI_FixedSize(100)) {}
+// (2) - UI_WidgetDescription default_element = {.layout.width = UI_FixedSize(100)};
+//       UI_OpenWidget(default_element) {}
+#define UI_DefineWidgetDescriptionStructWrapper() typedef struct {UI_WidgetDescription package;} UI_WidgetDescriptionWrapper;
+UI_DefineWidgetDescriptionStructWrapper()
+#define UI_WidgetDescriptionWrapper(...) ((UI_WidgetDescriptionWrapper){__VA_ARGS__}).package
+#define UI_WidgetBlock(...) DeferBlock((UI_OpenWidget(), UI_ConfigureWidget(UI_WidgetDescriptionWrapper(__VA_ARGS__))), UI_CloseWidget())
 
 // --AlNov 20 December 2025:
 // Interaction with UI is delayed by 1 frame.
@@ -303,10 +303,10 @@ UI_DefineElementDescriptionStructWrapper()
 // The layout is in the final state after UI_EndFrame() is called.
 func B32 UI_Hovered();
 func B32 UI_Clicked();
-func RectF32 UI_GetElementRectF32();
+func RectF32 UI_GetWidgetRectF32();
 
-func UI_Element* UI_Layout(UI_ElementArray* array, Str8 label);
+func UI_Widget* UI_Layout(UI_WidgetArray* array, Str8 label);
 func void        UI_Text(Str8 label, UI_TextDescription text);
-func void        UI_NumberInput(UI_ElementArray* array, Str8 label, F32* value);
-func B32         UI_Button(UI_ElementArray* array, Str8 label);
-func F32         UI_SliderF32(UI_ElementArray* array, Str8 label, F32 min, F32 max, F32* value);
+func void        UI_NumberInput(UI_WidgetArray* array, Str8 label, F32* value);
+func B32         UI_Button(UI_WidgetArray* array, Str8 label);
+func F32         UI_SliderF32(UI_WidgetArray* array, Str8 label, F32 min, F32 max, F32* value);

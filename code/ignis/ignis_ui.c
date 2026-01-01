@@ -69,7 +69,7 @@ Ignis_UI_Configure(Ignis_Scene* scene, Vec2I32 context_size, Vec2F32 pointer_pos
 {
   DeferBlock(UI_BeginFrame(pointer_position, OS_MouseScroll()), UI_EndFrame())
   {
-    UI_ElementBlock({
+    UI_WidgetBlock({
       .name = Str8C("Ignis_UI_Context"),
       .layout = {
         .width = UI_PixelSize(context_size.x),
@@ -100,8 +100,8 @@ Ignis_UI_Text(Str8 str)
 func void
 Ignis_UI_Button(Str8 label, UI_Size width, UI_Size height)
 {
-  UI_ElementBlock({
-    .flags  = UI_ElementFlag_DrawBackground,
+  UI_WidgetBlock({
+    .flags  = UI_WidgetFlag_DrawBackground,
     .name   = Str8C("Ignis_Button"),
     .layout = {
       .width  = width,
@@ -125,8 +125,8 @@ Ignis_UI_Title(Str8 str)
 func void
 Ignis_UI_SideBar(Ignis_Scene* scene)
 {
-  UI_ElementBlock({
-    .flags = UI_ElementFlag_DrawBackground,
+  UI_WidgetBlock({
+    .flags = UI_WidgetFlag_DrawBackground,
     .name = Str8C("Ignis_SideBar"),
     .layout = {
       .width  = UI_PercentSize(0.3f),
@@ -135,7 +135,7 @@ Ignis_UI_SideBar(Ignis_Scene* scene)
     .rectangle = _ignis_ui_state.rectangle,
   })
   {
-    UI_ElementBlock({
+    UI_WidgetBlock({
       .name = Str8C("Ignis_SideBar_Top"),
       .layout = {
         .width  = UI_PercentSize(1.0f),
@@ -146,7 +146,7 @@ Ignis_UI_SideBar(Ignis_Scene* scene)
       Ignis_UI_SceneDetails(scene);
     }
 
-    UI_ElementBlock({
+    UI_WidgetBlock({
       .name = Str8C("Ignis_SideBar_Bottom"),
       .layout = {
         .width  = UI_PercentSize(1.0f),
@@ -166,7 +166,7 @@ Ignis_UI_SideBar(Ignis_Scene* scene)
 func void
 Ignis_UI_SceneDetails(Ignis_Scene* scene)
 {
-  UI_ElementBlock({
+  UI_WidgetBlock({
     .name = Str8C("Ignis_SceneDetails"),
     .layout = {
       .width  = UI_PercentSize(1.0f),
@@ -185,7 +185,7 @@ Ignis_UI_SceneDetails(Ignis_Scene* scene)
 
 func void Ignis_UI_EntityDetails(Ignis_Entity* entity)
 {
-  UI_ElementBlock({
+  UI_WidgetBlock({
     .name = Str8C("Ignis_EntityDetails"),
     .layout = {
       .width  = UI_PercentSize(1.0f),
