@@ -113,6 +113,7 @@ Ignis_R_PreparePipelines()
       &(R_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/ignis/mesh.fs.glsl"),
         .type = R_SHADER_TYPE_FRAGMENT,
+        .global_uniforms_count = 1,
       }
     );
 
@@ -517,8 +518,27 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity)
       .size = sizeof(mesh_instance_vertex_data),
     };
 
+    struct
+    {
+      Vec3F32 light_direction;
+      F32 light_direction_padding;
+      Vec3F32 ambient_color;
+    } mesh_global_fragment_data = {
+      .light_direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, -1.0f)),
+      .ambient_color = MakeVec3F32(0.05f, 0.05f, 0.05f),
+    };
+
+    U64 mesh_global_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_global_fragment_data, sizeof(mesh_global_fragment_data));
+
+    R_UniformBufferBindingInfo mesh_fragment_shader_global_uniform = {
+      .buffer = buffer,
+      .offset = mesh_global_fragment_data_offset,
+      .size = sizeof(mesh_global_fragment_data),
+    };
+
     R_BindGraphicsPipeline(command_buffer, _ignis_r_state.mesh_pipeline);
     R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
+    R_BindGlobalFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_global_uniform, 0, 0);
     R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
     R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
     R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
