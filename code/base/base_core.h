@@ -38,7 +38,7 @@ typedef I32 B32;
 #define F32_MIN -3.40282347E+38f
 #define F32_MAX 3.40282347E+38f
 
-#define ZeroStruct() {0};
+#define ZeroStruct() {0}
 
 // -------------------------------------------------------------------
 // ID
