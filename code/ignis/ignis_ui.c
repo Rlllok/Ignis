@@ -37,8 +37,12 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
   UI_Init(arena, max_widgets_count);
   Ignis_UI_ApplyColors();
   
+  _ignis_ui_state.bg_rectangle = (UI_RectangleDescription){
+    .color  = _ignis_ui_state.colors.bg0,
+    .radius = {0.0f, 0.0f, 0.0f, 0.0f},
+  };
   _ignis_ui_state.rectangle = (UI_RectangleDescription){
-    .color  = _ignis_ui_state.colors.bg,
+    .color  = _ignis_ui_state.colors.bg1,
     .radius = {0.0f, 0.0f, 0.0f, 0.0f},
   };
   _ignis_ui_state.text = (UI_TextDescription){
@@ -58,7 +62,9 @@ Ignis_UI_ApplyColors()
 {
   _ignis_ui_state.colors.text    = RGBAFromHex(0xf9e2afff);
   _ignis_ui_state.colors.accent  = RGBAFromHex(0xfcbf3bff);
-  _ignis_ui_state.colors.bg      = RGBAFromHex(0x32383bff);
+  _ignis_ui_state.colors.bg0     = RGBAFromHex(0x32383bff);
+  _ignis_ui_state.colors.bg1     = RGBAFromHex(0x40484cff);
+  _ignis_ui_state.colors.bg2     = RGBAFromHex(0x585b70ff);
   _ignis_ui_state.colors.bg_tint = RGBAFromHex(0x474c4fff);
   _ignis_ui_state.colors.button  = RGBAFromHex(0x39394eff);
   _ignis_ui_state.colors.hover   = RGBAFromHex(0x44445cff);
@@ -110,7 +116,7 @@ Ignis_UI_Button(Str8 label, UI_Size width, UI_Size height)
       .height = height,
     },
     .rectangle = {
-      .color = UI_Hovered() ? _ignis_ui_state.colors.hover : _ignis_ui_state.colors.button,
+      .color = UI_Hovered() ? _ignis_ui_state.colors.hover : _ignis_ui_state.colors.bg1,
     },
   })
   {
@@ -137,27 +143,41 @@ Ignis_UI_SideBar(Ignis_Scene* scene)
     .layout = {
       .width  = UI_PercentSize(0.3f),
       .height = UI_PercentSize(1.0f),
+      .padding = UI_EqualPadding(4),
+      .child_gap = 4,
     },
-    .rectangle = _ignis_ui_state.rectangle,
+    .rectangle = _ignis_ui_state.bg_rectangle,
   })
   {
     UI_WidgetBlock({
+      .flags = UI_WidgetFlag_DrawBackground,
       .name = Str8C("Ignis_SideBar_Top"),
       .layout = {
         .width  = UI_PercentSize(1.0f),
-        .height = UI_PercentSize(0.5f),
-      }
+        .height = UI_PercentSize(0.25f),
+        .clip = 1,
+      },
+      .rectangle = {
+        .color  = _ignis_ui_state.colors.bg1,
+        .radius = {8.0f, 8.0f, 0.0f, 0.0f},
+      },
     })
     {
       Ignis_UI_SceneDetails(scene);
     }
 
     UI_WidgetBlock({
+      .flags = UI_WidgetFlag_DrawBackground,
       .name = Str8C("Ignis_SideBar_Bottom"),
       .layout = {
         .width  = UI_PercentSize(1.0f),
-        .height = UI_PercentSize(0.5f),
-      }
+        .height = UI_PercentSize(0.75f),
+        .clip = 1,
+      },
+      .rectangle = {
+        .color  = _ignis_ui_state.colors.bg1,
+        .radius = {0.0f, 0.0f, 4.0f, 4.0f},
+      },
     })
     {
       Ignis_Entity* selected_entity = Ignis_GetSelectedEntity(scene);
@@ -181,6 +201,16 @@ Ignis_UI_SceneDetails(Ignis_Scene* scene)
   })
   {
     Ignis_UI_Title(Str8C("Scene"));
+    UI_WidgetBlock({
+      .name = Str8C("Ignis_SceneDetails_Header"),
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(2.0f),
+      },
+    });
+    {
+      Ignis_UI_Text(Str8C("Entity Name"));
+    }
     for (I32 i = 1; i < scene->entities.length; i += 1)
     {
       Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);

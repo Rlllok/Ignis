@@ -89,13 +89,13 @@ UI_CalculatePositions()
         case UI_LayoutDirection_TopToBottom:
         {
           child_element->rect.y = branch->rect.y + branch->child_position_offset.y;
-          branch->child_position_offset.y += child_element->rect.h;
+          branch->child_position_offset.y += child_element->rect.h + branch->description.layout.child_gap;
         } break;
 
         case UI_LayoutDirection_LeftToRight:
         {
           child_element->rect.x = branch->rect.position.x + branch->child_position_offset.x;
-          branch->child_position_offset.x += child_element->rect.w;
+          branch->child_position_offset.x += child_element->rect.w + branch->description.layout.child_gap;
         } break;
       }
     }
@@ -202,13 +202,13 @@ func void UI_EndFrame()
         case UI_LayoutDirection_TopToBottom:
         {
           child_element->rect.y += branch->child_position_offset.y;
-          branch->child_position_offset.y += child_element->rect.h;
+          branch->child_position_offset.y += child_element->rect.h + branch->description.layout.child_gap;
         } break;
 
         case UI_LayoutDirection_LeftToRight:
         {
           child_element->rect.x += branch->child_position_offset.x;
-          branch->child_position_offset.x += child_element->rect.w;
+          branch->child_position_offset.x += child_element->rect.w + branch->description.layout.child_gap;
         } break;
       }
     }
@@ -236,7 +236,7 @@ func void UI_EndFrame()
               .rectangle = {
                 .bound = current_element->rect,
                 .color = current_element->description.rectangle.color,
-                .border_color = current_element->description.rectangle.border_color,
+                .border_color = (current_element->description.rectangle.border_color.a == 0) ? current_element->description.rectangle.color : current_element->description.rectangle.border_color,
                 .radius = current_element->description.rectangle.radius.values,
               }
             }

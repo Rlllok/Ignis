@@ -115,7 +115,7 @@ struct UI_LayoutDescription
   UI_Size width;
   UI_Size height;
   UI_Padding padding;
-  F32 child_gap;
+  I32 child_gap;
   UI_LayoutDirection direction;
   B32 clip;
   Vec2I32 scroll_offset;

@@ -5,7 +5,9 @@ struct Ignis_UI_Colors
 {
   Vec4F32 text;
   Vec4F32 accent;
-  Vec4F32 bg;
+  Vec4F32 bg0;
+  Vec4F32 bg1;
+  Vec4F32 bg2;
   Vec4F32 bg_tint;
   Vec4F32 button;
   Vec4F32 hover;
@@ -18,6 +20,7 @@ struct Ignis_UI_State
   FontBitmap      font;
 
   // Component Descriptions
+  UI_RectangleDescription bg_rectangle;
   UI_RectangleDescription rectangle;
   UI_TextDescription      text;
   UI_TextDescription      title_text;
