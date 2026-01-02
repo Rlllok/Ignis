@@ -423,7 +423,7 @@ UI_IsClicked()
   
   if (ui_context.active_id == current_element->id)
   {
-    if ((ui_context.hot_id == current_element->id) && OS_IsMouseReleased(OS_MouseButton_Left))
+    if ((ui_context.hot_id == current_element->id) && OS_MouseReleased(OS_MouseButton_Left))
     {
       ui_context.active_id = 0;
       result = 1;
@@ -431,7 +431,7 @@ UI_IsClicked()
   }
   else if (ui_context.hot_id == current_element->id)
   {
-    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = current_element->id;
+    if (OS_MousePressed(OS_MouseButton_Left)) ui_context.active_id = current_element->id;
   }
 
   return result;

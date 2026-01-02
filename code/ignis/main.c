@@ -148,7 +148,7 @@ Ignis_HandleEvents(Arena* arena)
 {
   OS_EventList event_list = OS_GetEventList(arena, &_ignis_state.window);
 
-  if (OS_IsKeyPressed(OS_KEY_ESC))
+  if (OS_KeyPressed(OS_KEY_ESC))
   {
     _ignis_state.finished = 1;
   }
@@ -158,37 +158,37 @@ Ignis_HandleEvents(Arena* arena)
   Vec3F32 direction = MakeVec3(0.0f, 0.0f, 0.0f);
   F32 speed = 2.0f;
 
-  if (OS_IsKeyDown(OS_KEY_W))
+  if (OS_KeyDown(OS_KEY_W))
   {
     direction = AddVec3(direction, camera->camera.front);
   }
-  if (OS_IsKeyDown(OS_KEY_S))
+  if (OS_KeyDown(OS_KEY_S))
   {
     direction = SubVec3(direction, camera->camera.front);
   }
-  if (OS_IsKeyDown(OS_KEY_D))
+  if (OS_KeyDown(OS_KEY_D))
   {
     direction = AddVec3(direction, camera->camera.right);
   }
-  if (OS_IsKeyDown(OS_KEY_A))
+  if (OS_KeyDown(OS_KEY_A))
   {
     direction = SubVec3(direction, camera->camera.right);
   }
   camera->transform.translation= AddVec3(camera->transform.translation, ScaleVec3(NormalizeVec3(direction), speed*_ignis_state.dt));
 
-  if (OS_IsKeyDown(OS_KEY_ARROW_LEFT))
+  if (OS_KeyDown(OS_KEY_ARROW_LEFT))
   {
     camera->camera.yaw -= 25.0f*_ignis_state.dt;
   }
-  if (OS_IsKeyDown(OS_KEY_ARROW_RIGHT))
+  if (OS_KeyDown(OS_KEY_ARROW_RIGHT))
   {
     camera->camera.yaw += 25.0f*_ignis_state.dt;
   }
-  if (OS_IsKeyDown(OS_KEY_ARROW_UP))
+  if (OS_KeyDown(OS_KEY_ARROW_UP))
   {
     camera->camera.pitch += 25.0f*_ignis_state.dt;
   }
-  if (OS_IsKeyDown(OS_KEY_ARROW_DOWN))
+  if (OS_KeyDown(OS_KEY_ARROW_DOWN))
   {
     camera->camera.pitch -= 25.0f*_ignis_state.dt;
   }

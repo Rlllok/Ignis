@@ -97,12 +97,14 @@ Ignis_UI_Text(Str8 str)
   UI_Text(str, _ignis_ui_state.text);
 }
 
-func void
+func B32
 Ignis_UI_Button(Str8 label, UI_Size width, UI_Size height)
 {
+  B32 result = 0;
+  
   UI_WidgetBlock({
     .flags  = UI_WidgetFlag_DrawBackground,
-    .name   = Str8C("Ignis_Button"),
+    .name   = label,
     .layout = {
       .width  = width,
       .height = height,
@@ -113,7 +115,11 @@ Ignis_UI_Button(Str8 label, UI_Size width, UI_Size height)
   })
   {
     Ignis_UI_Text(label);
+
+    result = UI_Hovered() && OS_MousePressed(OS_MouseButton_Left);
   }
+
+  return result;
 }
 
 func void
@@ -154,10 +160,10 @@ Ignis_UI_SideBar(Ignis_Scene* scene)
       }
     })
     {
-      Ignis_Entity* camera = Ignis_GetEntity(scene, Str8C("Camera"));
-      if (Ignis_EntityValid(camera))
+      Ignis_Entity* selected_entity = Ignis_GetSelectedEntity(scene);
+      if (Ignis_EntityValid(selected_entity))
       {
-        Ignis_UI_EntityDetails(camera);
+        Ignis_UI_EntityDetails(selected_entity);
       }
     }
   }
@@ -177,8 +183,11 @@ Ignis_UI_SceneDetails(Ignis_Scene* scene)
     Ignis_UI_Title(Str8C("Scene"));
     for (I32 i = 1; i < scene->entities.length; i += 1)
     {
-      Ignis_Entity* enitity = Ignis_EntityArrayGetPointer(&scene->entities, i);
-      Ignis_UI_Button(enitity->name, UI_PercentSize(1.0f), UI_PixelSize(40.0f));
+      Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
+      if (Ignis_UI_Button(entity->name, UI_PercentSize(1.0f), UI_PixelSize(25.0f)))
+      {
+        Ignis_SetSelectedEntity(scene, entity);
+      }
     }
   }
 }

@@ -35,6 +35,8 @@ func UI_DrawCommandArray Ignis_UI_GetDrawCommands();
 func void Ignis_UI_Text(Str8 str);
 func void Ignis_UI_Title(Str8 str);
 
+func B32 Ignis_UI_Button(Str8 label, UI_Size width, UI_Size height);
+
 func void Ignis_UI_SideBar(Ignis_Scene* scene);
 func void Ignis_UI_SceneDetails(Ignis_Scene* scene);
 func void Ignis_UI_EntityDetails(Ignis_Entity* entity);

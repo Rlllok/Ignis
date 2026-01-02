@@ -72,3 +72,5 @@ func Ignis_Entity*  Ignis_GetEntity   (Ignis_Scene* scene, Str8 name);
 
 func Ignis_Entity* Ignis_GetCamera        (Ignis_Scene* scene) {return Ignis_EntityArrayGetPointer(&scene->entities, scene->active_camera_id.id);}
 func Ignis_Entity* Ignis_GetSelectedEntity(Ignis_Scene* scene) {return Ignis_EntityArrayGetPointer(&scene->entities, scene->selected_entity_id.id);}
+
+func void Ignis_SetSelectedEntity(Ignis_Scene* scene, Ignis_Entity* entity) {scene->selected_entity_id = entity->id;}
