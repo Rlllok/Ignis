@@ -160,6 +160,12 @@ func U64 OS_GetTimeTicks(void)
 }
 
 func void
+OS_Sleep(U64 ms)
+{
+  Sleep(ms);
+}
+
+func void
 OS_Wait(F32 miliseconds)
 {
   if (miliseconds <= 0) return;

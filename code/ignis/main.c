@@ -31,6 +31,13 @@ struct Ignis_State
 
   Ignis_Scene scene;
 
+  struct
+  {
+    AST_StaticMesh plane;
+    AST_StaticMesh cube;
+    AST_StaticMesh sphere;
+  } primitives;
+
   B32 finished;
   F32 dt;
 } _ignis_state;
@@ -88,17 +95,43 @@ Init_Ignis()
     },
   });
 
-  AST_StaticMesh mesh = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/sphere_gltf/sphere.gltf"));
-  // UpdateSkeletonGlobalTransform(&mesh.skeleton);
+  _ignis_state.primitives.plane  = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/primitives/plane.gltf"));
+  _ignis_state.primitives.cube   = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/primitives/cube.gltf"));
+  _ignis_state.primitives.sphere = AST_LoadStaticMeshFromGLTF(_ignis_state.arena, Str8C("data/primitives/uv_sphere.gltf"));
+
   Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
-    .name      = Str8C("Actor"),
+    .name      = Str8C("Plane"),
+    .type      = Ignis_EntityType_Actor,
+    .transform = (Transform){
+      .translation = MakeVec3F32(-3.0f, 0.0f, 0.0f),
+      .rotation    = IdentityQuaternion(),
+      .scale       = MakeVec3F32(1.0f, 1.0f, 1.0f),
+    },
+    .actor.mesh          = _ignis_state.primitives.plane,
+    .actor.color_texture = _ignis_r_state.default_color_texture,
+  });
+
+  Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
+    .name      = Str8C("Cube"),
     .type      = Ignis_EntityType_Actor,
     .transform = (Transform){
       .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
       .rotation    = IdentityQuaternion(),
       .scale       = MakeVec3F32(1.0f, 1.0f, 1.0f),
     },
-    .actor.mesh          = mesh,
+    .actor.mesh          = _ignis_state.primitives.cube,
+    .actor.color_texture = _ignis_r_state.default_color_texture,
+  });
+
+  Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
+    .name      = Str8C("Sphere"),
+    .type      = Ignis_EntityType_Actor,
+    .transform = (Transform){
+      .translation = MakeVec3F32(3.0f, 0.0f, 0.0f),
+      .rotation    = IdentityQuaternion(),
+      .scale       = MakeVec3F32(1.0f, 1.0f, 1.0f),
+    },
+    .actor.mesh          = _ignis_state.primitives.sphere,
     .actor.color_texture = _ignis_r_state.default_color_texture,
   });
 
