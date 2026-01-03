@@ -38,8 +38,10 @@ struct Ignis_State
     AST_StaticMesh sphere;
   } primitives; // --AlNov 3 January 2026: @TODO Should not be there (Render layer or Asset Manager)
 
-  B32 finished;
   F32 dt;
+
+  B32 draw_editor_ui;
+  B32 finished;
 } _ignis_state;
 
 func void Init_Ignis();
@@ -62,12 +64,14 @@ I32 main()
 
     PA_Update(_ignis_state.dt);
 
-    Ignis_UI_Configure(&_ignis_state.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
-    
     Ignis_R_BeginFrame();
     {
       Ignis_R_RenderScene(&_pa_state.area.scene);
-      // Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
+      if (_ignis_state.draw_editor_ui)
+      {
+        Ignis_UI_Configure(&_pa_state.area.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
+        Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
+      }
     }
     Ignis_R_EndFrame();
 
@@ -159,6 +163,11 @@ Ignis_HandleEvents(Arena* arena)
   if (OS_KeyPressed(OS_KEY_ESC))
   {
     _ignis_state.finished = 1;
+  }
+
+  if (OS_KeyPressed(OS_KEY_F3))
+  {
+    _ignis_state.draw_editor_ui = !_ignis_state.draw_editor_ui;
   }
 
   Ignis_Entity* camera = Ignis_GetCamera(&_ignis_state.scene);

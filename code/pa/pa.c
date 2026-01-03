@@ -31,8 +31,9 @@ PA_StartArea(PA_Area* area)
     {
       char entity_name[128] = {0};
       sprintf(entity_name, "Grid_x%d_y%d", i, j);
+      Str8 entity_str8 = CopyStr8(_pa_state.arena, Str8C(entity_name));
       Ignis_CreateEntity(&area->scene, (Ignis_Entity){
-        .name = Str8C(entity_name),
+        .name = entity_str8,
         .type = Ignis_EntityType_Actor,
         .transform = (Transform){
           .translation = MakeVec3F32(i*_pa_state.grid_size, 0.0f, j*_pa_state.grid_size),
