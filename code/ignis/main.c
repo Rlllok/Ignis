@@ -36,7 +36,7 @@ struct Ignis_State
     AST_StaticMesh plane;
     AST_StaticMesh cube;
     AST_StaticMesh sphere;
-  } primitives;
+  } primitives; // --AlNov 3 January 2026: @TODO Should not be there (Render layer or Asset Manager)
 
   B32 finished;
   F32 dt;
@@ -45,21 +45,29 @@ struct Ignis_State
 func void Init_Ignis();
 func void Ignis_HandleEvents(Arena* arena);
 
+// --AlNov 3 January 2026: @TODO #include after _ignis_state because of primitives
+#include "pa/pa.h"
+#include "pa/pa.c"
+
 I32 main()
 {
   Init_Ignis();
+
+  PA_Init();
 
   U64 begin_ms = OS_GetTimeTicks();
   while (!_ignis_state.finished)
   {
     Ignis_HandleEvents(_ignis_state.arena);
 
+    PA_Update(_ignis_state.dt);
+
     Ignis_UI_Configure(&_ignis_state.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
     
     Ignis_R_BeginFrame();
     {
-      Ignis_R_RenderScene(&_ignis_state.scene);
-      Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
+      Ignis_R_RenderScene(&_pa_state.area.scene);
+      // Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
     }
     Ignis_R_EndFrame();
 
