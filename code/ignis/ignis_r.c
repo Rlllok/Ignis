@@ -395,7 +395,8 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
         Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
         if (entity->type == Ignis_EntityType_Actor)
         {
-          Ignis_R_RenderEntity(camera, entity);
+          // -- AlNov 3 January 2026: @TODO How to draw seleceted entity
+          Ignis_R_RenderEntity(camera, entity, Ignis_EntityIDEqual(entity->id, scene->selected_entity_id));
         }
       }
     }
@@ -596,11 +597,10 @@ Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
     R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
     R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
-
 }
 
 func void
-Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity)
+Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
 {
   R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
   R_Buffer buffer = _ignis_r_state.data_buffer;
@@ -652,7 +652,7 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity)
     } mesh_global_fragment_data = {
       .light_direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, -1.0f)),
       .ambient_color = MakeVec3F32(0.1f, 0.1f, 0.1f),
-      .diffuse_color = MakeVec3F32(0.87f, 0.85f, 0.42f),
+      .diffuse_color = (selected) ? MakeVec3F32(0.13f, 0.78f, 0.09f) : MakeVec3F32(0.87f, 0.85f, 0.42f),
     };
 
     U64 mesh_global_fragment_data_offset = R_PushBuffer(buffer, (U8*)&mesh_global_fragment_data, sizeof(mesh_global_fragment_data));

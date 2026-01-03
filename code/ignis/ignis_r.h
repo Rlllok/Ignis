@@ -45,4 +45,4 @@ func void Ignis_R_RenderUI(UI_DrawCommandArray commands);
 
 func void Ignis_R_RenderGrid         (Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget depth);
 func void Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity);
-func void Ignis_R_RenderEntity       (Ignis_Entity* camera, Ignis_Entity* entity);
+func void Ignis_R_RenderEntity       (Ignis_Entity* camera, Ignis_Entity* entity, B32 selected);
