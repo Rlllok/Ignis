@@ -175,8 +175,145 @@ Str8Equal(Str8 a, Str8 b)
 }
 
 // -- Convertors -----------------------------------------------------
+func void
+CStrFromI32(char* c_str, U64 length, I32 i)
+{
+  B32 negative = i & (1 << 31);
+  if (negative)
+  {
+    i = -i;
+  }
+
+   do
+  {
+    I32 digit = i % 10;
+    
+    c_str[0] = digit_ascii_table[digit];
+
+    i /= 10;
+
+    c_str += 1;
+  } while (i != 0);
+
+  if (negative)
+  {
+    c_str[0] = '-';
+    c_str += 1;
+  }
+
+  c_str[0] = 0;
+}
+
+func void
+CStrFromU32(char* c_str, U64 length, U32 u)
+{
+  do
+  {
+    U32 digit = u % 10;
+    
+    c_str[0] = digit_ascii_table[digit];
+
+    u /= 10;
+
+    c_str += 1;
+  } while (u != 0);
+
+  c_str[0] = 0;
+}
+
 func F64
 F64FromStr8(Str8 s)
 {
   return atof((char*)s.data);
+}
+
+// -- Formating ------------------------------------------------------
+func U64
+SizeOfFormat(char* format)
+{
+  return 0;
+}
+
+func Str8
+FormatStr8(Arena* arena, char* format, ...)
+{
+  Str8 result = {
+     .data   = (U8*)PushArena(arena, 0),
+     .length = 0,
+  };
+
+  va_list arg_list = {0};
+
+  va_start(arg_list, format);
+  char* c = format;
+
+  while (c[0])
+  {
+    if (c[0] == '%')
+    {
+      c += 1;
+
+      char c_tmp[64] = ZeroStruct();
+      switch (c[0])
+      {
+        default: {Assert(!"Unrecognized format flag");} break;
+
+        case 'i':
+        case 'd':
+        {
+          I32 arg_i32 = va_arg(arg_list, I32);
+
+          CStrFromI32(c_tmp, CountArrayElements(c_tmp), arg_i32);
+          I32 c_tmp_length = GetCStrLength(c_tmp);
+          for (I32 i = c_tmp_length - 1; i >= 0; i -= 1)
+          {
+            result.data[result.length] = c_tmp[i];
+            result.length += 1;
+          }
+        } break;
+
+        case 'u':
+        {
+          U32 arg_u32 = va_arg(arg_list, I32);
+
+          CStrFromU32(c_tmp, CountArrayElements(c_tmp), arg_u32);
+          I32 c_tmp_length = GetCStrLength(c_tmp);
+          for (I32 i = c_tmp_length - 1; i >= 0; i -= 1)
+          {
+            result.data[result.length] = c_tmp[i];
+            result.length += 1;
+          }
+        } break;
+
+        case 's':
+        {
+        } break;
+      }
+      if (c[0] == 's')
+      {
+        Str8 f_str = va_arg(arg_list, Str8);
+        for (U64 i = 0; i < f_str.length; i += 1)
+        {
+          result.data[result.length] = f_str.data[i];
+          result.length += 1;
+        }
+      }
+    }
+    else
+    {
+      result.data[result.length] = c[0];
+
+      result.length += 1;
+    }
+
+    c += 1;
+  }
+
+  result.data[result.length] = 0;
+  PushArena(arena, result.length + 1);
+  va_end(arg_list);
+
+  LOG_DEBUG("C_LENGTH: %d, STR_LENGTH: %d, ARENA_POSITION: %d\n", GetCStrLength(format), result.length, arena->position);
+  
+  return result;
 }

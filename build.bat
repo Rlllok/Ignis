@@ -28,6 +28,8 @@ pushd build
     if "%ignis%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\ignis\main.c  -o ignis.exe
     if "%config%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\app\config.c  -o config.exe
     if "%ember%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\ember\ember.c -o ember.exe
+
+    if "%string%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% ..\code\app\string.c -o string.exe
 popd
 
 @echo.

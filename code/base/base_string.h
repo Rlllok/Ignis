@@ -3,6 +3,8 @@
 #include "base_core.h"
 #include "base_memory.h"
 
+#include <stdarg.h>
+
 #include <string.h>
 
 typedef struct Str8 Str8;
@@ -34,4 +36,13 @@ func B32 IsDigit     (Str8 str, U64 position);
 func B32 Str8Equal(Str8 a, Str8 b);
 
 // -- Convertors -----------------------------------------------------
+const char* digit_ascii_table = "0123456789";
+
+func void CStrFromI32(char* c_str, U64 length, I32 i);
+func void CStrFromU32(char* c_str, U64 length, U32 u);
+
 func F64 F64FromStr8(Str8 s);
+
+// -- Formating ------------------------------------------------------
+func U64  SizeOfFormat(char* format);
+func Str8 FormatStr8  (Arena* arena, char* format, ...);
