@@ -31,7 +31,6 @@ typedef enum
   ST_POINT,
   ST_INT,
   ST_FLOAT,
-  ST_STR_OR_BOOL,
 } ReadState;
 
 typedef struct ConfigOption ConfigOption;
@@ -64,114 +63,89 @@ struct Config
 };
 
 ConfigOptionTypeEnum check_type(Str8 value);
-
 U16 find_option_pos(Str8 key_to_find, Config config);
 I32 get_config_value_int(Str8 key_to_get, Config config);
 F32 get_config_value_float(Str8 key_to_get, Config config);
 B32 get_config_value_bool(Str8 key_to_get, Config config);
 Str8 get_config_value_str8(Str8 key_to_get, Config config);
 
+B32 fill_config(Arena* arena, Config config, Str8 file_path);
+
+Config create_config(Arena* arena, Str8* config_keys, ConfigOptionTypeEnum* config_types,
+                     U32 config_length)
+{
+  ConfigOption* config_arr = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * config_length);
+  Config config = {
+    .length = config_length,
+    .option = config_arr,
+  };
+  return config;
+}
+
 I32 main()
 {
-  LOG_INFO("Hello Sashko\n");
+  Arena* arena = AllocateArena(Kilobytes(16));
 
   Str8 file_path = Str8C("D:/programming/Ignis/code/app/config_example.ini");
-
-  FILE* file = fopen(CFromStr8(file_path), "r");
-  if (file == NULL)
-  {
-    LOG_ERROR("Cannot open file %s\n", CFromStr8(file_path));
-    return 0;
-  }
-
-  Arena* arena = AllocateArena(Kilobytes(16));
-  U16 max_line_len = 255;
-  U16 max_config_arr_len = 64;
-  Str8 line = AllocateStr8(arena, max_line_len);
-
-  ConfigOption config_arr[max_config_arr_len];
-
-  Config config = {
-      .length = max_config_arr_len,
-      .option = config_arr,
+  Str8 config_keys[] = {
+    Str8C("app.settings.variable_bool_0"),
+    Str8C("app.settings.variable_bool_1"),
+    Str8C("app.settings.variable_int"),
+    Str8C("app.settings.variable_float"),
+    Str8C("app.settings.window.width"),
+    Str8C("app.settings.window.height"),
+    Str8C("app.settings.window.fullscreen"),
+    Str8C("app.program1.enabled"),
+    Str8C("app.program1.ratio"),
+    Str8C("app.program1.threshold"),
+    Str8C("network.proxy.enabled"),
+    Str8C("network.proxy.host"),
+    Str8C("network.proxy.port"),
+    Str8C("random1"),
+    Str8C("random2"),
+    Str8C("random3"),
+    Str8C("random4"),
+    Str8C("random5"),
+    Str8C("random6"),
+    Str8C("random7"),
   };
+  ConfigOptionTypeEnum config_types[] = {
+    ConfigOptionType_I32,  ConfigOptionType_B32,  ConfigOptionType_I32,  ConfigOptionType_F32,
+    ConfigOptionType_I32,  ConfigOptionType_Str8, ConfigOptionType_B32,  ConfigOptionType_I32,
+    ConfigOptionType_F32,  ConfigOptionType_F32,  ConfigOptionType_B32,  ConfigOptionType_Str8,
+    ConfigOptionType_I32,  ConfigOptionType_None, ConfigOptionType_None, ConfigOptionType_F32,
+    ConfigOptionType_Str8, ConfigOptionType_None, ConfigOptionType_None, ConfigOptionType_None,
+  };
+  U32 config_length = 20;
+  printf("%d\n", (int) sizeof(ConfigOption));
 
-  U16 line_n = 0;
-  U16 line_i = 0;
-  U16 key_value_switch;
-  char temp_str[255];
+  // ConfigOption* config_arr = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * config_length);
+  // ConfigOption* config_arr1 = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * 1);
+  // ConfigOption* config_arr2 = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * 1);
+  // printf("%p\n", (void*)arena);
+  // printf("%p\n", (void*)config_arr);
+  // printf("%p\n", (void*)config_arr1);
+  // printf("%p\n", (void*)(config_arr2 - config_arr1));
+  // printf("%d", config_arr);
 
-  while (fgets((char*)line.data, max_line_len, file) != NULL)
-  {
-    if (line.data[0] == '[' || line.data[0] == ';' || line.data[0] == '\n' || line.data[0] == '\0')
-      continue;
+  // ConfigOption config_arr[config_length];
+  // Config config = {
+  //   .length = config_length,
+  //   .option = config_arr,
+  // };
 
-    line_i = 0;
-    key_value_switch = 0;
-    for (U16 i = 0; i < max_line_len; i++)
-    {
-      if (line.data[i] == '\n' || line.data[i] == '\0')
-      {
-        temp_str[line_i] = '\0';
-        if (key_value_switch != 1)
-        {
-          LOG_ERROR("SRAKA 1")
-          exit(1);
-        }
-        Str8 value = Str8C(temp_str);
-        config.option[line_n].type = check_type(value);
-        switch (config.option[line_n].type)
-        {
-          case ConfigOptionType_None:
-            LOG_ERROR("SRAKA 3");
-            break;
-          case ConfigOptionType_I32:
-            config.option[line_n].v_i32 = strtol(CFromStr8(value), NULL, 10);
-            break;
-          case ConfigOptionType_F32:
-            config.option[line_n].v_f32 = strtof(CFromStr8(value), NULL);
-            break;
-          case ConfigOptionType_B32:
-            config.option[line_n].v_b32 = Str8Equal(value, Str8C("true"));
-            break;
-          case ConfigOptionType_Str8:
-            config.option[line_n].v_str8 = CopyStr8(arena, value);
-            break;
-        }
-        config.option[line_n].value = CopyStr8(arena, Str8C(temp_str));
-        break;
-      }
-      if (line.data[i] == ' ')
-        continue;
-      if (line.data[i] == '=')
-      {
-        temp_str[line_i] = '\0';
-        if (key_value_switch != 0)
-        {
-          LOG_ERROR("SRAKA 0")
-          exit(1);
-        }
-        config.option[line_n].key = CopyStr8(arena, Str8C(temp_str));
-        key_value_switch++;
-        line_i = 0;
-        continue;
-      }
+  Config config = create_config(arena, config_keys, config_types, config_length);
+  
+  B32 success = fill_config(arena, config, file_path);
 
-      temp_str[line_i] = line.data[i];
-      line_i++;
-    }
-    line_n++;
-  }
-  // CHANGE
-  config.length = line_n;
-
-  LOG_INFO("\n");
-  for (U16 i = 0; i < line_n; i++)
+  LOG_INFO("success: %d\n", (U8)success);
+  for (U16 i = 0; i < config_length; i++)
   {
     switch (config.option[i].type)
     {
       case ConfigOptionType_None:
-        LOG_ERROR("SRAKA 3");
+        LOG_INFO("KEY:  %-35s | VALUE: %-10s | TYPE: %-5s\n", CFromStr8(config.option[i].key),
+                 CFromStr8(config.option[i].value), dtype_names[config.option[i].type]);
         break;
       case ConfigOptionType_I32:
         LOG_INFO("KEY:  %-35s | VALUE: %-10d | TYPE: %-5s\n", CFromStr8(config.option[i].key),
@@ -187,7 +161,7 @@ I32 main()
         break;
       case ConfigOptionType_Str8:
         LOG_INFO("KEY:  %-35s | VALUE: %-10s | TYPE: %-5s\n", CFromStr8(config.option[i].key),
-                 CFromStr8(config.option[i].value), dtype_names[config.option[i].type]);
+                 CFromStr8(config.option[i].v_str8), dtype_names[config.option[i].type]);
         break;
       default:
         LOG_INFO("SRAKA FINAL");
@@ -206,6 +180,9 @@ I32 main()
   key = Str8C("random3");
   LOG_INFO("KEY:  %-35s | VALUE: %-10f\n", CFromStr8(key), get_config_value_float(key, config));
 
+  
+  key = Str8C("app.settings.variable_bool_0");
+  LOG_INFO("KEY:  %-35s | VALUE: %-10d\n", CFromStr8(key), get_config_value_bool(key, config));
   key = Str8C("network.proxy.enabled");
   LOG_INFO("KEY:  %-35s | VALUE: %-10d\n", CFromStr8(key), get_config_value_bool(key, config));
   key = Str8C("app.settings.variable_bool_1");
@@ -218,9 +195,100 @@ I32 main()
   LOG_INFO("KEY:  %-35s | VALUE: %-10s\n", CFromStr8(key),
            CFromStr8(get_config_value_str8(key, config)));
 
-  fclose(file);
-
   return 0;
+}
+
+B32 fill_config(Arena* arena, Config config, Str8 file_path)
+{
+  FILE* file = fopen(CFromStr8(file_path), "r");
+
+  U16 max_line_len = 255;
+
+  Str8 line = AllocateStr8(arena, max_line_len);
+
+  if (file == NULL)
+  {
+    LOG_ERROR("Cannot open file %s\n", CFromStr8(file_path));
+    config.length = 0;
+    return 0;
+  }
+
+  U16 option_i = 0;
+  U16 line_i = 0;
+  U16 key_value_switch;
+  char temp_str[255];
+
+  while (fgets((char*)line.data, max_line_len, file) != NULL)
+  {
+    if (line.data[0] == '[' || line.data[0] == ';' || line.data[0] == '\n' || line.data[0] == '\0')
+      continue;
+
+    line_i = 0;
+    key_value_switch = 0;
+    for (U16 i = 0; i < max_line_len; i++)
+    {
+      if (line.data[i] == '\n' || line.data[i] == '\0')
+      {
+        
+        temp_str[line_i] = '\0';
+        
+        if (key_value_switch != 1)
+        {
+          LOG_ERROR("SRAKA 1")
+          exit(1);
+        }
+        Str8 value = Str8C(temp_str);
+        config.option[option_i].type = check_type(value);
+        switch (config.option[option_i].type)
+        {
+          case ConfigOptionType_None:
+            config.option[option_i].v_str8 = CopyStr8(arena, value);
+            break;
+          case ConfigOptionType_I32:
+            config.option[option_i].v_i32 = strtol(CFromStr8(value), NULL, 10);
+            break;
+          case ConfigOptionType_F32:
+            config.option[option_i].v_f32 = strtof(CFromStr8(value), NULL);
+            break;
+          case ConfigOptionType_B32:
+            config.option[option_i].v_b32 = Str8Equal(value, Str8C("true"));
+            break;
+          case ConfigOptionType_Str8:
+            config.option[option_i].v_str8 = SubStr8(arena, value, 1, value.length - 2);
+            break;
+        }
+        printf("-- %s\n", CFromStr8(config.option[option_i].key));
+        config.option[option_i].value = CopyStr8(arena, value);
+        break;
+      }
+      if (line.data[i] == ' ')
+        continue;
+      if (line.data[i] == '=')
+      {
+        temp_str[line_i] = '\0';
+        if (key_value_switch != 0)
+        {
+          LOG_ERROR("SRAKA 0")
+          exit(1);
+        }
+        config.option[option_i].key = CopyStr8(arena, Str8C(temp_str));
+        // if (option_i >= 0) printf("-- %s\n", CFromStr8(config.option[option_i].key));
+        printf("-- %s\n", CFromStr8(config.option[option_i].key));
+        key_value_switch++;
+        line_i = 0;
+        continue;
+      }
+
+      temp_str[line_i] = line.data[i];
+      line_i++;
+    }
+    option_i++;
+  }
+  // assert eq
+  LOG_INFO("config len vs option_i: %d = %d\n", config.length, option_i);
+
+  fclose(file);
+  return 1;
 }
 
 I32 get_config_value_int(Str8 key_to_get, Config config)
@@ -278,6 +346,10 @@ U16 find_option_pos(Str8 key_to_find, Config config)
 
 ConfigOptionTypeEnum check_type(Str8 value)
 {
+  if (Str8Equal(value, Str8C("true")) || Str8Equal(value, Str8C("false")))
+  {
+    return ConfigOptionType_B32;
+  }
   ReadState state = ST_INIT;
   for (U16 i = 0; i < value.length; i++)
   {
@@ -292,20 +364,21 @@ ConfigOptionTypeEnum check_type(Str8 value)
         {
           state = ST_INT;
         }
-        else if ((value.data[i] == 't') || (value.data[i] == 'f'))
+        else if ((value.data[i] == '"' && value.data[value.length - 1] == '"') ||
+                 (value.data[i] == '\'' && value.data[value.length - 1] == '\''))
         {
-          state = ST_STR_OR_BOOL;
+          return ConfigOptionType_Str8;
         }
         else
         {
-          return ConfigOptionType_Str8;
+          return ConfigOptionType_None;
         }
         break;
 
       case ST_SIGN:
         if (!isdigit(value.data[i]))
         {
-          return ConfigOptionType_Str8;
+          return ConfigOptionType_None;
         }
         state = ST_INT;
         break;
@@ -321,14 +394,14 @@ ConfigOptionTypeEnum check_type(Str8 value)
         }
         else if (!isdigit(value.data[i]))
         {
-          return ConfigOptionType_Str8;
+          return ConfigOptionType_None;
         }
         break;
 
       case ST_POINT:
         if (!isdigit(value.data[i]))
         {
-          return ConfigOptionType_Str8;
+          return ConfigOptionType_None;
         }
         state = ST_FLOAT;
         break;
@@ -340,14 +413,7 @@ ConfigOptionTypeEnum check_type(Str8 value)
         }
         else if ((value.data[i] == '.') || !isdigit(value.data[i]))
         {
-          return ConfigOptionType_Str8;
-        }
-        break;
-
-      case ST_STR_OR_BOOL:
-        if (!isalpha(value.data[i]))
-        {
-          return ConfigOptionType_Str8;
+          return ConfigOptionType_None;
         }
         break;
 
@@ -358,18 +424,12 @@ ConfigOptionTypeEnum check_type(Str8 value)
 
   switch (state)
   {
-    case ST_STR_OR_BOOL:
-      if (Str8Equal(value, Str8C("true")) || Str8Equal(value, Str8C("false")))
-      {
-        return ConfigOptionType_B32;
-      }
-      return ConfigOptionType_Str8;
     case ST_INT:
       return ConfigOptionType_I32;
     case ST_FLOAT:
       return ConfigOptionType_F32;
     default:
-      return ConfigOptionType_Str8;
+      return ConfigOptionType_None;
   }
 }
 

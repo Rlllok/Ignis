@@ -6,7 +6,7 @@ AllocateStr8(Arena* arena, U64 size)
   Str8 result = {0};
   
   result.data = (U8*)PushArena(arena, size + 1);
-  result.data[size + 1] = 0;
+  result.data[size] = 0;
   result.length = size;
 
   return result;
@@ -24,11 +24,9 @@ MakeStr8(U8* str, U64 size)
 func Str8
 CopyStr8(Arena* arena, Str8 str)
 {
-  Str8 result = {0};
   
-  result.data = (U8*)PushArena(arena, str.length);
+  Str8 result = AllocateStr8(arena, str.length);
   memcpy(result.data, str.data, str.length);
-  result.length = str.length;
 
   return result;
 }
@@ -58,73 +56,6 @@ ConcatStr8(Arena* arena, Str8 str_a, Str8 str_b)
 
   memcpy(result.data, str_a.data, str_a.length);
   memcpy(result.data + str_a.length, str_b.data, str_b.length);
-
-  return result;
-}
-
-// -- Symbol Type ----------------------------------------------------
-func B32
-IsWhitespace(Str8 str, U64 position)
-{
-  B32 result = 0;
-
-  U8 symbol = str.data[position];
-  result = (symbol == ' ' || symbol == '\t' || symbol == '\n' || symbol == '\r');
-
-  return result;
-}
-
-func B32
-IsLineEnd(Str8 str, U64 position)
-{
-  B32 result = 0;
-
-  if (position < str.length)
-  {
-    U8 symbol = str.data[position];
-    result = (symbol == '\r' || symbol == '\n');
-  }
-
-  return result;
-}
-
-func B32
-IsAlphabet(Str8 str, U64 position)
-{
-  B32 result = 0;
-
-  if (position < str.length)
-  {
-    U8 symbol = str.data[position];
-    result = ((symbol >= 'a' && symbol <= 'z') || (symbol >= 'A' && symbol <= 'Z'));
-  }
-
-  return result;
-}
-
-func B32
-IsDigit(Str8 str, U64 position)
-{
-  B32 result = 0;
-
-  if (position < str.length)
-  {
-    U8 symbol = str.data[position];
-    result = (symbol >= '0' && symbol <= '9');
-  }
-
-  return result;
-}
-
-func U8
-Str8GetSymbol(Str8 str, U64 position)
-{
-  U8 result = 0;
-  
-  if (position < str.length)
-  {
-    result = str.data[position];
-  }
 
   return result;
 }
