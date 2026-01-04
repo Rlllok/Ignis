@@ -24,7 +24,7 @@ PushArena(Arena* arena, U64 size)
 
   if ((arena->position + size) < arena->size)
   {
-    result = arena + arena->position;
+    result = (void*)((U8*)arena + arena->position);
     arena->position += size;
   }
   else
