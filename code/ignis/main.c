@@ -14,6 +14,8 @@
 #include "ui/ui_include.c"
 #include "draw/d_include.c"
 
+#include "vei/vei.h"
+
 #include "ignis.h"
 #include "ignis_r.h"
 #include "ignis_ui.h"
@@ -60,20 +62,39 @@ I32 main()
   U64 begin_ms = OS_GetTimeTicks();
   while (!_ignis_state.finished)
   {
+    Vei_Init();
     Ignis_HandleEvents(_ignis_state.arena);
 
-    PA_Update(_ignis_state.dt);
+    Vei_BeginPoint(PA_Update);
+    {
+      PA_Update(_ignis_state.dt);
+    }
+    Vei_EndPoint(PA_Update);
+    
+    Vei_BeginPoint(Ignis_UI_Configure);
+    {
+      Ignis_UI_Configure(&_pa_state.area.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
+    }
+    Vei_EndPoint(Ignis_UI_Configure);
 
+    Vei_BeginPoint(Ignis_Rendering);
     Ignis_R_BeginFrame();
     {
       Ignis_R_RenderScene(&_pa_state.area.scene);
       if (_ignis_state.draw_editor_ui)
       {
-        Ignis_UI_Configure(&_pa_state.area.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
         Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
       }
     }
     Ignis_R_EndFrame();
+    Vei_EndPoint(Ignis_Rendering);
+
+    LOG_DEBUG("-- VEI --\n");
+    for (I32 i = 1; i < vei_state.points_length; i += 1)
+    {
+      Vei_Point* point = vei_state.points + i;
+      LOG_DEBUG("VEI  |-- %s --|  %d clocks\n", point->name, point->total_ts);
+    }
 
     U64 end_ms = OS_GetTimeTicks();
     F32 sleep_dt = _ignis_state.dt - (F32)(end_ms - begin_ms);
