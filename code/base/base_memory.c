@@ -9,8 +9,9 @@
 func Arena*
 AllocateArena(U64 size)
 {
-  void* memoryBlock = OS_AllocateMemory(size);
-  Arena* arena = (Arena*)memoryBlock;
+  void* ptr = OS_ReserveMemory(Gigabytes(64));
+  OS_CommitMemory(ptr, size);
+  Arena* arena = (Arena*)ptr;
   arena->position = sizeof(Arena);
   arena->size = size;
 
@@ -49,8 +50,8 @@ ResetArena(Arena* arena)
 	OS_ZeroMemory((U8*)arena + arena->position, arena->size - arena->position);
 }
 
-  func void
+func void
 FreeArena(Arena* arena)
 {
-  OS_FreeMemory(arena);
+  OS_FreeMemory(arena, Gigabytes(64));
 }

@@ -89,13 +89,6 @@ I32 main()
     Ignis_R_EndFrame();
     Vei_EndPoint(Ignis_Rendering);
 
-    LOG_DEBUG("-- VEI --\n");
-    for (I32 i = 1; i < vei_state.points_length; i += 1)
-    {
-      Vei_Point* point = vei_state.points + i;
-      LOG_DEBUG("VEI  |-- %s --|  %d clocks\n", point->name, point->total_ts);
-    }
-
     U64 end_ms = OS_GetTimeTicks();
     F32 sleep_dt = _ignis_state.dt - (F32)(end_ms - begin_ms);
     if (sleep_dt > 0)
