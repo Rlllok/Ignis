@@ -11,11 +11,11 @@ Ignis_R_Init(R_RendererType type, OS_Window* window)
 
   R_BufferUsageFlags triangle_buffer_usage_flags = R_BUFFER_USAGE_FLAG_VERTEX|R_BUFFER_USAGE_FLAG_INDEX|R_BUFFER_USAGE_FLAG_UNIFORM;
 
-  _ignis_r_state.arena           = AllocateArena(Megabytes(32));
-  _ignis_r_state.window          = window;
-  _ignis_r_state.data_buffer     = R_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
+  _ignis_r_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
+  _ignis_r_state.window = window;
+  _ignis_r_state.data_buffer = R_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
   _ignis_r_state.transfer_buffer = R_CreateBuffer(Megabytes(128), R_BUFFER_USAGE_FLAG_TRANSFER, R_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
-  _ignis_r_state.command_buffer  = R_GetCommandBuffer();
+  _ignis_r_state.command_buffer = R_GetCommandBuffer();
 
   Ignis_R_PrepareTextures();
   Ignis_R_PreparePipelines();

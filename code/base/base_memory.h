@@ -13,10 +13,11 @@ typedef struct Arena Arena;
 struct Arena
 {
     U64 position;
-    U64 size;
+    U64 reserved;
+    U64 commited;
 };
 
-func Arena* AllocateArena(U64 size);
+func Arena* AllocateArena(U64 reserve_size, U64 commit_size);
 
 // --AlNov: @TODO Initialize with zero
 func void* PushArena(Arena* arena, U64 size);

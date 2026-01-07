@@ -402,7 +402,8 @@ func GLTFData
 GetGLTFData(GLTFReader* reader)
 {
   // @TODO @NOTE NO FREE
-  Arena* licky_arena = AllocateArena(Megabytes(64));
+  // --AlNov 7 January 2026: @TODO Use Scratch Arena
+  Arena* licky_arena = AllocateArena(Megabytes(64), Megabytes(64));
   
   GLTFData gltf_data = {0};
   
@@ -547,7 +548,8 @@ GetGLTFData(GLTFReader* reader)
     buffer.uri = uri_element ? uri_element->value : (Str8){0};
     if (FindPosition(buffer.uri, '.') != buffer.uri.length)
     {
-      Arena* tmp_arena = AllocateArena(Megabytes(1));
+      // --AlNov 7 January 2026: @TODO Use Scratch Arena
+      Arena* tmp_arena = AllocateArena(Megabytes(1), Megabytes(1));
       Str8 bin_file_path = SubStr8(tmp_arena, reader->file_path, 0, GetSymbolPositionLast(reader->file_path, '/'));
       bin_file_path = ConcatStr8(tmp_arena, bin_file_path, Str8C("/"));
       Str8 bin_file_name = SubStr8(tmp_arena, buffer.uri, 0, buffer.uri.length);

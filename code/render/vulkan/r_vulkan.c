@@ -273,7 +273,8 @@ R_VK_CreateDevice(void)
   U32 device_count = 0;
   VK_CHECK(vkEnumeratePhysicalDevices(_r_vk_state.instance, &device_count, 0));
   
-  Arena* tmp_arena = AllocateArena(Kilobytes(16));
+  // --AlNov 7 January 2026: @TODO Use Scratch Arena
+  Arena* tmp_arena = AllocateArena(Kilobytes(16), Kilobytes(16));
   {
     VkPhysicalDevice* devices = (VkPhysicalDevice*)PushArena(tmp_arena, device_count * sizeof(VkPhysicalDevice));
     VK_CHECK(vkEnumeratePhysicalDevices(_r_vk_state.instance, &device_count, devices));
@@ -438,7 +439,8 @@ R_VK_CreateSwapchain(OS_Window* window)
 	VK_CHECK(vkCreateXlibSurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_LINUX_X11
   
-  Arena* tmp_arena = AllocateArena(Kilobytes(64));
+  // --AlNov 7 January 2026: @TODO Use Scratch Arena
+  Arena* tmp_arena = AllocateArena(Kilobytes(64), Kilobytes(64));
   {
     U32 format_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(_r_vk_state.device.physical, _r_vk_state.swapchain.surface, &format_count, 0);
@@ -497,7 +499,8 @@ R_VK_CreateSwapchain(OS_Window* window)
 	_r_vk_state.swapchain.window = window;
 
   VK_CHECK(vkGetSwapchainImagesKHR(_r_vk_state.device.logical, _r_vk_state.swapchain.handle, &_r_vk_state.swapchain.image_count, 0));
-  _r_vk_state.swapchain.image_arena = AllocateArena(Megabytes(8));
+  // --AlNov 7 January 2026: @TODO Why Arena is used?
+  _r_vk_state.swapchain.image_arena = AllocateArena(Megabytes(8), Megabytes(8));
   VkImage* images = (VkImage*)PushArena(_r_vk_state.swapchain.image_arena, _r_vk_state.swapchain.image_count * sizeof(VkImage));
   VK_CHECK(vkGetSwapchainImagesKHR(_r_vk_state.device.logical, _r_vk_state.swapchain.handle, &_r_vk_state.swapchain.image_count, images));
 
@@ -1925,7 +1928,7 @@ R_VK_EndSingleCmd(VkCommandBuffer cmd)
 func B32
 R_VK_Init(OS_Window* window)
 {
-  _r_vk_state.arena = AllocateArena(Megabytes(64));
+  _r_vk_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _r_vk_state.buffers = R_VK_BufferArrayAllocate(_r_vk_state.arena, 32);
   _r_vk_state.buffers.elements[0] = (R_VK_Buffer){0};
   _r_vk_state.graphics_pipelines = R_VK_GraphicsPipelineArrayAllocate(_r_vk_state.arena, 32);

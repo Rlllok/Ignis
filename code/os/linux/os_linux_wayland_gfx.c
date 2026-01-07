@@ -7,7 +7,8 @@
 func void
 OS_Init(U64 arena_size)
 {
-  _os_state.arena = AllocateArena(arena_size);
+  // --AlNov 7 January 2026: @TODO Do we need arena_size parameter
+  _os_state.arena = AllocateArena(Gigabytes(16), Megabytes(8));
 }
 
 func void

@@ -1,6 +1,7 @@
 #include "../os_memory.h"
 
 #include <sys/mman.h>
+#include <errno.h>
 
 func void*
 OS_ReserveMemory(U64 size)
@@ -10,7 +11,7 @@ OS_ReserveMemory(U64 size)
   result = mmap(0, size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
   if (result == MAP_FAILED)
   {
-    result = 0;
+    Assert(!"Failed to reserve memory");
   }
 
   return result;
@@ -19,7 +20,18 @@ OS_ReserveMemory(U64 size)
 func void
 OS_CommitMemory(void* ptr, U64 size)
 {
-  mprotect(ptr, size, PROT_READ|PROT_WRITE);
+  // --AlNov 7 January 2026: @NOTE ptr should align with Page Size
+  if (mprotect(ptr, size, PROT_READ|PROT_WRITE) != 0)
+  {
+    Assert(!"Failed to commit memory");
+  }
+}
+
+func void
+OS_DecommitMemory(void* ptr, U64 size)
+{
+  madvise(ptr, size, MADV_DONTNEED);
+  mprotect(ptr, size, PROT_NONE);
 }
 
 func void

@@ -17,7 +17,7 @@ func void TimeTest(I32 i)
 
 I32 main()
 {
-  Arena* arena = AllocateArena(Kilobytes(16));
+  Arena* arena = AllocateArena(Kilobytes(16), 4);
 
   Str8 str = FormatStr8(arena, "%i %u %s", -31, -25, Str8C("string"));
   LOG_DEBUG("%s\n", str);

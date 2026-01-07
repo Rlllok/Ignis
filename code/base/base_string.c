@@ -66,8 +66,11 @@ IsWhitespace(Str8 str, U64 position)
 {
   B32 result = 0;
 
-  U8 symbol = str.data[position];
-  result = (symbol == ' ' || symbol == '\t' || symbol == '\n' || symbol == '\r');
+  if (position < str.length)
+  {
+    U8 symbol = str.data[position];
+    result = (symbol == ' ' || symbol == '\t' || symbol == '\n' || symbol == '\r');
+  }
 
   return result;
 }

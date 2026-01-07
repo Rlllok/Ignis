@@ -140,7 +140,8 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
       // What is going on there. Should .length = .capacity? Can AnimationArrayAdd(...) be used? 
     }
 
-    Arena* tmp_arena = AllocateArena(Megabytes(16));
+    // --AlNov 7 January 2026: @TODO Use Scratch Arena
+    Arena* tmp_arena = AllocateArena(Megabytes(16), Megabytes(16));
     {
       GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
       GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);

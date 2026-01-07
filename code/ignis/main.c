@@ -104,7 +104,7 @@ func void
 Init_Ignis()
 {
   _ignis_state = (Ignis_State){0};
-  _ignis_state.arena = AllocateArena(Megabytes(32));
+  _ignis_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _ignis_state.scene = Ignis_CreateScene(_ignis_state.arena, 64);
   _ignis_state.dt    = 1.0f/60.0f;
 

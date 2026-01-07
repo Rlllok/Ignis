@@ -6,7 +6,8 @@
 func void
 D_Init(U64 arena_size)
 {
-  _d_state.arena = AllocateArena(arena_size);
+  // --AlNov 7 January 2026: @TODO Should use arena_size?
+  _d_state.arena = AllocateArena(Gigabytes(4), Kilobytes(64));
   D_PreparePipelines();
 }
 
