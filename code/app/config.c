@@ -84,7 +84,7 @@ Config create_config(Arena* arena, Str8* config_keys, ConfigOptionTypeEnum* conf
 
 I32 main()
 {
-  Arena* arena = AllocateArena(Kilobytes(16));
+  Arena* arena = AllocateArena(Kilobytes(16), Kilobytes(16));
 
   Str8 file_path = Str8C("D:/programming/Ignis/code/app/config_example.ini");
   Str8 config_keys[] = {
