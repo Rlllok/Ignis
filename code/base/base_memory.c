@@ -32,7 +32,7 @@ PushArena(Arena* arena, U64 size)
   else
   {
     // --AlNov 7 January 2026: @TODO No strategy for growing buffer
-    U64 commit_size = Kilobytes(4)*1024;
+    U64 commit_size = size;
     OS_CommitMemory((void*)((U8*)arena + arena->commited), commit_size);
     arena->commited += commit_size;
     
@@ -41,12 +41,8 @@ PushArena(Arena* arena, U64 size)
       Assert(!"Not enough space for allocation");
     }
 
-    LOG_DEBUG("Grow Arena\n");
-    LOG_DEBUG("reserved: %llu commited: %llu position: %llu size: %llu\n", arena->reserved, arena->commited, arena->position, size);
     result = (void*)((U8*)arena + arena->position);
     arena->position += size;
-
-    LOG_DEBUG("new_position: %llu\n", arena->position);
   }
 
   return result;

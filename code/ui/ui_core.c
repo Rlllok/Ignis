@@ -132,7 +132,6 @@ UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll)
     
     scroll_offset->offset = AddVec2I32(scroll_offset->offset, Vec2IFromVec2F32(mouse_scroll));
     scroll_offset->offset.y = Max(Min(0, element->rect.h - element->child_position_offset.y), Min(0, scroll_offset->offset.y));
-    LOG_DEBUG("ScrollOffset: %dx, %dy\n", scroll_offset->offset.x, scroll_offset->offset.y);
   }
 
   UI_WidgetArrayReset(&ui_context.elements);

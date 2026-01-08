@@ -418,7 +418,6 @@ GetGLTFData(GLTFReader* reader)
   }
 
   gltf_data.nodes = GLTFNodeArrayAllocate(licky_arena, node_count);
-  GLTF_ID current_node_id = 0;
   for (GLTFElement* node_element = LookUpElement(head, Str8C("nodes"))->first_sub_element;
        node_element;
        node_element = node_element->next_sibling)
@@ -451,8 +450,6 @@ GetGLTFData(GLTFReader* reader)
     }
 
     GLTFNodeArrayAdd(&gltf_data.nodes, node);
-
-    current_node_id += 1;
   }
 
   for (I32 i = 0; i < gltf_data.nodes.length; i += 1)

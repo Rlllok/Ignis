@@ -133,8 +133,9 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     skeletal_animation.name = gltf_animation.name;
 
     {
-      GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
-      GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+      // --AlNov 7 January 2026: @TODO Dead code
+      // GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
+      // GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
       skeletal_animation.bone_animations = AnimationArrayAllocate(arena, result.skeleton.joints.length);
       // --AlNov. 12  December 2025: @TODO
       // What is going on there. Should .length = .capacity? Can AnimationArrayAdd(...) be used? 

@@ -9,7 +9,8 @@ static LARGE_INTEGER win32_frequency;
 func void
 OS_Init(U64 arena_size)
 {
-  _os_state.arena = AllocateArena(arena_size);
+  // --AlNov 7 January 2026: @TODO Do we need arena_size?
+  _os_state.arena = AllocateArena(Gigabytes(8), Kilobytes(64));
   timeBeginPeriod(1);
   QueryPerformanceFrequency(&win32_frequency);
 }
