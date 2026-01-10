@@ -4,10 +4,8 @@
 
 #include "base_core.h"
 
-// --AlNov: @TODO It is naive implementation of allocator to test is it works at all.
+// --AlNov: @TODO
 // There is no implementation of alignment ( I should to read about alignment more).
-// There is no resize for arena.
-// I should play more with arena to understand how I can use for it.
 
 typedef struct Arena Arena;
 struct Arena

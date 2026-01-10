@@ -98,6 +98,12 @@ R_GetTextureFormat(R_Texture texture)
   return _r_state.device.GetTextureFormat(texture);
 }
 
+func Vec2I32
+R_GetTextureDimension(R_Texture texture)
+{
+  return _r_state.device.GetTextureDimension(texture);
+}
+
 func R_TextureSampler
 R_CreateTextureSampler(R_TextureSamplerCreateInfo* info)
 {

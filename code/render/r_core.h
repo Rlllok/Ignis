@@ -126,6 +126,7 @@ func void R_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_Text
 func U64 R_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
 func void R_CopyBufferToTexture(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture);
 func R_TextureFormat R_GetTextureFormat(R_Texture texture);
+func Vec2I32         R_GetTextureDimension(R_Texture texture);
 
 typedef U8 R_FilterType;
 enum R_FilterTypeEnum
@@ -405,6 +406,7 @@ struct R_Device
   U64 (*CopyTextureToBuffer)(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
   void (*CopyBufferToTexture)(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture);
   R_TextureFormat (*GetTextureFormat)(R_Texture texture);
+  Vec2I32         (*GetTextureDimension)(R_Texture texture);
 
   R_TextureSampler (*CreateTextureSampler)(R_TextureSamplerCreateInfo* info);
 
@@ -451,6 +453,7 @@ struct R_Device
   AssignDeviceFunction(api_name, CopyTextureToBuffer) \
   AssignDeviceFunction(api_name, CopyBufferToTexture) \
   AssignDeviceFunction(api_name, GetTextureFormat) \
+  AssignDeviceFunction(api_name, GetTextureDimension) \
   AssignDeviceFunction(api_name, CreateTextureSampler) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \

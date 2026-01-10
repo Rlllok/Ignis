@@ -197,6 +197,7 @@ func void R_VK_CopyTexture(R_CommandBuffer command_buffer, R_Texture source, R_T
 func U64 R_VK_CopyTextureToBuffer(R_CommandBuffer command_buffer, R_Texture texture, R_Buffer buffer);
 func void R_VK_CopyBufferToTexture(R_CommandBuffer command_buffer, R_Buffer buffer, U64 offset, U64 size, R_Texture texture);
 func R_TextureFormat R_VK_GetTextureFormat(R_Texture texture);
+func Vec2I32         R_VK_GetTextureDimension(R_Texture texture);
 
 func void R_VK_ChangeTextureLayout(VkCommandBuffer cmd, R_VK_Texture* texture, VkImageLayout new_layout);
 
@@ -224,6 +225,7 @@ struct R_VK_CommandBuffer
 	R_VK_DescriptorPool descriptor_pool[R_FRAMES_IN_FLIGHT];
 
 	R_VK_GraphicsPipeline* binded_graphics_pipeline;
+  VkViewport current_viewport;
 };
 R_VK_CommandBuffer R_VK_CommandBufferDefaultValue = {0};
 DefineArray(R_VK_CommandBuffer, R_VK_CommandBufferArray, R_VK_CommandBufferDefaultValue)

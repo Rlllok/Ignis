@@ -157,6 +157,72 @@ Ignis_R_PreparePipelines()
     });
   }
 
+  {
+    R_Shader vertex_shader = R_CreateShader(
+      _ignis_r_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/ignis/shadow_map.vs.glsl"),
+        .type = R_SHADER_TYPE_VERTEX,
+        .instance_uniforms_count = 1,
+      }
+    );
+    R_Shader fragment_shader = R_CreateShader(
+      _ignis_r_state.arena,
+      &(R_ShaderCreateInfo){
+        .file_name = Str8C("./data/shaders/ignis/shadow_map.fs.glsl"),
+        .type = R_SHADER_TYPE_FRAGMENT,
+      }
+    );
+
+    R_VertexAttribute vertex_attributes[] = {
+      {
+        .location = 0,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .offset = offsetof(AST_Vertex, position),
+      },
+      {
+        .location = 1,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .offset = offsetof(AST_Vertex, normal),
+      },
+      {
+        .location = 2,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .offset = offsetof(AST_Vertex, tangent),
+      },
+      {
+        .location = 3,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .offset = offsetof(AST_Vertex, uv),
+      },
+      {
+        .location = 4,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4I32,
+        .offset = offsetof(AST_Vertex, joint_ids),
+      },
+      {
+        .location = 5,
+        .format = R_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .offset = offsetof(AST_Vertex, joint_weights),
+      },
+    };
+
+    _ignis_r_state.shadow_map_pipeline = R_CreateGraphicsPipeline(
+      &(R_GraphicsPipelineCreateInfo){
+        .vertex_shader = vertex_shader,
+        .fragment_shader = fragment_shader,
+        .vertex_attributes_count = CountArrayElements(vertex_attributes),
+        .vertex_attributes = vertex_attributes,
+        .depth_stencil_state = {
+          .depth_test_enable = 1,
+          .depth_write_enable = 1,
+          .depth_compare_operation = R_COMPARE_OPERATION_GREATER,
+          .depth_target_format = R_GetTextureFormat(_ignis_r_state.shadow_map),
+        },
+      }
+    );
+  }
+
   // Mesh Pipeline
   {
     R_Shader mesh_vertex_shader = R_CreateShader(
@@ -173,6 +239,7 @@ Ignis_R_PreparePipelines()
         .file_name = Str8C("./data/shaders/ignis/mesh.fs.glsl"),
         .type = R_SHADER_TYPE_FRAGMENT,
         .global_uniforms_count = 1,
+        .instance_samplers_count = 3,
       }
     );
 
@@ -276,6 +343,18 @@ Ignis_R_PrepareTextures()
       .num_levels = 1,
     }
   );
+
+  _ignis_r_state.shadow_map = R_CreateTexture(
+    &(R_TextureCreateInfo){
+      .type= R_TEXTURE_TYPE_2D,
+      .format = R_TEXTURE_FORMAT_D16_UNORM,
+      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+      .width = 1024,
+      .height = 1024,
+      .depth = 1,
+      .num_levels = 1,
+    }
+  );
 }
 
 func void
@@ -342,84 +421,120 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
   R_Texture swapchain_texture = _ignis_r_state.swapchain;
   Ignis_Entity* camera = Ignis_GetCamera(scene);
 
+  R_DepthStencilTarget shadow_map_pass_target = {
+    .texture = _ignis_r_state.shadow_map,
+    .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+    .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+    .clear_depth = 0.0f,
+  };
+
+  RectI32 viewport = {
+    .x = 0,
+    .y = 0,
+    .w = R_GetTextureDimension(_ignis_r_state.shadow_map).x,
+    .h = R_GetTextureDimension(_ignis_r_state.shadow_map).y,
+  };
+  RectI32 scissor = viewport;
+  R_SetViewport(command_buffer, viewport);
+  R_SetScissor(command_buffer, scissor);
+  R_BeginRenderPass(command_buffer, 0, 0, &shadow_map_pass_target);
   {
-    RectI32 viewport = {
-      .x = 0,
-      .y = 0,
-      .w = (I32)_ignis_r_state.window->size.x,
-      .h = (I32)_ignis_r_state.window->size.y,
-    };
-    RectI32 scissor = viewport;
-    R_SetViewport(command_buffer, viewport);
-    R_SetScissor(command_buffer, scissor);
-
-    R_DepthStencilTarget depth_prepass_target = {
-      .texture = _ignis_r_state.depth_texture,
-      .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
-      .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-      .clear_depth = 0.0f,
-    };
-
-    R_BeginRenderPass(command_buffer, 0, 0, &depth_prepass_target);
+    for (I32 i = 1; i < scene->entities.length; i += 1)
     {
-      for (I32 i = 0; i < scene->entities.length; i += 1)
+      Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
+      if (entity->type == Ignis_EntityType_Actor)
       {
-        Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
-        if (entity->type == Ignis_EntityType_Actor)
-        {
-          Ignis_R_RenderEntityPrepass(camera, entity);
-        }
+        Ignis_R_ShadowMapPass(scene, entity);
       }
     }
-    R_EndRenderPass(command_buffer, 0);
-
-    R_ColorTarget entity_color_targets[] = {
-      {
-        .texture = swapchain_texture,
-        .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
-        .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-        .clear_color = RGBAFromHex(0x111111FF),
-      },
-    };
-
-    R_DepthStencilTarget entity_depth_target = {
-      .texture = _ignis_r_state.depth_texture,
-      .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
-      .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
-    };
-
-    R_BeginRenderPass(command_buffer, CountArrayElements(entity_color_targets), entity_color_targets, &entity_depth_target);
-    {
-      for (I32 i = 0; i < scene->entities.length; i += 1)
-      {
-        Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
-        if (entity->type == Ignis_EntityType_Actor)
-        {
-          // -- AlNov 3 January 2026: @TODO How to draw seleceted entity
-          Ignis_R_RenderEntity(camera, entity, Ignis_EntityIDEqual(entity->id, scene->selected_entity_id));
-        }
-      }
-    }
-    R_EndRenderPass(command_buffer, 0);
-
-    R_ColorTarget color_target = {
-      .texture = swapchain_texture,
-      .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
-      .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
-    };
-
-    R_DepthStencilTarget depth_target = {
-      .texture = _ignis_r_state.depth_texture,
-      .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
-      .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
-    };
-
-    R_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
-    {
-      Ignis_R_RenderGrid(scene, color_target, depth_target);
-    }
-    R_EndRenderPass(command_buffer, 0);
   }
+  R_EndRenderPass(command_buffer, 0);
+
+  R_DepthStencilTarget depth_prepass_target = {
+    .texture = _ignis_r_state.depth_texture,
+    .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+    .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+    .clear_depth = 0.0f,
+  };
+
+
+  viewport = (RectI32){
+    .x = 0,
+    .y = 0,
+    .w = (I32)_ignis_r_state.window->size.x,
+    .h = (I32)_ignis_r_state.window->size.y,
+  };
+  scissor = viewport;
+  R_SetViewport(command_buffer, viewport);
+  R_SetScissor(command_buffer, scissor);
+  R_BeginRenderPass(command_buffer, 0, 0, &depth_prepass_target);
+  {
+    for (I32 i = 0; i < scene->entities.length; i += 1)
+    {
+      Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
+      if (entity->type == Ignis_EntityType_Actor)
+      {
+        Ignis_R_RenderEntityPrepass(camera, entity);
+      }
+    }
+  }
+  R_EndRenderPass(command_buffer, 0);
+
+  R_ColorTarget entity_color_targets[] = {
+    {
+      .texture = swapchain_texture,
+      .load_operation = R_ATTACHMENT_LOAD_OPERATION_CLEAR,
+      .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+      .clear_color = RGBAFromHex(0x111111FF),
+    },
+  };
+
+  R_DepthStencilTarget entity_depth_target = {
+    .texture = _ignis_r_state.depth_texture,
+    .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+    .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+  };
+
+  viewport = (RectI32){
+    .x = 0,
+    .y = 0,
+    .w = (I32)_ignis_r_state.window->size.x,
+    .h = (I32)_ignis_r_state.window->size.y,
+  };
+  scissor = viewport;
+  R_SetViewport(command_buffer, viewport);
+  R_SetScissor(command_buffer, scissor);
+  R_BeginRenderPass(command_buffer, CountArrayElements(entity_color_targets), entity_color_targets, &entity_depth_target);
+  {
+    for (I32 i = 0; i < scene->entities.length; i += 1)
+    {
+      Ignis_Entity* entity = Ignis_EntityArrayGetPointer(&scene->entities, i);
+      if (entity->type == Ignis_EntityType_Actor)
+      {
+        // -- AlNov 3 January 2026: @TODO How to draw seleceted entity
+        Ignis_R_RenderEntity(camera, entity, Ignis_EntityIDEqual(entity->id, scene->selected_entity_id));
+      }
+    }
+  }
+  R_EndRenderPass(command_buffer, 0);
+
+  R_ColorTarget color_target = {
+    .texture = swapchain_texture,
+    .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+    .store_operation = R_ATTACHMENT_STORE_OPERATION_STORE,
+  };
+
+  R_DepthStencilTarget depth_target = {
+    .texture = _ignis_r_state.depth_texture,
+    .depth_load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
+    .depth_store_operation = R_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+  };
+
+  R_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
+  {
+    Ignis_R_RenderGrid(scene, color_target, depth_target);
+  }
+  R_EndRenderPass(command_buffer, 0);
 }
 
 func void
@@ -429,16 +544,6 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
   R_Texture swapchain_texture = _ignis_r_state.swapchain;
   R_Buffer data_buffer = _ignis_r_state.data_buffer;
 
-  RectI32 viewport = {
-    .x = 0,
-    .y = 0,
-    .w = _ignis_r_state.window->size.w,
-    .h = _ignis_r_state.window->size.h,
-  };
-  RectI32 scissor = viewport;
-  R_SetViewport(command_buffer, viewport);
-  R_SetScissor(command_buffer, scissor);
-
   R_ColorTarget color_target = {
     .texture = swapchain_texture,
     .load_operation = R_ATTACHMENT_LOAD_OPERATION_LOAD,
@@ -447,6 +552,16 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
 
   R_BeginRenderPass(command_buffer, 1, &color_target, 0);
   {
+    RectI32 viewport = {
+      .x = 0,
+      .y = 0,
+      .w = _ignis_r_state.window->size.w,
+      .h = _ignis_r_state.window->size.h,
+    };
+    RectI32 scissor = viewport;
+    R_SetViewport(command_buffer, viewport);
+    R_SetScissor(command_buffer, scissor);
+
     for (I32 i = 0; i < commands.length; i += 1)
     {
       UI_DrawCommand* command = UI_DrawCommandArrayGetPointer(&commands, i);
@@ -555,6 +670,53 @@ Ignis_R_RenderGrid(Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget
 }
 
 func void
+Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity)
+{
+  R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
+  R_Buffer buffer = _ignis_r_state.data_buffer;
+  Vec3F32 light_position = MakeVec3F32(10.0f, -10.0f, 0.0f);
+  Vec3F32 light_direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, -1.0f));
+
+  for (AST_GeometryListNode* geometry_node = entity->actor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
+  {
+    AST_Geometry* geometry = &geometry_node->data;
+
+    Mat4F32 view_matrix = MakeLookAtMat4F32(
+      light_position,
+      AddVec3F32(light_position, light_direction),
+      MakeVec3F32(0.0f, 1.0f, 0.0f)
+    );
+    Mat4F32 projection_matrix = MakePerspectiveMat4(
+      45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
+      0.1f, 100.0f
+    );
+
+    struct
+    {
+      Mat4F32 mvp;
+    } instance_vertex_data;
+    instance_vertex_data.mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(entity->transform)));
+
+    U64 instance_vertex_data_offset = R_PushBuffer(buffer, (U8*)&instance_vertex_data, sizeof(instance_vertex_data));
+    U64 vertex_data_offset = R_PushBuffer(buffer, (U8*)&geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+    U64 index_data_offset = R_PushBuffer(buffer, (U8*)&geometry->index_data, geometry->index_size*geometry->index_count);
+
+    R_UniformBufferBindingInfo vertex_shader_instance_uniform = {
+      .buffer = buffer,
+      .offset = instance_vertex_data_offset,
+      .size = sizeof(instance_vertex_data),
+    };
+
+    R_BindGraphicsPipeline(command_buffer, _ignis_r_state.shadow_map_pipeline);
+
+    R_BindInstanceVertexShaderData(command_buffer, 1, &vertex_shader_instance_uniform, 0, 0);
+    R_BindVertexBuffer(command_buffer, buffer, vertex_data_offset);
+    R_BindIndexBuffer(command_buffer, buffer, index_data_offset, R_INDEX_SIZE_U16);
+    R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
+  }
+}
+
+func void
 Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
 {
   R_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
@@ -592,6 +754,7 @@ Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
     };
 
     R_BindGraphicsPipeline(command_buffer, _ignis_r_state.depth_prepass_pipeline);
+
     R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
     R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
     R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
@@ -662,10 +825,26 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
       .offset = mesh_global_fragment_data_offset,
       .size = sizeof(mesh_global_fragment_data),
     };
+    R_SamplerBindingInfo mesh_fragment_shader_instance_sampler_bindings[] = {
+      {
+        .sampler = _ignis_r_state.texture_sampler,
+        .texture = _ignis_r_state.default_color_texture,
+      },
+      {
+        .sampler = _ignis_r_state.texture_sampler,
+        .texture = _ignis_r_state.default_color_texture,
+      },
+      {
+        .sampler = _ignis_r_state.texture_sampler,
+        .texture = _ignis_r_state.shadow_map,
+      },
+    };
 
     R_BindGraphicsPipeline(command_buffer, _ignis_r_state.mesh_pipeline);
+
     R_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
     R_BindGlobalFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_global_uniform, 0, 0);
+    R_BindInstanceFragmentShaderData(command_buffer, 0, 0, CountArrayElements(mesh_fragment_shader_instance_sampler_bindings), mesh_fragment_shader_instance_sampler_bindings);
     R_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
     R_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, R_INDEX_SIZE_U16);
     R_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);

@@ -83,7 +83,7 @@ I32 main()
       Ignis_R_RenderScene(&_pa_state.area.scene);
       if (_ignis_state.draw_editor_ui)
       {
-        Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
+        // Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
       }
     }
     Ignis_R_EndFrame();

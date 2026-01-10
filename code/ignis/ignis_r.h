@@ -16,6 +16,7 @@ struct Ignis_R_State
 
   R_GraphicsPipeline grid_pipeline;
   R_GraphicsPipeline depth_prepass_pipeline;
+  R_GraphicsPipeline shadow_map_pipeline;
   R_GraphicsPipeline mesh_pipeline;
   R_GraphicsPipeline joint_pipeline;
 
@@ -26,6 +27,8 @@ struct Ignis_R_State
 
   R_Texture depth_texture; // -AlNov: @TODO should it be created for R_VK_Swapchain?
   R_Texture test_texture;
+
+  R_Texture shadow_map;
 } _ignis_r_state;
 
 func void Ignis_R_Init(R_RendererType type, OS_Window* window);
@@ -44,5 +47,6 @@ func void Ignis_R_RenderScene(Ignis_Scene* scene);
 func void Ignis_R_RenderUI(UI_DrawCommandArray commands);
 
 func void Ignis_R_RenderGrid         (Ignis_Scene* scene, R_ColorTarget color, R_DepthStencilTarget depth);
+func void Ignis_R_ShadowMapPass      (Ignis_Scene* scene, Ignis_Entity* entity);
 func void Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity);
 func void Ignis_R_RenderEntity       (Ignis_Entity* camera, Ignis_Entity* entity, B32 selected);
