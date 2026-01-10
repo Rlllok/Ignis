@@ -1,6 +1,6 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
-#include "render/r_include.h"
+#include "rhi/rhi_include.h"
 #include "assets/animation.h"
 #include "assets/mesh.h"
 #include "ui/ui_include.h"
@@ -8,7 +8,7 @@
 
 #include "base/base_include.c"
 #include "os/os_include.c"
-#include "render/r_include.c"
+#include "rhi/rhi_include.c"
 #include "assets/animation.c"
 #include "assets/mesh.c"
 #include "ui/ui_include.c"
@@ -165,7 +165,7 @@ Init_Ignis()
   OS_CreateWindow(Str8C("Ignis"), MakeVec2U32(1280, 720), &_ignis_state.window);
   OS_ShowWindow(&_ignis_state.window);
 
-  Ignis_R_Init(R_RENDERER_TYPE_VK, &_ignis_state.window);
+  Ignis_R_Init(RHI_RENDERER_TYPE_VK, &_ignis_state.window);
   Ignis_UI_Init(_ignis_state.arena, 1024);
 }
 

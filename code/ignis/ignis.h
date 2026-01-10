@@ -38,7 +38,7 @@ struct Ignis_Entity
     {
       F32            smoothness;
       AST_StaticMesh mesh;
-      R_Texture      color_texture;
+      RHI_Texture      color_texture;
     } actor;
 
     struct
