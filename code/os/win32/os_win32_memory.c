@@ -10,7 +10,7 @@ OS_PageSize()
   return system_info.dwPageSize;
 }
 
-func void*
+func OS_ReserveResult
 OS_ReserveMemory(U64 size)
 {
   void* result = 0;
@@ -18,7 +18,8 @@ OS_ReserveMemory(U64 size)
   U64 aligned_size = size;
   aligned_size += Gigabytes(1) - 1;
   aligned_size -= aligned_size%Gigabytes(1);
-  result = VirtualAlloc(0, size, MEM_RESERVE, PAGE_NOACCESS);
+  result.ptr = VirtualAlloc(0, size, MEM_RESERVE, PAGE_NOACCESS);
+  result.size = aligned_size;
 
   if (!result)
   {
@@ -28,7 +29,7 @@ OS_ReserveMemory(U64 size)
   return result;
 }
 
-func void
+func U64
 OS_CommitMemory(void* ptr, U64 size)
 {
   U64 aligned_size = size;
@@ -39,6 +40,8 @@ OS_CommitMemory(void* ptr, U64 size)
   {
     Assert(!"Failed ot commit memory");
   }
+
+  return aligned_size;
 }
 
 func void
