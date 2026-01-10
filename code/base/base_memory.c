@@ -66,3 +66,20 @@ FreeArena(Arena* arena)
 {
   OS_FreeMemory(arena, arena->reserved);
 }
+
+// -- Scratch Arena --------------------------------------------------
+func ScratchArena
+BeginScratchArena(Arena* arena)
+{
+  ScratchArena result = {
+    .arena = arena,
+    .position = arena->position,
+  };
+  return result;
+}
+
+func void
+EndScratchArena(ScratchArena scratch)
+{
+  scratch.arena->position = scratch.position;
+}

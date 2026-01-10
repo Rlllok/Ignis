@@ -274,9 +274,9 @@ R_VK_CreateDevice(void)
   VK_CHECK(vkEnumeratePhysicalDevices(_r_vk_state.instance, &device_count, 0));
   
   // --AlNov 7 January 2026: @TODO Use Scratch Arena
-  Arena* tmp_arena = AllocateArena(Kilobytes(16), Kilobytes(16));
+  ScratchArena scratch = BeginScratchArena(_r_vk_state.arena);
   {
-    VkPhysicalDevice* devices = (VkPhysicalDevice*)PushArena(tmp_arena, device_count * sizeof(VkPhysicalDevice));
+    VkPhysicalDevice* devices = (VkPhysicalDevice*)PushArena(scratch.arena, device_count * sizeof(VkPhysicalDevice));
     VK_CHECK(vkEnumeratePhysicalDevices(_r_vk_state.instance, &device_count, devices));
 
     for (I32 i = 0; i < device_count; i += 1)
@@ -293,7 +293,7 @@ R_VK_CreateDevice(void)
 
       U32 queue_family_count = 0;
       vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, 0);
-      VkQueueFamilyProperties* queue_properties = (VkQueueFamilyProperties*)PushArena(tmp_arena, queue_family_count * sizeof(VkQueueFamilyProperties));
+      VkQueueFamilyProperties* queue_properties = (VkQueueFamilyProperties*)PushArena(scratch.arena, queue_family_count * sizeof(VkQueueFamilyProperties));
       vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, queue_properties);
 
       for (I32 j = 0; j < queue_family_count; j += 1)
@@ -347,7 +347,7 @@ R_VK_CreateDevice(void)
 			}
     }
   }
-  FreeArena(tmp_arena);
+  EndScratchArena(scratch);
 }
 
 func void
@@ -439,12 +439,11 @@ R_VK_CreateSwapchain(OS_Window* window)
 	VK_CHECK(vkCreateXlibSurfaceKHR(_r_vk_state.instance, &surface_info, 0, &_r_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_LINUX_X11
   
-  // --AlNov 7 January 2026: @TODO Use Scratch Arena
-  Arena* tmp_arena = AllocateArena(Kilobytes(64), Kilobytes(64));
+  ScratchArena scratch = BeginScratchArena(_r_vk_state.arena);
   {
     U32 format_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(_r_vk_state.device.physical, _r_vk_state.swapchain.surface, &format_count, 0);
-    VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(tmp_arena, format_count * sizeof(VkSurfaceFormatKHR));
+    VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(scratch.arena, format_count * sizeof(VkSurfaceFormatKHR));
     vkGetPhysicalDeviceSurfaceFormatsKHR(_r_vk_state.device.physical, _r_vk_state.swapchain.surface, &format_count, formats);
 
     for (U32 i = 0; i < format_count; i += 1)
@@ -454,7 +453,7 @@ R_VK_CreateSwapchain(OS_Window* window)
       }
     }
   }
-  FreeArena(tmp_arena);
+  EndScratchArena(scratch);
   
   VkSurfaceCapabilitiesKHR capabilities;
   VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_r_vk_state.device.physical,
