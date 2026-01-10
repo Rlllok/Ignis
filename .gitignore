@@ -1,10 +1,11 @@
 .vs
 .vscode
 .clang-format
+.nvim.project
 
 build
 
 todo.txt
 check_static.bat
 
-data/car
+ata/car
