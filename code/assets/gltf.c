@@ -10,7 +10,7 @@ AllocateBuffer(U64 size)
   Buffer result = {0};
 
   // --AlNov 7 January 2026: @TODO Use scratch arena
-  result.data = (U8*)OS_ReserveMemory(size * sizeof(U8));
+  result.data = (U8*)OS_ReserveMemory(size * sizeof(U8)).ptr;
   OS_CommitMemory(result.data, size*sizeof(U8));
   if (result.data)
   {
@@ -387,7 +387,7 @@ ParseElement(GLTFReader* reader, Buffer label, GLTFToken token)
   if (valid)
   {
     // --AlNov 7 January 2026: @TODO Use scratch arena
-    result = (GLTFElement*)OS_ReserveMemory(sizeof(GLTFElement));
+    result = (GLTFElement*)OS_ReserveMemory(sizeof(GLTFElement)).ptr;
     OS_CommitMemory((void*)result, sizeof(GLTFElement));
     result->label = label;
     result->value = token.value;

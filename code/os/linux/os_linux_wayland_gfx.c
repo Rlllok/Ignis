@@ -432,7 +432,7 @@ struct zwp_relative_pointer_v1_listener _relative_pointer_listener = {
 func void
 OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 {
-  out->handle = (OS_WindowHandle*)OS_ReserveMemory(sizeof(OS_WindowHandle));
+  out->handle = (OS_WindowHandle*)OS_ReserveMemory(sizeof(OS_WindowHandle)).ptr;
   OS_CommitMemory((void*)out->handle, sizeof(OS_WindowHandle));
   out->size = size;
 

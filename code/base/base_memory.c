@@ -9,12 +9,12 @@
 func Arena*
 AllocateArena(U64 reserve_size, U64 commit_size)
 {
-  void* ptr = OS_ReserveMemory(reserve_size);
-  OS_CommitMemory(ptr, commit_size);
-  Arena* arena = (Arena*)ptr;
+  OS_ReserveResult reserve_result = OS_ReserveMemory(reserve_size);
+  U64 commit_result_size = OS_CommitMemory(reserve_result.ptr, commit_size);
+  Arena* arena = (Arena*)reserve_result.ptr;
   arena->position = sizeof(Arena);
-  arena->reserved = reserve_size;
-  arena->commited = commit_size;
+  arena->reserved = reserve_result.size;
+  arena->commited = commit_result_size;
 
   return arena;
 }
@@ -32,9 +32,8 @@ PushArena(Arena* arena, U64 size)
   else
   {
     // --AlNov 7 January 2026: @TODO No strategy for growing buffer
-    U64 commit_size = size;
-    OS_CommitMemory((void*)((U8*)arena + arena->commited), commit_size);
-    arena->commited += commit_size;
+    U64 commit_result_size = OS_CommitMemory((void*)((U8*)arena + arena->commited), size);
+    arena->commited += commit_result_size;
     
     if (arena->commited > arena->reserved)
     {
