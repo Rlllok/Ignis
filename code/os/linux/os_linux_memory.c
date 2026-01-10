@@ -9,7 +9,6 @@ func U64
 OS_PageSize()
 {
   U64 result = sysconf(_SC_PAGESIZE);
-  LOG_DEBUG("PAGE_SIZE: %llu\n", result);
   return result;
 }
 
