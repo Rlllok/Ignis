@@ -13,7 +13,7 @@ OS_PageSize()
 func OS_ReserveResult
 OS_ReserveMemory(U64 size)
 {
-  void* result = 0;
+  OS_ReserveResult result = ZeroStruct();
 
   U64 aligned_size = size;
   aligned_size += Gigabytes(1) - 1;
@@ -21,7 +21,7 @@ OS_ReserveMemory(U64 size)
   result.ptr = VirtualAlloc(0, size, MEM_RESERVE, PAGE_NOACCESS);
   result.size = aligned_size;
 
-  if (!result)
+  if (!result.ptr)
   {
     Assert(!"Failed to reserve memory");
   }
