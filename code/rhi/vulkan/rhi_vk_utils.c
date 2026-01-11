@@ -195,6 +195,27 @@ RHI_VK_GetVkFormat(RHI_TextureFormat format)
   return vk_format;
 }
 
+func RHI_TextureFormat
+RHI_VK_FormatFromVk(VkFormat format)
+{
+  RHI_TextureFormat result = 0;
+
+  switch (format)
+  {
+    default: Assert(1); break;
+
+    case VK_FORMAT_UNDEFINED:           result = RHI_TEXTURE_FORMAT_NONE; break;
+    case VK_FORMAT_R8G8B8A8_SRGB:       result = RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB; break;
+    case VK_FORMAT_R8G8B8A8_UNORM:      result = RHI_TEXTURE_FORMAT_R8G8B8A8_UNORM; break;
+    case VK_FORMAT_B8G8R8A8_UNORM:      result = RHI_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
+    case VK_FORMAT_R16G16B16A16_SFLOAT: result = RHI_TEXTURE_FORMAT_R16G16B16A16_SFLOAT;
+    case VK_FORMAT_D16_UNORM:           result = RHI_TEXTURE_FORMAT_D16_UNORM; break;
+    case VK_FORMAT_R16_UINT:            result = RHI_TEXTURE_FORMAT_R16_UINT; break;
+  }
+
+  return result;
+}
+
 func VkImageUsageFlags
 RHI_VK_GetVkImageUsageFlags(RHI_TextureUsageFlags flags)
 {

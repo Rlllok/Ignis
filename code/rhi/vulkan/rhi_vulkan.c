@@ -528,6 +528,7 @@ RHI_VK_CreateSwapchain(OS_Window* window)
     _rhi_vk_state.swapchain.frame_resources[i] = RHI_VK_CreateFrameResources();
 
     RHI_VK_Texture vk_texture = {
+      .format = RHI_VK_FormatFromVk(_rhi_vk_state.swapchain.surface_format.format),
       .image = images[i],
       .view = image_view,
       .aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1153,6 +1154,8 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
     .depthAttachmentFormat = RHI_VK_GetVkFormat(pipeline_info->depth_stencil_state.depth_target_format),
   };
 
+  VkRenderPass tmp_render_pass = RHI_VK_CreateTmpVkRenderPass(pipeline_info);
+
   VkGraphicsPipelineCreateInfo vk_pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
     .pNext = &rendering_info,
@@ -1167,13 +1170,14 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
     .pColorBlendState = &blend,
     .pDynamicState = &dynamic,
     .layout = pipeline.layout,
-    .renderPass = 0,
+    .renderPass = tmp_render_pass,
     .subpass = 0,
   };
   VK_CHECK(vkCreateGraphicsPipelines(_rhi_vk_state.device.logical,
                                      0, 1, &vk_pipeline_info, 0,
                                      &pipeline.handle));
 
+  vkDestroyRenderPass(_rhi_vk_state.device.logical, tmp_render_pass, 0);
   vkDestroyShaderModule(_rhi_vk_state.device.logical, vertex_module, 0);
   vkDestroyShaderModule(_rhi_vk_state.device.logical, fragment_module, 0);
 
@@ -1202,89 +1206,294 @@ RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeli
 
 // --------------------------------------------------
 // Render Pass
-func void
+func B32
+RHI_RenderPassEqual(RHI_RenderPass a, RHI_RenderPass b)
+{
+  B32 result = 1;
+
+  if (a.color_targets_count != b.color_targets_count) result = 0;
+
+  for (I32 i = 0; i < a.color_targets_count; i += 1)
+  {
+    RHI_VK_Texture* vk_texture_a = RHI_VK_TextureFromHandle(a.color_targets[i].texture);
+    RHI_VK_Texture* vk_texture_b = RHI_VK_TextureFromHandle(b.color_targets[i].texture);
+
+    if (vk_texture_a->format != vk_texture_b->format)
+    {
+      result = 0;
+      break;
+    }
+    else if (a.color_targets[i].load_operation != b.color_targets[i].load_operation)
+    {
+      result = 0;
+      break;
+    }
+    else if (a.color_targets[i].store_operation != b.color_targets[i].store_operation)
+    {
+      result = 0;
+      break;
+    }
+    else if (!EqualVec4F32(a.color_targets[i].clear_color, b.color_targets[i].clear_color))
+    {
+      result = 0;
+      break;
+    }
+  }
+  
+  RHI_VK_Texture* vk_texture_depth_stencil_a = RHI_VK_TextureFromHandle(a.depth_stencil_target.texture);
+  RHI_VK_Texture* vk_texture_depth_stencil_b = RHI_VK_TextureFromHandle(b.depth_stencil_target.texture);
+  if (vk_texture_depth_stencil_a->format != vk_texture_depth_stencil_b->format)
+  {
+    result = 0;
+  }
+  else if (a.depth_stencil_target.load_operation != b.depth_stencil_target.load_operation)
+  {
+    result = 0;
+  }
+  else if (a.depth_stencil_target.store_operation != b.depth_stencil_target.store_operation)
+  {
+    result = 0;
+  }
+  else if (a.depth_stencil_target.clear_depth != b.depth_stencil_target.clear_depth)
+  {
+    result = 0;
+  }
+
+  return result;
+}
+
+func RHI_VK_RenderPass*
 RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
 {
-#if 0
-typedef struct VkRenderPassCreateInfo {
-    VkStructureType                   sType;
-    const void*                       pNext;
-    VkRenderPassCreateFlags           flags;
-    uint32_t                          attachmentCount;
-    const VkAttachmentDescription*    pAttachments;
-    uint32_t                          subpassCount;
-    const VkSubpassDescription*       pSubpasses;
-    uint32_t                          dependencyCount;
-    const VkSubpassDependency*        pDependencies;
-} VkRenderPassCreateInfo;
+  RHI_VK_RenderPass* result = 0;
 
-  VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENT + 1] = ZeroStruct();
-  VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENT + 1] = ZeroStruct();
+  RHI_VK_RenderPass render_pass = ZeroStruct();
+  VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
+  VkAttachmentReference references[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
 
-typedef struct VkAttachmentDescription {
-    VkAttachmentDescriptionFlags    flags;
-    VkFormat                        format;
-    VkSampleCountFlagBits           samples;
-    VkAttachmentLoadOp              loadOp;
-    VkAttachmentStoreOp             storeOp;
-    VkAttachmentLoadOp              stencilLoadOp;
-    VkAttachmentStoreOp             stencilStoreOp;
-    VkImageLayout                   initialLayout;
-    VkImageLayout                   finalLayout;
-} VkAttachmentDescription;
-
+  render_pass.header.color_targets_count = color_targets_count;
   for (I32 i = 0; i < color_targets_count; i += 1)
   {
-    RHI_ColorTarget target = color_targets[i];
-    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target);
+    RHI_ColorTarget* target = color_targets + i;
+    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target->texture);
     attachments[i].flags = 0;
-    attachments[i].format = RHI_VK_GetVkFormat(format);
-    attachments[i].sampels = VK_SAMPLE_COUNT_1_BIT,
-    attachments[i].loadOp = RHI_VK_GetVkAttachmentLoadOperation(target.load_operation);
-    attachments[i].storeOp = RHI_VK_GetVkAttachmentStoreOperation(targe.store_operation);
+    attachments[i].format = RHI_VK_GetVkFormat(vk_texture->format);
+    attachments[i].samples = VK_SAMPLE_COUNT_1_BIT,
+    attachments[i].loadOp = RHI_VK_GetVkAttachmentLoadOperation(target->load_operation);
+    attachments[i].storeOp = RHI_VK_GetVkAttachmentStoreOperation(target->store_operation);
     attachments[i].stencilLoadOp = 0;
     attachments[i].stencilStoreOp = 0;
     attachments[i].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     attachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    references[i].attachment = i;
+    references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    render_pass.header.color_targets[i] = *target;
   }
 
-typedef struct VkSubpassDescription {
-    VkSubpassDescriptionFlags       flags;
-    VkPipelineBindPoint             pipelineBindPoint;
-    uint32_t                        inputAttachmentCount;
-    const VkAttachmentReference*    pInputAttachments;
-    uint32_t                        colorAttachmentCount;
-    const VkAttachmentReference*    pColorAttachments;
-    const VkAttachmentReference*    pResolveAttachments;
-    const VkAttachmentReference*    pDepthStencilAttachment;
-    uint32_t                        preserveAttachmentCount;
-    const uint32_t*                 pPreserveAttachments;
-} VkSubpassDescription;
+  if (depth_stencil_target != 0)
+  {
+    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
+    attachments[color_targets_count] = (VkAttachmentDescription){
+      .flags = 0,
+      .format = RHI_VK_GetVkFormat(vk_texture->format),
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .loadOp = RHI_VK_GetVkAttachmentLoadOperation(depth_stencil_target->load_operation),
+      .storeOp = RHI_VK_GetVkAttachmentStoreOperation(depth_stencil_target->store_operation),
+      .stencilLoadOp = 0,
+      .stencilStoreOp = 0,
+      .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+
+    references[color_targets_count] = (VkAttachmentReference){
+      .attachment = color_targets_count,
+      .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+
+    render_pass.header.depth_stencil_target = *depth_stencil_target;
+  }
+
+  B32 found = 0;
+  for (I32 i = 0; i < _rhi_vk_state.render_passes.length; i += 1)
+  {
+    RHI_VK_RenderPass* vk_render_pass = RHI_VK_RenderPassArrayGetPointer(&_rhi_vk_state.render_passes, i);
+    if (RHI_RenderPassEqual(render_pass.header, vk_render_pass->header))
+    {
+      found = 1;
+      result = vk_render_pass;
+      break;
+    }
+  }
+
+  if (!found)
+  {
+    VkSubpassDescription subpass = {
+      .flags = 0,
+      .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+      .inputAttachmentCount = 0,
+      .pInputAttachments = 0,
+      .colorAttachmentCount = color_targets_count,
+      .pColorAttachments = references,
+      .pResolveAttachments = 0,
+      .pDepthStencilAttachment = (depth_stencil_target != 0) ? references + color_targets_count : 0,
+      .preserveAttachmentCount = 0,
+      .pPreserveAttachments = 0,
+    };
+
+    VkRenderPassCreateInfo render_pass_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+      .attachmentCount = color_targets_count + (U32)(depth_stencil_target != 0),
+      .pAttachments = attachments,
+      .subpassCount = 1,
+      .pSubpasses = &subpass,
+      .dependencyCount = 0,
+      .pDependencies = 0,
+    };
+
+    vkCreateRenderPass(_rhi_vk_state.device.logical, &render_pass_info, 0, &render_pass.vk);
+    I32 array_slot = RHI_VK_RenderPassArrayAdd(&_rhi_vk_state.render_passes, render_pass);
+    result = RHI_VK_RenderPassArrayGetPointer(&_rhi_vk_state.render_passes, array_slot);
+  }
+
+  result->framebuffer = RHI_VK_CreateFramebuffer(&render_pass, color_targets, color_targets_count, depth_stencil_target);
+
+  return result;
+}
+
+func VkRenderPass RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info)
+{
+  VkRenderPass result = 0;
+
+  VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
+  VkAttachmentReference references[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
+
+  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1)
+  {
+    RHI_GraphicsPipelineColorTargetInfo* target_info = pipeline_info->color_target_infos + i;
+    attachments[i].flags = 0;
+    attachments[i].format = RHI_VK_GetVkFormat(target_info->format);
+    attachments[i].samples = VK_SAMPLE_COUNT_1_BIT,
+    attachments[i].loadOp = 0,
+    attachments[i].storeOp = 0,
+    attachments[i].stencilLoadOp = 0;
+    attachments[i].stencilStoreOp = 0;
+    attachments[i].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    references[i].attachment = i;
+    references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  }
+
+  RHI_PipelineDepthStencilState* depth_stencil_info = &pipeline_info->depth_stencil_state;
+  B32 has_depth_stencil = depth_stencil_info->depth_test_enable || depth_stencil_info->depth_write_enable;
+  if (has_depth_stencil)
+  {
+    attachments[pipeline_info->color_targets_count] = (VkAttachmentDescription){
+      .flags = 0,
+      .format = RHI_VK_GetVkFormat(depth_stencil_info->depth_target_format),
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .loadOp = 0,
+      .storeOp = 0,
+      .stencilLoadOp = 0,
+      .stencilStoreOp = 0,
+      .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+
+    references[pipeline_info->color_targets_count] = (VkAttachmentReference){
+      .attachment = pipeline_info->color_targets_count,
+      .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+  }
 
   VkSubpassDescription subpass = {
     .flags = 0,
     .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-    .inputAttachmentCount = color_targes_count + (U32)(depth_stencil_target != 0),
-    .pInputAttachments = input_attachments,
+    .inputAttachmentCount = 0,
+    .pInputAttachments = 0,
+    .colorAttachmentCount = pipeline_info->color_targets_count,
+    .pColorAttachments = references,
+    .pResolveAttachments = 0,
+    .pDepthStencilAttachment = (has_depth_stencil) ? references + pipeline_info->color_targets_count : 0,
+    .preserveAttachmentCount = 0,
+    .pPreserveAttachments = 0,
   };
 
-  VkRenderPassCreateInfo create_info = {
-    .atachmentCount = color_targets_count + (U32)(depth_stencil_target != 0),
+  VkRenderPassCreateInfo render_pass_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+    .attachmentCount = pipeline_info->color_targets_count + has_depth_stencil,
     .pAttachments = attachments,
     .subpassCount = 1,
-    .pSubpasses = subpass,
+    .pSubpasses = &subpass,
     .dependencyCount = 0,
     .pDependencies = 0,
   };
 
-  vkCreateRenderPass(_rhi_vk_state.device.physical, &create_infor, 0, &render_pass)
-#endif
+  vkCreateRenderPass(_rhi_vk_state.device.logical, &render_pass_info, 0, &result);
+
+  return result;
 }
 
 func RHI_RenderPass*
 RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
 {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+
+  RHI_VK_RenderPass* render_pass = RHI_VK_CreateRenderPass(color_targets_count, color_targets, depth_stencil_target);
+
+  // if (render_pass->framebuffer->size.x != 0 && render_pass->framebuffer->size.y != 0)
+  {
+    VkClearValue clear_values[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
+    for (I32 i = 0; i < color_targets_count; i += 1)
+    {
+      clear_values[i].color.float32[0] = color_targets[i].clear_color.r;
+      clear_values[i].color.float32[1] = color_targets[i].clear_color.g;
+      clear_values[i].color.float32[2] = color_targets[i].clear_color.b;
+      clear_values[i].color.float32[3] = color_targets[i].clear_color.a;
+
+      
+      RHI_VK_Texture* vk_attachment_texture = RHI_VK_TextureFromHandle(color_targets[i].texture);
+      RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    }
+
+    if (depth_stencil_target != 0)
+    {
+      clear_values[color_targets_count].depthStencil.depth = depth_stencil_target->clear_depth;
+
+      RHI_VK_Texture* vk_depth_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
+      RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    }
+
+    VkRenderPassBeginInfo begin_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = render_pass->vk,
+      .framebuffer = render_pass->framebuffer->vk,
+      .renderArea = (VkRect2D){
+        .offset.x = 0,
+        .offset.y = 0,
+        .extent.width = render_pass->framebuffer->size.x,
+        .extent.height = render_pass->framebuffer->size.y,
+      },
+      .clearValueCount = color_targets_count + (U32)(depth_stencil_target != 0),
+      .pClearValues = clear_values,
+    };
+
+    vkCmdBeginRenderPass(vk_command_buffer->handle[_rhi_vk_state.current_frame], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    vk_command_buffer->active_render_pass = render_pass;
+  }
+
+	return 0; // @TODO
+}
+
+func RHI_RenderPass*
+RHI_VK_BeginRenderPassOld(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
+{
+	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+
+  RHI_VK_CreateRenderPass(color_targets_count, color_targets, depth_stencil_target);
 
   // --AlNov: @TODO Only one now
   VkRenderingAttachmentInfo vk_color_attachment_infos[2] = {0};
@@ -1315,8 +1524,8 @@ RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count
     RHI_VK_Texture* vk_depth_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
     vk_depth_attachment_info.imageView = vk_depth_texture->view;
     vk_depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    vk_depth_attachment_info.loadOp = RHI_VK_GetVkAttachmentLoadOperation(depth_stencil_target->depth_load_operation);
-    vk_depth_attachment_info.storeOp = RHI_VK_GetVkAttachmentStoreOperation(depth_stencil_target->depth_store_operation);
+    vk_depth_attachment_info.loadOp = RHI_VK_GetVkAttachmentLoadOperation(depth_stencil_target->load_operation);
+    vk_depth_attachment_info.storeOp = RHI_VK_GetVkAttachmentStoreOperation(depth_stencil_target->store_operation);
     vk_depth_attachment_info.clearValue.depthStencil.depth = depth_stencil_target->clear_depth;
 
     RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
@@ -1346,7 +1555,120 @@ RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pa
 {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
+  if (vk_command_buffer->active_render_pass != 0)
+  {
+    vkCmdEndRenderPass(vk_command_buffer->handle[_rhi_vk_state.current_frame]);
+    vk_command_buffer->active_render_pass = 0;
+  }
+}
+
+func void
+RHI_VK_EndRenderPassOld(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass)
+{
+	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+
   vkCmdEndRendering(vk_command_buffer->handle[_rhi_vk_state.current_frame]);
+}
+
+// -------------------------------------------------------------------
+// -- Framebuffer
+func B32
+RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b)
+{
+  B32 result = 1;
+
+  if (a.color_attachments_count != b.color_attachments_count)
+  {
+    result = 0;
+  }
+  else if (a.depth_stencil_attachment != b.depth_stencil_attachment)
+  {
+    result = 0;
+  }
+  else if (a.size.x != b.size.x)
+  {
+    result = 0;
+  }
+  else if (a.size.y != b.size.y)
+  {
+    result = 0;
+  }
+
+  for (I32 i = 0; i < a.color_attachments_count; i += 1)
+  {
+    if (a.color_attachments[i] != b.color_attachments[i])
+    {
+      result = 0;
+      break;
+    }
+  }
+
+  return result;
+}
+
+func RHI_VK_Framebuffer*
+RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_targets, I32 color_targets_count, RHI_DepthStencilTarget* depth_stencil_target)
+{
+  RHI_VK_Framebuffer* result = 0;
+  RHI_VK_Framebuffer framebuffer = ZeroStruct();
+
+  VkImageView attachments[RHI_MAX_COLOR_ATTACHMENTS] = ZeroStruct();
+
+  framebuffer.color_attachments_count = color_targets_count;
+  framebuffer.size = MakeVec2I32(I32_MAX, I32_MAX);
+
+  for (I32 i = 0; i < color_targets_count; i += 1)
+  {
+    RHI_ColorTarget* target = color_targets + i;
+    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target->texture);
+    attachments[i] = vk_texture->view;
+    framebuffer.color_attachments[i] = vk_texture->view;
+    framebuffer.size.x = Min(framebuffer.size.x, vk_texture->size.x);
+    framebuffer.size.y = Min(framebuffer.size.y, vk_texture->size.y);
+  }
+
+  if (depth_stencil_target != 0)
+  {
+    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
+    attachments[color_targets_count] = vk_texture->view;
+    framebuffer.depth_stencil_attachment = vk_texture->view;
+    framebuffer.size.x = Min(framebuffer.size.x, vk_texture->size.x);
+    framebuffer.size.y = Min(framebuffer.size.y, vk_texture->size.y);
+  }
+
+  if (framebuffer.size.x != 0 && framebuffer.size.y != 0)
+  {
+    B32 found = 0;
+    for (I32 i = 0; i < _rhi_vk_state.framebuffers.length; i += 1)
+    {
+      RHI_VK_Framebuffer* compare = RHI_VK_FramebufferArrayGetPointer(&_rhi_vk_state.framebuffers, i);
+      if (RHI_VK_EqualFramebuffer(framebuffer, *compare))
+      {
+        found = 1;
+        result = compare;
+      }
+    }
+
+    if (!found)
+    {
+      VkFramebufferCreateInfo framebuffer_info = {
+        .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+        .flags = 0,
+        .renderPass = render_pass->vk,
+        .attachmentCount = color_targets_count + (U32)(depth_stencil_target != 0),
+        .pAttachments = attachments,
+        .width = framebuffer.size.x,
+        .height = framebuffer.size.y,
+        .layers = 1,
+      };
+
+      vkCreateFramebuffer(_rhi_vk_state.device.logical, &framebuffer_info, 0, &framebuffer.vk);
+      I32 array_slot = RHI_VK_FramebufferArrayAdd(&_rhi_vk_state.framebuffers, framebuffer);
+      result = RHI_VK_FramebufferArrayGetPointer(&_rhi_vk_state.framebuffers, array_slot);
+    }
+  }
+
+  return result;
 }
 
 // -------------------------------------------------------------------
@@ -1386,7 +1708,10 @@ RHI_VK_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 in
 {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-	vkCmdDraw(vk_command_buffer->handle[_rhi_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
+  if (vk_command_buffer->active_render_pass != 0)
+  {
+    vkCmdDraw(vk_command_buffer->handle[_rhi_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
+  }
 }
 
 func void
@@ -1394,7 +1719,10 @@ RHI_VK_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, 
 {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-	vkCmdDrawIndexed(vk_command_buffer->handle[_rhi_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
+  if (vk_command_buffer->active_render_pass != 0)
+  {
+    vkCmdDrawIndexed(vk_command_buffer->handle[_rhi_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
+  }
 }
 
 func void
@@ -1865,6 +2193,9 @@ RHI_VK_Init(OS_Window* window)
   _rhi_vk_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_vk_state.buffers = RHI_VK_BufferArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.buffers.elements[0] = (RHI_VK_Buffer){0};
+  _rhi_vk_state.render_passes = RHI_VK_RenderPassArrayAllocate(_rhi_vk_state.arena, 32);
+  // --AlNov 11 January 2026: @TODO Doesn't delete framebuffers when texture is deleted (Swapchain Recreation)
+  _rhi_vk_state.framebuffers = RHI_VK_FramebufferArrayAllocate(_rhi_vk_state.arena, 256);
   _rhi_vk_state.graphics_pipelines = RHI_VK_GraphicsPipelineArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.graphics_pipelines.elements[0] = (RHI_VK_GraphicsPipeline){0};
   _rhi_vk_state.command_buffers = RHI_VK_CommandBufferArrayAllocate(_rhi_vk_state.arena, 16);

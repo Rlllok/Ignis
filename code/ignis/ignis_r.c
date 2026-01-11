@@ -421,13 +421,6 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
   RHI_Texture swapchain_texture = _ignis_r_state.swapchain;
   Ignis_Entity* camera = Ignis_GetCamera(scene);
 
-  RHI_DepthStencilTarget shadow_map_pass_target = {
-    .texture = _ignis_r_state.shadow_map,
-    .depth_load_operation = RHI_ATTACHMENT_LOAD_OPERATION_CLEAR,
-    .depth_store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
-    .clear_depth = 0.0f,
-  };
-
   RectI32 viewport = {
     .x = 0,
     .y = 0,
@@ -435,6 +428,13 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
     .h = RHI_GetTextureDimension(_ignis_r_state.shadow_map).y,
   };
   RectI32 scissor = viewport;
+#if 0
+  RHI_DepthStencilTarget shadow_map_pass_target = {
+    .texture = _ignis_r_state.shadow_map,
+    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_CLEAR,
+    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
+    .clear_depth = 0.0f,
+  };
   RHI_SetViewport(command_buffer, viewport);
   RHI_SetScissor(command_buffer, scissor);
   RHI_BeginRenderPass(command_buffer, 0, 0, &shadow_map_pass_target);
@@ -449,14 +449,14 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
     }
   }
   RHI_EndRenderPass(command_buffer, 0);
+#endif
 
   RHI_DepthStencilTarget depth_prepass_target = {
     .texture = _ignis_r_state.depth_texture,
-    .depth_load_operation = RHI_ATTACHMENT_LOAD_OPERATION_CLEAR,
-    .depth_store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
+    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_CLEAR,
+    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
     .clear_depth = 0.0f,
   };
-
 
   viewport = (RectI32){
     .x = 0,
@@ -480,6 +480,7 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
   }
   RHI_EndRenderPass(command_buffer, 0);
 
+#if 0
   RHI_ColorTarget entity_color_targets[] = {
     {
       .texture = swapchain_texture,
@@ -491,8 +492,8 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
 
   RHI_DepthStencilTarget entity_depth_target = {
     .texture = _ignis_r_state.depth_texture,
-    .depth_load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
-    .depth_store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
+    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
   };
 
   viewport = (RectI32){
@@ -526,8 +527,8 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
 
   RHI_DepthStencilTarget depth_target = {
     .texture = _ignis_r_state.depth_texture,
-    .depth_load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
-    .depth_store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
+    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
   };
 
   RHI_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
@@ -535,6 +536,7 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
     Ignis_R_RenderGrid(scene, color_target, depth_target);
   }
   RHI_EndRenderPass(command_buffer, 0);
+#endif
 }
 
 func void

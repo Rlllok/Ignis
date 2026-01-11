@@ -98,9 +98,41 @@ func RHI_Texture RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer
 
 // -------------------------------------------------------------------
 // Render Pass
-func void RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
-func RHI_RenderPass* RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
-func void RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
+typedef struct RHI_VK_RenderPass RHI_VK_RenderPass;
+struct RHI_VK_RenderPass
+{
+  RHI_RenderPass header;
+
+  VkRenderPass vk;
+  struct RHI_VK_Framebuffer* framebuffer;
+};
+RHI_VK_RenderPass _rhi_vk_render_pass_nil = ZeroStruct();
+DefineArray(RHI_VK_RenderPass, RHI_VK_RenderPassArray, _rhi_vk_render_pass_nil)
+
+func B32 RHI_VK_RenderPassEqual(RHI_VK_RenderPass a, RHI_VK_RenderPass b);
+
+func RHI_VK_RenderPass* RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
+func VkRenderPass       RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info);
+func RHI_RenderPass*    RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
+func void               RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
+
+// -------------------------------------------------------------------
+// -- Framebuffer
+typedef struct RHI_VK_Framebuffer RHI_VK_Framebuffer;
+struct RHI_VK_Framebuffer
+{
+  VkImageView color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
+  I32         color_attachments_count;
+  VkImageView depth_stencil_attachment;
+  Vec2I32     size;
+
+  VkFramebuffer vk;
+};
+RHI_VK_Framebuffer _rhi_vk_framebuffer_nil = ZeroStruct();
+DefineArray(RHI_VK_Framebuffer, RHI_VK_FramebufferArray, _rhi_vk_framebuffer_nil)
+
+func B32                 RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b);
+func RHI_VK_Framebuffer* RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_targets, I32 color_targets_count, RHI_DepthStencilTarget* depth_stencil_target);
 
 // -------------------------------------------------------------------
 // Descriptor Sets
@@ -225,6 +257,7 @@ struct RHI_VK_CommandBuffer
 
 	RHI_VK_DescriptorPool descriptor_pool[RHI_FRAMES_IN_FLIGHT];
 
+  RHI_VK_RenderPass*       active_render_pass;
 	RHI_VK_GraphicsPipeline* binded_graphics_pipeline;
   VkViewport current_viewport;
 };
@@ -257,6 +290,8 @@ struct RHI_VK_State
 #endif // IGNIS_DEBUG
 	
   RHI_VK_BufferArray buffers;
+  RHI_VK_RenderPassArray render_passes;
+  RHI_VK_FramebufferArray framebuffers;
   RHI_VK_GraphicsPipelineArray graphics_pipelines;
   RHI_VK_CommandBufferArray command_buffers;
   RHI_VK_TextureSamplerArray samplers;

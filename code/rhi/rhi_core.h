@@ -232,14 +232,21 @@ typedef struct RHI_DepthStencilTarget RHI_DepthStencilTarget;
 struct RHI_DepthStencilTarget
 {
   RHI_Texture texture;
-  RHI_LoadOperation depth_load_operation;
-  RHI_StoreOperation depth_store_operation;
+  RHI_LoadOperation load_operation;
+  RHI_StoreOperation store_operation;
   F32 clear_depth;
 };
 
 typedef struct RHI_RenderPass RHI_RenderPass;
+struct RHI_RenderPass
+{
+  RHI_ColorTarget        color_targets[RHI_MAX_COLOR_ATTACHMENTS];
+  I32                    color_targets_count;
+  RHI_DepthStencilTarget depth_stencil_target;
+};
 
 func RHI_RenderPass* RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
+func RHI_RenderPass* RHI_BeginRenderPassOld(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
 func void RHI_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
 
 // -------------------------------------------------------------------

@@ -153,6 +153,7 @@ RHI_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer)
 
 // -------------------------------------------------------------------
 // Render Pass
+
 func RHI_RenderPass*
 RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
 {

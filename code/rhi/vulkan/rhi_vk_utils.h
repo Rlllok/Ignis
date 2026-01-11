@@ -20,6 +20,7 @@ func void RHI_VK_TransitImageLayout(VkCommandBuffer cmd, VkImage image, VkImageL
 
 func VkImageType RHI_VK_GetVkImageType(VkImageType image_type);
 func VkFormat RHI_VK_GetVkFormat(RHI_TextureFormat format);
+func RHI_TextureFormat RHI_VK_FormatFromVk(VkFormat format);
 func RHI_TextureFormat RHI_VK_TextureFormatFromVkFormat(VkFormat format);
 func VkImageUsageFlags RHI_VK_GetVkImageUsageFlags(RHI_TextureUsageFlags flags);
 
