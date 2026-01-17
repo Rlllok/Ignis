@@ -80,6 +80,16 @@ TransformVec4F32(Vec4F32 v, Mat4F32 m)
   return result;
 }
 
+func B32
+EqualVec4F32(Vec4F32 a, Vec4F32 b)
+{
+  B32 result = 0;
+
+  result = (a.x == b.x) && (a.y == b.y) && (a.z == b.z) && (a.w == b.w);
+
+  return result;
+}
+
 func Mat3F32
 MakeMat3F32(F32 diagonal_value)
 {

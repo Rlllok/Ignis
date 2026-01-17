@@ -18,6 +18,7 @@ layout(set = 3, binding = 0) uniform InstanceData
 
 layout(set = 3, binding = 1) uniform sampler2D color_texture;
 layout(set = 3, binding = 2) uniform sampler2D normal_texture;
+layout(set = 3, binding = 3) uniform sampler2D shadow_map;
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out uint out_id;

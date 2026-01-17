@@ -17,11 +17,11 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
   }
   I32 texture_size = tex_width * tex_height * 4;
 
-  _ignis_ui_state.font.bitmap = R_CreateTexture(
-    &(R_TextureCreateInfo){
-      .type = R_TEXTURE_TYPE_2D,
-      .format = R_TEXTURE_FORMAT_R8G8B8A8_SRGB,
-      .usage_flags = R_TEXTURE_USAGE_FLAG_SAMPLED | R_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+  _ignis_ui_state.font.bitmap = RHI_CreateTexture(
+    &(RHI_TextureCreateInfo){
+      .type = RHI_TEXTURE_TYPE_2D,
+      .format = RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+      .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
       .width = tex_width,
       .height = tex_height,
       .depth = 1,
@@ -31,8 +31,8 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
   _ignis_ui_state.font.bitmap_size = MakeVec2U32(tex_width, tex_height);
   _ignis_ui_state.font.glyph_size = MakeVec2U32(30, 30);
   _ignis_ui_state.font.glyphs_per_row = 19;
-  U64 font_texture_offset = R_PushBuffer(_ignis_r_state.transfer_buffer, tex_pixels, texture_size);
-  R_CopyBufferToTexture(0, _ignis_r_state.transfer_buffer, font_texture_offset, texture_size, _ignis_ui_state.font.bitmap);
+  U64 font_texture_offset = RHI_PushBuffer(_ignis_r_state.transfer_buffer, tex_pixels, texture_size);
+  RHI_CopyBufferToTexture(0, _ignis_r_state.transfer_buffer, font_texture_offset, texture_size, _ignis_ui_state.font.bitmap);
 
   UI_Init(arena, max_widgets_count);
   Ignis_UI_ApplyColors();

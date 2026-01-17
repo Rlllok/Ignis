@@ -6,12 +6,13 @@
 
 func void OS_Init(U64 arena_size)
 {
-	_os_state.arena = AllocateArena(arena_size);
+	_os_state.arena = AllocateArena(arena_size, arena_size);
 }
 
 func void OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 {
-	out->handle = (OS_WindowHandle*)OS_AllocateMemory(sizeof(OS_WindowHandle));
+	out->handle = (OS_WindowHandle*)OS_ReserveMemory(sizeof(OS_WindowHandle)).ptr;
+  OS_CommitMemory(out->handle, sizeof(OS_WindowHandle));
 	out->size = size;
 
 	out->handle->display = XOpenDisplay(0);

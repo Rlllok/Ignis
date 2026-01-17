@@ -1,7 +1,7 @@
 #pragma once
 
 #include "base/base_include.h"
-#include "render/r_include.h"
+#include "rhi/rhi_include.h"
 
 typedef I32 UI_ID;
 #define UI_ID_Nil -1
@@ -12,11 +12,11 @@ DefineArray(UI_ID, UI_IDArray, _ui_id_nil)
 // -- UI Font --------------------------------------------------------
 // -- AlNov. 12 December 2025: @TODO
 // UI Layer should not depend on Render Layer. tIt should just build Layout and DrawCommands.
-// (Remove usage for R_Texture from there)
+// (Remove usage for RHI_Texture from there)
 typedef struct FontBitmap FontBitmap;
 struct FontBitmap
 {
-  R_Texture bitmap;
+  RHI_Texture bitmap;
   Vec2U32 bitmap_size; // --AlNov: @TODO Should be in texture
   Vec2U32 glyph_size;
   U32 glyphs_per_row;

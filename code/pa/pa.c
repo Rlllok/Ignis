@@ -60,7 +60,7 @@ PA_Init()
 {
   _pa_state = (PA_State)ZeroStruct();
 
-  _pa_state.arena = AllocateArena(Megabytes(32));
+  _pa_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
 
   _pa_state.grid_size = 1.0f;
 

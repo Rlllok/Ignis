@@ -7,12 +7,14 @@
 #include <stdio.h>
 
 func Arena*
-AllocateArena(U64 size)
+AllocateArena(U64 reserve_size, U64 commit_size)
 {
-  void* memoryBlock = OS_AllocateMemory(size);
-  Arena* arena = (Arena*)memoryBlock;
+  OS_ReserveResult reserve_result = OS_ReserveMemory(reserve_size);
+  U64 commit_result_size = OS_CommitMemory(reserve_result.ptr, commit_size);
+  Arena* arena = (Arena*)reserve_result.ptr;
   arena->position = sizeof(Arena);
-  arena->size = size;
+  arena->reserved = reserve_result.size;
+  arena->commited = commit_result_size;
 
   return arena;
 }
@@ -22,14 +24,24 @@ PushArena(Arena* arena, U64 size)
 {
   void* result = 0;
 
-  if ((arena->position + size) < arena->size)
+  if ((arena->position + size) < arena->commited)
   {
     result = (void*)((U8*)arena + arena->position);
     arena->position += size;
   }
   else
   {
-    Assert(0 && "Not enough space for allocation");
+    // --AlNov 7 January 2026: @TODO No strategy for growing buffer
+    U64 commit_result_size = OS_CommitMemory((void*)((U8*)arena + arena->commited), size);
+    arena->commited += commit_result_size;
+    
+    if (arena->commited > arena->reserved)
+    {
+      Assert(!"Not enough space for allocation");
+    }
+
+    result = (void*)((U8*)arena + arena->position);
+    arena->position += size;
   }
 
   return result;
@@ -46,11 +58,28 @@ func void
 ResetArena(Arena* arena)
 {
   arena->position = sizeof(Arena);
-	OS_ZeroMemory((U8*)arena + arena->position, arena->size - arena->position);
+	// OS_ZeroMemory((U8*)arena + arena->position, arena->size - arena->position);
 }
 
-  func void
+func void
 FreeArena(Arena* arena)
 {
-  OS_FreeMemory(arena);
+  OS_FreeMemory(arena, arena->reserved);
+}
+
+// -- Scratch Arena --------------------------------------------------
+func ScratchArena
+BeginScratchArena(Arena* arena)
+{
+  ScratchArena result = {
+    .arena = arena,
+    .position = arena->position,
+  };
+  return result;
+}
+
+func void
+EndScratchArena(ScratchArena scratch)
+{
+  scratch.arena->position = scratch.position;
 }

@@ -35,6 +35,10 @@ typedef I32 B32;
 #define U32_MAX 0xFFFFFFFF
 #define U64_MIN 0x0000000000000000
 #define U64_MAX 0xFFFFFFFFFFFFFFFF
+
+#define I32_MIN 0x00000000
+#define I32_MAX 0x7FFFFFFF
+
 #define F32_MIN -3.40282347E+38f
 #define F32_MAX 3.40282347E+38f
 
@@ -48,6 +52,7 @@ typedef I32 B32;
 // -------------------------------------------------------------------
 #define Kilobytes(n) (n << 10)
 #define Megabytes(n) (n << 20)
+#define Gigabytes(n) ((U64)n << 30)
 
 // -------------------------------------------------------------------
 // --AlNov: Helper Macroses ------------------------------------------

@@ -133,18 +133,19 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
     skeletal_animation.name = gltf_animation.name;
 
     {
-      GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
-      GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
+      // --AlNov 7 January 2026: @TODO Dead code
+      // GLTFSampler sampler = GLTFSamplerListGetItem(&gltf_animation.samplers, 0);
+      // GLTFAccessor accessor = GLTFAccessorListGetItem(&gltf_data.accessors, sampler.input_accessor_id);
       skeletal_animation.bone_animations = AnimationArrayAllocate(arena, result.skeleton.joints.length);
       // --AlNov. 12  December 2025: @TODO
       // What is going on there. Should .length = .capacity? Can AnimationArrayAdd(...) be used? 
     }
 
-    Arena* tmp_arena = AllocateArena(Megabytes(16));
+    ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena);
     {
-      GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-      GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
-      GLTFChannelArray scale_channels = GLTFChannelArrayAllocate(tmp_arena, result.skeleton.joints.length);
+      GLTFChannelArray translation_channels = GLTFChannelArrayAllocate(scratch.arena, result.skeleton.joints.length);
+      GLTFChannelArray rotation_channels = GLTFChannelArrayAllocate(scratch.arena, result.skeleton.joints.length);
+      GLTFChannelArray scale_channels = GLTFChannelArrayAllocate(scratch.arena, result.skeleton.joints.length);
 
       // @TODO List should be changed to Array
       for (I32 i = 0; i < gltf_animation.channels.count; i += 1)
@@ -258,7 +259,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
         AnimationArrayAdd(&skeletal_animation.bone_animations, bone_animation);
       }
     }
-    FreeArena(tmp_arena);
+    EndScratchArena(scratch);
 
     SkeletalAnimationArrayAdd(&result.skeletal_animations, skeletal_animation);
   }

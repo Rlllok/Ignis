@@ -2,6 +2,8 @@
 
 #include "base/base_include.h"
 
+// -- AlNov 7 January 2026: @TODO
+// Why using OS_WindowHandle
 typedef struct OS_WindowHandle OS_WindowHandle;
 
 typedef U16 OS_WindowStatus;

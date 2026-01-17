@@ -1,6 +1,6 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
-#include "render/r_include.h"
+#include "rhi/rhi_include.h"
 #include "assets/animation.h"
 #include "assets/mesh.h"
 #include "ui/ui_include.h"
@@ -8,11 +8,13 @@
 
 #include "base/base_include.c"
 #include "os/os_include.c"
-#include "render/r_include.c"
+#include "rhi/rhi_include.c"
 #include "assets/animation.c"
 #include "assets/mesh.c"
 #include "ui/ui_include.c"
 #include "draw/d_include.c"
+
+#include "vei/vei.h"
 
 #include "ignis.h"
 #include "ignis_r.h"
@@ -60,20 +62,32 @@ I32 main()
   U64 begin_ms = OS_GetTimeTicks();
   while (!_ignis_state.finished)
   {
+    Vei_Init();
     Ignis_HandleEvents(_ignis_state.arena);
 
-    PA_Update(_ignis_state.dt);
+    Vei_BeginPoint(PA_Update);
+    {
+      PA_Update(_ignis_state.dt);
+    }
+    Vei_EndPoint(PA_Update);
+    
+    Vei_BeginPoint(Ignis_UI_Configure);
+    {
+      Ignis_UI_Configure(&_pa_state.area.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
+    }
+    Vei_EndPoint(Ignis_UI_Configure);
 
+    Vei_BeginPoint(Ignis_Rendering);
     Ignis_R_BeginFrame();
     {
       Ignis_R_RenderScene(&_pa_state.area.scene);
       if (_ignis_state.draw_editor_ui)
       {
-        Ignis_UI_Configure(&_pa_state.area.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
-        Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
+        // Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
       }
     }
     Ignis_R_EndFrame();
+    Vei_EndPoint(Ignis_Rendering);
 
     U64 end_ms = OS_GetTimeTicks();
     F32 sleep_dt = _ignis_state.dt - (F32)(end_ms - begin_ms);
@@ -90,7 +104,7 @@ func void
 Init_Ignis()
 {
   _ignis_state = (Ignis_State){0};
-  _ignis_state.arena = AllocateArena(Megabytes(32));
+  _ignis_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _ignis_state.scene = Ignis_CreateScene(_ignis_state.arena, 64);
   _ignis_state.dt    = 1.0f/60.0f;
 
@@ -151,7 +165,7 @@ Init_Ignis()
   OS_CreateWindow(Str8C("Ignis"), MakeVec2U32(1280, 720), &_ignis_state.window);
   OS_ShowWindow(&_ignis_state.window);
 
-  Ignis_R_Init(R_RENDERER_TYPE_VK, &_ignis_state.window);
+  Ignis_R_Init(RHI_RENDERER_TYPE_VK, &_ignis_state.window);
   Ignis_UI_Init(_ignis_state.arena, 1024);
 }
 

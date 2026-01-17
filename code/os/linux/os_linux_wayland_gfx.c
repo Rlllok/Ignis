@@ -7,7 +7,8 @@
 func void
 OS_Init(U64 arena_size)
 {
-  _os_state.arena = AllocateArena(arena_size);
+  // --AlNov 7 January 2026: @TODO Do we need arena_size parameter
+  _os_state.arena = AllocateArena(Gigabytes(16), Megabytes(8));
 }
 
 func void
@@ -431,7 +432,8 @@ struct zwp_relative_pointer_v1_listener _relative_pointer_listener = {
 func void
 OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 {
-  out->handle = (OS_WindowHandle*)OS_AllocateMemory(sizeof(OS_WindowHandle));
+  out->handle = (OS_WindowHandle*)OS_ReserveMemory(sizeof(OS_WindowHandle)).ptr;
+  OS_CommitMemory((void*)out->handle, sizeof(OS_WindowHandle));
   out->size = size;
 
   out->handle->display = wl_display_connect(0);

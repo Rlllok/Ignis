@@ -9,7 +9,9 @@ AllocateBuffer(U64 size)
 {
   Buffer result = {0};
 
-  result.data = (U8*)OS_AllocateMemory(size * sizeof(U8));
+  // --AlNov 7 January 2026: @TODO Use scratch arena
+  result.data = (U8*)OS_ReserveMemory(size * sizeof(U8)).ptr;
+  OS_CommitMemory(result.data, size*sizeof(U8));
   if (result.data)
   {
     result.length = size;
@@ -23,7 +25,7 @@ FreeBuffer(Buffer* buffer)
 {
   if (buffer->data)
   {
-    OS_FreeMemory(buffer->data);
+    OS_FreeMemory(buffer->data, buffer->length);
   }
 
   *buffer = (Buffer){0};
@@ -384,7 +386,9 @@ ParseElement(GLTFReader* reader, Buffer label, GLTFToken token)
 
   if (valid)
   {
-    result = (GLTFElement*)OS_AllocateMemory(sizeof(GLTFElement));
+    // --AlNov 7 January 2026: @TODO Use scratch arena
+    result = (GLTFElement*)OS_ReserveMemory(sizeof(GLTFElement)).ptr;
+    OS_CommitMemory((void*)result, sizeof(GLTFElement));
     result->label = label;
     result->value = token.value;
     result->first_sub_element = sub_element;
@@ -398,7 +402,8 @@ func GLTFData
 GetGLTFData(GLTFReader* reader)
 {
   // @TODO @NOTE NO FREE
-  Arena* licky_arena = AllocateArena(Megabytes(64));
+  // --AlNov 7 January 2026: @TODO Use Scratch Arena
+  Arena* licky_arena = AllocateArena(Megabytes(64), Megabytes(64));
   
   GLTFData gltf_data = {0};
   
@@ -413,7 +418,6 @@ GetGLTFData(GLTFReader* reader)
   }
 
   gltf_data.nodes = GLTFNodeArrayAllocate(licky_arena, node_count);
-  GLTF_ID current_node_id = 0;
   for (GLTFElement* node_element = LookUpElement(head, Str8C("nodes"))->first_sub_element;
        node_element;
        node_element = node_element->next_sibling)
@@ -446,8 +450,6 @@ GetGLTFData(GLTFReader* reader)
     }
 
     GLTFNodeArrayAdd(&gltf_data.nodes, node);
-
-    current_node_id += 1;
   }
 
   for (I32 i = 0; i < gltf_data.nodes.length; i += 1)
@@ -543,7 +545,8 @@ GetGLTFData(GLTFReader* reader)
     buffer.uri = uri_element ? uri_element->value : (Str8){0};
     if (FindPosition(buffer.uri, '.') != buffer.uri.length)
     {
-      Arena* tmp_arena = AllocateArena(Megabytes(1));
+      // --AlNov 7 January 2026: @TODO Use Scratch Arena
+      Arena* tmp_arena = AllocateArena(Megabytes(1), Megabytes(1));
       Str8 bin_file_path = SubStr8(tmp_arena, reader->file_path, 0, GetSymbolPositionLast(reader->file_path, '/'));
       bin_file_path = ConcatStr8(tmp_arena, bin_file_path, Str8C("/"));
       Str8 bin_file_name = SubStr8(tmp_arena, buffer.uri, 0, buffer.uri.length);
