@@ -4,6 +4,9 @@
 #include "base/base_include.c"
 #include "os/os_include.c"
 
+#include <errno.h>
+#include <limits.h>
+
 // typedef U16 ConfigOptionType;
 // enum ConfigOptionTypeEnum
 // {
@@ -62,7 +65,7 @@ struct Config
   ConfigOption* option;
 };
 
-ConfigOptionTypeEnum check_type(Str8 value);
+ConfigOptionTypeEnum get_type(Str8 value);
 U16 find_option_pos(Str8 key_to_find, Config config);
 I32 get_config_value_int(Str8 key_to_get, Config config);
 F32 get_config_value_float(Str8 key_to_get, Config config);
@@ -72,15 +75,11 @@ Str8 get_config_value_str8(Str8 key_to_get, Config config);
 B32 fill_config(Arena* arena, Config config, Str8 file_path);
 
 Config create_config(Arena* arena, Str8* config_keys, ConfigOptionTypeEnum* config_types,
-                     U32 config_length)
-{
-  ConfigOption* config_arr = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * config_length);
-  Config config = {
-    .length = config_length,
-    .option = config_arr,
-  };
-  return config;
-}
+                     U32 config_length);
+
+B32 assign_value(ConfigOption* option_ref, Arena* arena, Str8 value);
+
+void print_config(Config config);
 
 I32 main()
 {
@@ -116,58 +115,15 @@ I32 main()
     ConfigOptionType_I32,  ConfigOptionType_None, ConfigOptionType_None, ConfigOptionType_F32,
     ConfigOptionType_Str8, ConfigOptionType_None, ConfigOptionType_None, ConfigOptionType_None,
   };
-  U32 config_length = 20;
-  printf("%d\n", (int) sizeof(ConfigOption));
-
-  // ConfigOption* config_arr = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * config_length);
-  // ConfigOption* config_arr1 = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * 1);
-  // ConfigOption* config_arr2 = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * 1);
-  // printf("%p\n", (void*)arena);
-  // printf("%p\n", (void*)config_arr);
-  // printf("%p\n", (void*)config_arr1);
-  // printf("%p\n", (void*)(config_arr2 - config_arr1));
-  // printf("%d", config_arr);
-
-  // ConfigOption config_arr[config_length];
-  // Config config = {
-  //   .length = config_length,
-  //   .option = config_arr,
-  // };
+  U32 config_length = CountArrayElements(config_types);
+  printf("%d\n", (int)sizeof(ConfigOption));
 
   Config config = create_config(arena, config_keys, config_types, config_length);
-  
+
   B32 success = fill_config(arena, config, file_path);
 
   LOG_INFO("success: %d\n", (U8)success);
-  for (U16 i = 0; i < config_length; i++)
-  {
-    switch (config.option[i].type)
-    {
-      case ConfigOptionType_None:
-        LOG_INFO("KEY:  %-35s | VALUE: %-10s | TYPE: %-5s\n", CFromStr8(config.option[i].key),
-                 CFromStr8(config.option[i].value), dtype_names[config.option[i].type]);
-        break;
-      case ConfigOptionType_I32:
-        LOG_INFO("KEY:  %-35s | VALUE: %-10d | TYPE: %-5s\n", CFromStr8(config.option[i].key),
-                 config.option[i].v_i32, dtype_names[config.option[i].type]);
-        break;
-      case ConfigOptionType_F32:
-        LOG_INFO("KEY:  %-35s | VALUE: %-10f | TYPE: %-5s\n", CFromStr8(config.option[i].key),
-                 config.option[i].v_f32, dtype_names[config.option[i].type]);
-        break;
-      case ConfigOptionType_B32:
-        LOG_INFO("KEY:  %-35s | VALUE: %-10d | TYPE: %-5s\n", CFromStr8(config.option[i].key),
-                 config.option[i].v_b32, dtype_names[config.option[i].type]);
-        break;
-      case ConfigOptionType_Str8:
-        LOG_INFO("KEY:  %-35s | VALUE: %-10s | TYPE: %-5s\n", CFromStr8(config.option[i].key),
-                 CFromStr8(config.option[i].v_str8), dtype_names[config.option[i].type]);
-        break;
-      default:
-        LOG_INFO("SRAKA FINAL");
-        break;
-    }
-  }
+  print_config(config);
 
   LOG_INFO("\n\n");
   Str8 key = Str8C("app.settings.variable_int");
@@ -180,7 +136,6 @@ I32 main()
   key = Str8C("random3");
   LOG_INFO("KEY:  %-35s | VALUE: %-10f\n", CFromStr8(key), get_config_value_float(key, config));
 
-  
   key = Str8C("app.settings.variable_bool_0");
   LOG_INFO("KEY:  %-35s | VALUE: %-10d\n", CFromStr8(key), get_config_value_bool(key, config));
   key = Str8C("network.proxy.enabled");
@@ -196,6 +151,17 @@ I32 main()
            CFromStr8(get_config_value_str8(key, config)));
 
   return 0;
+}
+
+Config create_config(Arena* arena, Str8* config_keys, ConfigOptionTypeEnum* config_types,
+                     U32 config_length)
+{
+  ConfigOption* config_arr = (ConfigOption*)PushArena(arena, sizeof(ConfigOption) * config_length);
+  Config config = {
+    .length = config_length,
+    .option = config_arr,
+  };
+  return config;
 }
 
 B32 fill_config(Arena* arena, Config config, Str8 file_path)
@@ -229,36 +195,23 @@ B32 fill_config(Arena* arena, Config config, Str8 file_path)
     {
       if (line.data[i] == '\n' || line.data[i] == '\0')
       {
-        
         temp_str[line_i] = '\0';
-        
+
         if (key_value_switch != 1)
         {
-          LOG_ERROR("SRAKA 1")
-          exit(1);
+          LOG_ERROR("Bad config. Expected single key value pair on line");
+          return 0;
         }
         Str8 value = Str8C(temp_str);
-        config.option[option_i].type = check_type(value);
-        switch (config.option[option_i].type)
+        config.option[option_i].value = CopyStr8(arena, value);  // for debug
+
+        config.option[option_i].type = get_type(value);
+        if (!assign_value(&config.option[option_i], arena, value))
         {
-          case ConfigOptionType_None:
-            config.option[option_i].v_str8 = CopyStr8(arena, value);
-            break;
-          case ConfigOptionType_I32:
-            config.option[option_i].v_i32 = strtol(CFromStr8(value), NULL, 10);
-            break;
-          case ConfigOptionType_F32:
-            config.option[option_i].v_f32 = strtof(CFromStr8(value), NULL);
-            break;
-          case ConfigOptionType_B32:
-            config.option[option_i].v_b32 = Str8Equal(value, Str8C("true"));
-            break;
-          case ConfigOptionType_Str8:
-            config.option[option_i].v_str8 = SubStr8(arena, value, 1, value.length - 2);
-            break;
+          LOG_ERROR("Invalid value '%s' for key '%s'\n", CFromStr8(value),
+                    CFromStr8(config.option[option_i].key));
+          // return 0;
         }
-        printf("-- %s\n", CFromStr8(config.option[option_i].key));
-        config.option[option_i].value = CopyStr8(arena, value);
         break;
       }
       if (line.data[i] == ' ')
@@ -268,12 +221,10 @@ B32 fill_config(Arena* arena, Config config, Str8 file_path)
         temp_str[line_i] = '\0';
         if (key_value_switch != 0)
         {
-          LOG_ERROR("SRAKA 0")
-          exit(1);
+          LOG_ERROR("Bad config. Expected single key value pair on line");
+          return 0;
         }
         config.option[option_i].key = CopyStr8(arena, Str8C(temp_str));
-        // if (option_i >= 0) printf("-- %s\n", CFromStr8(config.option[option_i].key));
-        printf("-- %s\n", CFromStr8(config.option[option_i].key));
         key_value_switch++;
         line_i = 0;
         continue;
@@ -284,8 +235,11 @@ B32 fill_config(Arena* arena, Config config, Str8 file_path)
     }
     option_i++;
   }
-  // assert eq
-  LOG_INFO("config len vs option_i: %d = %d\n", config.length, option_i);
+
+  if (option_i != config.length)
+  {
+    return 0;
+  }
 
   fclose(file);
   return 1;
@@ -344,7 +298,77 @@ U16 find_option_pos(Str8 key_to_find, Config config)
   return config.length;
 }
 
-ConfigOptionTypeEnum check_type(Str8 value)
+B32 assign_value(ConfigOption* option_ref, Arena* arena, Str8 value)
+{
+  switch (option_ref->type)
+  {
+    case ConfigOptionType_None:
+      option_ref->v_str8 = CopyStr8(arena, value);
+      return 1;
+    case ConfigOptionType_I32:
+    {
+      errno = 0;
+      char* end = NULL;
+      const char* temp_str = CFromStr8(value);
+      long v = strtol(temp_str, &end, 10);
+
+      if ((end == temp_str)                // no digits
+          || (*end != '\0')                // trailing garbage
+          || (errno == ERANGE)             // overflow
+          || (v < INT_MIN || v > INT_MAX)  // out of range
+      )
+      {
+        return 0;
+      }
+
+      option_ref->v_i32 = (I32)v;
+      return 1;
+    }
+    case ConfigOptionType_F32:
+    {
+      errno = 0;
+      char* end = NULL;
+      const char* temp_str;
+      // remove 'f' symbol in the end if present
+      if (value.data[value.length - 1] == 'f')
+      {
+        temp_str = CFromStr8(SubStr8(arena, value, 0, value.length - 1));
+      }
+      else
+      {
+        temp_str = CFromStr8(value);
+      }
+      float v = strtof(temp_str, &end);
+
+      if ((end == temp_str) || (*end != '\0') || (errno == ERANGE))
+      {
+        return 0;
+      }
+      option_ref->v_f32 = v;
+      return 1;
+    }
+    case ConfigOptionType_B32:
+      if (Str8Equal(value, Str8C("true")))
+      {
+        option_ref->v_b32 = 1;
+        return 1;
+      }
+      if (Str8Equal(value, Str8C("false")))
+      {
+        option_ref->v_b32 = 0;
+        return 1;
+      }
+      return 0;
+    case ConfigOptionType_Str8:
+      if (value.length < 2)
+        return 0;
+      option_ref->v_str8 = SubStr8(arena, value, 1, value.length - 2);
+      return 1;
+  }
+  return 0;
+}
+
+ConfigOptionTypeEnum get_type(Str8 value)
 {
   if (Str8Equal(value, Str8C("true")) || Str8Equal(value, Str8C("false")))
   {
@@ -430,6 +454,39 @@ ConfigOptionTypeEnum check_type(Str8 value)
       return ConfigOptionType_F32;
     default:
       return ConfigOptionType_None;
+  }
+}
+
+void print_config(Config config)
+{
+  for (U16 i = 0; i < config.length; i++)
+  {
+    switch (config.option[i].type)
+    {
+      case ConfigOptionType_None:
+        printf("KEY:  %-35s | VALUE: %-10s | TYPE: %-5s\n", CFromStr8(config.option[i].key),
+               CFromStr8(config.option[i].value), dtype_names[config.option[i].type]);
+        break;
+      case ConfigOptionType_I32:
+        printf("KEY:  %-35s | VALUE: %-10d | TYPE: %-5s\n", CFromStr8(config.option[i].key),
+               config.option[i].v_i32, dtype_names[config.option[i].type]);
+        break;
+      case ConfigOptionType_F32:
+        printf("KEY:  %-35s | VALUE: %-10f | TYPE: %-5s\n", CFromStr8(config.option[i].key),
+               config.option[i].v_f32, dtype_names[config.option[i].type]);
+        break;
+      case ConfigOptionType_B32:
+        printf("KEY:  %-35s | VALUE: %-10d | TYPE: %-5s\n", CFromStr8(config.option[i].key),
+               config.option[i].v_b32, dtype_names[config.option[i].type]);
+        break;
+      case ConfigOptionType_Str8:
+        printf("KEY:  %-35s | VALUE: %-10s | TYPE: %-5s\n", CFromStr8(config.option[i].key),
+               CFromStr8(config.option[i].v_str8), dtype_names[config.option[i].type]);
+        break;
+      default:
+        LOG_ERROR("Unexpected value in config option type");
+        break;
+    }
   }
 }
 
