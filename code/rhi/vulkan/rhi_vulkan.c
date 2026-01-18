@@ -532,6 +532,10 @@ RHI_VK_CreateSwapchain(OS_Window* window)
       .image = images[i],
       .view = image_view,
       .aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .size = {
+        .x = _rhi_vk_state.swapchain.size.w,
+        .y = _rhi_vk_state.swapchain.size.h,
+      },
       .from_swapchain = 1,
     };
 
@@ -1357,7 +1361,7 @@ RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets,
     result = RHI_VK_RenderPassArrayGetPointer(&_rhi_vk_state.render_passes, array_slot);
   }
 
-  result->framebuffer = RHI_VK_CreateFramebuffer(&render_pass, color_targets, color_targets_count, depth_stencil_target);
+  result->framebuffer = RHI_VK_CreateFramebuffer(result, color_targets, color_targets_count, depth_stencil_target);
 
   return result;
 }
@@ -1443,7 +1447,7 @@ RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count
 
   RHI_VK_RenderPass* render_pass = RHI_VK_CreateRenderPass(color_targets_count, color_targets, depth_stencil_target);
 
-  // if (render_pass->framebuffer->size.x != 0 && render_pass->framebuffer->size.y != 0)
+  if (render_pass->framebuffer != 0)
   {
     VkClearValue clear_values[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
     for (I32 i = 0; i < color_targets_count; i += 1)
@@ -1453,7 +1457,6 @@ RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count
       clear_values[i].color.float32[2] = color_targets[i].clear_color.b;
       clear_values[i].color.float32[3] = color_targets[i].clear_color.a;
 
-      
       RHI_VK_Texture* vk_attachment_texture = RHI_VK_TextureFromHandle(color_targets[i].texture);
       RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }

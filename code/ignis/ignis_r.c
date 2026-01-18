@@ -480,7 +480,6 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
   }
   RHI_EndRenderPass(command_buffer, 0);
 
-#if 0
   RHI_ColorTarget entity_color_targets[] = {
     {
       .texture = swapchain_texture,
@@ -536,7 +535,6 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
     Ignis_R_RenderGrid(scene, color_target, depth_target);
   }
   RHI_EndRenderPass(command_buffer, 0);
-#endif
 }
 
 func void
