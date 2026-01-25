@@ -59,9 +59,11 @@ I32 main()
 
   PA_Init();
 
-  U64 begin_ms = OS_GetTimeTicks();
+  U64 begin_ms = 0;
+  U64 dt_ms = 0;
   while (!_ignis_state.finished)
   {
+    begin_ms = OS_GetTimeTicks();
     Vei_Init();
     Ignis_HandleEvents(_ignis_state.arena);
 
@@ -73,7 +75,19 @@ I32 main()
     
     Vei_BeginPoint(Ignis_UI_Configure);
     {
-      Ignis_UI_Configure(&_pa_state.area.scene, MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
+      Ignis_UI_BeginFrame(MakeVec2I32(_ignis_state.window.size.x, _ignis_state.window.size.y), OS_MousePosition(_ignis_state.window), 0.0f);
+      {
+        if (_ignis_state.draw_editor_ui)
+        {
+          Ignis_UI_Editor(&_ignis_state.scene);
+        }
+        
+        if (1)
+        {
+          Ignis_UI_Performance((F32)(dt_ms));
+        }
+      }
+      Ignis_UI_EndFrame();
     }
     Vei_EndPoint(Ignis_UI_Configure);
 
@@ -81,9 +95,8 @@ I32 main()
     Ignis_R_BeginFrame();
     {
       Ignis_R_RenderScene(&_pa_state.area.scene);
-      if (_ignis_state.draw_editor_ui)
       {
-        // Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
+        Ignis_R_RenderUI(Ignis_UI_GetDrawCommands());
       }
     }
     Ignis_R_EndFrame();
@@ -93,7 +106,21 @@ I32 main()
     F32 sleep_dt = _ignis_state.dt - (F32)(end_ms - begin_ms);
     if (sleep_dt > 0)
     {
-      OS_Sleep((U64)(sleep_dt*1000.0f));
+      // OS_Sleep((U64)(sleep_dt*1000.0f));
+    }
+
+    dt_ms = OS_GetTimeTicks() - begin_ms;
+
+    U64 total_ts = vei_state.end_ts - vei_state.start_ts;
+    LOG_DEBUG("-- VEI --\n");
+    LOG_DEBUG("Total: %llu\n", total_ts);
+    for (I32 i = 1; i < vei_state.points_length; i += 1)
+    {
+      Vei_Point* point = vei_state.points + i;
+
+      F64 percent          = 100*((F64)point->exclusive_ts/(F64)total_ts);
+      F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
+      LOG_DEBUG("VEI  |-- %s --|\t  %llu\t clocks (%.2f)\t (children: %.2f)\t %llu hits \t %llu/hit\n", point->name, point->exclusive_ts, percent, percent_children, point->hit_count, point->exclusive_ts/point->hit_count);
     }
   }
 

@@ -4,6 +4,7 @@ func void
 Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
 {
   _ignis_ui_state = (Ignis_UI_State){0};
+  _ignis_ui_state.arena = arena;
 
   Str8 texture_path = Str8C("./data/fonts/RobotoMonoBitmap.png");
   I32 tex_width = 0;
@@ -71,22 +72,80 @@ Ignis_UI_ApplyColors()
 }
 
 func void
-Ignis_UI_Configure(Ignis_Scene* scene, Vec2I32 context_size, Vec2F32 pointer_position, F32 dt)
+Ignis_UI_BeginFrame(Vec2I32 context_size, Vec2F32 pointer_position, F32 dt)
 {
-  DeferBlock(UI_BeginFrame(pointer_position, OS_MouseScroll()), UI_EndFrame())
+  UI_BeginFrame(pointer_position, OS_MouseScroll());
+  UI_OpenWidget();
+  UI_ConfigureWidget((UI_WidgetDescription){
+    .name = Str8C("Ignis_UI_Context"),
+    .layout = {
+      .width = UI_PixelSize(context_size.x),
+      .height = UI_PixelSize(context_size.y),
+      .direction = UI_LayoutDirection_LeftToRight,
+    },
+  });
+}
+
+func void
+Ignis_UI_EndFrame()
+{
+  UI_CloseWidget();
+  UI_EndFrame();
+}
+
+func void
+Ignis_UI_Editor(Ignis_Scene* scene)
+{
+  Ignis_UI_SideBar(scene);
+}
+
+func void
+Ignis_UI_Performance(F32 dt)
+{
+  ScratchArena scratch = BeginScratchArena(_ignis_ui_state.arena);
   {
     UI_WidgetBlock({
-      .name = Str8C("Ignis_UI_Context"),
       .layout = {
-        .width = UI_PixelSize(context_size.x),
-        .height = UI_PixelSize(context_size.y),
-        .direction = UI_LayoutDirection_LeftToRight,
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30),
+        .direction = UI_LayoutDirection_TopToBottom,
       },
     })
     {
-      Ignis_UI_SideBar(scene);
+      Ignis_UI_Text(FormatStr8(scratch.arena, "Frame Time: %fms", dt));
     }
+
+#if 0
+    U64 total_ts = vei_state.end_ts - vei_state.start_ts;
+    UI_WidgetBlock({
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30),
+      },
+    })
+    {
+      Ignis_UI_Text(FormatStr8(scratch.arena, "Total: %u\n", total_ts));
+    }
+
+    for (I32 i = 1; i < vei_state.points_length; i += 1)
+    {
+      UI_WidgetBlock({
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_PixelSize(30),
+        },
+      })
+      {
+        Vei_Point* point = vei_state.points + i;
+
+        F64 percent          = 100*((F64)point->exclusive_ts/(F64)total_ts);
+        F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
+        Ignis_UI_Text(FormatStr8(scratch.arena, "%s %u clocks", point->name, point->exclusive_ts));
+      }
+    }
+#endif
   }
+  EndScratchArena(scratch);
 }
 
 func UI_DrawCommandArray
