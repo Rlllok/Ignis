@@ -28,6 +28,7 @@ typedef struct Ignis_State Ignis_State;
 struct Ignis_State
 {
   Arena* arena;
+  Arena* frame_arena;
 
   OS_Window window;
 
@@ -60,9 +61,10 @@ I32 main()
   PA_Init();
 
   U64 begin_ms = 0;
-  U64 dt_ms = 0;
   while (!_ignis_state.finished)
   {
+    ResetArena(_ignis_state.frame_arena);
+
     begin_ms = OS_GetTimeTicks();
     Vei_Init();
     Ignis_HandleEvents(_ignis_state.arena);
@@ -84,7 +86,7 @@ I32 main()
         
         if (1)
         {
-          Ignis_UI_Performance((F32)(dt_ms));
+          Ignis_UI_Performance(_ignis_state.frame_arena, _ignis_state.dt);
         }
       }
       Ignis_UI_EndFrame();
@@ -102,26 +104,7 @@ I32 main()
     Ignis_R_EndFrame();
     Vei_EndPoint(Ignis_Rendering);
 
-    U64 end_ms = OS_GetTimeTicks();
-    F32 sleep_dt = _ignis_state.dt - (F32)(end_ms - begin_ms);
-    if (sleep_dt > 0)
-    {
-      // OS_Sleep((U64)(sleep_dt*1000.0f));
-    }
-
-    dt_ms = OS_GetTimeTicks() - begin_ms;
-
-    U64 total_ts = vei_state.end_ts - vei_state.start_ts;
-    LOG_DEBUG("-- VEI --\n");
-    LOG_DEBUG("Total: %llu\n", total_ts);
-    for (I32 i = 1; i < vei_state.points_length; i += 1)
-    {
-      Vei_Point* point = vei_state.points + i;
-
-      F64 percent          = 100*((F64)point->exclusive_ts/(F64)total_ts);
-      F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
-      LOG_DEBUG("VEI  |-- %s --|\t  %llu\t clocks (%.2f)\t (children: %.2f)\t %llu hits \t %llu/hit\n", point->name, point->exclusive_ts, percent, percent_children, point->hit_count, point->exclusive_ts/point->hit_count);
-    }
+    _ignis_state.dt = (F64)OS_GetTimeTicks()/1000.0 - (F64)begin_ms/1000.0;
   }
 
   return 0;
@@ -132,8 +115,8 @@ Init_Ignis()
 {
   _ignis_state = (Ignis_State){0};
   _ignis_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
+  _ignis_state.frame_arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _ignis_state.scene = Ignis_CreateScene(_ignis_state.arena, 64);
-  _ignis_state.dt    = 1.0f/60.0f;
 
   Ignis_CreateEntity(&_ignis_state.scene, (Ignis_Entity){
     .name = Str8C("Camera"),

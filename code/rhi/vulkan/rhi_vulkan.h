@@ -285,9 +285,9 @@ struct RHI_VK_State
   RHI_VK_Swapchain swapchain;
 	VkCommandPool command_pool;
 
-#if IGNIS_DEBUG
+#if IGNIS_VULKAN_DEBUG
   VkDebugUtilsMessengerEXT debug_messenger;
-#endif // IGNIS_DEBUG
+#endif // IGNIS_VULKAN_DEBUG
 	
   RHI_VK_BufferArray buffers;
   RHI_VK_RenderPassArray render_passes;
@@ -309,11 +309,11 @@ func void RHI_VK_HandleResize(OS_Window* window);
 
 // -------------------------------------------------------------------
 // Debug Tools
-#if IGNIS_DEBUG
+#if IGNIS_VULKAN_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 func VkDebugUtilsMessengerCreateInfoEXT RHI_VK_PopulateDebugMessengerCreateInfo(void);
 func VkResult RHI_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger);
 func void RHI_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator);
 func VkResult RHI_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger);
-#endif // IGNIS_DEBUG
+#endif // IGNIS_VULKAN_DEBUG
 

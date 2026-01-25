@@ -469,7 +469,8 @@ RHI_VK_CreateSwapchain(OS_Window* window)
     _rhi_vk_state.swapchain.size.h = capabilities.currentExtent.height;
   }
 
-  VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+  // VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+  VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 
   U32 image_count = capabilities.minImageCount + 1;
   if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount))
@@ -2232,13 +2233,11 @@ RHI_VK_Init(OS_Window* window)
   #endif // IGNIS_PLATFORM_LINUX
   };
 
-#if IGNIS_DEBUG
   const char* validation_layers[] = {
+#if IGNIS_VULKAN_DEBUG
     "VK_LAYER_KHRONOS_validation",
+#endif
   };
-#else
-  const char* validation_layers[] = {0};
-#endif // IGNIS_DEBUG
 
   VkInstanceCreateInfo instance_info = {0};
   instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -2248,16 +2247,16 @@ RHI_VK_Init(OS_Window* window)
   instance_info.enabledExtensionCount = CountArrayElements(extension_names);
   instance_info.ppEnabledExtensionNames = extension_names;
 
-#if IGNIS_DEBUG
+#if IGNIS_VULKAN_DEBUG
   VkDebugUtilsMessengerCreateInfoEXT messenger_info = RHI_VK_PopulateDebugMessengerCreateInfo();
   instance_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&messenger_info;
-#endif // IGNIS_DEBUG
+#endif // IGNIS_VULKAN_DEBUG
 
   VK_CHECK(vkCreateInstance(&instance_info, 0, &_rhi_vk_state.instance));
 
-#if IGNIS_DEBUG
+#if IGNIS_VULKAN_DEBUG
   VK_CHECK(RHI_VK_CreateDebugMessenger(_rhi_vk_state.instance, &_rhi_vk_state.debug_messenger));
-#endif // IGNIS_DEBUG
+#endif // IGNIS_VULKAN_DEBUG
 
   RHI_VK_CreateDevice();
   RHI_VK_CreateSwapchain(window);
@@ -2298,9 +2297,9 @@ RHI_VK_Shutdown(void)
   RHI_VK_DestroySwapchain();
 
   vkDestroyDevice(_rhi_vk_state.device.logical, 0);
-#if IGNIS_DEBUG
+#if IGNIS_VULKAN_DEBUG
   RHI_VK_DestroyDebugUtilsMessenger(_rhi_vk_state.instance, _rhi_vk_state.debug_messenger, 0);
-#endif // IGNIS_DEBUG
+#endif // IGNIS_VULKAN_DEBUG
   vkDestroyInstance(_rhi_vk_state.instance, 0);
 
   FreeArena(_rhi_vk_state.arena);
@@ -2316,7 +2315,7 @@ RHI_VK_HandleResize(OS_Window* window)
 
 // -------------------------------------------------------------------
 // Debug Tools
-#if IGNIS_DEBUG
+#if IGNIS_VULKAN_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL
 RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
@@ -2375,4 +2374,4 @@ RHI_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debug
 
   return RHI_VK_CreateDebugUtilsMessenger(instance, &messengerInfo, 0, debugMessenger);
 }
-#endif // IGNIS_DEBUG
+#endif // IGNIS_VULKAN_DEBUG

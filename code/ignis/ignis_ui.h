@@ -35,7 +35,7 @@ func void Ignis_UI_ApplyColors();
 func void Ignis_UI_BeginFrame(Vec2I32 context_size, Vec2F32 pointer_position, F32 dt);
 func void Ignis_UI_EndFrame();
 func void Ignis_UI_Editor(Ignis_Scene* scene);
-func void Ignis_UI_Performance(F32 dt);
+func void Ignis_UI_Performance(Arena* arena, F32 dt);
 
 func UI_DrawCommandArray Ignis_UI_GetDrawCommands();
 

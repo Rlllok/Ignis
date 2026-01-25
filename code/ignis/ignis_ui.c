@@ -100,52 +100,66 @@ Ignis_UI_Editor(Ignis_Scene* scene)
 }
 
 func void
-Ignis_UI_Performance(F32 dt)
+Ignis_UI_Performance(Arena* arena, F32 dt)
 {
-  ScratchArena scratch = BeginScratchArena(_ignis_ui_state.arena);
+  static F32 sum = 0;
+  static I32 index = 0;
+  static F32 dt_history[60] = ZeroStruct();
+  UI_WidgetBlock({
+    .layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(30),
+      .direction = UI_LayoutDirection_TopToBottom,
+    },
+  })
+  {
+    sum += dt;
+    sum -= dt_history[index];
+    dt_history[index] = dt;
+    index = (index + 1)%60;
+
+    F32 avarage = sum/60;
+    I32 fps = 1.0/avarage; 
+    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
+    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
+    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
+    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
+    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
+    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
+    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
+    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
+  }
+
+#if 0
+
+  U64 total_ts = vei_state.end_ts - vei_state.start_ts;
+  UI_WidgetBlock({
+    .layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(30),
+    },
+  })
+  {
+    Ignis_UI_Text(FormatStr8(scratch.arena, "Total: %u\n", total_ts));
+  }
+
+  for (I32 i = 1; i < vei_state.points_length; i += 1)
   {
     UI_WidgetBlock({
       .layout = {
         .width = UI_PercentSize(1.0f),
         .height = UI_PixelSize(30),
-        .direction = UI_LayoutDirection_TopToBottom,
       },
     })
     {
-      Ignis_UI_Text(FormatStr8(scratch.arena, "Frame Time: %fms", dt));
-    }
+      Vei_Point* point = vei_state.points + i;
 
-#if 0
-    U64 total_ts = vei_state.end_ts - vei_state.start_ts;
-    UI_WidgetBlock({
-      .layout = {
-        .width = UI_PercentSize(1.0f),
-        .height = UI_PixelSize(30),
-      },
-    })
-    {
-      Ignis_UI_Text(FormatStr8(scratch.arena, "Total: %u\n", total_ts));
+      F64 percent          = 100*((F64)point->exclusive_ts/(F64)total_ts);
+      F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
+      Ignis_UI_Text(FormatStr8(scratch.arena, "%s %u clocks", point->name, point->exclusive_ts));
     }
-
-    for (I32 i = 1; i < vei_state.points_length; i += 1)
-    {
-      UI_WidgetBlock({
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PixelSize(30),
-        },
-      })
-      {
-        Vei_Point* point = vei_state.points + i;
-
-        F64 percent          = 100*((F64)point->exclusive_ts/(F64)total_ts);
-        F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
-        Ignis_UI_Text(FormatStr8(scratch.arena, "%s %u clocks", point->name, point->exclusive_ts));
-      }
-    }
-#endif
   }
-  EndScratchArena(scratch);
+#endif
 }
 
 func UI_DrawCommandArray
