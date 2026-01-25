@@ -19,20 +19,13 @@ I32 main()
 {
   Arena* arena = AllocateArena(Kilobytes(16), 4);
 
-  Str8 str = FormatStr8(arena, "%i %u %s", -31, -25, Str8C("string"));
+  Str8 str = FormatStr8(arena, "%i %u %s %f", -12345, 98765, Str8C("Hi!!!"), -123.567);
   LOG_DEBUG("%s\n", str);
 
   Vei_Init();
 
   Vei_BeginPoint(TimeTest);
   {
-    TimeTest(0);
-    for (I32 i = 0; i < 40; i += 1)
-    {
-      Vei_BeginPoint(Two);
-      OS_Sleep(500);
-      Vei_EndPoint(Two);
-    }
   }
   Vei_EndPoint(TimeTest);
 

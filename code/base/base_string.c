@@ -178,38 +178,10 @@ Str8Equal(Str8 a, Str8 b)
 }
 
 // -- Convertors -----------------------------------------------------
-func void
-CStrFromI32(char* c_str, U64 length, I32 i)
+func char*
+CStrFromU64(char* c_str, U64 length, U64 u)
 {
-  B32 negative = i & (1 << 31);
-  if (negative)
-  {
-    i = -i;
-  }
-
-   do
-  {
-    I32 digit = i % 10;
-    
-    c_str[0] = digit_ascii_table[digit];
-
-    i /= 10;
-
-    c_str += 1;
-  } while (i != 0);
-
-  if (negative)
-  {
-    c_str[0] = '-';
-    c_str += 1;
-  }
-
-  c_str[0] = 0;
-}
-
-func void
-CStrFromU32(char* c_str, U64 length, U32 u)
-{
+  char* begin_str = c_str;
   do
   {
     U32 digit = u % 10;
@@ -221,7 +193,67 @@ CStrFromU32(char* c_str, U64 length, U32 u)
     c_str += 1;
   } while (u != 0);
 
+  char* end_str = c_str;
+  while (begin_str < end_str)
+  {
+    end_str -= 1;
+    char tmp = *end_str;
+    *end_str = *begin_str;
+    *begin_str = tmp;
+    begin_str += 1;
+  }
+
   c_str[0] = 0;
+
+  return c_str;
+}
+
+func char*
+CStrFromI32(char* c_str, U64 length, I32 i)
+{
+  B32 negative = i & (1 << 31);
+  if (i < 0)
+  {
+    i = -i;
+    c_str[0] = '-';
+    c_str += 1;
+  }
+
+  c_str = CStrFromU64(c_str, length - 1, (U64)i);
+
+  return c_str;
+}
+
+func char*
+CStrFromF64(char* c_str, U64 length, F64 f)
+{
+  B32 negative = f < 0.0;
+  if (negative)
+  {
+    f = -f;
+    c_str[0] = '-';
+    c_str += 1;
+  }
+
+  U64 integer_part = (U64)f;
+  c_str = CStrFromU64(c_str, length, integer_part);
+  c_str[0] = '.';
+  c_str += 1;
+
+  F64 mantissa_part = f - (F64)integer_part;
+  I32 precision = 8;
+  for (I32 i = 0; i < precision; i += 1)
+  {
+    mantissa_part *= 10.0;
+    U64 digit = (U64)mantissa_part;
+    mantissa_part -= (F64)digit;
+    c_str[0] = digit_ascii_table[digit];
+    c_str += 1;
+  }
+
+  c_str[0] = 0;
+
+  return c_str;
 }
 
 func F64
@@ -241,8 +273,8 @@ func Str8
 FormatStr8(Arena* arena, char* format, ...)
 {
   Str8 result = {
-     .data   = (U8*)PushArena(arena, 0),
-     .length = 0,
+   .data   = (U8*)PushArena(arena, 0),
+   .length = 0,
   };
 
   va_list arg_list = {0};
@@ -256,7 +288,7 @@ FormatStr8(Arena* arena, char* format, ...)
     {
       c += 1;
 
-      char c_tmp[64] = ZeroStruct();
+      char c_tmp[512] = ZeroStruct();
       switch (c[0])
       {
         default: {Assert(!"Unrecognized format flag");} break;
@@ -268,7 +300,7 @@ FormatStr8(Arena* arena, char* format, ...)
 
           CStrFromI32(c_tmp, CountArrayElements(c_tmp), arg_i32);
           I32 c_tmp_length = GetCStrLength(c_tmp);
-          for (I32 i = c_tmp_length - 1; i >= 0; i -= 1)
+          for (I32 i = 0; i < c_tmp_length; i += 1)
           {
             result.data[result.length] = c_tmp[i];
             result.length += 1;
@@ -277,11 +309,24 @@ FormatStr8(Arena* arena, char* format, ...)
 
         case 'u':
         {
-          U32 arg_u32 = va_arg(arg_list, I32);
+          U64 arg_u32 = va_arg(arg_list, U64);
 
-          CStrFromU32(c_tmp, CountArrayElements(c_tmp), arg_u32);
+          CStrFromU64(c_tmp, CountArrayElements(c_tmp), arg_u32);
           I32 c_tmp_length = GetCStrLength(c_tmp);
-          for (I32 i = c_tmp_length - 1; i >= 0; i -= 1)
+          for (I32 i = 0; i < c_tmp_length; i += 1)
+          {
+            result.data[result.length] = c_tmp[i];
+            result.length += 1;
+          }
+        } break;
+
+        case 'f':
+        {
+          F64 arg_f64 = va_arg(arg_list, F64);
+          
+          CStrFromF64(c_tmp, CountArrayElements(c_tmp), arg_f64);
+          I32 c_tmp_length = GetCStrLength(c_tmp);
+          for (I32 i = 0; i < c_tmp_length; i += 1)
           {
             result.data[result.length] = c_tmp[i];
             result.length += 1;
@@ -290,16 +335,13 @@ FormatStr8(Arena* arena, char* format, ...)
 
         case 's':
         {
+          Str8 f_str = va_arg(arg_list, Str8);
+          for (U64 i = 0; i < f_str.length; i += 1)
+          {
+            result.data[result.length] = f_str.data[i];
+            result.length += 1;
+          }
         } break;
-      }
-      if (c[0] == 's')
-      {
-        Str8 f_str = va_arg(arg_list, Str8);
-        for (U64 i = 0; i < f_str.length; i += 1)
-        {
-          result.data[result.length] = f_str.data[i];
-          result.length += 1;
-        }
       }
     }
     else
@@ -315,8 +357,6 @@ FormatStr8(Arena* arena, char* format, ...)
   result.data[result.length] = 0;
   PushArena(arena, result.length + 1);
   va_end(arg_list);
-
-  LOG_DEBUG("C_LENGTH: %d, STR_LENGTH: %d, ARENA_POSITION: %d\n", GetCStrLength(format), result.length, arena->position);
   
   return result;
 }

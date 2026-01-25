@@ -38,8 +38,9 @@ func B32 Str8Equal(Str8 a, Str8 b);
 // -- Convertors -----------------------------------------------------
 const char* digit_ascii_table = "0123456789";
 
-func void CStrFromI32(char* c_str, U64 length, I32 i);
-func void CStrFromU32(char* c_str, U64 length, U32 u);
+func char* CStrFromU64(char* c_str, U64 length, U64 u);
+func char* CStrFromI32(char* c_str, U64 length, I32 i);
+func char* CStrFromF64(char* c_str, U64 length, F64 f);
 
 func F64 F64FromStr8(Str8 s);
 
