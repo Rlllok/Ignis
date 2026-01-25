@@ -530,11 +530,13 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
     .store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
   };
 
+  Vei_BeginPoint(RenderGridPass);
   RHI_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
   {
     Ignis_R_RenderGrid(scene, color_target, depth_target);
   }
   RHI_EndRenderPass(command_buffer, 0);
+  Vei_EndPoint(RenderGridPass);
 }
 
 func void
@@ -719,6 +721,7 @@ Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity)
 func void
 Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
 {
+  Vei_BeginPoint(Ignis_R_RenderEntityPrepass);
   RHI_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
   RHI_Buffer buffer = _ignis_r_state.data_buffer;
 
@@ -760,16 +763,19 @@ Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
     RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_INDEX_SIZE_U16);
     RHI_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
+  Vei_EndPoint(Ignis_R_RenderEntityPrepass);
 }
 
 func void
 Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
 {
+  Vei_BeginPoint(Ignis_R_RenderEntity);
   RHI_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
   RHI_Buffer buffer = _ignis_r_state.data_buffer;
 
   for (AST_GeometryListNode* geometry_node = entity->actor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
   {
+    Vei_BeginPoint(PrepareVertexData);
     AST_Geometry* geometry = &geometry_node->data;
 
     Mat4F32 view_matrix = MakeLookAtMat4(
@@ -804,7 +810,9 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
       .offset = mesh_instance_vertex_data_offset,
       .size = sizeof(mesh_instance_vertex_data),
     };
+    Vei_EndPoint(PrepareVertexData);
 
+    Vei_BeginPoint(EntityData);
     struct
     {
       Vec3F32 light_direction;
@@ -839,6 +847,7 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
         .texture = _ignis_r_state.shadow_map,
       },
     };
+    Vei_EndPoint(EntityData);
 
     RHI_BindGraphicsPipeline(command_buffer, _ignis_r_state.mesh_pipeline);
 
@@ -849,4 +858,5 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
     RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_INDEX_SIZE_U16);
     RHI_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
+  Vei_EndPoint(Ignis_R_RenderEntity);
 }

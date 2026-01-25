@@ -293,6 +293,12 @@ FormatStr8(Arena* arena, char* format, ...)
       {
         default: {Assert(!"Unrecognized format flag");} break;
 
+        case '%':
+        {
+          result.data[result.length] = '%';
+          result.length += 1;
+        } break;
+
         case 'i':
         case 'd':
         {
@@ -335,10 +341,10 @@ FormatStr8(Arena* arena, char* format, ...)
 
         case 's':
         {
-          Str8 f_str = va_arg(arg_list, Str8);
-          for (U64 i = 0; i < f_str.length; i += 1)
+          Str8 arg_str = va_arg(arg_list, Str8);
+          for (U64 i = 0; i < arg_str.length; i += 1)
           {
-            result.data[result.length] = f_str.data[i];
+            result.data[result.length] = arg_str.data[i];
             result.length += 1;
           }
         } break;

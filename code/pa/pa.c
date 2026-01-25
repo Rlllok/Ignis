@@ -4,8 +4,8 @@
 func void
 PA_StartArea(PA_Area* area)
 {
-  I32 x = 3;
-  I32 y = 3;
+  I32 x = 15;
+  I32 y = 15;
   I32 layers = 2;
 
   // -- Alnov 3 January 2026: @TODO

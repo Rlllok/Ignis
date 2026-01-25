@@ -57,16 +57,19 @@ func void Ignis_HandleEvents(Arena* arena);
 I32 main()
 {
   Init_Ignis();
+  
+  Vei_Init();
 
   PA_Init();
 
   U64 begin_ms = 0;
+  Vei_History vei_history = ZeroStruct();
   while (!_ignis_state.finished)
   {
+    Vei_Begin();
     ResetArena(_ignis_state.frame_arena);
 
     begin_ms = OS_GetTimeTicks();
-    Vei_Init();
     Ignis_HandleEvents(_ignis_state.arena);
 
     Vei_BeginPoint(PA_Update);
@@ -86,7 +89,7 @@ I32 main()
         
         if (1)
         {
-          Ignis_UI_Performance(_ignis_state.frame_arena, _ignis_state.dt);
+          Ignis_UI_Performance(_ignis_state.frame_arena, &vei_history, _ignis_state.dt);
         }
       }
       Ignis_UI_EndFrame();
@@ -105,6 +108,8 @@ I32 main()
     Vei_EndPoint(Ignis_Rendering);
 
     _ignis_state.dt = (F64)OS_GetTimeTicks()/1000.0 - (F64)begin_ms/1000.0;
+
+    vei_history = Vei_End();
   }
 
   return 0;

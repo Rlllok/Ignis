@@ -100,19 +100,24 @@ Ignis_UI_Editor(Ignis_Scene* scene)
 }
 
 func void
-Ignis_UI_Performance(Arena* arena, F32 dt)
+Ignis_UI_Performance(Arena* arena, Vei_History* vei_history, F32 dt)
 {
-  static F32 sum = 0;
-  static I32 index = 0;
-  static F32 dt_history[60] = ZeroStruct();
   UI_WidgetBlock({
+    .name = Str8C("Ignis_UI_Performance"),
     .layout = {
-      .width = UI_PercentSize(1.0f),
-      .height = UI_PixelSize(30),
+      .width  = UI_PercentSize(1.0f),
+      .height = UI_PercentSize(1.0f),
       .direction = UI_LayoutDirection_TopToBottom,
+      .padding = UI_EqualPadding(4),
+      .child_gap = 4,
     },
   })
   {
+    static F32 sum = 0;
+    static I32 index = 0;
+    static F32 dt_history[60] = ZeroStruct();
+
+    U64 total_ts = vei_history->end_ts - vei_history->start_ts;
     sum += dt;
     sum -= dt_history[index];
     dt_history[index] = dt;
@@ -120,46 +125,98 @@ Ignis_UI_Performance(Arena* arena, F32 dt)
 
     F32 avarage = sum/60;
     I32 fps = 1.0/avarage; 
-    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
-    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
-    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
-    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
-    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
-    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
-    Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
-    Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
-  }
 
-#if 0
-
-  U64 total_ts = vei_state.end_ts - vei_state.start_ts;
-  UI_WidgetBlock({
-    .layout = {
-      .width = UI_PercentSize(1.0f),
-      .height = UI_PixelSize(30),
-    },
-  })
-  {
-    Ignis_UI_Text(FormatStr8(scratch.arena, "Total: %u\n", total_ts));
-  }
-
-  for (I32 i = 1; i < vei_state.points_length; i += 1)
-  {
     UI_WidgetBlock({
       .layout = {
         .width = UI_PercentSize(1.0f),
         .height = UI_PixelSize(30),
+        .direction = UI_LayoutDirection_TopToBottom,
       },
     })
     {
-      Vei_Point* point = vei_state.points + i;
+      Ignis_UI_Text(FormatStr8(arena, "MS: %f", (avarage)*1000.0));
+    }
 
-      F64 percent          = 100*((F64)point->exclusive_ts/(F64)total_ts);
-      F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
-      Ignis_UI_Text(FormatStr8(scratch.arena, "%s %u clocks", point->name, point->exclusive_ts));
+    UI_WidgetBlock({
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30),
+        .direction = UI_LayoutDirection_TopToBottom,
+      },
+    })
+    {
+      Ignis_UI_Text(FormatStr8(arena, "FPS: %i", fps));
+    }
+
+    UI_WidgetBlock({
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30),
+        .direction = UI_LayoutDirection_TopToBottom,
+      },
+    })
+    {
+      Ignis_UI_Text(FormatStr8(arena, "Total Clocks: %u\n", total_ts));
+    }
+
+    for (I32 i = 1; i < vei_history->points_length; i += 1)
+    {
+      UI_WidgetBlock({
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_PixelSize(30),
+          .direction = UI_LayoutDirection_LeftToRight,
+        },
+      })
+      {
+        Vei_Point* point = vei_history->points + i;
+        F64 percent = 100*((F64)point->exclusive_ts/(F64)total_ts);
+        F64 percent_children = 100*((F64)point->inclusive_ts/(F64)total_ts);
+
+        F32 percent_size = 1.0f/4.0f;
+        UI_WidgetBlock({
+          .layout = {
+            .width = UI_PercentSize(percent_size),
+            .height = UI_PixelSize(30),
+            .direction = UI_LayoutDirection_LeftToRight,
+          },
+        })
+        {
+          Ignis_UI_Text(FormatStr8(arena, "%s", Str8C(point->name)));
+        }
+        UI_WidgetBlock({
+          .layout = {
+            .width = UI_PercentSize(percent_size),
+            .height = UI_PixelSize(30),
+            .direction = UI_LayoutDirection_LeftToRight,
+          },
+        })
+        {
+          Ignis_UI_Text(FormatStr8(arena, "%uhits %u cl/hit", point->hit_count, point->exclusive_ts/point->hit_count));
+        }
+        UI_WidgetBlock({
+          .layout = {
+            .width = UI_PercentSize(percent_size),
+            .height = UI_PixelSize(30),
+            .direction = UI_LayoutDirection_LeftToRight,
+          },
+        })
+        {
+          Ignis_UI_Text(FormatStr8(arena, "%f%%", percent));
+        }
+        UI_WidgetBlock({
+          .layout = {
+            .width = UI_PercentSize(percent_size),
+            .height = UI_PixelSize(30),
+            .direction = UI_LayoutDirection_LeftToRight,
+          },
+        })
+        {
+          Ignis_UI_Text(FormatStr8(arena, "%fms", percent*dt*10));
+        }
+      }
     }
   }
-#endif
 }
 
 func UI_DrawCommandArray

@@ -43,13 +43,24 @@ struct Vei_State
   I32       points_length;
   I32       hash_map[Vei_ProfilePointsCapacity];
   I32       current_parent_id;
-
-  U64 start_ts;
-  U64 end_ts;
+  U64       start_ts;
+  U64       end_ts;
 } vei_state;
+
+typedef struct Vei_History Vei_History;
+struct Vei_History
+{
+  Vei_Point points[Vei_ProfilePointsCapacity];
+  I32       points_length;
+  U64       start_ts;
+  U64       end_ts;
+};
 
 void Vei_Init();
 void Vei_Shutdown();
+
+void        Vei_Begin();
+Vei_History Vei_End();
 
 I32  _Vei_BeginPoint(const char* name);
 void _Vei_EndPoint  (I32 hash_slot);
@@ -105,15 +116,42 @@ Vei_StrEqual(const char* a, const char* b)
 void
 Vei_Init()
 {
-  vei_state = (Vei_State)Vei_ZeroStruct();
-  vei_state.points_length += 1; // 0 is reserved (invalid id)
-  vei_state.start_ts = Vei_GetCPUTimeStamp();
 }
 
 void
 Vei_Shutdown()
 {
+}
+
+void
+Vei_Begin()
+{
+
+  vei_state = (Vei_State)Vei_ZeroStruct();
+  vei_state.points_length = 1; // 0 is reserved (invalid id)
+  vei_state.start_ts = Vei_GetCPUTimeStamp();
+}
+
+Vei_History
+Vei_End()
+{
+  // --AlNov: @NOTE @TODO Maybe It should be a part of usage code.
+  // User should decide how to safe state if needed.
+  Vei_History result = Vei_ZeroStruct();
   vei_state.end_ts = Vei_GetCPUTimeStamp();
+
+  result.points_length = vei_state.points_length;
+  for (I32 i = 0; i < result.points_length; i += 1)
+  {
+    Vei_Point* point = vei_state.points + i;
+    Vei_Point* history_point = result.points + i;
+
+    *history_point = *point;
+  }
+  result.start_ts = vei_state.start_ts;
+  result.end_ts = vei_state.end_ts;
+
+  return result;
 }
 
 I32
@@ -123,7 +161,7 @@ _Vei_BeginPoint(const char* name)
   if (vei_state.hash_map[hash_slot] == 0)
   {
     vei_state.hash_map[hash_slot] = vei_state.points_length;
-    vei_state.points_length      += 1;
+    vei_state.points_length += 1;
   }
   else
   {
