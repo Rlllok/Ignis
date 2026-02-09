@@ -115,25 +115,25 @@ RHI_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info)
 func void
 RHI_BindGlobalVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindGlobalShaderData(command_buffer, RHI_SHADER_TYPE_VERTEX, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+  _r_state.device.BindShaderData(command_buffer, RHI_SHADER_TYPE_VERTEX, 1, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 func void
 RHI_BindInstanceVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindInstanceShaderData(command_buffer, RHI_SHADER_TYPE_VERTEX, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+	_r_state.device.BindShaderData(command_buffer, RHI_SHADER_TYPE_VERTEX, 0, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 func void
 RHI_BindGlobalFragmentShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindGlobalShaderData(command_buffer, RHI_SHADER_TYPE_FRAGMENT, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+  _r_state.device.BindShaderData(command_buffer, RHI_SHADER_TYPE_FRAGMENT, 1, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 func void
 RHI_BindInstanceFragmentShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info)
 {
-	_r_state.device.BindInstanceShaderData(command_buffer, RHI_SHADER_TYPE_FRAGMENT, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+	_r_state.device.BindShaderData(command_buffer, RHI_SHADER_TYPE_FRAGMENT, 0, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
 }
 
 

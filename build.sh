@@ -23,7 +23,7 @@ vulkan_links="-lvulkan -lglslang -lglslang-default-resource-limits"
 x11_links="-lX11 -lXext"
 wayland_links="-lwayland-client -lxkbcommon"
 default_links="-lm"
-defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_WAYLAND"
+defines="-DIGNIS_DEBUG -DIGNIS_VULKAN_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_WAYLAND"
 #defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_LINUX -DIGNIS_PLATFORM_LINUX_X11"
 
 echo "**************************************************"

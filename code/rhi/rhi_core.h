@@ -402,8 +402,7 @@ struct RHI_Device
 	void (*BindVertexBuffer)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset);
 
 	// Uniform Data
-	void (*BindGlobalShaderData)(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info);
-	void (*BindInstanceShaderData)(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info);
+  void (*BindShaderData)(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
 
   // Texture
   RHI_Texture (*CreateTexture)(RHI_TextureCreateInfo* info);
@@ -451,8 +450,7 @@ struct RHI_Device
 	AssignDeviceFunction(api_name, ResetBuffer) \
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
-	AssignDeviceFunction(api_name, BindGlobalShaderData) \
-	AssignDeviceFunction(api_name, BindInstanceShaderData) \
+	AssignDeviceFunction(api_name, BindShaderData) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
   AssignDeviceFunction(api_name, LoadDataToTexture) \

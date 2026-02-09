@@ -17,11 +17,13 @@ layout(set = 1, binding = 0) uniform InstanceData
 
 layout(location = 0) out vec3 out_position;
 layout(location = 1) out vec3 out_norm;
+layout(location = 2) out vec2 out_uv;
 
 void main()
 {
   out_position = position;
   out_norm     = normal;
+  out_uv = uv;
 
   gl_Position = mvp*vec4(position, 1.0f);
 }

@@ -613,16 +613,18 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer)
 }
 
 func void
-RHI_VK_BindGlobalShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos)
-{
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos) {
+  Assert(uniform_buffers_count == 0 || uniform_infos != 0);
+  Assert(sampler_count == 0 || sampler_infos != 0);
 
-	U32 num_sets = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count*RHI_VK_SETS_PER_POOL;
-	if (num_sets <= vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count)
-	{
-		Assert(vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count < RHI_VK_MAX_POOL_COUNT);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_DescriptorPool* descriptor_pool = &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame];
+  U32 max_sets = descriptor_pool->pool_count*RHI_VK_SETS_PER_POOL;
 
-		VkDescriptorPoolSize pool_sizes[] = {
+  if (max_sets <= descriptor_pool->sets_count) {
+    Assert(descriptor_pool->pool_count < RHI_VK_MAX_POOL_COUNT);
+
+    VkDescriptorPoolSize pool_sizes[] = {
       {
         .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
         .descriptorCount = RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET*RHI_VK_SETS_PER_POOL,
@@ -631,237 +633,101 @@ RHI_VK_BindGlobalShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType sha
         .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .descriptorCount = RHI_VK_MAX_SAMPLERS_PER_SET*RHI_VK_SETS_PER_POOL,
       }
-		};
+    };
 
-		VkDescriptorPoolCreateInfo pool_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = 0,
-			.maxSets = RHI_VK_SETS_PER_POOL,
-			.poolSizeCount = CountArrayElements(pool_sizes),
-			.pPoolSizes = pool_sizes,
-		};
+    VkDescriptorPoolCreateInfo pool_info = {
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      .flags = 0,
+      .maxSets = RHI_VK_SETS_PER_POOL,
+      .poolSizeCount = CountArrayElements(pool_sizes),
+      .pPoolSizes = pool_sizes,
+    };
 		VK_CHECK(vkCreateDescriptorPool(_rhi_vk_state.device.logical, &pool_info, 0, vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools + vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count));
-
-		vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count += 1;
-	}
-
-	I32 pool_id = (I32)(vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count/RHI_VK_SETS_PER_POOL);
-	I32 set_id = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count%RHI_VK_SETS_PER_POOL;
+    descriptor_pool->pool_count += 1;
+  }
+  
+  I32 pool_id = (I32)(descriptor_pool->sets_count/RHI_VK_SETS_PER_POOL);
+  I32 set_id = descriptor_pool->sets_count%RHI_VK_SETS_PER_POOL;
 
   I32 set_slot = 0;
   VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
-  if (shader_type == RHI_SHADER_TYPE_VERTEX)
-  {
-    set_slot = RHI_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT;
-		set_layout = vk_command_buffer->binded_graphics_pipeline->vertex_global_set_layout;
-  }
-  else if (shader_type == RHI_SHADER_TYPE_FRAGMENT)
-  {
-    set_slot = RHI_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT;
-		set_layout = vk_command_buffer->binded_graphics_pipeline->fragment_global_set_layout;
+  if (shader_type == RHI_SHADER_TYPE_VERTEX) {
+    set_slot = is_global ? RHI_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT : RHI_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT;
+    set_layout = is_global ? vk_command_buffer->binded_graphics_pipeline->vertex_global_set_layout : vk_command_buffer->binded_graphics_pipeline->vertex_instance_set_layout;
+  } else {
+    set_slot = is_global ? RHI_VK_FRAGMENT_SHADER_GLOBAL_UNIFORM_SET_SLOT : RHI_VK_FRAGMENT_SHADER_INSTANCE_UNIFORM_SET_SLOT;
+    set_layout = is_global ? vk_command_buffer->binded_graphics_pipeline->fragment_global_set_layout : vk_command_buffer->binded_graphics_pipeline->fragment_instance_set_layout;
   }
 
-	VkDescriptorSetAllocateInfo sets_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-		.descriptorPool = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools[pool_id],
-		.descriptorSetCount = 1, // --AlNov: @TODO Only Global Set for now
-		.pSetLayouts = &set_layout,
-	};
-	VK_CHECK(vkAllocateDescriptorSets(_rhi_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id]));
+  VkDescriptorSetAllocateInfo sets_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = descriptor_pool->vk_pools[pool_id],
+    .descriptorSetCount = 1,
+    .pSetLayouts = &set_layout,
+  };
 
-  VkWriteDescriptorSet write_infos[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET+RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
+  VK_CHECK(vkAllocateDescriptorSets(_rhi_vk_state.device.logical, &sets_info, &descriptor_pool->vk_sets[pool_id][set_id]));
+
+  VkWriteDescriptorSet write_infos[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET+RHI_VK_MAX_SAMPLERS_PER_SET] = ZeroStruct();
   I32 writes_count = 0;
 
-  for (I32 i = 0; i < uniform_buffers_count; i += 1)
-  {
-    RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(uniform_info->buffer);
+  for (I32 i = 0; i < uniform_buffers_count; i += 1) {
+    RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(uniform_infos[i].buffer);
     VkDescriptorBufferInfo buffer_info = {
       .buffer = vk_buffer->handle,
-      .offset = uniform_info->offset,
-      .range = uniform_info->size,
+      .offset = uniform_infos[i].offset,
+      .range = uniform_infos[i].size,
     };
-
     VkWriteDescriptorSet write_info = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = i, // @TODO Add more bindings
+      .dstSet = descriptor_pool->vk_sets[pool_id][set_id],
+      .dstBinding = i,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = &buffer_info,
     };
     write_infos[writes_count] = write_info;
-
     writes_count += 1;
   }
 
-  for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
-  {
-    I32 index = i - uniform_buffers_count;
-    RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler_infos[index].sampler);
-    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(sampler_infos[index].texture);
+  VkCommandBuffer single_cmd = RHI_VK_BeginSingleCmd();
+  I32 start_index = writes_count;
+  for (I32 i = start_index; i < start_index + sampler_count; i += 1) {
+    RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler_infos[i - start_index].sampler);
+    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(sampler_infos[i - start_index].texture);
+  
+    RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    VkDescriptorImageInfo image_info = 
-    {
+    VkDescriptorImageInfo image_info = {
       .sampler = vk_sampler->handle,
       .imageView = vk_texture->view,
-      .imageLayout = vk_texture->layout,
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
 
     VkWriteDescriptorSet write_info = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = i, // @TODO Add more bindings
+      .dstSet = descriptor_pool->vk_sets[pool_id][set_id],
+      .dstBinding = i,
       .dstArrayElement = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       .pImageInfo = &image_info,
     };
     write_infos[writes_count] = write_info;
-
     writes_count += 1;
   }
-	vkUpdateDescriptorSets(_rhi_vk_state.device.logical, writes_count, write_infos, 0, 0);
+  RHI_VK_EndSingleCmd(single_cmd);
 
-	vkCmdBindDescriptorSets( 
-			vk_command_buffer->handle[_rhi_vk_state.current_frame],
-			VK_PIPELINE_BIND_POINT_GRAPHICS,
-			vk_command_buffer->binded_graphics_pipeline->layout,
-			set_slot, 1, &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0);
+  vkUpdateDescriptorSets(_rhi_vk_state.device.logical, writes_count, write_infos, 0, 0);
 
-	vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count += 1;
-}
-
-func void
-RHI_VK_BindInstanceShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos)
-{
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-
-	U32 num_sets = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count*RHI_VK_SETS_PER_POOL;
-	if (num_sets <= vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count)
-	{
-		Assert(vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count < RHI_VK_MAX_POOL_COUNT);
-
-		VkDescriptorPoolSize pool_sizes[] = {
-      {
-        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-        .descriptorCount = RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET*RHI_VK_SETS_PER_POOL,
-      },
-      {
-        .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .descriptorCount = RHI_VK_MAX_SAMPLERS_PER_SET*RHI_VK_SETS_PER_POOL,
-      }
-		};
-
-		VkDescriptorPoolCreateInfo pool_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = 0,
-			.maxSets = RHI_VK_SETS_PER_POOL,
-			.poolSizeCount = CountArrayElements(pool_sizes),
-			.pPoolSizes = pool_sizes,
-		};
-		VK_CHECK(vkCreateDescriptorPool(_rhi_vk_state.device.logical, &pool_info, 0, vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools + vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count));
-
-		vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count += 1;
-	}
-
-	I32 pool_id = (I32)(vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count/RHI_VK_SETS_PER_POOL);
-	I32 set_id = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count%RHI_VK_SETS_PER_POOL;
-
-  I32 set_slot = 0;
-  VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
-  if (shader_type == RHI_SHADER_TYPE_VERTEX)
-  {
-    set_slot = RHI_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT;
-		set_layout = vk_command_buffer->binded_graphics_pipeline->vertex_instance_set_layout;
-  }
-  else if (shader_type == RHI_SHADER_TYPE_FRAGMENT)
-  {
-    set_slot = RHI_VK_FRAGMENT_SHADER_INSTANCE_UNIFORM_SET_SLOT;
-		set_layout = vk_command_buffer->binded_graphics_pipeline->fragment_instance_set_layout;
-  }
-
-	VkDescriptorSetAllocateInfo sets_info = {
-		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-		.descriptorPool = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools[pool_id],
-		.descriptorSetCount = 1,
-		.pSetLayouts = &set_layout,
-	};
-	VK_CHECK(vkAllocateDescriptorSets(_rhi_vk_state.device.logical, &sets_info, &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id]));
-
-  VkWriteDescriptorSet write_infos[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET+RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
-  I32 writes_count = 0;
-  VkDescriptorBufferInfo buffer_infos[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET] = {0};
-  I32 buffer_infos_count = 0;
-  VkDescriptorImageInfo image_infos[RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
-  I32 image_infos_count = 0;
-
-  for (I32 i = 0; i < uniform_buffers_count; i += 1)
-  {
-    RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(uniform_info->buffer);
-    buffer_infos[buffer_infos_count] = (VkDescriptorBufferInfo){
-      .buffer = vk_buffer->handle,
-      .offset = uniform_info->offset,
-      .range = uniform_info->size,
-    };
-
-    VkWriteDescriptorSet write_info = {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = i,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = &buffer_infos[buffer_infos_count],
-    };
-    write_infos[writes_count] = write_info;
-
-    writes_count += 1;
-    buffer_infos_count += 1;
-  }
-
-  for (I32 i = uniform_buffers_count; i < uniform_buffers_count + samplers_count; i += 1)
-  {
-    I32 index = i - uniform_buffers_count;
-    RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler_infos[index].sampler);
-    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(sampler_infos[index].texture);
-
-    VkCommandBuffer single_cmd = RHI_VK_BeginSingleCmd();
-    {
-      RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    }
-    RHI_VK_EndSingleCmd(single_cmd);
-
-    image_infos[image_infos_count] = (VkDescriptorImageInfo){
-      .sampler = vk_sampler->handle,
-      .imageView = vk_texture->view,
-      .imageLayout = vk_texture->layout,
-    };
-
-    VkWriteDescriptorSet write_info = {
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id],
-      .dstBinding = i,
-      .dstArrayElement = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .pImageInfo = &image_infos[image_infos_count],
-    };
-    write_infos[writes_count] = write_info;
-
-    writes_count += 1;
-    image_infos_count += 1;
-  }
-	vkUpdateDescriptorSets(_rhi_vk_state.device.logical, writes_count, write_infos, 0, 0);
-
-	vkCmdBindDescriptorSets( 
+  vkCmdBindDescriptorSets(
     vk_command_buffer->handle[_rhi_vk_state.current_frame],
     VK_PIPELINE_BIND_POINT_GRAPHICS,
     vk_command_buffer->binded_graphics_pipeline->layout,
-    set_slot, 1, &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_sets[pool_id][set_id], 0, 0
+    set_slot, 1, &descriptor_pool->vk_sets[pool_id][set_id], 0, 0
   );
-
-	vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count += 1;
+  descriptor_pool->sets_count += 1;
 }
 
 // --------------------------------------------------
@@ -2112,7 +1978,6 @@ RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImage
   }
 
   vkCmdPipelineBarrier(cmd, source_stages, destination_stages, 0, 0, 0, 0, 0, 1, &image_barrier);
-  vkDeviceWaitIdle(_rhi_vk_state.device.logical);
 
   texture->layout = new_layout;
 }

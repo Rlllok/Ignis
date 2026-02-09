@@ -155,13 +155,7 @@ struct RHI_VK_DescriptorPool
 	I32 sets_count;
 };
 
-func void RHI_VK_BindGlobalShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, RHI_SamplerBindingInfo* sampler_infos);
-func void RHI_VK_BindInstanceShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 sampler_counts, RHI_SamplerBindingInfo* sampler_infos);
-
-func void RHI_VK_BindGlobalVertexShaderData(RHI_CommandBuffer command_buffer, RHI_UniformBufferBindingInfo uniform_info);
-func void RHI_VK_BindInstanceVertexShaderData(RHI_CommandBuffer command_buffer, RHI_UniformBufferBindingInfo uniform_info);
-func void RHI_VK_BindGlobalFragmentShaderData(RHI_CommandBuffer command_buffer, RHI_UniformBufferBindingInfo uniform_info);
-func void RHI_VK_BindInstanceFragmentShaderData(RHI_CommandBuffer command_buffer, RHI_UniformBufferBindingInfo uniform_info);
+func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
 
 // --------------------------------------------------
 // Pipeline
