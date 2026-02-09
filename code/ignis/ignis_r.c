@@ -812,7 +812,6 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
     };
     Vei_EndPoint(PrepareVertexData);
 
-    Vei_BeginPoint(EntityData);
     struct
     {
       Vec3F32 light_direction;
@@ -833,27 +832,11 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
       .offset = mesh_global_fragment_data_offset,
       .size = sizeof(mesh_global_fragment_data),
     };
-    RHI_SamplerBindingInfo mesh_fragment_shader_instance_sampler_bindings[] = {
-      {
-        .sampler = _ignis_r_state.texture_sampler,
-        .texture = _ignis_r_state.default_color_texture,
-      },
-      {
-        .sampler = _ignis_r_state.texture_sampler,
-        .texture = _ignis_r_state.default_color_texture,
-      },
-      {
-        .sampler = _ignis_r_state.texture_sampler,
-        .texture = _ignis_r_state.shadow_map,
-      },
-    };
-    Vei_EndPoint(EntityData);
 
     RHI_BindGraphicsPipeline(command_buffer, _ignis_r_state.mesh_pipeline);
 
     RHI_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
     RHI_BindGlobalFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_global_uniform, 0, 0);
-    RHI_BindInstanceFragmentShaderData(command_buffer, 0, 0, CountArrayElements(mesh_fragment_shader_instance_sampler_bindings), mesh_fragment_shader_instance_sampler_bindings);
     RHI_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
     RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_INDEX_SIZE_U16);
     RHI_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
