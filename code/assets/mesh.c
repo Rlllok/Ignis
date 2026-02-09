@@ -213,7 +213,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
             if (input_accessor.count != bone_animation.points.capacity)
             {
-              LOG_DEBUG("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation.points.capacity);
+              LogDebug("Translation count (%i) != sample count (%i)\n", input_accessor.count, bone_animation.points.capacity);
             }
 
             bone_animation_point.linear.transform.translation = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);
@@ -234,7 +234,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
             // But we choose sample count for our animation based on the first chennel that we see in gltf_data.
             if (output_accessor.count != bone_animation.points.capacity)
             {
-              LOG_DEBUG("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation.points.capacity);
+              LogDebug("Rotation count (%i) != sample count (%i)\n", output_accessor.count, bone_animation.points.capacity);
             }
 
             bone_animation_point.linear.transform.rotation = GetQuaternionFromGLTFAccessor(gltf_data, output_accessor, j);
@@ -247,7 +247,7 @@ AST_LoadStaticMeshFromGLTF(Arena* arena, Str8 gltf_name)
 
             if (output_accessor.count != bone_animation.points.capacity)
             {
-              LOG_DEBUG("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation.points.capacity);
+              LogDebug("Scale count (%i) != sample count (%i)\n", output_accessor.count, bone_animation.points.capacity);
             }
 
             bone_animation_point.linear.transform.scale = GetVec3F32FromGLTFAccessor(gltf_data, output_accessor, j);

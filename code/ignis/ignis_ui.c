@@ -14,7 +14,7 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
 
   if (!tex_pixels)
   {
-    LOG_ERROR("Cannot load texture %s\n", CFromStr8(texture_path));
+    LogError("Cannot load texture %s\n", CFromStr8(texture_path));
   }
   I32 texture_size = tex_width * tex_height * 4;
 

@@ -226,25 +226,25 @@ RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info)
   input.messages                          = GLSLANG_MSG_DEFAULT_BIT;
   input.resource                          = glslang_default_resource();
 
-  LOG_INFO("Compiling shader \"%s\" ...\n", CFromStr8(info->file_name));
+  LogInfo("Compiling shader \"%s\" ...\n", CFromStr8(info->file_name));
 
   glslang_shader_t* shader = glslang_shader_create(&input);
 
   if (!glslang_shader_preprocess(shader, &input))
   {
-    LOG_ERROR("GLSL preprocessing failed");
-    LOG_ERROR("%s", glslang_shader_get_info_log(shader));
-    LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
+    LogError("GLSL preprocessing failed");
+    LogError("%s", glslang_shader_get_info_log(shader));
+    LogError("%s", glslang_shader_get_info_debug_log(shader));
     glslang_shader_delete(shader);
     Assert(0);
   }
 
   if (!glslang_shader_parse(shader, &input))
   {
-    LOG_ERROR("GLSL parsing failed");
-    LOG_ERROR("%s", glslang_shader_get_info_log(shader));
-    LOG_ERROR("%s", glslang_shader_get_info_debug_log(shader));
-    // LOG_ERROR("%s", glslang_shader_get_preprocessed_code(shader));
+    LogError("GLSL parsing failed");
+    LogError("%s", glslang_shader_get_info_log(shader));
+    LogError("%s", glslang_shader_get_info_debug_log(shader));
+    // LogError("%s", glslang_shader_get_preprocessed_code(shader));
     glslang_shader_delete(shader);
     Assert(0);
   }
@@ -254,9 +254,9 @@ RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info)
 
   if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
   {
-    LOG_ERROR("GLSL linking failed");
-    LOG_ERROR("%s", glslang_program_get_info_log(program));
-    LOG_ERROR("%s", glslang_program_get_info_debug_log(program));
+    LogError("GLSL linking failed");
+    LogError("%s", glslang_program_get_info_log(program));
+    LogError("%s", glslang_program_get_info_debug_log(program));
     glslang_program_delete(program);
     glslang_shader_delete(shader);
     Assert(0);
@@ -278,7 +278,7 @@ RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info)
   const char* spirv_messages = glslang_program_SPIRV_get_messages(program);
   if (spirv_messages)
   {
-    LOG_ERROR("(%s) %s\b");
+    LogError("(%s) %s\b");
   }
 
   glslang_program_delete(program);

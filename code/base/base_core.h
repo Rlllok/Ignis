@@ -1,17 +1,16 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdlib.h>
 
 // -------------------------------------------------------------------
-// --AlNov: Scope ----------------------------------------------------
+// -- Scope ----------------------------------------------------------
 #define global_variable static
 #define local_persist static
 
 #define func static
 
 // -------------------------------------------------------------------
-// --AlNov: Types ----------------------------------------------------
+// -- Types ----------------------------------------------------------
 typedef int8_t  I8;
 typedef int16_t I16;
 typedef int32_t I32;
@@ -28,7 +27,7 @@ typedef double F64;
 typedef I32 B32;
 
 // -------------------------------------------------------------------
-// --AlNov: Limits ---------------------------------------------------
+// -- Limits ---------------------------------------------------------
 #define U16_MIN 0x0000
 #define U16_MAX 0xFFFF
 #define U32_MIN 0x00000000
@@ -45,18 +44,14 @@ typedef I32 B32;
 #define ZeroStruct() {0}
 
 // -------------------------------------------------------------------
-// ID
-#define INVALID_ID U32_MAX
-
-// --AlNov: Memory Size ----------------------------------------------
-// -------------------------------------------------------------------
+// -- Memory Size ----------------------------------------------------
 #define Kilobytes(n) (n << 10)
 #define Megabytes(n) (n << 20)
 #define Gigabytes(n) ((U64)n << 30)
 
 // -------------------------------------------------------------------
-// --AlNov: Helper Macroses ------------------------------------------
-#define CountArrayElements(inArray) (sizeof(inArray) / sizeof((inArray)[0]))
+// -- Helper Macroses ------------------------------------------------
+#define ArrayLength(inArray) (sizeof(inArray) / sizeof((inArray)[0]))
 #define SizeOfMember(struct_type, memeber) (sizeof(((struct_type*)0)->member))
 
 #define DeferBlock(begin, end) for (I32 _defer_block_i = ((begin), 0); _defer_block_i == 0; _defer_block_i = ((end), 1))

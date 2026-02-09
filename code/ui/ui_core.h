@@ -25,11 +25,11 @@ struct FontBitmap
 typedef struct TextVertex TextVertex;
 struct TextVertex
 {
-  Vec2 position;
-  Vec2 uv;
+  Vec2F32 position;
+  Vec2F32 uv;
 };
 
-func Vec2 GetTextSize(FontBitmap font, Str8 text, U32 font_size);
+func Vec2F32 GetTextSize(FontBitmap font, Str8 text, U32 font_size);
 
 typedef U8 UI_PositionType;
 enum UI_PositionTypeEnum
@@ -186,7 +186,7 @@ struct UI_Widget
   } children_array_slice;
 
   RectF32 rect;
-  Vec2 child_position_offset;
+  Vec2F32 child_position_offset;
 };
 
 UI_Widget UI_WidgetDefaultValue = {0};
@@ -214,7 +214,7 @@ struct UI_DrawCommand
       RectF32 bound;
       Vec4F32 color;
       Vec4F32 border_color;
-      Vec4 radius;
+      Vec4F32 radius;
     } rectangle;
 
     struct
@@ -222,8 +222,8 @@ struct UI_DrawCommand
       Str8 content;
       FontBitmap font;
       F32 font_size;
-      Vec4 color;
-      Vec2 position;
+      Vec4F32 color;
+      Vec2F32 position;
     } text;
 
     struct
@@ -241,7 +241,7 @@ struct UI_Context
   // Interaction
   UI_ID hot_id;
   UI_ID active_id;
-  Vec2 mouse_position;
+  Vec2F32 mouse_position;
   Vec2F32 mouse_scroll;
 
   UI_WidgetArray elements;
@@ -268,7 +268,7 @@ func void UI_Init(Arena* arena, U32 max_elements_count);
 func void UI_CalculateSizes(B32 is_width);
 func void UI_CalculatePositions();
 
-func void UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll);
+func void UI_BeginFrame(Vec2F32 mouse_position, Vec2F32 mouse_scroll);
 func void UI_EndFrame();
 
 // -------------------------------------------------------------------

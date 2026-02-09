@@ -2,37 +2,36 @@
 
 #include "base_core.h"
 
-typedef U16 LogMessageType;
-typedef enum LogMessageTypeEnum
-{
-  LOG_MESSAGE_TYPE_NONE,
-  LOG_MESSAGE_TYPE_ERROR,
-  LOG_MESSAGE_TYPE_WARNING,
-  LOG_MESSAGE_TYPE_INFO,
-	LOG_MESSAGE_TYPE_DEBUG,
+typedef U16 LogMessageKind;
+typedef enum LogMessageKindEnum LogMessageKindEnum;
+enum LogMessageKindEnum {
+  LogMessageKind_None,
+  LogMessageKind_Error,
+  LogMessageKind_Warning,
+  LogMessageKind_Info,
+  LogMessageKind_Debug,
+  
+  LogMessageKind_Count
+};
 
-  LOG_MESSAGE_TYPE_COUNT
-}
-LogMessageTypeEnum;
+func void LogOutput(LogMessageKind message_kind, const char* message, ...);
 
-func void LogOutput(LogMessageType message_type, const char* message, ...);
+#ifndef LogError
+#define LogError(message, ...) LogOutput(LogMessageKind_Error, message, ##__VA_ARGS__);
+#endif // LogError
 
-#ifndef LOG_ERROR
-#define LOG_ERROR(message, ...) LogOutput(LOG_MESSAGE_TYPE_ERROR, message, ##__VA_ARGS__);
-#endif // LOG_ERROR
+#ifndef LogWarning
+#define LogWarning(message, ...) LogOutput(LogMessageKind_Warning, message, ##__VA_ARGS__);
+#endif // LogWarning
 
-#ifndef LOG_WARNING
-#define LOG_WARNING(message, ...) LogOutput(LOG_MESSAGE_TYPE_WARNING, message, ##__VA_ARGS__);
-#endif // LOG_WARNING
-
-#ifndef LOG_INFO
-#define LOG_INFO(message, ...) LogOutput(LOG_MESSAGE_TYPE_INFO, message, ##__VA_ARGS__);
-#endif // LOG_INFO
+#ifndef LogInfo
+#define LogInfo(message, ...) LogOutput(LogMessageKind_Info, message, ##__VA_ARGS__);
+#endif // LogInfo
 
 #if IGNIS_DEBUG
-#define LOG_DEBUG(message, ...) LogOutput(LOG_MESSAGE_TYPE_DEBUG, message, ##__VA_ARGS__);
+#define LogDebug(message, ...) LogOutput(LogMessageKind_Debug, message, ##__VA_ARGS__);
 #else
-#define LOG_DEBUG(message, ...)
+#define LogDebug(message, ...)
 #endif // IGNIS_DEBUG
 
 func void AssertionFail(const char* expression, const char* message, const char* file_name, U32 line_number);

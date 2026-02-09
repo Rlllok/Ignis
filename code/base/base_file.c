@@ -13,7 +13,7 @@ FileOpen(Str8 file_path)
   FILE* file_ptr = fopen(CFromStr8(file_path), "rb");
   if (!file_ptr)
   {
-    LOG_ERROR("Cannot open file %s", CFromStr8(file_path));
+    LogError("Cannot open file %s", CFromStr8(file_path));
     return file;
   }
 

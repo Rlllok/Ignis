@@ -17,9 +17,9 @@ PA_StartArea(PA_Area* area)
     .type = Ignis_EntityType_Camera,
     .transform.translation = MakeVec3F32(1.0f, 5.0f, 10.0f),
     .camera = {
-      .front = MakeVec3(1.0f, 0.0f, -1.0f),
-      .right = MakeVec3(1.0f, 0.0f, 1.0f),
-      .up = MakeVec3(0.0f, 1.0f, 0.0f),
+      .front = MakeVec3F32(1.0f, 0.0f, -1.0f),
+      .right = MakeVec3F32(1.0f, 0.0f, 1.0f),
+      .up = MakeVec3F32(0.0f, 1.0f, 0.0f),
       .yaw = -90.0f,
       .pitch = -30.0f,
     },
@@ -74,26 +74,26 @@ PA_Input (F32 dt)
   {
     Ignis_Entity* camera = Ignis_GetCamera(&_pa_state.area.scene);
 
-    Vec3F32 direction = MakeVec3(0.0f, 0.0f, 0.0f);
+    Vec3F32 direction = MakeVec3F32(0.0f, 0.0f, 0.0f);
     F32 speed = 2.0f;
 
     if (OS_KeyDown(OS_KEY_W))
     {
-      direction = AddVec3(direction, camera->camera.front);
+      direction = AddVec3F32(direction, camera->camera.front);
     }
     if (OS_KeyDown(OS_KEY_S))
     {
-      direction = SubVec3(direction, camera->camera.front);
+      direction = SubVec3F32(direction, camera->camera.front);
     }
     if (OS_KeyDown(OS_KEY_D))
     {
-      direction = AddVec3(direction, camera->camera.right);
+      direction = AddVec3F32(direction, camera->camera.right);
     }
     if (OS_KeyDown(OS_KEY_A))
     {
-      direction = SubVec3(direction, camera->camera.right);
+      direction = SubVec3F32(direction, camera->camera.right);
     }
-    camera->transform.translation= AddVec3(camera->transform.translation, ScaleVec3(NormalizeVec3(direction), speed*dt));
+    camera->transform.translation= AddVec3F32(camera->transform.translation, ScaleVec3F32(NormalizeVec3F32(direction), speed*dt));
 
     if (OS_KeyDown(OS_KEY_ARROW_LEFT))
     {
@@ -111,13 +111,13 @@ PA_Input (F32 dt)
     {
       camera->camera.pitch -= 25.0f*dt;
     }
-    Vec3 rotation = {0};
+    Vec3F32 rotation = {0};
     rotation.x = cos(RadiansFromDegrees(camera->camera.yaw))*cos(RadiansFromDegrees(camera->camera.pitch));
     rotation.y = sin(RadiansFromDegrees(camera->camera.pitch));
     rotation.z = sin(RadiansFromDegrees(camera->camera.yaw))*cos(RadiansFromDegrees(camera->camera.pitch));
     camera->camera.front = rotation;
-    camera->camera.right = NormalizeVec3(CrossVec3(camera->camera.front, MakeVec3(0.0f, 1.0f, 0.0f)));
-    camera->camera.up = CrossVec3(camera->camera.right, camera->camera.front);
+    camera->camera.right = NormalizeVec3F32(CrossVec3F32(camera->camera.front, MakeVec3F32(0.0f, 1.0f, 0.0f)));
+    camera->camera.up = CrossVec3F32(camera->camera.right, camera->camera.front);
   }
 }
 

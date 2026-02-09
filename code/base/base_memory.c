@@ -3,12 +3,8 @@
 #include "base_logger.h"
 #include "os/os_memory.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-
 func Arena*
-AllocateArena(U64 reserve_size, U64 commit_size)
-{
+AllocateArena(U64 reserve_size, U64 commit_size) {
   OS_ReserveResult reserve_result = OS_ReserveMemory(reserve_size);
   U64 commit_result_size = OS_CommitMemory(reserve_result.ptr, commit_size);
   Arena* arena = (Arena*)reserve_result.ptr;
@@ -20,23 +16,19 @@ AllocateArena(U64 reserve_size, U64 commit_size)
 }
 
 func void*
-PushArena(Arena* arena, U64 size)
-{
+PushArena(Arena* arena, U64 size) {
   void* result = 0;
 
-  if ((arena->position + size) < arena->commited)
-  {
+  if ((arena->position + size) < arena->commited) {
     result = (void*)((U8*)arena + arena->position);
     arena->position += size;
   }
-  else
-  {
+  else {
     // --AlNov 7 January 2026: @TODO No strategy for growing buffer
     U64 commit_result_size = OS_CommitMemory((void*)((U8*)arena + arena->commited), size);
     arena->commited += commit_result_size;
     
-    if (arena->commited > arena->reserved)
-    {
+    if (arena->commited > arena->reserved) {
       Assert(!"Not enough space for allocation");
     }
 
@@ -47,30 +39,24 @@ PushArena(Arena* arena, U64 size)
   return result;
 }
 
-func void* PushCopyArena(Arena* arena, U64 size, void* data)
-{
+func void* PushCopyArena(Arena* arena, U64 size, void* data) {
   void* result = PushArena(arena, size);
   memcpy(result, data, size);
   return result;
 }
 
 func void
-ResetArena(Arena* arena)
-{
+ResetArena(Arena* arena) {
   arena->position = sizeof(Arena);
-	// OS_ZeroMemory((U8*)arena + arena->position, arena->size - arena->position);
 }
 
 func void
-FreeArena(Arena* arena)
-{
+FreeArena(Arena* arena) {
   OS_FreeMemory(arena, arena->reserved);
 }
 
-// -- Scratch Arena --------------------------------------------------
 func ScratchArena
-BeginScratchArena(Arena* arena)
-{
+BeginScratchArena(Arena* arena) {
   ScratchArena result = {
     .arena = arena,
     .position = arena->position,
@@ -79,7 +65,6 @@ BeginScratchArena(Arena* arena)
 }
 
 func void
-EndScratchArena(ScratchArena scratch)
-{
+EndScratchArena(ScratchArena scratch) {
   scratch.arena->position = scratch.position;
 }

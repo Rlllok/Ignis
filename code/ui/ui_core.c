@@ -2,11 +2,11 @@
 
 // -------------------------------------------------------------------
 // -- UI Font --------------------------------------------------------
-func Vec2
+func Vec2F32
 GetTextSize(FontBitmap font, Str8 text, U32 font_size)
 {
   // --AlNov: @TODO Font spacing is hardcoded and not correct (Bitmap Grid size is 30px, but glyphs is smaller)
-  Vec2 result = MakeVec2(font_size*0.5f, font_size);
+  Vec2F32 result = MakeVec2F32(font_size*0.5f, font_size);
 
   for (I32 i = 0; i < text.length; i += 1)
   {
@@ -103,7 +103,7 @@ UI_CalculatePositions()
 }
 
 func void
-UI_BeginFrame(Vec2 mouse_position, Vec2F32 mouse_scroll)
+UI_BeginFrame(Vec2F32 mouse_position, Vec2F32 mouse_scroll)
 {
   ui_context.mouse_position = mouse_position;
   ui_context.mouse_scroll = mouse_scroll;

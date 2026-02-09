@@ -7,9 +7,10 @@
 // --AlNov: @TODO
 // There is no implementation of alignment ( I should to read about alignment more).
 
+// -------------------------------------------------------------------
+// -- Arena -----------------------------------------------------------
 typedef struct Arena Arena;
-struct Arena
-{
+struct Arena {
   U64 position;
   U64 reserved;
   U64 commited;
@@ -24,13 +25,11 @@ func void* PushCopyArena(Arena* arena, U64 size, void* data);
 func void ResetArena(Arena* arena);
 func void FreeArena(Arena* arena);
 
-// -- Scratch Arena --------------------------------------------------
 typedef struct ScratchArena ScratchArena;
-struct ScratchArena
-{
+struct ScratchArena {
   Arena* arena;
   U64    position;
 };
 
 func ScratchArena BeginScratchArena(Arena* arena);
-func void         EndScratchArena  (ScratchArena scratch);
+func void EndScratchArena(ScratchArena scratch);

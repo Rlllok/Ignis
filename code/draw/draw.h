@@ -18,5 +18,5 @@ struct D_State
 func void D_Init(U64 arena_size);
 func void D_PreparePipelines();
 
-func void D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4 border_radius, Vec4 color, Vec4F32 border_color);
+func void D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4F32 border_radius, Vec4F32 color, Vec4F32 border_color);
 func void D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampler sampler, RectI32 viewport, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);

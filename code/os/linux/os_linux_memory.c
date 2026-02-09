@@ -24,7 +24,7 @@ OS_ReserveMemory(U64 size)
   result.size = aligned_size;
   if (result.ptr == MAP_FAILED)
   {
-    LOG_DEBUG("Errno: %i\n", errno);
+    LogDebug("Errno: %i\n", errno);
     Assert(!"Failed to reserve memory");
   }
 
@@ -40,7 +40,7 @@ OS_CommitMemory(void* ptr, U64 size)
   aligned_size -= aligned_size%OS_PageSize();
   if (mprotect(ptr, aligned_size, PROT_READ|PROT_WRITE) != 0)
   {
-    LOG_DEBUG("Errno: %i\n", errno);
+    LogDebug("Errno: %i\n", errno);
     Assert(!"Failed to commit memory");
   }
 

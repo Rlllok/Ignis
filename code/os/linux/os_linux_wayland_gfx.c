@@ -74,7 +74,7 @@ _PointerHandleButton(void* data, wl_pointer* pointer, U32 serial, U32 time, U32 
   }
 
   OS_EventListPush(&_os_state.mouse_event_list, event);
-  LOG_INFO("Mouse: %d State: %d\n", button, state);
+  LogInfo("Mouse: %d State: %d\n", button, state);
 }
 
 func void
@@ -253,11 +253,11 @@ _HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 tim
 
 		if (key_pressed)
 		{
-			LOG_DEBUG("(XKB) %s is pressed\n", name);
+			LogDebug("(XKB) %s is pressed\n", name);
 		}
 		if (key_released)
 		{
-			LOG_DEBUG("(XKB) %s is released\n", name);
+			LogDebug("(XKB) %s is released\n", name);
 		}
 
 		event.pressed = key_pressed;
@@ -278,7 +278,7 @@ _HandleKeyboardModifiers(void* data, struct wl_keyboard* keyboard, U32 serial, U
 func void
 _HandleKeyboardRepeat(void* data, struct wl_keyboard* keyboard, I32 rate, I32 delay)
 {
-	LOG_DEBUG("REPEAT INFO\n");
+	LogDebug("REPEAT INFO\n");
 }
 
 struct wl_keyboard_listener _keyboard_listener = {
@@ -301,7 +301,7 @@ _SeatHandleCapabilities(void* data, wl_seat* seat, U32 capabilities)
   {
     handle->pointer = wl_seat_get_pointer(handle->seat);
     wl_pointer_add_listener(handle->pointer, &_pointer_listener, data);
-    LOG_INFO("ADD POINTER\n");
+    LogInfo("ADD POINTER\n");
   }
   else if (!have_pointer && handle->pointer !=0)
   {
@@ -318,7 +318,7 @@ _SeatHandleCapabilities(void* data, wl_seat* seat, U32 capabilities)
 func void
 _SeatHandleName(void* data, wl_seat* seat, const char* name)
 {
-  LOG_INFO("WL_Seat name: %s\n");
+  LogInfo("WL_Seat name: %s\n");
 }
 
 struct wl_seat_listener _seat_listener = {
@@ -405,7 +405,7 @@ _ToplevelHandleConfigure(void* data, xdg_toplevel* toplevel, I32 new_width, I32 
 func void
 _ToplevelHandleClose(void* data, xdg_toplevel* toplevel)
 {
-  LOG_INFO("CLOSE\n");
+  LogInfo("CLOSE\n");
   OS_Event event = {
     .type = OS_EVENT_TYPE_EXIT,
   };
@@ -456,7 +456,7 @@ OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 
   if (!out->handle->relative_pointer_manager)
   {
-    LOG_ERROR("Relative Pointer is not supported by the compositor.\n");
+    LogError("Relative Pointer is not supported by the compositor.\n");
     return;
   }
 
@@ -472,13 +472,13 @@ OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
 
 	out->handle->kb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
-  LOG_INFO("Window Created\n");
+  LogInfo("Window Created\n");
 }
 
 func void
 OS_ShowWindow(OS_Window* window)
 {
-  LOG_INFO("Show Window\n");
+  LogInfo("Show Window\n");
 }
 
 func Vec2F32
@@ -496,13 +496,13 @@ OS_MouseScroll()
 func void
 _LockedPointerHandleLocked(void* data, zwp_locked_pointer_v1* pointer)
 {
-  LOG_INFO("Pointer is locked.\n")
+  LogInfo("Pointer is locked.\n")
 }
 
 func void
 _LockedPointerHandleUnlocked(void* data, zwp_locked_pointer_v1* pointer)
 {
-  LOG_INFO("Pointer is unlocked.\n");
+  LogInfo("Pointer is unlocked.\n");
 }
 
 struct zwp_locked_pointer_v1_listener _locked_pointer_listener = {
@@ -514,13 +514,13 @@ func void
 _ConfinedPointerHandleConfined(void* data, zwp_confined_pointer_v1* pointer)
 {
   
-  LOG_INFO("Pointer is confined.\n");
+  LogInfo("Pointer is confined.\n");
 }
 
 func void
 _ConfinedPointerHandleUnconfined(void* data, zwp_confined_pointer_v1* pointer)
 {
-  LOG_INFO("Pointer is unconfined.\n");
+  LogInfo("Pointer is unconfined.\n");
 }
 
 struct zwp_confined_pointer_v1_listener _confined_pointer_listener = {

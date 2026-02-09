@@ -333,12 +333,12 @@ RHI_VK_CreateDevice(void)
       device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       device_info.queueCreateInfoCount = 1;
       device_info.pQueueCreateInfos = &queue_info;
-      device_info.enabledExtensionCount = CountArrayElements(required_extensions);
+      device_info.enabledExtensionCount = ArrayLength(required_extensions);
       device_info.ppEnabledExtensionNames = required_extensions;
       device_info.pEnabledFeatures = &enabled_features;
       device_info.pNext = &vulkan13_features;
 
-      LOG_INFO("%s\n", properties.deviceName);
+      LogInfo("%s\n", properties.deviceName);
       _rhi_vk_state.device.physical = *device;
       VK_CHECK(vkCreateDevice(*device, &device_info, 0, &_rhi_vk_state.device.logical))
 			if(_rhi_vk_state.device.logical)
@@ -565,7 +565,7 @@ RHI_VK_DestroySwapchain(void)
 func void
 RHI_VK_RecreateSwapchain(OS_Window* window)
 {
-  LOG_INFO("Recreate Swapchain\n");
+  LogInfo("Recreate Swapchain\n");
   RHI_VK_DestroySwapchain();
   RHI_VK_CreateSwapchain(window);
 }
@@ -641,7 +641,7 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
       .flags = 0,
       .maxSets = RHI_VK_SETS_PER_POOL,
-      .poolSizeCount = CountArrayElements(pool_sizes),
+      .poolSizeCount = ArrayLength(pool_sizes),
       .pPoolSizes = pool_sizes,
     };
 		VK_CHECK(vkCreateDescriptorPool(_rhi_vk_state.device.logical, &pool_info, 0, vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools + vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count));
@@ -972,7 +972,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 
   VkPipelineDynamicStateCreateInfo dynamic = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-    .dynamicStateCount = CountArrayElements(dynamic_states),
+    .dynamicStateCount = ArrayLength(dynamic_states),
     .pDynamicStates = dynamic_states
   };
 
@@ -1030,7 +1030,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
   VkGraphicsPipelineCreateInfo vk_pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
     .pNext = &rendering_info,
-    .stageCount = CountArrayElements(shaders),
+    .stageCount = ArrayLength(shaders),
     .pStages = shaders,
     .pVertexInputState = &vertex_input,
     .pInputAssemblyState = &input_assembly,
@@ -1621,7 +1621,7 @@ RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture)
   }
   else
   {
-    LOG_WARNING("Trying to present image not from swapchain\n");
+    LogWarning("Trying to present image not from swapchain\n");
     return;
   }
 
@@ -1660,7 +1660,7 @@ RHI_VK_CreateTexture(RHI_TextureCreateInfo* info)
   image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
   if (vkCreateImage(_rhi_vk_state.device.logical, &image_info, 0, &texture.image) != VK_SUCCESS)
   {
-    LOG_ERROR("Cannot create Image for Texture.\n");
+    LogError("Cannot create Image for Texture.\n");
     return RHI_NIL;
   }
 
@@ -2107,9 +2107,9 @@ RHI_VK_Init(OS_Window* window)
   VkInstanceCreateInfo instance_info = {0};
   instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   instance_info.pApplicationInfo = &app_info;
-  instance_info.enabledLayerCount = CountArrayElements(validation_layers);
+  instance_info.enabledLayerCount = ArrayLength(validation_layers);
   instance_info.ppEnabledLayerNames = validation_layers;
-  instance_info.enabledExtensionCount = CountArrayElements(extension_names);
+  instance_info.enabledExtensionCount = ArrayLength(extension_names);
   instance_info.ppEnabledExtensionNames = extension_names;
 
 #if IGNIS_VULKAN_DEBUG
@@ -2133,7 +2133,7 @@ RHI_VK_Init(OS_Window* window)
   };
   VK_CHECK(vkCreateCommandPool(_rhi_vk_state.device.logical, &command_pool_info, 0, &_rhi_vk_state.command_pool));
 
-  LOG_INFO("Rendered is initialized\n");
+  LogInfo("Rendered is initialized\n");
 	return 0;
 }
 
@@ -2184,7 +2184,7 @@ RHI_VK_HandleResize(OS_Window* window)
 VKAPI_ATTR VkBool32 VKAPI_CALL
 RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
-  LOG_WARNING("VK_VALIDATION: %s\n", pCallbackData->pMessage);
+  LogWarning("VK_VALIDATION: %s\n", pCallbackData->pMessage);
 
   return VK_FALSE;
 }

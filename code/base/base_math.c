@@ -1,7 +1,6 @@
 #include "base_math.h"
-
 // -------------------------------------------------------------------
-// Vectors and Matrices
+// -- Vectors and Matrices -------------------------------------------
 func Vec2I32 MakeVec2I32(I32 x, I32 y) {Vec2I32 result = {x,y}; return result;}
 func Vec2I32 AddVec2I32(Vec2I32 a, Vec2I32 b) {return MakeVec2I32(a.x+b.x, a.y+b.y);}
 func Vec2I32 SubVec2I32(Vec2I32 a, Vec2I32 b) {return MakeVec2I32(a.x-b.x, a.y-b.y);}
@@ -34,26 +33,24 @@ func Vec3F32 CrossVec3F32(Vec3F32 a, Vec3F32 b) {return MakeVec3F32(a.y*b.z - a.
 func F32 MagnitudeSquareVec3F32(Vec3F32 v) {return v.x*v.x + v.y*v.y + v.z*v.z;}
 func F32 MagnitudeVec3F32(Vec3F32 v) {return sqrt(MagnitudeSquareVec3F32(v));}
 func Vec3F32 NormalizeVec3F32(Vec3F32 v) {F32 magnitude = MagnitudeVec3F32(v); return ScaleVec3F32(v, (1.0f/(magnitude + !magnitude)));}
+
 func Vec3F32
-TransformVec3F32(Vec3F32 v, Mat3F32 m)
-{
+TransformVec3F32(Vec3F32 v, Mat3F32 m) {
   Vec3F32 result = {0};
-  for (I32 i = 0; i < 3; i += 1)
-  {
+  for (I32 i = 0; i < 3; i += 1) {
     result.values[i] += v.values[0] * m.values[0][i];
     result.values[i] += v.values[1] * m.values[1][i];
     result.values[i] += v.values[2] * m.values[2][i];
   }
   return result;
 }
+
 func Vec3F32
-LerpVec3F32(Vec3F32 a, Vec3F32 b, F32 t)
-{
+LerpVec3F32(Vec3F32 a, Vec3F32 b, F32 t) {
   Vec3F32 result = {0};
   result = AddVec3F32(ScaleVec3F32(a, 1.0f - t), ScaleVec3F32(b, t));
   return result;
 }
-
 
 func Vec4F32 MakeVec4F32(F32 x, F32 y, F32 z, F32 w) {Vec4F32 result = {x,y,z,w}; return result;}
 func Vec4F32 Vec4F32FromVec3(Vec3F32 v, F32 w) {return MakeVec4F32(v.x, v.y, v.z, w);}
@@ -66,12 +63,11 @@ func F32 DotVec4F32(Vec4F32 a, Vec4F32 b) {return a.x*b.x + a.y*b.y + a.z*b.z + 
 func F32 MagnitudeSquareVec4F32(Vec4F32 v) {return v.x*v.x + v.y*v.y + v.z*v.z + v.w*v.w;}
 func F32 MagnitudeVec4F32(Vec4F32 v) {return sqrt(MagnitudeSquareVec4F32(v));}
 func Vec4F32 NormalizeVec4F32(Vec4F32 v) {return ScaleVec4F32(v, 1.0f/MagnitudeVec4F32(v));}
+
 func Vec4F32
-TransformVec4F32(Vec4F32 v, Mat4F32 m)
-{
+TransformVec4F32(Vec4F32 v, Mat4F32 m) {
   Vec4F32 result = {0};
-  for (I32 i = 0; i < 4; i += 1)
-  {
+  for (I32 i = 0; i < 4; i += 1) {
     result.values[i] += v.values[0] * m.values[0][i];
     result.values[i] += v.values[1] * m.values[1][i];
     result.values[i] += v.values[2] * m.values[2][i];
@@ -81,18 +77,14 @@ TransformVec4F32(Vec4F32 v, Mat4F32 m)
 }
 
 func B32
-EqualVec4F32(Vec4F32 a, Vec4F32 b)
-{
+EqualVec4F32(Vec4F32 a, Vec4F32 b) {
   B32 result = 0;
-
   result = (a.x == b.x) && (a.y == b.y) && (a.z == b.z) && (a.w == b.w);
-
   return result;
 }
 
 func Mat3F32
-MakeMat3F32(F32 diagonal_value)
-{
+MakeMat3F32(F32 diagonal_value) {
   Mat3F32 result = {0};
   result.values[0][0] = diagonal_value;
   result.values[1][1] = diagonal_value;
@@ -101,29 +93,23 @@ MakeMat3F32(F32 diagonal_value)
 }
 
 func Mat3F32
-MulMat3F32(Mat3F32 a, Mat3F32 b)
-{
-  Mat3F32 c = {0};
-  for (I32 i = 0; i < 3; i += 1)
-  {
-    for (I32 j = 0; j < 3; j += 1)
-    {
-      c.values[i][j] += a.values[0][j] * b.values[i][0];
-      c.values[i][j] += a.values[1][j] * b.values[i][1];
-      c.values[i][j] += a.values[2][j] * b.values[i][2];
+MulMat3F32(Mat3F32 a, Mat3F32 b) {
+  Mat3F32 result = {0};
+  for (I32 i = 0; i < 3; i += 1) {
+    for (I32 j = 0; j < 3; j += 1) {
+      result.values[i][j] += a.values[0][j] * b.values[i][0];
+      result.values[i][j] += a.values[1][j] * b.values[i][1];
+      result.values[i][j] += a.values[2][j] * b.values[i][2];
     }
   }
-  return c;
+  return result;
 }
 
 func Mat3F32
-MakeTransposeMat3F32(Mat3F32 m)
-{
+MakeTransposeMat3F32(Mat3F32 m) {
   Mat3F32 result = {0};
-  for (I32 i = 0; i < 3; i += 1)
-  {
-    for (I32 j = 0; j < 3; j += 1)
-    {
+  for (I32 i = 0; i < 3; i += 1) {
+    for (I32 j = 0; j < 3; j += 1) {
       result.values[i][j] = m.values[j][i];
     }
   }
@@ -131,8 +117,7 @@ MakeTransposeMat3F32(Mat3F32 m)
 }
 
 func Mat4F32
-MakeMat4F32(F32 diagonal_value)
-{
+MakeMat4F32(F32 diagonal_value) {
   Mat4F32 result = {0};
   result.values[0][0] = diagonal_value;
   result.values[1][1] = diagonal_value;
@@ -142,13 +127,10 @@ MakeMat4F32(F32 diagonal_value)
 }
 
 func Mat4F32
-MulMat4F32(Mat4F32 a, Mat4F32 b)
-{
+MulMat4F32(Mat4F32 a, Mat4F32 b) {
   Mat4F32 result = {0};
-  for (I32 i = 0; i < 4; i += 1)
-  {
-    for (I32 j = 0; j < 4; j += 1)
-    {
+  for (I32 i = 0; i < 4; i += 1) {
+    for (I32 j = 0; j < 4; j += 1) {
       result.values[i][j] += a.values[0][j] * b.values[i][0];
       result.values[i][j] += a.values[1][j] * b.values[i][1];
       result.values[i][j] += a.values[2][j] * b.values[i][2];
@@ -159,22 +141,17 @@ MulMat4F32(Mat4F32 a, Mat4F32 b)
 }
 
 func Mat4F32
-ScaleMat4F32(Mat4F32 m, F32 n)
-{
-  for (I32 i = 0; i < 4; i += 1)
-  {
-    for (I32 j = 0; j < 4; j += 1)
-    {
+ScaleMat4F32(Mat4F32 m, F32 n) {
+  for (I32 i = 0; i < 4; i += 1) {
+    for (I32 j = 0; j < 4; j += 1) {
       m.values[i][j] *= n;
     }
   }
-
   return m;
 }
 
 func Mat4F32
-InverseMat4F32(Mat4F32 m)
-{
+InverseMat4F32(Mat4F32 m) {
   F32 coef00 = m.values[2][2] * m.values[3][3] - m.values[3][2] * m.values[2][3];
   F32 coef02 = m.values[1][2] * m.values[3][3] - m.values[3][2] * m.values[1][3];
   F32 coef03 = m.values[1][2] * m.values[2][3] - m.values[2][2] * m.values[1][3];
@@ -215,12 +192,11 @@ InverseMat4F32(Mat4F32 m)
   Vec4F32 sign_b = { -1.0f, +1.0f, -1.0f, +1.0f };
 
   Mat4F32 inverse = {0};
-  for(U32 i = 0; i < 4; i += 1)
-  {
-  inverse.values[0][i] = inv0.values[i] * sign_a.values[i];
-  inverse.values[1][i] = inv1.values[i] * sign_b.values[i];
-  inverse.values[2][i] = inv2.values[i] * sign_a.values[i];
-  inverse.values[3][i] = inv3.values[i] * sign_b.values[i];
+  for(U32 i = 0; i < 4; i += 1) {
+    inverse.values[0][i] = inv0.values[i] * sign_a.values[i];
+    inverse.values[1][i] = inv1.values[i] * sign_b.values[i];
+    inverse.values[2][i] = inv2.values[i] * sign_a.values[i];
+    inverse.values[3][i] = inv3.values[i] * sign_b.values[i];
   }
 
   Vec4F32 row0 = { inverse.values[0][0], inverse.values[1][0], inverse.values[2][0], inverse.values[3][0] };
@@ -234,50 +210,47 @@ InverseMat4F32(Mat4F32 m)
 }
 
 func Mat4F32
-MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up)
-{
+MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up) {
   Mat4F32 result = MakeMat4F32(1.0f);
   
   Vec3F32 f = NormalizeVec3F32(SubVec3F32(target, position));
   Vec3F32 r = NormalizeVec3F32(CrossVec3F32(f, up));
   Vec3F32 u = CrossVec3F32(r, f);
   
-    result.values[0][0] = r.x;
-		result.values[1][0] = r.y;
-		result.values[2][0] = r.z;
-		result.values[0][1] = u.x;
-		result.values[1][1] = u.y;
-		result.values[2][1] = u.z;
-		result.values[0][2] =-f.x;
-		result.values[1][2] =-f.y;
-		result.values[2][2] =-f.z;
-		result.values[3][0] =-DotVec3F32(r, position);
-		result.values[3][1] =-DotVec3F32(u, position);
-		result.values[3][2] = DotVec3F32(f, position);
+  result.values[0][0] = r.x;
+  result.values[1][0] = r.y;
+  result.values[2][0] = r.z;
+  result.values[0][1] = u.x;
+  result.values[1][1] = u.y;
+  result.values[2][1] = u.z;
+  result.values[0][2] =-f.x;
+  result.values[1][2] =-f.y;
+  result.values[2][2] =-f.z;
+  result.values[3][0] =-DotVec3F32(r, position);
+  result.values[3][1] =-DotVec3F32(u, position);
+  result.values[3][2] = DotVec3F32(f, position);
 
   return result;
 }
 
 func Mat4F32
-MakeOrthographicMat4F32(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z)
-{
+MakeOrthographicMat4F32(F32 left, F32 right, F32 bottom, F32 top, F32 near_z, F32 far_z) {
   Mat4F32 result = MakeMat4F32(1.0f);
-  
-   result.values[0][0] = 2.0f / (right - left);
-   result.values[1][1] = 2.0f / (top - bottom);
-   result.values[2][2] = 2.0f / (far_z - near_z);
-   result.values[3][3] = 1.0f;
-   
-   result.values[3][0] = (left + right) / (left - right);
-   result.values[3][1] = (bottom + top) / (bottom - top);
-   result.values[3][2] = (near_z + far_z) / (near_z - far_z);
 
-   return result;
+  result.values[0][0] = 2.0f / (right - left);
+  result.values[1][1] = 2.0f / (top - bottom);
+  result.values[2][2] = 2.0f / (far_z - near_z);
+  result.values[3][3] = 1.0f;
+
+  result.values[3][0] = (left + right) / (left - right);
+  result.values[3][1] = (bottom + top) / (bottom - top);
+  result.values[3][2] = (near_z + far_z) / (near_z - far_z);
+
+  return result;
 }
 
 func Mat4F32
-MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z)
-{
+MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z) {
   Mat4F32 result = MakeMat4F32(0.0f);
 
   F32 fov_rad = fov * 2.0f * PI / 360.0f;
@@ -293,8 +266,7 @@ MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z)
 }
 
 func Mat4F32
-MakeTransposeMat4F32(Vec3F32 v)
-{
+MakeTransposeMat4F32(Vec3F32 v) {
   Mat4F32 result = MakeMat4F32(1.0f);
 
   result.values[3][0] = v.x;
@@ -305,8 +277,7 @@ MakeTransposeMat4F32(Vec3F32 v)
 }
 
 func Mat4F32
-MakeRotationMat4F32(Vec3F32 axis, F32 angle)
-{
+MakeRotationMat4F32(Vec3F32 axis, F32 angle) {
  Mat4F32 result = MakeMat4F32(1.f);
  axis = NormalizeVec3F32(axis);
  
@@ -327,8 +298,7 @@ MakeRotationMat4F32(Vec3F32 axis, F32 angle)
 }
 
 func Mat4F32
-MakeScaleMat4F32(Vec3F32 v)
-{
+MakeScaleMat4F32(Vec3F32 v) {
   Mat4F32 result = MakeMat4F32(1.0f);
   result.values[0][0] = v.x;
   result.values[1][1] = v.y;
@@ -339,14 +309,13 @@ MakeScaleMat4F32(Vec3F32 v)
 }
 
 // -------------------------------------------------------------------
-// Quaternions
+// -- Quaternions ----------------------------------------------------
 func Quaternion MakeQuaternion(F32 x, F32 y, F32 z, F32 w) {return (Quaternion){x, y, z, w};}
 func Vec4F32 Vec4F32FromQuaternion(Quaternion q) {return MakeVec4F32(q.x, q.y, q.z, q.w);}
 func Quaternion QuaternionFromVec4F32(Vec4F32 v) {return MakeQuaternion(v.x, v.y, v.z, v.w);}
 
 func Quaternion
-AddQuaternion(Quaternion a, Quaternion b)
-{
+AddQuaternion(Quaternion a, Quaternion b) {
   Quaternion result = IdentityQuaternion();
   result.x = a.x + b.x;
   result.y = a.y + b.y;
@@ -356,8 +325,7 @@ AddQuaternion(Quaternion a, Quaternion b)
 }
 
 func Quaternion
-MulQuaternion(Quaternion l, Quaternion r)
-{
+MulQuaternion(Quaternion l, Quaternion r) {
   Quaternion result = {.w = 1};
   result.x = l.x*r.w + l.y*r.z - l.z*r.y + l.w*r.x;
   result.y = -l.x*r.z + l.y*r.w + l.z*r.x + l.w*r.y;
@@ -368,8 +336,7 @@ MulQuaternion(Quaternion l, Quaternion r)
 }
 
 func Quaternion
-ScaleQuaternion(Quaternion q, F32 s)
-{
+ScaleQuaternion(Quaternion q, F32 s) {
   Quaternion result = IdentityQuaternion();
   result.x = q.x*s;
   result.y = q.y*s;
@@ -379,33 +346,29 @@ ScaleQuaternion(Quaternion q, F32 s)
 }
 
 func Quaternion
-MulQuaternionTest(Quaternion a, Quaternion b)
-{
- Quaternion c;
- {
-  c.x =  b.values[3] * +a.values[0];
-  c.y =  b.values[2] * -a.values[0];
-  c.z =  b.values[1] * +a.values[0];
-  c.w =  b.values[0] * -a.values[0];
-  c.x += b.values[2] * +a.values[1];
-  c.y += b.values[3] * +a.values[1];
-  c.z += b.values[0] * -a.values[1];
-  c.w += b.values[1] * -a.values[1];
-  c.x += b.values[1] * -a.values[2];
-  c.y += b.values[0] * +a.values[2];
-  c.z += b.values[3] * +a.values[2];
-  c.w += b.values[2] * -a.values[2];
-  c.x += b.values[0] * +a.values[3];
-  c.y += b.values[1] * +a.values[3];
-  c.z += b.values[2] * +a.values[3];
-  c.w += b.values[3] * +a.values[3];
- }
- return c;
+MulQuaternionTest(Quaternion a, Quaternion b) {
+  Quaternion result;
+  result.x =  b.values[3] * +a.values[0];
+  result.y =  b.values[2] * -a.values[0];
+  result.z =  b.values[1] * +a.values[0];
+  result.w =  b.values[0] * -a.values[0];
+  result.x += b.values[2] * +a.values[1];
+  result.y += b.values[3] * +a.values[1];
+  result.z += b.values[0] * -a.values[1];
+  result.w += b.values[1] * -a.values[1];
+  result.x += b.values[1] * -a.values[2];
+  result.y += b.values[0] * +a.values[2];
+  result.z += b.values[3] * +a.values[2];
+  result.w += b.values[2] * -a.values[2];
+  result.x += b.values[0] * +a.values[3];
+  result.y += b.values[1] * +a.values[3];
+  result.z += b.values[2] * +a.values[3];
+  result.w += b.values[3] * +a.values[3];
+  return result;
 }
 
 func Quaternion
-NormalizeQuaternion(Quaternion q)
-{
+NormalizeQuaternion(Quaternion q) {
   Quaternion result = {0};
   F32 normal = sqrtf(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
 
@@ -420,8 +383,7 @@ NormalizeQuaternion(Quaternion q)
 func Quaternion ConjugateQuaternion(Quaternion q) {return MakeQuaternion(-q.x, -q.y, -q.z, q.w);}
 
 func Vec3F32
-RotateVec3F32(Vec3F32 v, Quaternion q)
-{
+RotateVec3F32(Vec3F32 v, Quaternion q) {
   Vec3F32 result = {0};
 
   Quaternion v_rotated = MulQuaternion(MulQuaternion(q, MakeQuaternion(v.x, v.y, v.z, 0.0f)), ConjugateQuaternion(q));
@@ -434,22 +396,18 @@ RotateVec3F32(Vec3F32 v, Quaternion q)
 }
 
 func Quaternion
-SlerpQuaternion(Quaternion a, Quaternion b, F32 w)
-{
+SlerpQuaternion(Quaternion a, Quaternion b, F32 w) {
   Quaternion result = a;
 
   F32 dot = DotVec4F32(Vec4F32FromQuaternion(a), Vec4F32FromQuaternion(b));
-  if (dot == 1.0f)
-  {
+  if (dot == 1.0f) {
     return result;
   }
-  if (dot < 0.0f)
-  {
+  if (dot < 0.0f) {
      b = ScaleQuaternion(b, -1.0f);
      dot = -1.0f*dot;
   }
-  if (dot > 0.9995)
-  {
+  if (dot > 0.9995) {
     result = AddQuaternion(ScaleQuaternion(a, 0.5f), ScaleQuaternion(b, 0.5f));
   }
   F32 angle = acosf(dot);
@@ -459,14 +417,12 @@ SlerpQuaternion(Quaternion a, Quaternion b, F32 w)
     ScaleQuaternion(a, sinf((1 - w)*angle)/sinf(angle)),
     ScaleQuaternion(b, sinf(w*angle)/sinf(angle))
   ));
-  
   return result;
 }
 
 
 func Quaternion
-QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw)
-{
+QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw) {
   Quaternion result = {0};
 
   F32 cos_roll = cosf(roll*0.5f);
@@ -481,25 +437,20 @@ QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw)
   result.y = cos_roll*sin_pitch*cos_yaw + sin_roll*cos_pitch*sin_yaw;
   result.z = cos_roll*cos_pitch*sin_yaw - sin_roll*sin_pitch*cos_yaw;
   result.w = cos_roll*cos_pitch*cos_yaw + sin_roll*sin_pitch*sin_yaw;
-
   return result;
 }
 
 func Vec3F32
-EulerFromQuaternion(Quaternion q)
-{
+EulerFromQuaternion(Quaternion q) {
   Vec3F32 result = {0};
-
   result.x = atan2(2.0f*(q.w*q.x + q.y*q.z), 1.0f - 2.0f*(q.x*q.x + q.y*q.y));
   result.y = 2.0f*atan2(sqrtf(1.0f + 2.0f*(q.w*q.y - q.x*q.z)), sqrtf(1.0f - 2.0f*(q.w*q.y - q.x*q.z))) - PI/2.0f;
   result.z = atan2(2.0f*(q.w*q.z + q.x*q.y), 1.0f - 2.0f*(q.y*q.y + q.z*q.z));
-
   return result;
 }
 
 func Mat4F32
-Mat4F32FromQuaternion(Quaternion q)
-{
+Mat4F32FromQuaternion(Quaternion q) {
   Mat4F32 result = {0};
   Quaternion q_norm = NormalizeQuaternion(q);
 
@@ -527,10 +478,9 @@ Mat4F32FromQuaternion(Quaternion q)
 }
 
 // -------------------------------------------------------------------
-// Rectangle
+// -- Rectangle ------------------------------------------------------
 func B32
-InsideRectF32(RectF32 rect, Vec2F32 v)
-{
+InsideRectF32(RectF32 rect, Vec2F32 v) {
   B32 result = 0;
 
   result =
@@ -543,10 +493,9 @@ InsideRectF32(RectF32 rect, Vec2F32 v)
 }
 
 // -------------------------------------------------------------------
-// Transform
+// -- Transform ------------------------------------------------------
 func Mat4F32
-Mat4F32FromTransform(Transform t)
-{
+Mat4F32FromTransform(Transform t) {
   Mat4F32 result = MakeMat4F32(1.0f);
   result = MulMat4F32(MakeScaleMat4F32(t.scale), result);
   result = MulMat4F32(Mat4F32FromQuaternion(t.rotation), result);

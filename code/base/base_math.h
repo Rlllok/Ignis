@@ -1,30 +1,31 @@
 #pragma once
 
 #include "base_core.h"
+#include "base_container.h"
 
-// --AlNov: STD ------------------------------------------------------
 #include "stdio.h"
 #include "math.h"
 
-// --AlNov: Constants
+// -------------------------------------------------------------------
+// -- Constants ------------------------------------------------------
 #define PI 3.141592654f
 
 // -------------------------------------------------------------------
-// --AlNov: Math Defines (Min, Max ...)
+// -- Simple Math ----------------------------------------------------
 #define Min(a, b) (((a) < (b)) ? (a) : (b))
 #define Max(a, b) (((a) > (b)) ? (a) : (b))
 #define Clamp(v, low, high) Max(Min(v, high), low)
+#define RadiansFromDegrees(d) (d*PI/180.0f)
 
 // -------------------------------------------------------------------
-// Vectors and Matrices
+// -- Vectors and Matrices -------------------------------------------
 typedef union Vec2I32 Vec2I32;
-union Vec2I32
-{
-  struct
-  {
+union Vec2I32 {
+  struct {
     I32 x;
     I32 y;
   };
+
   I32 values[2];
 };
 
@@ -36,42 +37,37 @@ func Vec2I32 AddVec2I32(Vec2I32 a, Vec2I32 b);
 func Vec2I32 SubVec2I32(Vec2I32 a, Vec2I32 b);
 
 typedef union Vec4U8 Vec4U8;
-union Vec4U8
-{
-  struct
-  {
+union Vec4U8 {
+  struct {
     U8 x;
     U8 y;
     U8 z;
     U8 w;
   };
+
   U8 values[4];
 };
 
 typedef union Vec4I32 Vec4I32;
-union Vec4I32
-{
-  struct
-  {
+union Vec4I32 {
+  struct {
     I32 x;
     I32 y;
     I32 z;
     I32 w;
   };
+
   I32 values[4];
 };
 
 typedef union Vec2U32 Vec2U32;
-union Vec2U32
-{
-  struct
-  {
+union Vec2U32 {
+  struct {
     U32 x;
     U32 y;
   };
 
-	struct
-	{
+	struct {
 		U32 w;
 		U32 h;
 	};
@@ -83,10 +79,8 @@ func Vec2U32 AddVec2U32(Vec2U32 a, Vec2U32 b);
 func Vec2U32 SubVec2U32(Vec2U32 a, Vec2U32 b);
 
 typedef union Vec2F32 Vec2F32;
-union Vec2F32
-{
-  struct
-  {
+union Vec2F32 {
+  struct {
     F32 x;
     F32 y;
   };
@@ -114,8 +108,7 @@ func Vec2F32 NormalizeVec2F32(Vec2F32 v);
 func Vec2F32 GetNormalToVec2F32(Vec2F32 v);
 
 typedef struct Mat3F32 Mat3F32;
-struct Mat3F32
-{
+struct Mat3F32 {
   F32 values[3][3];
 };
 
@@ -124,17 +117,14 @@ func Mat3F32 MulMat3F32(Mat3F32 a, Mat3F32 b);
 func Mat3F32 MakeTransposeMat3F32(Mat3F32 m);
 
 typedef union Vec3F32 Vec3F32;
-union Vec3F32
-{
-  struct
-  {
+union Vec3F32 {
+  struct {
     F32 x;
     F32 y;
     F32 z;
   };
 
-  struct
-  {
+  struct {
     F32 r;
     F32 g;
     F32 b;
@@ -158,8 +148,7 @@ func Vec3F32 TransformVec3F32(Vec3F32 v, Mat3F32 m);
 func Vec3F32 LerpVec3F32(Vec3F32 a, Vec3F32 b, F32 t);
 
 typedef struct Mat4F32 Mat4F32;
-struct Mat4F32
-{
+struct Mat4F32 {
   F32 values[4][4];
 };
 
@@ -175,18 +164,15 @@ func Mat4F32 MakeRotationMat4F32(Vec3F32 axis, F32 angle);
 func Mat4F32 MakeScaleMat4F32(Vec3F32 v);
 
 typedef union Vec4F32 Vec4F32;
-union Vec4F32
-{
-  struct
-  {
+union Vec4F32 {
+  struct {
     F32 x;
     F32 y;
     F32 z;
     F32 w;
   };
 
-  struct
-  {
+  struct {
     F32 r;
     F32 g;
     F32 b;
@@ -208,7 +194,7 @@ func F32 MagnitudeSquareVec4F32(Vec4F32 v);
 func F32 MagnitudeVec4F32(Vec4F32 v);
 func Vec4F32 NormalizeVec4F32(Vec4F32 v);
 func Vec4F32 TransformVec4F32(Vec4F32 v, Mat4F32 m);
-func B32     EqualVec4F32(Vec4F32 a, Vec4F32 b);
+func B32 EqualVec4F32(Vec4F32 a, Vec4F32 b);
 
 #define Vec2IFromVec2F32(v)  MakeVec2I32((I32)(v).x, (I32)(v).y)
 
@@ -219,12 +205,10 @@ func B32     EqualVec4F32(Vec4F32 a, Vec4F32 b);
 #define Vec3F32FromVec2(v) MakeVec3F32((F32)(v).x, (F32)(v).y, 0.0f)
 
 // -------------------------------------------------------------------
-// Quaternions
+// -- Quaternions ----------------------------------------------------
 typedef union Quaternion Quaternion;
-union Quaternion
-{
-  struct
-  {
+union Quaternion {
+  struct {
     F32 x;
     F32 y;
     F32 z;
@@ -251,18 +235,15 @@ func Vec3F32 EulerFromQuaternion(Quaternion q);
 func Mat4F32 Mat4F32FromQuaternion(Quaternion q);
 
 // -------------------------------------------------------------------
-// Rectangle
+// -- Rectangle ------------------------------------------------------
 typedef union RectI32 RectI32;
-union RectI32
-{
-  struct
-  {
+union RectI32 {
+  struct {
     Vec2I32 position;
     Vec2I32 size;
   };
 
-  struct 
-  {
+  struct {
     I32 x;
     I32 y;
     I32 w;
@@ -273,16 +254,13 @@ union RectI32
 };
 
 typedef union RectF32 RectF32;
-union RectF32
-{
-  struct
-  {
+union RectF32 {
+  struct {
     Vec2F32 position;
     Vec2F32 size;
   };
 
-  struct
-  {
+  struct {
     F32 x;
     F32 y;
     F32 w;
@@ -295,10 +273,9 @@ union RectF32
 func B32 InsideRectF32(RectF32 rect, Vec2F32 v);
 
 // -------------------------------------------------------------------
-// Transform
+// -- Transform ------------------------------------------------------
 typedef struct Transform Transform;
-struct Transform
-{
+struct Transform {
   Vec3F32 translation;
   Quaternion rotation;
   Vec3F32 scale;
@@ -310,49 +287,6 @@ DefineArray(Transform, TransformArray, _transform_nil)
 func Mat4F32 Mat4F32FromTransform(Transform t);
 
 // -------------------------------------------------------------------
-// Default Math functions (Use F32)
-typedef Vec2F32 Vec2;
-typedef Vec3F32 Vec3;
-typedef Vec4F32 Vec4;
-typedef Mat3F32 Mat3;
-typedef Mat4F32 Mat4;
-
-#define RadiansFromDegrees(d) ((PI/180.0f)*d)
-#define DegreesFromRadians(r) ((180.0f*r)/PI)
-
-// Constructors
-#define MakeVec2(x, y) MakeVec2F32(x, y)
-#define MakeVec3(x, y, z) MakeVec3F32(x, y, z)
-#define MakeVec4(x, y, z, w) MakeVec4F32(x, y, z, w)
-#define ZeroVec4() MakeVec4(0.0f, 0.0f, 0.0f, 0.0f)
-#define MakeMat3(diagonal_value) MakeMat3F32(diagonal_value)
-#define ScaleVec2(v, n) ScaleVec2F32(v, n)
-#define AddVec2(a, b) AddVec2F32(a, b)
-#define SubVec2(a, b) SubVec2F32(a, b)
-#define MulVec2(a, b) MulVec2F32(a, b)
-#define DivVec2(a, b) DivVec2F32(a, b)
-#define ScaleVec3(v, n) ScaleVec3F32(v, n)
-#define AddVec3(a, b) AddVec3F32(a, b)
-#define SubVec3(a, b) SubVec3F32(a, b)
-#define MulVec3(a, b) MulVec3F32(a, b)
-#define DivVec3(a, b) DivVec3F32(a, b)
-#define CrossVec3(a, b) CrossVec3F32(a, b)
-#define NormalizeVec3(v) NormalizeVec3F32(v)
-#define ScaleVec4(v, n) ScaleVec4F32(v, n)
-#define AddVec4(a, b) AddVec4F32(a, b)
-#define SubVec4(a, b) SubVec4F32(a, b)
-#define MulVec4(a, b) MulVec4F32(a, b)
-#define DivVec4(a, b) DivVec4F32(a, b)
-#define MakeTransposeMat3(v) MakeTransposeMat3F32(v)
-#define MakeMat4(diagonal_value) MakeMat4F32(diagonal_value)
-#define MulMat4(a, b) MulMat4F32(a, b)
-#define MakeOrthographicMat4(left, right, bottom, top, near_z, far_z) MakeOrthographicMat4F32(left, right, bottom, top, near_z, far_z)
-#define MakePerspectiveMat4(fov, aspect, near_z, far_z) MakePerspectiveMat4F32(fov, aspect, near_z, far_z)
-#define MakeLookAtMat4(position, target, up) MakeLookAtMat4F32(position, target, up);
-#define MakeTransposeMat4(v) MakeTransposeMat4F32(v)
-#define MakeRotationMat4(axis, angle) MakeRotationMat4F32(axis, angle)
-
-// -------------------------------------------------------------------
-// Color
+// -- Color ----------------------------------------------------------
 #define RGBFromHex(hex) ScaleVec3F32(MakeVec3F32(((hex>>16)&0xFF), ((hex>>8)&0xFF), ((hex)&0xFF)), 1.0f/255.0f)
 #define RGBAFromHex(hex) ScaleVec4F32(MakeVec4F32(((hex>>24)&0xFF), ((hex>>16)&0xFF), ((hex>>8)&0xFF), ((hex)&0xFF)), 1.0f/255.0f)

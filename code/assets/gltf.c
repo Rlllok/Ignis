@@ -60,13 +60,13 @@ GLTFReadFile(Buffer file_name)
     _stat64(file_name_c, &file_stat);
   #endif
 
-    LOG_DEBUG("FILE SIZE GLTF: %i\n", file_stat.st_size);
+    LogDebug("FILE SIZE GLTF: %i\n", file_stat.st_size);
     result = AllocateBuffer(file_stat.st_size);
     if (result.data)
     {
       if (fread(result.data, result.length, 1, file) != 1)
       {
-        LOG_ERROR("ERROR: Unable to read \"%s\".\n", file_name_c);
+        LogError("ERROR: Unable to read \"%s\".\n", file_name_c);
         FreeBuffer(&result);
       }
     }
@@ -75,7 +75,7 @@ GLTFReadFile(Buffer file_name)
   }
   else
   {
-    LOG_ERROR("ERROR: Unable to open \"%s\"", file_name_c);
+    LogError("ERROR: Unable to open \"%s\"", file_name_c);
   }
 
   return result;
@@ -155,7 +155,7 @@ GLTFError(GLTFReader* reader, GLTFToken token, const char* message)
 {
   reader->has_error = true;
 
-  LOG_ERROR("- LINE %d - \"%.*s\" - %s\n", reader->line_number + 1, (U32)token.value.length, (char*)token.value.data, message);
+  LogError("- LINE %d - \"%.*s\" - %s\n", reader->line_number + 1, (U32)token.value.length, (char*)token.value.data, message);
 }
 
 func GLTFToken
@@ -308,7 +308,7 @@ ParseList(GLTFReader* reader, GLTFToken start_token, GLTFTokenType end_type, B32
         GLTFToken colon = GetGLTFToken(reader);
         if (colon.type != GLTF_TOKEN_TYPE_COLON)
         {
-          LOG_ERROR("Expect colon after field name");
+          LogError("Expect colon after field name");
         }
         else
         {
@@ -511,7 +511,7 @@ GetGLTFData(GLTFReader* reader)
          skin_element = skin_element->next_sibling)
     {
       gltf_data.skin.inverse_bind_matrices_accessor = GetNumberElement(skin_element, Str8C("inverseBindMatrices"));
-      LOG_INFO("Inverset bind: %d\n", gltf_data.skin.inverse_bind_matrices_accessor);
+      LogInfo("Inverset bind: %d\n", gltf_data.skin.inverse_bind_matrices_accessor);
 
       for (GLTFElement* joint_id_element = LookUpElement(skin_element, Str8C("joints"))->first_sub_element;
            joint_id_element; joint_id_element = joint_id_element->next_sibling)
@@ -723,12 +723,12 @@ GetF32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
 
   if (index >= accessor.count)
   {
-    LOG_DEBUG("Out of accessor's data length.\n");
+    LogDebug("Out of accessor's data length.\n");
     return result;
   }
   if (accessor.type != GLTFAccessorType_Scalar && accessor.component_type != GLTFComponentType_Float)
   {
-    LOG_DEBUG("Accessor's type is not F32.\n");
+    LogDebug("Accessor's type is not F32.\n");
   }
   result = *(F32*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(F32)*index);
   return result;
@@ -741,12 +741,12 @@ GetVec3F32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
 
   if (index >= accessor.count)
   {
-    LOG_DEBUG("Out of accessor's data length.");
+    LogDebug("Out of accessor's data length.");
     return result;
   }
   if (accessor.type != GLTFAccessorType_Vec3 && accessor.component_type != GLTFComponentType_Float)
   {
-    LOG_DEBUG("Accessor's type is not Vec3F32.\n");
+    LogDebug("Accessor's type is not Vec3F32.\n");
   }
   result = *(Vec3F32*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(Vec3F32)*index);
   return result;
@@ -759,12 +759,12 @@ GetVec4F32FromGLTFAccessor(GLTFData gltf_data, GLTFAccessor accessor, U32 index)
 
   if (index >= accessor.count)
   {
-    LOG_DEBUG("Out of accessor's data length.");
+    LogDebug("Out of accessor's data length.");
     return result;
   }
   if (accessor.type != GLTFAccessorType_Vec4 && accessor.component_type != GLTFComponentType_Float)
   {
-    LOG_DEBUG("Accessor's type is not Vec4F32.\n");
+    LogDebug("Accessor's type is not Vec4F32.\n");
   }
   result = *(Vec4F32*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(Vec4F32)*index);
   return result;
@@ -776,12 +776,12 @@ func Quaternion GetQuaternionFromGLTFAccessor(GLTFData gltf_data, GLTFAccessor a
 
   if (index >= accessor.count)
   {
-    LOG_DEBUG("Out of accessor's data length.");
+    LogDebug("Out of accessor's data length.");
     return result;
   }
   if (accessor.type != GLTFAccessorType_Vec4 && accessor.component_type != GLTFComponentType_Float)
   {
-    LOG_DEBUG("Accessor's type is not Quaternion.\n");
+    LogDebug("Accessor's type is not Quaternion.\n");
   }
   result = *(Quaternion*)GetDataFromGLTFAccessor(gltf_data, accessor, sizeof(Quaternion)*index);
   return result;

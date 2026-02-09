@@ -310,7 +310,7 @@ func F64 _GetNumberElementFunc(GLTFElement* element, Buffer label, F64 default_v
   }
   else
   {
-    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
+    LogError("There is no element \"%.*s\"\n", (U32)label.length, label.data);
   }
 
   return result;
@@ -330,7 +330,7 @@ GetIDElement(GLTFElement* element, Buffer label)
   }
   else
   {
-    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
+    LogError("There is no element \"%.*s\"\n", (U32)label.length, label.data);
   }
 
   return result;
@@ -353,7 +353,7 @@ GetVec3F32Element(GLTFElement* element, Buffer label)
   }
   else
   {
-    LOG_ERROR("There is no element \"%.*s\"\n", (U32)label.length, label.data);
+    LogError("There is no element \"%.*s\"\n", (U32)label.length, label.data);
   }
 
   return result;

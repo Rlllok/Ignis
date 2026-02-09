@@ -6,10 +6,10 @@
 typedef struct AST_Vertex AST_Vertex;
 struct AST_Vertex
 {
-  Vec3 position;
-  Vec3 normal;
-  Vec3 tangent;
-  Vec2 uv;
+  Vec3F32 position;
+  Vec3F32 normal;
+  Vec3F32 tangent;
+  Vec2F32 uv;
   Vec4I32 joint_ids;
   Vec4F32 joint_weights;
 };

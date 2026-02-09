@@ -33,7 +33,7 @@ Ignis_R_CreateLoadTexture(RHI_Buffer buffer, Str8 path, RHI_TextureFormat format
 
   if (!tex_pixels)
   {
-    LOG_ERROR("Cannot load texture %s\n", CFromStr8(path));
+    LogError("Cannot load texture %s\n", CFromStr8(path));
   }
   I32 texture_size = tex_width * tex_height * 4;
 
@@ -146,7 +146,7 @@ Ignis_R_PreparePipelines()
     _ignis_r_state.depth_prepass_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo){
       .vertex_shader = vertex_shader,
       .fragment_shader = fragment_shader,
-      .vertex_attributes_count = CountArrayElements(vertex_attributes),
+      .vertex_attributes_count = ArrayLength(vertex_attributes),
       .vertex_attributes = vertex_attributes,
       .depth_stencil_state = {
         .depth_test_enable = 1,
@@ -211,7 +211,7 @@ Ignis_R_PreparePipelines()
       &(RHI_GraphicsPipelineCreateInfo){
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
-        .vertex_attributes_count = CountArrayElements(vertex_attributes),
+        .vertex_attributes_count = ArrayLength(vertex_attributes),
         .vertex_attributes = vertex_attributes,
         .depth_stencil_state = {
           .depth_test_enable = 1,
@@ -285,9 +285,9 @@ Ignis_R_PreparePipelines()
     RHI_GraphicsPipelineCreateInfo mesh_pipeline_info = {
       .vertex_shader = mesh_vertex_shader,
       .fragment_shader = mesh_fragment_shader,
-      .vertex_attributes_count = CountArrayElements(mesh_vertex_attributes),
+      .vertex_attributes_count = ArrayLength(mesh_vertex_attributes),
       .vertex_attributes = mesh_vertex_attributes,
-      .color_targets_count = CountArrayElements(mesh_pipeline_color_target_infos),
+      .color_targets_count = ArrayLength(mesh_pipeline_color_target_infos),
       .color_target_infos = mesh_pipeline_color_target_infos,
       .depth_stencil_state = {
         .depth_test_enable = 1,
@@ -504,7 +504,7 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
   scissor = viewport;
   RHI_SetViewport(command_buffer, viewport);
   RHI_SetScissor(command_buffer, scissor);
-  RHI_BeginRenderPass(command_buffer, CountArrayElements(entity_color_targets), entity_color_targets, &entity_depth_target);
+  RHI_BeginRenderPass(command_buffer, ArrayLength(entity_color_targets), entity_color_targets, &entity_depth_target);
   {
     for (I32 i = 0; i < scene->entities.length; i += 1)
     {
@@ -618,29 +618,29 @@ Ignis_R_RenderGrid(Ignis_Scene* scene, RHI_ColorTarget color, RHI_DepthStencilTa
 
   struct
   {
-    Mat4 view_matrix;
-    Mat4 projection_matrix;
+    Mat4F32 view_matrix;
+    Mat4F32 projection_matrix;
   } grid_global_vertex_data;
-  grid_global_vertex_data.view_matrix = MakeLookAtMat4(
+  grid_global_vertex_data.view_matrix = MakeLookAtMat4F32(
     camera->transform.translation,
-    AddVec3(camera->transform.translation, camera->camera.front),
+    AddVec3F32(camera->transform.translation, camera->camera.front),
     camera->camera.up
   );
-  grid_global_vertex_data.projection_matrix = MakePerspectiveMat4(
+  grid_global_vertex_data.projection_matrix = MakePerspectiveMat4F32(
     45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
     0.1f, 100.0f
   );
   struct
   {
-    Vec3 position;
+    Vec3F32 position;
     F32 grid_scale;
   } grid_instance_vertex_data;
-  grid_instance_vertex_data.position = MakeVec3(camera->transform.translation.x, 0.0f, camera->transform.translation.z);
+  grid_instance_vertex_data.position = MakeVec3F32(camera->transform.translation.x, 0.0f, camera->transform.translation.z);
   grid_instance_vertex_data.grid_scale = 2000.0f;
 
   struct
   {
-    Vec4 color;
+    Vec4F32 color;
   } grid_global_fragment_data;
   grid_global_fragment_data.color = RGBAFromHex(0x95B8D1AA);
 
@@ -688,7 +688,7 @@ Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity)
       AddVec3F32(light_position, light_direction),
       MakeVec3F32(0.0f, 1.0f, 0.0f)
     );
-    Mat4F32 projection_matrix = MakePerspectiveMat4(
+    Mat4F32 projection_matrix = MakePerspectiveMat4F32(
       45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
       0.1f, 100.0f
     );
@@ -729,19 +729,19 @@ Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
   {
     AST_Geometry* geometry = &geometry_node->data;
 
-    Mat4F32 view_matrix = MakeLookAtMat4(
+    Mat4F32 view_matrix = MakeLookAtMat4F32(
       camera->transform.translation,
-      AddVec3(camera->transform.translation, camera->camera.front),
+      AddVec3F32(camera->transform.translation, camera->camera.front),
       camera->camera.up
     );
-    Mat4F32 projection_matrix = MakePerspectiveMat4(
+    Mat4F32 projection_matrix = MakePerspectiveMat4F32(
       45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
       0.1f, 100.0f
     );
 
     struct
     {
-      Mat4 mvp;
+      Mat4F32 mvp;
     } mesh_instance_vertex_data;
     mesh_instance_vertex_data.mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(entity->transform)));
 
@@ -778,12 +778,12 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
     Vei_BeginPoint(PrepareVertexData);
     AST_Geometry* geometry = &geometry_node->data;
 
-    Mat4F32 view_matrix = MakeLookAtMat4(
+    Mat4F32 view_matrix = MakeLookAtMat4F32(
       camera->transform.translation,
-      AddVec3(camera->transform.translation, camera->camera.front),
+      AddVec3F32(camera->transform.translation, camera->camera.front),
       camera->camera.up
     );
-    Mat4F32 projection_matrix = MakePerspectiveMat4(
+    Mat4F32 projection_matrix = MakePerspectiveMat4F32(
       45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
       0.1f, 100.0f
     );
@@ -793,8 +793,8 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
 
     struct
     {
-      Mat4 mvp;
-      Mat4 bone_transform[64];
+      Mat4F32 mvp;
+      Mat4F32 bone_transform[64];
     } mesh_instance_vertex_data;
     mesh_instance_vertex_data.mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(entity->transform)));
     for (I32 i = 0; i < entity->actor.mesh.skeleton.joints.length; i += 1)
