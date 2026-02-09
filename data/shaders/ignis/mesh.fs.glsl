@@ -11,8 +11,6 @@ layout(set = 2, binding = 0) uniform GlobalData
   vec3 diffuse_color;
 };
 
-layout(set = 2, binding = 1) uniform sampler2D color_texture;
-
 const int   cel_shading_steps  = 4;
 const float cel_shading_weight = 1.0f/cel_shading_steps;
 
@@ -27,5 +25,4 @@ void main()
   vec3  diffuse_light  = vec3(max(0.0f, diffuse_weight));
 
   out_color = vec4((ambient_light + diffuse_light)*diffuse_color, 1.0f);
-  out_color = texture(color_texture, uv);
 }
