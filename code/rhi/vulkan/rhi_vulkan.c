@@ -1,5 +1,7 @@
 #include "rhi_vulkan.h"
 
+#include "vei/vei.h"
+
 #include "base/base_core.h"
 
 // --------------------------------------------------
@@ -691,13 +693,12 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
     writes_count += 1;
   }
 
-  VkCommandBuffer single_cmd = RHI_VK_BeginSingleCmd();
   I32 start_index = writes_count;
   for (I32 i = start_index; i < start_index + sampler_count; i += 1) {
     RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler_infos[i - start_index].sampler);
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(sampler_infos[i - start_index].texture);
   
-    RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     VkDescriptorImageInfo image_info = {
       .sampler = vk_sampler->handle,
@@ -717,7 +718,6 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
     write_infos[writes_count] = write_info;
     writes_count += 1;
   }
-  RHI_VK_EndSingleCmd(single_cmd);
 
   vkUpdateDescriptorSets(_rhi_vk_state.device.logical, writes_count, write_infos, 0, 0);
 
