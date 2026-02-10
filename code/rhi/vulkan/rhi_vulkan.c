@@ -1,30 +1,26 @@
 #include "rhi_vulkan.h"
+#include "rhi_vk_utils.h"
 
 #include "vei/vei.h"
 
 #include "base/base_core.h"
 
-// --------------------------------------------------
-// Buffer
+// -------------------------------------------------------------------
+// -- Buffer ---------------------------------------------------------
 func VkBufferUsageFlags
-_VkFromBufferUsageFlags(RHI_BufferUsageFlags flags)
-{
+_VkFromBufferUsageFlags(RHI_BufferUsageFlags flags) {
   VkBufferUsageFlags result = 0;
 
-  if((flags & RHI_BUFFER_USAGE_FLAG_VERTEX) == RHI_BUFFER_USAGE_FLAG_VERTEX)
-  {
+  if(flags & RHI_BUFFER_USAGE_FLAG_VERTEX) {
     result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   }
-  if((flags & RHI_BUFFER_USAGE_FLAG_INDEX) == RHI_BUFFER_USAGE_FLAG_INDEX)
-  {
+  if(flags & RHI_BUFFER_USAGE_FLAG_INDEX) {
     result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
   }
-  if((flags & RHI_BUFFER_USAGE_FLAG_UNIFORM) == RHI_BUFFER_USAGE_FLAG_UNIFORM)
-  {
+  if(flags & RHI_BUFFER_USAGE_FLAG_UNIFORM) {
     result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
   }
-  if((flags & RHI_BUFFER_USAGE_FLAG_TRANSFER) == RHI_BUFFER_USAGE_FLAG_TRANSFER)
-  {
+  if(flags & RHI_BUFFER_USAGE_FLAG_TRANSFER) {
     result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
   }
@@ -33,16 +29,13 @@ _VkFromBufferUsageFlags(RHI_BufferUsageFlags flags)
 }
 
 func VkMemoryPropertyFlags
-_VkFromBufferPropertyFlags(RHI_BufferPropertyFlags flags)
-{
+_VkFromBufferPropertyFlags(RHI_BufferPropertyFlags flags) {
   VkMemoryPropertyFlags result = 0;
 
-  if ((flags & RHI_BUFFER_PROPERTY_FLAG_HOST_COHERENT) == RHI_BUFFER_PROPERTY_FLAG_HOST_COHERENT)
-  {
+  if (flags & RHI_BUFFER_PROPERTY_FLAG_HOST_COHERENT) {
     result |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
   }
-  if ((flags & RHI_BUFFER_PROPERTY_FLAG_HOST_VISIBLE) == RHI_BUFFER_PROPERTY_FLAG_HOST_VISIBLE)
-  {
+  if (flags & RHI_BUFFER_PROPERTY_FLAG_HOST_VISIBLE) {
     result |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
   }
 
@@ -50,14 +43,12 @@ _VkFromBufferPropertyFlags(RHI_BufferPropertyFlags flags)
 }
 
 func RHI_VK_Buffer*
-RHI_VK_BufferFromHandle(RHI_Buffer buffer)
-{
+RHI_VK_BufferFromHandle(RHI_Buffer buffer) {
   return RHI_VK_BufferArrayGetPointer(&_rhi_vk_state.buffers, buffer);
 }
 
 func RHI_Buffer
-RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags)
-{
+RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags) {
   // @NOTE This is to create Vulkan Buffer and Memory
   RHI_VK_Buffer buffer = {0};
 	buffer.capacity = capacity;
@@ -69,20 +60,17 @@ RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPr
     .sharingMode = VK_SHARING_MODE_EXCLUSIVE
   };
 
-  VK_CHECK(vkCreateBuffer(_rhi_vk_state.device.logical, &buffer_info, 0, &buffer.handle));
+  VK_CHECK(vkCreateBuffer(_rhi_vk_state.device.logical, &buffer_info, 0, &buffer.vk));
 
   VkMemoryRequirements memory_requirements;
-  vkGetBufferMemoryRequirements(_rhi_vk_state.device.logical, buffer.handle, &memory_requirements);
-  
+  vkGetBufferMemoryRequirements(_rhi_vk_state.device.logical, buffer.vk, &memory_requirements);
   VkPhysicalDeviceMemoryProperties mem_properties = {0};
   vkGetPhysicalDeviceMemoryProperties(_rhi_vk_state.device.physical, &mem_properties);
 
   VkMemoryPropertyFlags flags = _VkFromBufferPropertyFlags(property_flags);
   U32 memory_type_index = 0;
-  for (U32 type_index = 0; type_index < mem_properties.memoryTypeCount; type_index += 1)
-  {
-    if (memory_requirements.memoryTypeBits & (1 << type_index) && ((mem_properties.memoryTypes[type_index].propertyFlags & flags) == flags))
-    {
+  for (U32 type_index = 0; type_index < mem_properties.memoryTypeCount; type_index += 1) {
+    if (memory_requirements.memoryTypeBits & (1 << type_index) && ((mem_properties.memoryTypes[type_index].propertyFlags & flags) == flags)) {
       memory_type_index = type_index;
       break;
     }
@@ -94,29 +82,25 @@ RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPr
     .memoryTypeIndex = memory_type_index
   };
   VK_CHECK(vkAllocateMemory(_rhi_vk_state.device.logical, &allocation_info , 0, &buffer.memory));
-
-  VK_CHECK(vkBindBufferMemory(_rhi_vk_state.device.logical, buffer.handle, buffer.memory, 0));
-
+  VK_CHECK(vkBindBufferMemory(_rhi_vk_state.device.logical, buffer.vk, buffer.memory, 0));
   vkMapMemory(_rhi_vk_state.device.logical, buffer.memory, 0, VK_WHOLE_SIZE, 0, &buffer.mapped);
 
   return RHI_VK_BufferArrayAdd(&_rhi_vk_state.buffers, buffer);
 }
 
 func void
-RHI_VK_DestroyBuffer(RHI_Buffer buffer)
-{
+RHI_VK_DestroyBuffer(RHI_Buffer buffer) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
   vkDeviceWaitIdle(_rhi_vk_state.device.logical);
   vkUnmapMemory(_rhi_vk_state.device.logical, vk_buffer->memory);
   vkFreeMemory(_rhi_vk_state.device.logical, vk_buffer->memory, 0);
-  vkDestroyBuffer(_rhi_vk_state.device.logical, vk_buffer->handle, 0);
+  vkDestroyBuffer(_rhi_vk_state.device.logical, vk_buffer->vk, 0);
 
   *vk_buffer = (RHI_VK_Buffer){0};
 }
 
-func U64 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size)
-{
+func U64 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
 	Assert((vk_buffer->size + size) < vk_buffer->capacity);
@@ -131,50 +115,42 @@ func U64 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size)
 }
 
 func void
-RHI_VK_ResetBuffer(RHI_Buffer buffer)
-{
+RHI_VK_ResetBuffer(RHI_Buffer buffer) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 	vk_buffer->size = 0;
 }
+
 func void
-RHI_VK_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size)
-{
+RHI_VK_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
-	vkCmdBindIndexBuffer(
-			vk_command_buffer->handle[_rhi_vk_state.current_frame],
-			vk_buffer->handle,
-			offset, RHI_VK_GetVkIndexTypeFrom(index_size));
+	vkCmdBindIndexBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_buffer->vk, offset, RHI_VK_GetVkIndexTypeFrom(index_size));
 }
 
 func void
-RHI_VK_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset)
-{
+RHI_VK_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
-
 	VkDeviceSize vk_offset = offset;
-	vkCmdBindVertexBuffers(vk_command_buffer->handle[_rhi_vk_state.current_frame], 0, 1, &vk_buffer->handle, &vk_offset);
+
+	vkCmdBindVertexBuffers(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_buffer->vk, &vk_offset);
 }
 
 func void
-RHI_VK_BufferGetData(RHI_Buffer buffer, U64 offset, void* dst, U64 data_size)
-{
+RHI_VK_BufferGetData(RHI_Buffer buffer, U64 offset, void* dst, U64 data_size) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
   memcpy(dst, (U8*)vk_buffer->mapped + offset, data_size);
 }
 
 // -------------------------------------------------------------------
-// Command Buffer
+// -- Command Buffer -------------------------------------------------
 func RHI_VK_CommandBuffer*
-RHI_VK_CommandBufferFromHandle(RHI_CommandBuffer command_buffer)
-{
+RHI_VK_CommandBufferFromHandle(RHI_CommandBuffer command_buffer) {
   return RHI_VK_CommandBufferArrayGetPointer(&_rhi_vk_state.command_buffers, command_buffer);
 }
 
-func RHI_CommandBuffer RHI_VK_GetCommandBuffer(void)
-{
+func RHI_CommandBuffer RHI_VK_GetCommandBuffer(void) {
 	RHI_VK_CommandBuffer command_buffer = {0};
 
 	VkCommandBufferAllocateInfo allocate_info = {
@@ -183,10 +159,9 @@ func RHI_CommandBuffer RHI_VK_GetCommandBuffer(void)
 		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 		.commandBufferCount = RHI_FRAMES_IN_FLIGHT
 	};
-	VK_CHECK(vkAllocateCommandBuffers(_rhi_vk_state.device.logical, &allocate_info, command_buffer.handle));
+	VK_CHECK(vkAllocateCommandBuffers(_rhi_vk_state.device.logical, &allocate_info, command_buffer.vk));
 
-	for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1)
-	{
+	for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
 		VkFenceCreateInfo fence_info = {
 			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT
@@ -194,43 +169,43 @@ func RHI_CommandBuffer RHI_VK_GetCommandBuffer(void)
 		VK_CHECK(vkCreateFence(_rhi_vk_state.device.logical, &fence_info, 0, (command_buffer.submit_fence + i)));
 	}
 
-	for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1)
-	{
+	for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
 		VkSemaphoreCreateInfo semaphore_info = {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		};
 		VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, (command_buffer.acquire_semaphore + i)));
-		VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, (command_buffer.release_semaphore + i)));
 	}
 
   return RHI_VK_CommandBufferArrayAdd(&_rhi_vk_state.command_buffers, command_buffer);
 }
 
 func void
-RHI_VK_ReleaseCommandBuffer(RHI_CommandBuffer command_buffer)
-{
+RHI_VK_ReleaseCommandBuffer(RHI_CommandBuffer command_buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
   vkDeviceWaitIdle(_rhi_vk_state.device.logical);
-  for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1)
-  {
+  for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
     vkDestroySemaphore(_rhi_vk_state.device.logical, vk_command_buffer->acquire_semaphore[i], 0);
-    vkDestroySemaphore(_rhi_vk_state.device.logical, vk_command_buffer->release_semaphore[i], 0);
     vkDestroyFence(_rhi_vk_state.device.logical, vk_command_buffer->submit_fence[i], 0);
-    for (I32 j = 0; j < vk_command_buffer->descriptor_pool[i].pool_count; j += 1)
-    {
+    for (I32 j = 0; j < vk_command_buffer->descriptor_pool[i].pool_count; j += 1) {
       vkDestroyDescriptorPool(_rhi_vk_state.device.logical, vk_command_buffer->descriptor_pool[i].vk_pools[j], 0);
     }
   }
 }
 
-func void RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer)
-{
+func void RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  
+  vk_command_buffer->active_render_pass = 0;
+  vk_command_buffer->binded_graphics_pipeline = 0;
+  vk_command_buffer->current_swapchain_texture = 0;
+  vk_command_buffer->current_viewport = (VkViewport)ZeroStruct();
 
-	vkResetCommandBuffer(vk_command_buffer->handle[_rhi_vk_state.current_frame], 0);
-	for (I32 i = 0; i < vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count; i += 1)
-	{
+  vkWaitForFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame, VK_TRUE, U64_MAX);
+	vkResetFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame);
+
+	vkResetCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0);
+	for (I32 i = 0; i < vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count; i += 1) {
 		vkResetDescriptorPool(_rhi_vk_state.device.logical, vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools[i], 0);
 	}
 
@@ -239,15 +214,20 @@ func void RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer)
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
   }; 
-  VK_CHECK(vkBeginCommandBuffer(vk_command_buffer->handle[_rhi_vk_state.current_frame], &begin_info));
+  VK_CHECK(vkBeginCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], &begin_info));
 }
 
 func void
-RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer)
-{
+RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-	vkEndCommandBuffer(vk_command_buffer->handle[_rhi_vk_state.current_frame]);
+  RHI_VK_Texture* swapchain_texture = vk_command_buffer->current_swapchain_texture;
+  if (swapchain_texture) {
+    LogInfo("Presenting\n");
+    RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], swapchain_texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+  }
+
+	vkEndCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
 
 	VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 
@@ -257,53 +237,58 @@ RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer)
 		.pWaitSemaphores = vk_command_buffer->acquire_semaphore + _rhi_vk_state.current_frame,
 		.pWaitDstStageMask = &wait_stage,
 		.commandBufferCount = 1,
-		.pCommandBuffers = vk_command_buffer->handle + _rhi_vk_state.current_frame,
-		.signalSemaphoreCount = 0,
-    .pSignalSemaphores = &_rhi_vk_state.swapchain.frame_resources[_rhi_vk_state.current_target].release_semaphore, // @TODO change location of release_semaphore
+		.pCommandBuffers = vk_command_buffer->vk + _rhi_vk_state.current_frame,
+		.signalSemaphoreCount = 1,
+    .pSignalSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
 	};
 
   VK_CHECK(vkQueueSubmit(_rhi_vk_state.device.graphics_queue, 1, &submit_info, vk_command_buffer->submit_fence[_rhi_vk_state.current_frame]));
 
+  if (swapchain_texture) {
+    VkPresentInfoKHR present_info = {
+      .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+      .waitSemaphoreCount = 1,
+      .pWaitSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
+      .swapchainCount = 1,
+      .pSwapchains = &_rhi_vk_state.swapchain.vk,
+      .pImageIndices = &_rhi_vk_state.current_target,
+    };
+
+    vkQueuePresentKHR(_rhi_vk_state.device.graphics_queue, &present_info);
+  }
+
 	_rhi_vk_state.current_frame = (_rhi_vk_state.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
 }
 
-// --------------------------------------------------
-// Device
+// -------------------------------------------------------------------
+// -- Device ---------------------------------------------------------
 func void
-RHI_VK_CreateDevice(void)
-{
+RHI_VK_CreateDevice() {
   U32 device_count = 0;
   VK_CHECK(vkEnumeratePhysicalDevices(_rhi_vk_state.instance, &device_count, 0));
   
-  // --AlNov 7 January 2026: @TODO Use Scratch Arena
   ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena);
   {
     VkPhysicalDevice* devices = (VkPhysicalDevice*)PushArena(scratch.arena, device_count * sizeof(VkPhysicalDevice));
     VK_CHECK(vkEnumeratePhysicalDevices(_rhi_vk_state.instance, &device_count, devices));
 
-    for (I32 i = 0; i < device_count; i += 1)
-    {
+    for (I32 i = 0; i < device_count; i += 1) {
       VkPhysicalDevice* device = devices + i;
       
       VkPhysicalDeviceProperties properties;
       vkGetPhysicalDeviceProperties(*device, &properties);
 
-      if (properties.apiVersion < VK_API_VERSION_1_3)
-      {
-        continue;
-      }
+      if (properties.apiVersion < VK_API_VERSION_1_3) continue;
 
       U32 queue_family_count = 0;
       vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, 0);
       VkQueueFamilyProperties* queue_properties = (VkQueueFamilyProperties*)PushArena(scratch.arena, queue_family_count * sizeof(VkQueueFamilyProperties));
       vkGetPhysicalDeviceQueueFamilyProperties(*device, &queue_family_count, queue_properties);
 
-      for (I32 j = 0; j < queue_family_count; j += 1)
-      {
+      for (I32 j = 0; j < queue_family_count; j += 1) {
         VkQueueFamilyProperties* properties = queue_properties + j;
 
-        if (properties->queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
+        if (properties->queueFlags & VK_QUEUE_GRAPHICS_BIT) {
           _rhi_vk_state.device.graphics_queue_index = j;
           break;
         }
@@ -341,8 +326,7 @@ RHI_VK_CreateDevice(void)
       LogInfo("%s\n", properties.deviceName);
       _rhi_vk_state.device.physical = *device;
       VK_CHECK(vkCreateDevice(*device, &device_info, 0, &_rhi_vk_state.device.logical))
-			if(_rhi_vk_state.device.logical)
-			{
+			if(_rhi_vk_state.device.logical) {
 				vkGetDeviceQueue(_rhi_vk_state.device.logical, _rhi_vk_state.device.graphics_queue_index, 0, &_rhi_vk_state.device.graphics_queue);
 				break;
 				// @TODO Choose GPU by parameters
@@ -353,71 +337,21 @@ RHI_VK_CreateDevice(void)
 }
 
 func void
-RHI_VK_DestroyDevice(void)
-{
+RHI_VK_DestroyDevice() {
   vkDestroyDevice(_rhi_vk_state.device.logical, 0);
 
-	RHI_VK_Device reset = {0};
-  _rhi_vk_state.device = reset;
+  _rhi_vk_state.device = (RHI_VK_Device)ZeroStruct();
 }
 
-// --------------------------------------------------
-// Surface/Swapchain
-func FrameResources
-RHI_VK_CreateFrameResources(void)
-{
-  FrameResources resources = {0};
-
-  VkFenceCreateInfo fence_info = {
-    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-    .flags = VK_FENCE_CREATE_SIGNALED_BIT
-  };
-  VK_CHECK(vkCreateFence(_rhi_vk_state.device.logical, &fence_info, 0, &resources.submit_fence));
-
-  VkCommandPoolCreateInfo cmd_pool_info = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    .queueFamilyIndex = _rhi_vk_state.device.graphics_queue_index
-  };
-  VK_CHECK(vkCreateCommandPool(_rhi_vk_state.device.logical, &cmd_pool_info, 0, &resources.cmd_pool));
-
-  VkCommandBufferAllocateInfo cmd_buffer = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-    .commandPool = resources.cmd_pool,
-    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    .commandBufferCount = 1
-  };
-  VK_CHECK(vkAllocateCommandBuffers(_rhi_vk_state.device.logical, &cmd_buffer, &resources.cmd_buffer));
-
-  VkSemaphoreCreateInfo semaphore_info = {
-    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-  };
-  VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, &resources.acquire_semaphore));
-  VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, &resources.release_semaphore));
-
-  return resources;
-}
-
+// -------------------------------------------------------------------
+// -- Surface/Swapchain ----------------------------------------------
 func void
-RHI_VK_DestroyFrameResources(FrameResources* resources)
-{
-  vkDestroySemaphore(_rhi_vk_state.device.logical, resources->release_semaphore, 0);
-  vkDestroySemaphore(_rhi_vk_state.device.logical, resources->acquire_semaphore, 0);
-  vkDestroyCommandPool(_rhi_vk_state.device.logical, resources->cmd_pool, 0);
-  vkDestroyFence(_rhi_vk_state.device.logical, resources->submit_fence, 0);
-
-	FrameResources reset = {0};
-  *resources = reset;
-}
-
-func void
-RHI_VK_CreateSwapchain(OS_Window* window)
-{
+RHI_VK_CreateSwapchain(OS_Window* window) {
 #if IGNIS_PLATFORM_WIN32
   VkWin32SurfaceCreateInfoKHR surface_info = {0};
   surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-  surface_info.hinstance = window->handle->instance;
-  surface_info.hwnd = window->handle->handle;
+  surface_info.hinstance = window->vk->instance;
+  surface_info.hwnd = window->vk->vk;
 
   VK_CHECK(vkCreateWin32SurfaceKHR(_rhi_vk_state.instance, &surface_info, 0, &_rhi_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_WIN32
@@ -435,8 +369,8 @@ RHI_VK_CreateSwapchain(OS_Window* window)
 #if IGNIS_PLATFORM_LINUX_X11
 	VkXlibSurfaceCreateInfoKHR surface_info = {
     .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-		.dpy = window->handle->display,
-		.window = window->handle->window,
+		.dpy = window->vk->display,
+		.window = window->vk->window,
 	};
 	VK_CHECK(vkCreateXlibSurfaceKHR(_rhi_vk_state.instance, &surface_info, 0, &_rhi_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_LINUX_X11
@@ -448,8 +382,7 @@ RHI_VK_CreateSwapchain(OS_Window* window)
     VkSurfaceFormatKHR* formats = (VkSurfaceFormatKHR*)PushArena(scratch.arena, format_count * sizeof(VkSurfaceFormatKHR));
     vkGetPhysicalDeviceSurfaceFormatsKHR(_rhi_vk_state.device.physical, _rhi_vk_state.swapchain.surface, &format_count, formats);
 
-    for (U32 i = 0; i < format_count; i += 1)
-    {
+    for (U32 i = 0; i < format_count; i += 1) {
       if (formats[i].format == VK_FORMAT_B8G8R8A8_UNORM && formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR) {
         _rhi_vk_state.swapchain.surface_format = formats[i];
       }
@@ -461,24 +394,23 @@ RHI_VK_CreateSwapchain(OS_Window* window)
   VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(_rhi_vk_state.device.physical,
                                                      _rhi_vk_state.swapchain.surface,
                                                      &capabilities));
-  if (capabilities.currentExtent.width == U32_MAX)
-  {
+  if (capabilities.currentExtent.width == U32_MAX) {
     _rhi_vk_state.swapchain.size = window->size;
   }
-  else
-  {
+  else {
     _rhi_vk_state.swapchain.size.w = capabilities.currentExtent.width;
     _rhi_vk_state.swapchain.size.h = capabilities.currentExtent.height;
   }
 
   // VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
-  VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+  // VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+  VkPresentModeKHR present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
 
   U32 image_count = capabilities.minImageCount + 1;
-  if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount))
-  {
+  if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount)) {
     image_count = capabilities.maxImageCount;
   }
+  Assert(image_count <= RHI_VK_SWAPCHAIN_MAX_IMAGES)
 
   VkSwapchainCreateInfoKHR swapchain_info = {
     .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -493,23 +425,18 @@ RHI_VK_CreateSwapchain(OS_Window* window)
     .preTransform = capabilities.currentTransform,
     .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
     .presentMode = present_mode,
-    .clipped = true,
+    .clipped = 0,
     .oldSwapchain = 0
   };
 
-  VK_CHECK(vkCreateSwapchainKHR(_rhi_vk_state.device.logical, &swapchain_info, 0, &_rhi_vk_state.swapchain.handle));
+  VK_CHECK(vkCreateSwapchainKHR(_rhi_vk_state.device.logical, &swapchain_info, 0, &_rhi_vk_state.swapchain.vk));
 	_rhi_vk_state.swapchain.window = window;
 
-  VK_CHECK(vkGetSwapchainImagesKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.handle, &_rhi_vk_state.swapchain.image_count, 0));
-  // --AlNov 7 January 2026: @TODO Why Arena is used?
-  _rhi_vk_state.swapchain.image_arena = AllocateArena(Megabytes(8), Megabytes(8));
-  VkImage* images = (VkImage*)PushArena(_rhi_vk_state.swapchain.image_arena, _rhi_vk_state.swapchain.image_count * sizeof(VkImage));
-  VK_CHECK(vkGetSwapchainImagesKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.handle, &_rhi_vk_state.swapchain.image_count, images));
+  VK_CHECK(vkGetSwapchainImagesKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, &_rhi_vk_state.swapchain.image_count, 0));
+  VkImage images[RHI_VK_SWAPCHAIN_MAX_IMAGES] = ZeroStruct();
+  VK_CHECK(vkGetSwapchainImagesKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, &_rhi_vk_state.swapchain.image_count, images));
 
-  _rhi_vk_state.swapchain.frame_resources = (FrameResources*)PushArena(_rhi_vk_state.swapchain.image_arena, _rhi_vk_state.swapchain.image_count * sizeof(FrameResources));
-  _rhi_vk_state.swapchain.textures = (RHI_Texture*)PushArena(_rhi_vk_state.swapchain.image_arena, _rhi_vk_state.swapchain.image_count*sizeof(RHI_Texture));
-  for (U32 i = 0; i < _rhi_vk_state.swapchain.image_count; i += 1)
-  {
+  for (U32 i = 0; i < _rhi_vk_state.swapchain.image_count; i += 1) {
     VkImageView image_view = {0};
 
     VkImageViewCreateInfo view_info = {
@@ -527,8 +454,6 @@ RHI_VK_CreateSwapchain(OS_Window* window)
     };
 
     VK_CHECK(vkCreateImageView(_rhi_vk_state.device.logical, &view_info, 0, &image_view));
-    
-    _rhi_vk_state.swapchain.frame_resources[i] = RHI_VK_CreateFrameResources();
 
     RHI_VK_Texture vk_texture = {
       .format = RHI_VK_FormatFromVk(_rhi_vk_state.swapchain.surface_format.format),
@@ -543,74 +468,65 @@ RHI_VK_CreateSwapchain(OS_Window* window)
     };
 
     _rhi_vk_state.swapchain.textures[i] = RHI_VK_TextureArrayAdd(&_rhi_vk_state.textures, vk_texture);
+
+    VkSemaphoreCreateInfo semaphore_info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+    VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, &_rhi_vk_state.swapchain.render_finished_semaphores[i]));
   }
 }
 
 func void
-RHI_VK_DestroySwapchain(void)
-{
+RHI_VK_DestroySwapchain() {
   vkDeviceWaitIdle(_rhi_vk_state.device.logical);
 
-  for (I32 i = 0; i < _rhi_vk_state.swapchain.image_count; i += 1)
-  {
-    RHI_VK_DestroyFrameResources(&_rhi_vk_state.swapchain.frame_resources[i]);
+  for (I32 i = 0; i < _rhi_vk_state.swapchain.image_count; i += 1) {
     RHI_VK_DestroyTexture(_rhi_vk_state.swapchain.textures[i]);
+    vkDestroySemaphore(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.render_finished_semaphores[i], 0);
   }
-  vkDestroySwapchainKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.handle, 0);
+  vkDestroySwapchainKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, 0);
   vkDestroySurfaceKHR(_rhi_vk_state.instance, _rhi_vk_state.swapchain.surface, 0);
-
-  FreeArena(_rhi_vk_state.swapchain.image_arena);
 }
 
 func void
-RHI_VK_RecreateSwapchain(OS_Window* window)
-{
+RHI_VK_RecreateSwapchain(OS_Window* window) {
   LogInfo("Recreate Swapchain\n");
   RHI_VK_DestroySwapchain();
   RHI_VK_CreateSwapchain(window);
 }
 
 func RHI_TextureFormat
-RHI_VK_GetSwapchainTextureFormat()
-{
+RHI_VK_GetSwapchainTextureFormat() {
   return RHI_VK_TextureFormatFromVkFormat(_rhi_vk_state.swapchain.surface_format.format);
 }
 
 func RHI_Texture
-RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer)
-{
+RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  vkWaitForFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame, VK_TRUE, U64_MAX);
-
-	while(1)
-	{
+	while(1) {
 		VkResult acquire_result = vkAcquireNextImageKHR(
-			_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.handle, U64_MAX,
+			_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, U64_MAX,
 			vk_command_buffer->acquire_semaphore[_rhi_vk_state.current_frame], 0,
 			&_rhi_vk_state.current_target
 		);
 
-		if (acquire_result == VK_SUCCESS)
-		{
+		if (acquire_result == VK_SUCCESS) {
 			break;
 		}
-		else if (acquire_result == VK_SUBOPTIMAL_KHR || acquire_result == VK_ERROR_OUT_OF_DATE_KHR)
-		{
+		else if (acquire_result == VK_SUBOPTIMAL_KHR || acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
+      LogInfo("Swapchain should be recreated\n");
 			RHI_VK_RecreateSwapchain(_rhi_vk_state.swapchain.window);
 		}
-		else if (acquire_result == VK_NOT_READY || acquire_result == VK_TIMEOUT)
-		{
+		else if (acquire_result == VK_NOT_READY || acquire_result == VK_TIMEOUT) {
 			continue;
 		}
-		else
-		{
+		else {
 			Assert(acquire_result == VK_SUCCESS);
 		}
 	}
 
-	vkResetFences(_rhi_vk_state.device.logical, 1, &vk_command_buffer->submit_fence[_rhi_vk_state.current_frame]);
-
+  vk_command_buffer->current_swapchain_texture = RHI_VK_TextureFromHandle(_rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target]);
   return _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target];
 }
 
@@ -676,7 +592,7 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
   for (I32 i = 0; i < uniform_buffers_count; i += 1) {
     RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(uniform_infos[i].buffer);
     VkDescriptorBufferInfo buffer_info = {
-      .buffer = vk_buffer->handle,
+      .buffer = vk_buffer->vk,
       .offset = uniform_infos[i].offset,
       .range = uniform_infos[i].size,
     };
@@ -698,10 +614,10 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
     RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler_infos[i - start_index].sampler);
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(sampler_infos[i - start_index].texture);
   
-    RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     VkDescriptorImageInfo image_info = {
-      .sampler = vk_sampler->handle,
+      .sampler = vk_sampler->vk,
       .imageView = vk_texture->view,
       .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
@@ -722,7 +638,7 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
   vkUpdateDescriptorSets(_rhi_vk_state.device.logical, writes_count, write_infos, 0, 0);
 
   vkCmdBindDescriptorSets(
-    vk_command_buffer->handle[_rhi_vk_state.current_frame],
+    vk_command_buffer->vk[_rhi_vk_state.current_frame],
     VK_PIPELINE_BIND_POINT_GRAPHICS,
     vk_command_buffer->binded_graphics_pipeline->layout,
     set_slot, 1, &descriptor_pool->vk_sets[pool_id][set_id], 0, 0
@@ -730,17 +646,15 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
   descriptor_pool->sets_count += 1;
 }
 
-// --------------------------------------------------
-// Pipeline
+// -------------------------------------------------------------------
+// -- Pipeline -------------------------------------------------------
 func RHI_VK_GraphicsPipeline*
-RHI_VK_GraphicsPipelineFromHandle(RHI_GraphicsPipeline pipeline)
-{
+RHI_VK_GraphicsPipelineFromHandle(RHI_GraphicsPipeline pipeline) {
   return RHI_VK_GraphicsPipelineArrayGetPointer(&_rhi_vk_state.graphics_pipelines, pipeline);
 }
 
 func RHI_GraphicsPipeline
-RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
-{
+RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   RHI_VK_GraphicsPipeline pipeline = {0};
 	pipeline.vertex_global_uniforms_count = pipeline_info->vertex_shader.global_uniforms_count;
   pipeline.vertex_global_samplers_count = pipeline_info->vertex_shader.global_samplers_count;
@@ -751,20 +665,20 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 	pipeline.fragment_instance_uniforms_count = pipeline_info->fragment_shader.instance_uniforms_count;
   pipeline.fragment_instance_samplers_count = pipeline_info->fragment_shader.instance_samplers_count;
 
+  // --AlNov: @TODO Is this code could be compressed?
 	VkDescriptorSetLayout set_layouts[4] = {0};
 	I32 set_layouts_count = 0;
 	{
 		VkDescriptorSetLayoutBinding vertex_global_bindings[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET + RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.vertex_global_uniforms_count; i += 1)
-		{
+		for (I32 i = 0; i < pipeline.vertex_global_uniforms_count; i += 1) {
 			vertex_global_bindings[i].binding = i; // @TODO Add more bindings
 			vertex_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			vertex_global_bindings[i].descriptorCount = 1;
 			vertex_global_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 			vertex_global_bindings[i].pImmutableSamplers = 0;
 		};
-    for (I32 i = pipeline.vertex_global_uniforms_count; i < pipeline.vertex_global_uniforms_count + pipeline.vertex_global_samplers_count; i += 1)
-    {
+
+    for (I32 i = pipeline.vertex_global_uniforms_count; i < pipeline.vertex_global_uniforms_count + pipeline.vertex_global_samplers_count; i += 1) {
 			vertex_global_bindings[i].binding = i; // @TODO Add more bindings
 			vertex_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			vertex_global_bindings[i].descriptorCount = 1;
@@ -785,16 +699,14 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 
 	{
 		VkDescriptorSetLayoutBinding vertex_instance_bindings[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET + RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.vertex_instance_uniforms_count; i += 1)
-		{
+		for (I32 i = 0; i < pipeline.vertex_instance_uniforms_count; i += 1) {
 			vertex_instance_bindings[i].binding = i; // @TODO Add more bindings
 			vertex_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			vertex_instance_bindings[i].descriptorCount = 1;
 			vertex_instance_bindings[i].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 			vertex_instance_bindings[i].pImmutableSamplers = 0;
 		};
-    for (I32 i = pipeline.vertex_instance_uniforms_count; i < pipeline.vertex_instance_uniforms_count + pipeline.vertex_instance_samplers_count; i += 1)
-    {
+    for (I32 i = pipeline.vertex_instance_uniforms_count; i < pipeline.vertex_instance_uniforms_count + pipeline.vertex_instance_samplers_count; i += 1) {
 			vertex_instance_bindings[i].binding = i; // @TODO Add more bindings
 			vertex_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			vertex_instance_bindings[i].descriptorCount = 1;
@@ -815,16 +727,14 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 
 	{
 		VkDescriptorSetLayoutBinding fragment_global_bindings[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET + RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.fragment_global_uniforms_count; i += 1)
-		{
+		for (I32 i = 0; i < pipeline.fragment_global_uniforms_count; i += 1) {
 			fragment_global_bindings[i].binding = i; // @TODO Add more bindings
 			fragment_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			fragment_global_bindings[i].descriptorCount = 1;
 			fragment_global_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 			fragment_global_bindings[i].pImmutableSamplers = 0;
 		};
-    for (I32 i = pipeline.fragment_global_uniforms_count; i < pipeline.fragment_global_uniforms_count + pipeline.fragment_global_samplers_count; i += 1)
-    {
+    for (I32 i = pipeline.fragment_global_uniforms_count; i < pipeline.fragment_global_uniforms_count + pipeline.fragment_global_samplers_count; i += 1) {
 			fragment_global_bindings[i].binding = i; // @TODO Add more bindings
 			fragment_global_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			fragment_global_bindings[i].descriptorCount = 1;
@@ -845,16 +755,14 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 
 	{
 		VkDescriptorSetLayoutBinding fragment_instance_bindings[RHI_VK_MAX_UNIFORM_BUFFERS_PER_SET + RHI_VK_MAX_SAMPLERS_PER_SET] = {0};
-		for (I32 i = 0; i < pipeline.fragment_instance_uniforms_count; i += 1)
-		{
+		for (I32 i = 0; i < pipeline.fragment_instance_uniforms_count; i += 1) {
 			fragment_instance_bindings[i].binding = i; // @TODO Add more bindings
 			fragment_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			fragment_instance_bindings[i].descriptorCount = 1;
 			fragment_instance_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 			fragment_instance_bindings[i].pImmutableSamplers = 0;
 		};
-    for (I32 i = pipeline.fragment_instance_uniforms_count; i < pipeline.fragment_instance_uniforms_count + pipeline.fragment_instance_samplers_count; i += 1)
-    {
+    for (I32 i = pipeline.fragment_instance_uniforms_count; i < pipeline.fragment_instance_uniforms_count + pipeline.fragment_instance_samplers_count; i += 1) {
 			fragment_instance_bindings[i].binding = i; // @TODO Add more bindings
 			fragment_instance_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			fragment_instance_bindings[i].descriptorCount = 1;
@@ -882,8 +790,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 
 	U32 stride = 0;
   VkVertexInputAttributeDescription attribute_descriptions[RHI_MAX_VERTEX_ATTRIBUTES];
-  for (U32 i = 0; i < pipeline_info->vertex_attributes_count; i += 1)
-  {
+  for (U32 i = 0; i < pipeline_info->vertex_attributes_count; i += 1) {
 		RHI_VertexAttribute* vertex_attribute = pipeline_info->vertex_attributes + i;
 
 		attribute_descriptions[i].location = vertex_attribute->location,
@@ -911,17 +818,17 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
   VkPipelineInputAssemblyStateCreateInfo input_assembly = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
     .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    .primitiveRestartEnable = false
+    .primitiveRestartEnable = 0,
   };
 
   VkPipelineRasterizationStateCreateInfo rasterization = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-    .depthClampEnable = false,
-    .rasterizerDiscardEnable = false,
+    .depthClampEnable = 0,
+    .rasterizerDiscardEnable = 0,
     .polygonMode = VK_POLYGON_MODE_FILL,
     .cullMode = 0,
     .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-    .depthBiasEnable = false,
+    .depthBiasEnable = 0,
     .lineWidth = 1.0f
   };
 
@@ -932,15 +839,14 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 
   // @TODO Support multiple attachments
   VkPipelineColorBlendAttachmentState blend_attachments[8] = {0};
-  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1)
-  {
+  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1) {
     blend_attachments[i].blendEnable = pipeline_info->color_target_infos[i].blend_enable;
-    blend_attachments[i].srcColorBlendFactor=VK_BLEND_FACTOR_SRC_ALPHA;
-    blend_attachments[i].dstColorBlendFactor=VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    blend_attachments[i].colorBlendOp=VK_BLEND_OP_ADD;
-    blend_attachments[i].srcAlphaBlendFactor=VK_BLEND_FACTOR_ONE;
-    blend_attachments[i].dstAlphaBlendFactor=VK_BLEND_FACTOR_ZERO;
-    blend_attachments[i].alphaBlendOp=VK_BLEND_OP_ADD;
+    blend_attachments[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blend_attachments[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blend_attachments[i].colorBlendOp = VK_BLEND_OP_ADD;
+    blend_attachments[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    blend_attachments[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    blend_attachments[i].alphaBlendOp = VK_BLEND_OP_ADD;
     blend_attachments[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
   }
 
@@ -1044,9 +950,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
     .renderPass = tmp_render_pass,
     .subpass = 0,
   };
-  VK_CHECK(vkCreateGraphicsPipelines(_rhi_vk_state.device.logical,
-                                     0, 1, &vk_pipeline_info, 0,
-                                     &pipeline.handle));
+  VK_CHECK(vkCreateGraphicsPipelines(_rhi_vk_state.device.logical, 0, 1, &vk_pipeline_info, 0, &pipeline.vk));
 
   vkDestroyRenderPass(_rhi_vk_state.device.logical, tmp_render_pass, 0);
   vkDestroyShaderModule(_rhi_vk_state.device.logical, vertex_module, 0);
@@ -1056,56 +960,48 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info)
 }
 
 func void
-RHI_VK_DestroyGraphicsPipeline(RHI_GraphicsPipeline pipeline)
-{
+RHI_VK_DestroyGraphicsPipeline(RHI_GraphicsPipeline pipeline) {
   RHI_VK_GraphicsPipeline* vk_pipeline = RHI_VK_GraphicsPipelineFromHandle(pipeline);
   vkDestroyDescriptorSetLayout(_rhi_vk_state.device.logical, vk_pipeline->vertex_global_set_layout, 0);
   vkDestroyDescriptorSetLayout(_rhi_vk_state.device.logical, vk_pipeline->fragment_global_set_layout, 0);
   vkDestroyPipelineLayout(_rhi_vk_state.device.logical, vk_pipeline->layout, 0);
-  vkDestroyPipeline(_rhi_vk_state.device.logical, vk_pipeline->handle, 0);
+  vkDestroyPipeline(_rhi_vk_state.device.logical, vk_pipeline->vk, 0);
 }
 
 func void
-RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline)
-{
+RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_GraphicsPipeline* vk_pipeline = RHI_VK_GraphicsPipelineFromHandle(pipeline);
 
-	vkCmdBindPipeline(vk_command_buffer->handle[_rhi_vk_state.current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->handle);
+	vkCmdBindPipeline(vk_command_buffer->vk[_rhi_vk_state.current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->vk);
 	vk_command_buffer->binded_graphics_pipeline = vk_pipeline;
 }
 
-// --------------------------------------------------
-// Render Pass
+// -------------------------------------------------------------------
+// -- Render Pass ----------------------------------------------------
 func B32
-RHI_RenderPassEqual(RHI_RenderPass a, RHI_RenderPass b)
-{
+RHI_RenderPassEqual(RHI_RenderPass a, RHI_RenderPass b) {
   B32 result = 1;
 
   if (a.color_targets_count != b.color_targets_count) result = 0;
 
-  for (I32 i = 0; i < a.color_targets_count; i += 1)
-  {
+  for (I32 i = 0; i < a.color_targets_count; i += 1) {
     RHI_VK_Texture* vk_texture_a = RHI_VK_TextureFromHandle(a.color_targets[i].texture);
     RHI_VK_Texture* vk_texture_b = RHI_VK_TextureFromHandle(b.color_targets[i].texture);
 
-    if (vk_texture_a->format != vk_texture_b->format)
-    {
+    if (vk_texture_a->format != vk_texture_b->format) {
       result = 0;
       break;
     }
-    else if (a.color_targets[i].load_operation != b.color_targets[i].load_operation)
-    {
+    else if (a.color_targets[i].load_operation != b.color_targets[i].load_operation) {
       result = 0;
       break;
     }
-    else if (a.color_targets[i].store_operation != b.color_targets[i].store_operation)
-    {
+    else if (a.color_targets[i].store_operation != b.color_targets[i].store_operation) {
       result = 0;
       break;
     }
-    else if (!EqualVec4F32(a.color_targets[i].clear_color, b.color_targets[i].clear_color))
-    {
+    else if (!EqualVec4F32(a.color_targets[i].clear_color, b.color_targets[i].clear_color)) {
       result = 0;
       break;
     }
@@ -1113,20 +1009,16 @@ RHI_RenderPassEqual(RHI_RenderPass a, RHI_RenderPass b)
   
   RHI_VK_Texture* vk_texture_depth_stencil_a = RHI_VK_TextureFromHandle(a.depth_stencil_target.texture);
   RHI_VK_Texture* vk_texture_depth_stencil_b = RHI_VK_TextureFromHandle(b.depth_stencil_target.texture);
-  if (vk_texture_depth_stencil_a->format != vk_texture_depth_stencil_b->format)
-  {
+  if (vk_texture_depth_stencil_a->format != vk_texture_depth_stencil_b->format) {
     result = 0;
   }
-  else if (a.depth_stencil_target.load_operation != b.depth_stencil_target.load_operation)
-  {
+  else if (a.depth_stencil_target.load_operation != b.depth_stencil_target.load_operation) {
     result = 0;
   }
-  else if (a.depth_stencil_target.store_operation != b.depth_stencil_target.store_operation)
-  {
+  else if (a.depth_stencil_target.store_operation != b.depth_stencil_target.store_operation) {
     result = 0;
   }
-  else if (a.depth_stencil_target.clear_depth != b.depth_stencil_target.clear_depth)
-  {
+  else if (a.depth_stencil_target.clear_depth != b.depth_stencil_target.clear_depth) {
     result = 0;
   }
 
@@ -1134,8 +1026,7 @@ RHI_RenderPassEqual(RHI_RenderPass a, RHI_RenderPass b)
 }
 
 func RHI_VK_RenderPass*
-RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
-{
+RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target) {
   RHI_VK_RenderPass* result = 0;
 
   RHI_VK_RenderPass render_pass = ZeroStruct();
@@ -1143,8 +1034,7 @@ RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets,
   VkAttachmentReference references[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
 
   render_pass.header.color_targets_count = color_targets_count;
-  for (I32 i = 0; i < color_targets_count; i += 1)
-  {
+  for (I32 i = 0; i < color_targets_count; i += 1) {
     RHI_ColorTarget* target = color_targets + i;
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target->texture);
     attachments[i].flags = 0;
@@ -1163,8 +1053,7 @@ RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets,
     render_pass.header.color_targets[i] = *target;
   }
 
-  if (depth_stencil_target != 0)
-  {
+  if (depth_stencil_target != 0) {
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
     attachments[color_targets_count] = (VkAttachmentDescription){
       .flags = 0,
@@ -1187,19 +1076,16 @@ RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets,
   }
 
   B32 found = 0;
-  for (I32 i = 0; i < _rhi_vk_state.render_passes.length; i += 1)
-  {
+  for (I32 i = 0; i < _rhi_vk_state.render_passes.length; i += 1) {
     RHI_VK_RenderPass* vk_render_pass = RHI_VK_RenderPassArrayGetPointer(&_rhi_vk_state.render_passes, i);
-    if (RHI_RenderPassEqual(render_pass.header, vk_render_pass->header))
-    {
+    if (RHI_RenderPassEqual(render_pass.header, vk_render_pass->header)) {
       found = 1;
       result = vk_render_pass;
       break;
     }
   }
 
-  if (!found)
-  {
+  if (!found) {
     VkSubpassDescription subpass = {
       .flags = 0,
       .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1233,15 +1119,13 @@ RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets,
   return result;
 }
 
-func VkRenderPass RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info)
-{
+func VkRenderPass RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   VkRenderPass result = 0;
 
   VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
   VkAttachmentReference references[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
 
-  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1)
-  {
+  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1) {
     RHI_GraphicsPipelineColorTargetInfo* target_info = pipeline_info->color_target_infos + i;
     attachments[i].flags = 0;
     attachments[i].format = RHI_VK_GetVkFormat(target_info->format);
@@ -1259,8 +1143,7 @@ func VkRenderPass RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* p
 
   RHI_PipelineDepthStencilState* depth_stencil_info = &pipeline_info->depth_stencil_state;
   B32 has_depth_stencil = depth_stencil_info->depth_test_enable || depth_stencil_info->depth_write_enable;
-  if (has_depth_stencil)
-  {
+  if (has_depth_stencil) {
     attachments[pipeline_info->color_targets_count] = (VkAttachmentDescription){
       .flags = 0,
       .format = RHI_VK_GetVkFormat(depth_stencil_info->depth_target_format),
@@ -1308,32 +1191,28 @@ func VkRenderPass RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* p
 }
 
 func RHI_RenderPass*
-RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
-{
+RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
   RHI_VK_RenderPass* render_pass = RHI_VK_CreateRenderPass(color_targets_count, color_targets, depth_stencil_target);
 
-  if (render_pass->framebuffer != 0)
-  {
+  if (render_pass->framebuffer != 0) {
     VkClearValue clear_values[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
-    for (I32 i = 0; i < color_targets_count; i += 1)
-    {
+    for (I32 i = 0; i < color_targets_count; i += 1) {
       clear_values[i].color.float32[0] = color_targets[i].clear_color.r;
       clear_values[i].color.float32[1] = color_targets[i].clear_color.g;
       clear_values[i].color.float32[2] = color_targets[i].clear_color.b;
       clear_values[i].color.float32[3] = color_targets[i].clear_color.a;
 
       RHI_VK_Texture* vk_attachment_texture = RHI_VK_TextureFromHandle(color_targets[i].texture);
-      RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+      RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
 
-    if (depth_stencil_target != 0)
-    {
+    if (depth_stencil_target != 0) {
       clear_values[color_targets_count].depthStencil.depth = depth_stencil_target->clear_depth;
 
       RHI_VK_Texture* vk_depth_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
-      RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
     }
 
     VkRenderPassBeginInfo begin_info = {
@@ -1350,124 +1229,51 @@ RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count
       .pClearValues = clear_values,
     };
 
-    vkCmdBeginRenderPass(vk_command_buffer->handle[_rhi_vk_state.current_frame], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
+    vkCmdBeginRenderPass(vk_command_buffer->vk[_rhi_vk_state.current_frame], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
     vk_command_buffer->active_render_pass = render_pass;
   }
 
 	return 0; // @TODO
 }
 
-func RHI_RenderPass*
-RHI_VK_BeginRenderPassOld(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target)
-{
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-
-  RHI_VK_CreateRenderPass(color_targets_count, color_targets, depth_stencil_target);
-
-  // --AlNov: @TODO Only one now
-  VkRenderingAttachmentInfo vk_color_attachment_infos[2] = {0};
-  for (I32 i = 0; i < color_targets_count; i += 1)
-  {
-    RHI_VK_Texture* vk_attachment_texture = RHI_VK_TextureFromHandle(color_targets[i].texture);
-
-    VkClearValue clear_value = {0};
-    clear_value.color.float32[0] = color_targets[i].clear_color.r;
-    clear_value.color.float32[1] = color_targets[i].clear_color.g;
-    clear_value.color.float32[2] = color_targets[i].clear_color.b;
-    clear_value.color.float32[3] = color_targets[i].clear_color.a;
-
-    vk_color_attachment_infos[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    vk_color_attachment_infos[i].imageView = vk_attachment_texture->view;
-    vk_color_attachment_infos[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    vk_color_attachment_infos[i].loadOp = RHI_VK_GetVkAttachmentLoadOperation(color_targets[0].load_operation);
-    vk_color_attachment_infos[i].storeOp = RHI_VK_GetVkAttachmentStoreOperation(color_targets[0].store_operation);
-    vk_color_attachment_infos[i].clearValue = clear_value;
-
-    RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-  }
-
-  VkRenderingAttachmentInfo vk_depth_attachment_info = {0};
-  vk_depth_attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-  if (depth_stencil_target != 0)
-  {
-    RHI_VK_Texture* vk_depth_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
-    vk_depth_attachment_info.imageView = vk_depth_texture->view;
-    vk_depth_attachment_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    vk_depth_attachment_info.loadOp = RHI_VK_GetVkAttachmentLoadOperation(depth_stencil_target->load_operation);
-    vk_depth_attachment_info.storeOp = RHI_VK_GetVkAttachmentStoreOperation(depth_stencil_target->store_operation);
-    vk_depth_attachment_info.clearValue.depthStencil.depth = depth_stencil_target->clear_depth;
-
-    RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-  }
-
-  VkRenderingInfo rendering_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-    .renderArea = {
-      .offset.x = vk_command_buffer->current_viewport.x,
-      .offset.y = vk_command_buffer->current_viewport.y,
-      .extent.width = vk_command_buffer->current_viewport.width,
-      .extent.height = vk_command_buffer->current_viewport.height,
-    },
-    .layerCount = 1,
-    .colorAttachmentCount = color_targets_count,
-    .pColorAttachments = vk_color_attachment_infos,
-    .pDepthAttachment = &vk_depth_attachment_info,
-  };
-  
-  vkCmdBeginRendering(vk_command_buffer->handle[_rhi_vk_state.current_frame], &rendering_info);
-
-	return 0; // @TODO
-}
-
 func void
-RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass)
-{
+RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  if (vk_command_buffer->active_render_pass != 0)
-  {
-    vkCmdEndRenderPass(vk_command_buffer->handle[_rhi_vk_state.current_frame]);
+  if (vk_command_buffer->active_render_pass != 0) {
+    vkCmdEndRenderPass(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
     vk_command_buffer->active_render_pass = 0;
   }
 }
 
 func void
-RHI_VK_EndRenderPassOld(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass)
-{
+RHI_VK_EndRenderPassOld(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  vkCmdEndRendering(vk_command_buffer->handle[_rhi_vk_state.current_frame]);
+  vkCmdEndRendering(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
 }
 
 // -------------------------------------------------------------------
-// -- Framebuffer
+// -- Framebuffer ----------------------------------------------------
 func B32
-RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b)
-{
+RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b) {
   B32 result = 1;
 
-  if (a.color_attachments_count != b.color_attachments_count)
-  {
+  if (a.color_attachments_count != b.color_attachments_count) {
     result = 0;
   }
-  else if (a.depth_stencil_attachment != b.depth_stencil_attachment)
-  {
+  else if (a.depth_stencil_attachment != b.depth_stencil_attachment) {
     result = 0;
   }
-  else if (a.size.x != b.size.x)
-  {
+  else if (a.size.x != b.size.x) {
     result = 0;
   }
-  else if (a.size.y != b.size.y)
-  {
+  else if (a.size.y != b.size.y) {
     result = 0;
   }
 
-  for (I32 i = 0; i < a.color_attachments_count; i += 1)
-  {
-    if (a.color_attachments[i] != b.color_attachments[i])
-    {
+  for (I32 i = 0; i < a.color_attachments_count; i += 1) {
+    if (a.color_attachments[i] != b.color_attachments[i]) {
       result = 0;
       break;
     }
@@ -1477,8 +1283,7 @@ RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b)
 }
 
 func RHI_VK_Framebuffer*
-RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_targets, I32 color_targets_count, RHI_DepthStencilTarget* depth_stencil_target)
-{
+RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_targets, I32 color_targets_count, RHI_DepthStencilTarget* depth_stencil_target) {
   RHI_VK_Framebuffer* result = 0;
   RHI_VK_Framebuffer framebuffer = ZeroStruct();
 
@@ -1487,8 +1292,7 @@ RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_
   framebuffer.color_attachments_count = color_targets_count;
   framebuffer.size = MakeVec2I32(I32_MAX, I32_MAX);
 
-  for (I32 i = 0; i < color_targets_count; i += 1)
-  {
+  for (I32 i = 0; i < color_targets_count; i += 1) {
     RHI_ColorTarget* target = color_targets + i;
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target->texture);
     attachments[i] = vk_texture->view;
@@ -1497,8 +1301,7 @@ RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_
     framebuffer.size.y = Min(framebuffer.size.y, vk_texture->size.y);
   }
 
-  if (depth_stencil_target != 0)
-  {
+  if (depth_stencil_target != 0) {
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
     attachments[color_targets_count] = vk_texture->view;
     framebuffer.depth_stencil_attachment = vk_texture->view;
@@ -1506,21 +1309,17 @@ RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_
     framebuffer.size.y = Min(framebuffer.size.y, vk_texture->size.y);
   }
 
-  if (framebuffer.size.x != 0 && framebuffer.size.y != 0)
-  {
+  if (framebuffer.size.x != 0 && framebuffer.size.y != 0) {
     B32 found = 0;
-    for (I32 i = 0; i < _rhi_vk_state.framebuffers.length; i += 1)
-    {
+    for (I32 i = 0; i < _rhi_vk_state.framebuffers.length; i += 1) {
       RHI_VK_Framebuffer* compare = RHI_VK_FramebufferArrayGetPointer(&_rhi_vk_state.framebuffers, i);
-      if (RHI_VK_EqualFramebuffer(framebuffer, *compare))
-      {
+      if (RHI_VK_EqualFramebuffer(framebuffer, *compare)) {
         found = 1;
         result = compare;
       }
     }
 
-    if (!found)
-    {
+    if (!found) {
       VkFramebufferCreateInfo framebuffer_info = {
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         .flags = 0,
@@ -1542,10 +1341,9 @@ RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_
 }
 
 // -------------------------------------------------------------------
-// Draw
+// -- Draw -----------------------------------------------------------
 func void
-RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport)
-{
+RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
 	VkViewport vk_viewport = {
@@ -1556,13 +1354,12 @@ RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport)
     .minDepth = 0.0f,
     .maxDepth = 1.0f,
 	};
-	vkCmdSetViewport(vk_command_buffer->handle[_rhi_vk_state.current_frame], 0, 1, &vk_viewport);
+	vkCmdSetViewport(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_viewport);
   vk_command_buffer->current_viewport = vk_viewport;
 }
 
 func void
-RHI_VK_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor)
-{
+RHI_VK_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 	VkRect2D vk_scissor = {
 		.offset.x = scissor.x,
@@ -1570,96 +1367,82 @@ RHI_VK_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor)
 		.extent.width = scissor.w,
 		.extent.height = scissor.h,
 	};
-	vkCmdSetScissor(vk_command_buffer->handle[_rhi_vk_state.current_frame], 0, 1, &vk_scissor);
+	vkCmdSetScissor(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_scissor);
 }
 
 func void
-RHI_VK_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance)
-{
+RHI_VK_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  if (vk_command_buffer->active_render_pass != 0)
-  {
-    vkCmdDraw(vk_command_buffer->handle[_rhi_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
+  if (vk_command_buffer->active_render_pass != 0) {
+    vkCmdDraw(vk_command_buffer->vk[_rhi_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
   }
 }
 
 func void
-RHI_VK_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance)
-{
+RHI_VK_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance) {
 	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  if (vk_command_buffer->active_render_pass != 0)
-  {
-    vkCmdDrawIndexed(vk_command_buffer->handle[_rhi_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
+  if (vk_command_buffer->active_render_pass != 0) {
+    vkCmdDrawIndexed(vk_command_buffer->vk[_rhi_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
   }
 }
 
 func void
-RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture)
-{
+RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
+#if 0
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
 
-  if (vk_texture->from_swapchain)
-  {
-    VkCommandBuffer single_cmd = RHI_VK_BeginSingleCmd();
-    {
-      RHI_VK_ChangeTextureLayout(single_cmd, RHI_VK_TextureFromHandle(_rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target]), VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    }
-    RHI_VK_EndSingleCmd(single_cmd);
-
+  if (vk_texture->from_swapchain) {
     VkPresentInfoKHR present_info = {
       .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-      .waitSemaphoreCount = 0,
-      .pWaitSemaphores = &_rhi_vk_state.swapchain.frame_resources[_rhi_vk_state.current_target].release_semaphore, // @TODO change location of release_semaphore
+      .waitSemaphoreCount = 1,
+      .pWaitSemaphores = &_rhi_vk_state.swapchain.frame_resources[_rhi_vk_state.current_frame].release_semaphore, // @TODO change location of release_semaphore
       .swapchainCount = 1,
-      .pSwapchains = &_rhi_vk_state.swapchain.handle,
+      .pSwapchains = &_rhi_vk_state.swapchain.vk,
       .pImageIndices = &_rhi_vk_state.current_target,
     };
 
     vkQueuePresentKHR(_rhi_vk_state.device.graphics_queue, &present_info);
   }
-  else
-  {
+  else {
     LogWarning("Trying to present image not from swapchain\n");
     return;
   }
-
+#endif
 }
 
 // -------------------------------------------------------------------
-// Texture
+// -- Texture --------------------------------------------------------
 func RHI_VK_Texture*
-RHI_VK_TextureFromHandle(RHI_Texture handle)
-{
-  return RHI_VK_TextureArrayGetPointer(&_rhi_vk_state.textures, handle);
+RHI_VK_TextureFromHandle(RHI_Texture vk) {
+  return RHI_VK_TextureArrayGetPointer(&_rhi_vk_state.textures, vk);
 }
 
 func RHI_Texture
-RHI_VK_CreateTexture(RHI_TextureCreateInfo* info)
-{
+RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
   RHI_VK_Texture texture = {0};
   texture.format = info->format;
   texture.size.x = info->width;
   texture.size.y = info->height;
 
   VkImageCreateInfo image_info = {0};
-  image_info.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
-  image_info.imageType     = RHI_VK_GetVkImageType(info->type);
-  image_info.extent.width  = info->width;
-  image_info.extent.height = info->height;
-  image_info.extent.depth  = info->depth;
-  image_info.mipLevels     = 1;
-  image_info.arrayLayers   = 1;
-  image_info.format        = RHI_VK_GetVkFormat(info->format);
-  image_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
+  image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_info.imageType = RHI_VK_GetVkImageType(info->type);
+  image_info.extent.width = info->width;
+  image_info.extent.height= info->height;
+  image_info.extent.depth = info->depth;
+  image_info.mipLevels = 1;
+  image_info.arrayLayers = 1;
+  image_info.format = RHI_VK_GetVkFormat(info->format);
+  image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
   image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  image_info.usage         = RHI_VK_GetVkImageUsageFlags(info->usage_flags);
-  image_info.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
-  image_info.samples       = VK_SAMPLE_COUNT_1_BIT;
-  if (vkCreateImage(_rhi_vk_state.device.logical, &image_info, 0, &texture.image) != VK_SUCCESS)
-  {
+  image_info.usage = RHI_VK_GetVkImageUsageFlags(info->usage_flags);
+  image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  if (vkCreateImage(_rhi_vk_state.device.logical, &image_info, 0, &texture.image) != VK_SUCCESS) {
     LogError("Cannot create Image for Texture.\n");
     return RHI_NIL;
   }
@@ -1677,81 +1460,71 @@ RHI_VK_CreateTexture(RHI_TextureCreateInfo* info)
   VK_CHECK(vkBindImageMemory(_rhi_vk_state.device.logical, texture.image, texture.memory, 0));
 
   VkImageAspectFlags texture_aspect = 0;
-  if((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT)
-  {
+  if((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) {
     texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     texture.aspect_mask = texture_aspect;
   }
-  else if ((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT)
-  {
+  else if ((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) {
     texture_aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     texture.aspect_mask = texture_aspect;
   }
-  else 
-  {
+  else {
     texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     texture.aspect_mask = texture_aspect;
   }
   
-  // AlNov: Create Texture Image View
   VkImageViewCreateInfo view_info = {0};
-  view_info.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  view_info.image                           = texture.image;
-  view_info.viewType                        = VK_IMAGE_VIEW_TYPE_2D; // @TODO
+  view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image = texture.image;
+  view_info.viewType = VK_IMAGE_VIEW_TYPE_2D; // @TODO
   view_info.format = RHI_VK_GetVkFormat(info->format);
-  view_info.subresourceRange.aspectMask     = texture_aspect;
-  view_info.subresourceRange.baseMipLevel   = 0;
-  view_info.subresourceRange.levelCount     = 1;
+  view_info.subresourceRange.aspectMask = texture_aspect;
+  view_info.subresourceRange.baseMipLevel = 0;
+  view_info.subresourceRange.levelCount = 1;
   view_info.subresourceRange.baseArrayLayer = 0;
-  view_info.subresourceRange.layerCount     = 1;
+  view_info.subresourceRange.layerCount = 1;
 
   VK_CHECK(vkCreateImageView(_rhi_vk_state.device.logical, &view_info, 0, &texture.view));
 
-  if (_rhi_vk_state.textures_free_list.length > 0)
-  {
+  if (_rhi_vk_state.textures_free_list.length > 0) {
     I32 index = RHI_VK_TextureFreeListRemoveSwapback(&_rhi_vk_state.textures_free_list, 0);
     RHI_VK_TextureArraySet(&_rhi_vk_state.textures, index, texture);
     return index;
   }
-  else
-  {
+  else {
     return RHI_VK_TextureArrayAdd(&_rhi_vk_state.textures, texture);  
   }
 }
 
 func B32
-RHI_VK_DestroyTexture(RHI_Texture texture)
-{
+RHI_VK_DestroyTexture(RHI_Texture texture) {
   RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
 
   vkDestroyImageView(_rhi_vk_state.device.logical, vk_texture->view, 0);
-  if (!vk_texture->from_swapchain)
-  {
+  if (!vk_texture->from_swapchain) {
     vkFreeMemory(_rhi_vk_state.device.logical, vk_texture->memory, 0);
     vkDestroyImage(_rhi_vk_state.device.logical, vk_texture->image, 0);
   }
 
-  RHI_VK_TextureArraySet(&_rhi_vk_state.textures, texture, RHI_VK_TextureDefaultValue);
+  RHI_VK_TextureArraySet(&_rhi_vk_state.textures, texture, RHI_VK_TextureNil);
   RHI_VK_TextureFreeListAdd(&_rhi_vk_state.textures_free_list, texture);
 
   return 1;
 }
 
 func void
-RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture)
-{
+RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture) {
   // --AlNov: @TODO Empty
 }
 
 func void
-RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination)
-{
+RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Texture* vk_source = RHI_VK_TextureFromHandle(source);
   RHI_VK_Texture* vk_destination = RHI_VK_TextureFromHandle(destination);
 
-  RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-  RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
   VkImageBlit blit_info = {
     .srcSubresource = {
@@ -1778,22 +1551,22 @@ RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Tex
     },
   };
   vkCmdBlitImage(
-      vk_command_buffer->handle[_rhi_vk_state.current_frame],
-      vk_source->image,
-      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-      vk_destination->image,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-      1, &blit_info, VK_FILTER_LINEAR);
+    vk_command_buffer->vk[_rhi_vk_state.current_frame],
+    vk_source->image,
+    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vk_destination->image,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    1, &blit_info, VK_FILTER_LINEAR
+  );
 }
 
 func U64
-RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer)
-{
+RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
-  RHI_VK_ChangeTextureLayout(vk_command_buffer->handle[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
   VkBufferImageCopy copy_info = {
     .bufferOffset = vk_buffer->size,
@@ -1816,16 +1589,16 @@ RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture
   };
 
   vkCmdCopyImageToBuffer(
-      vk_command_buffer->handle[_rhi_vk_state.current_frame],
-      vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-      vk_buffer->handle, 1, &copy_info);
+    vk_command_buffer->vk[_rhi_vk_state.current_frame],
+    vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vk_buffer->vk, 1, &copy_info
+  );
 
   return vk_buffer->size;
 }
 
 func void
-RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture)
-{
+RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
   RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
 
@@ -1852,28 +1625,24 @@ RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, 
         .depth = 1,
       },
     };
-    vkCmdCopyBufferToImage(single_cmd, vk_buffer->handle, vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
-
+    vkCmdCopyBufferToImage(single_cmd, vk_buffer->vk, vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
     RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
   }
   RHI_VK_EndSingleCmd(single_cmd);
 }
 
 func RHI_TextureFormat
-RHI_VK_GetTextureFormat(RHI_Texture texture)
-{
+RHI_VK_GetTextureFormat(RHI_Texture texture) {
   return RHI_VK_TextureFromHandle(texture)->format;
 }
 
 func Vec2I32
-RHI_VK_GetTextureDimension(RHI_Texture texture)
-{
+RHI_VK_GetTextureDimension(RHI_Texture texture) {
   return RHI_VK_TextureFromHandle(texture)->size;
 }
 
 func void
-RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImageLayout new_layout)
-{
+RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImageLayout new_layout) {
   if (texture->layout == new_layout) return;
 
   VkPipelineStageFlags source_stages = 0;
@@ -1889,91 +1658,76 @@ RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImage
   image_barrier.subresourceRange.baseArrayLayer = 0;
   image_barrier.subresourceRange.layerCount = 1;
 
-  if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED)
-  {
+  if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED) {
     source_stages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     image_barrier.srcAccessMask = 0;
     image_barrier.oldLayout = texture->layout;
   }
-  else if (texture->layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-  {
+  else if (texture->layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
     source_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     image_barrier.oldLayout = texture->layout;
   }
-  else if (texture->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-  {
+  else if (texture->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
     source_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     image_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
     image_barrier.oldLayout = texture->layout;
   }
-  else if (texture->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-  {
+  else if (texture->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
     source_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     image_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     image_barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
   }
-  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-  {
+  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
     source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
     image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     image_barrier.oldLayout = texture->layout;
   }
-  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-  {
+  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
     source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
     image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     image_barrier.oldLayout = texture->layout;
   }
-  else if(texture->layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-  {
+  else if(texture->layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
     source_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     image_barrier.srcAccessMask = 0;
     image_barrier.oldLayout = texture->layout;
   }
-  else
-  {
+  else {
     AssertMessage(0, "Image Layout is not supproted");
   }
 
-  if (new_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
-  {
+  if (new_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
     destination_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     image_barrier.newLayout = new_layout;
   }
-  else if (new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-  {
+  else if (new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
     destination_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     image_barrier.newLayout = new_layout;
   }
-  else if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-  {
+  else if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
     destination_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     image_barrier.newLayout = new_layout;
   }
-  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-  {
+  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
     destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
     image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     image_barrier.newLayout = new_layout;
   }
-  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-  {
+  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
     destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
     image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     image_barrier.newLayout = new_layout;
   }
-  else if (new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-  {
+  else if (new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
     destination_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     image_barrier.dstAccessMask = 0;
     image_barrier.newLayout = new_layout;
   }
-  else
-  {
+  else {
     AssertMessage(0, "Image Layout is not supproted");
   }
 
@@ -1983,14 +1737,12 @@ RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImage
 }
 
 func RHI_VK_TextureSampler*
-RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler sampler)
-{
+RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler sampler) {
   return RHI_VK_TextureSamplerArrayGetPointer(&_rhi_vk_state.samplers, sampler);
 }
 
 func RHI_TextureSampler
-RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info)
-{
+RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
   RHI_VK_TextureSampler sampler = {0};
 
   VkSamplerCreateInfo sampler_info = {
@@ -2009,16 +1761,15 @@ RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info)
     .minLod = info->min_lod,
     .maxLod = info->max_lod,
   };
-  VK_CHECK(vkCreateSampler(_rhi_vk_state.device.logical, &sampler_info, 0, &sampler.handle));
+  VK_CHECK(vkCreateSampler(_rhi_vk_state.device.logical, &sampler_info, 0, &sampler.vk));
 
   return RHI_VK_TextureSamplerArrayAdd(&_rhi_vk_state.samplers, sampler);
 }
 
 // -------------------------------------------------------------------
-// Command Buffer
+// -- Command Buffer -------------------------------------------------
 func VkCommandBuffer
-RHI_VK_BeginSingleCmd(void)
-{
+RHI_VK_BeginSingleCmd(void) {
   VkCommandBufferAllocateInfo allocate_info = {0};
   allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -2038,8 +1789,7 @@ RHI_VK_BeginSingleCmd(void)
 }
 
 func void
-RHI_VK_EndSingleCmd(VkCommandBuffer cmd)
-{
+RHI_VK_EndSingleCmd(VkCommandBuffer cmd) {
   VK_CHECK(vkEndCommandBuffer(cmd));
 
   VkSubmitInfo submit_info = {0};
@@ -2054,11 +1804,10 @@ RHI_VK_EndSingleCmd(VkCommandBuffer cmd)
 }
 
 
-// --------------------------------------------------
-// Global State
+// -------------------------------------------------------------------
+// -- Global State ---------------------------------------------------
 func B32
-RHI_VK_Init(OS_Window* window)
-{
+RHI_VK_Init(OS_Window* window) {
   _rhi_vk_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_vk_state.buffers = RHI_VK_BufferArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.buffers.elements[0] = (RHI_VK_Buffer){0};
@@ -2076,7 +1825,7 @@ RHI_VK_Init(OS_Window* window)
   _rhi_vk_state.textures_free_list = RHI_VK_TextureFreeListAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.textures_free_list.elements[0] = 1;
 
-  VkApplicationInfo app_info = {0};
+  VkApplicationInfo app_info = ZeroStruct();
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   app_info.pApplicationName = "VulkanRenderingFramework";
   app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -2104,7 +1853,7 @@ RHI_VK_Init(OS_Window* window)
 #endif
   };
 
-  VkInstanceCreateInfo instance_info = {0};
+  VkInstanceCreateInfo instance_info = ZeroStruct();
   instance_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   instance_info.pApplicationInfo = &app_info;
   instance_info.enabledLayerCount = ArrayLength(validation_layers);
@@ -2138,22 +1887,18 @@ RHI_VK_Init(OS_Window* window)
 }
 
 func B32
-RHI_VK_Shutdown(void)
-{
+RHI_VK_Shutdown(void) {
   vkDeviceWaitIdle(_rhi_vk_state.device.logical);
 
-  for (I32 i = 0; i < _rhi_vk_state.textures.length; i += 1)
-  {
+  for (I32 i = 0; i < _rhi_vk_state.textures.length; i += 1) {
     RHI_VK_DestroyTexture(i);
   }
 
-  for (I32 i = 0; i < _rhi_vk_state.command_buffers.length; i += 1)
-  {
+  for (I32 i = 0; i < _rhi_vk_state.command_buffers.length; i += 1) {
     RHI_VK_ReleaseCommandBuffer(i);
   }
   
-  for (I32 i = 0; i < _rhi_vk_state.graphics_pipelines.length; i += 1)
-  {
+  for (I32 i = 0; i < _rhi_vk_state.graphics_pipelines.length; i += 1) {
     RHI_VK_DestroyGraphicsPipeline(i);
   }
 
@@ -2173,8 +1918,7 @@ RHI_VK_Shutdown(void)
 }
 
 func void
-RHI_VK_HandleResize(OS_Window* window)
-{
+RHI_VK_HandleResize(OS_Window* window) {
   RHI_VK_RecreateSwapchain(window);
 }
 
@@ -2182,16 +1926,13 @@ RHI_VK_HandleResize(OS_Window* window)
 // Debug Tools
 #if IGNIS_VULKAN_DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL
-RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
-{
+RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
   LogWarning("VK_VALIDATION: %s\n", pCallbackData->pMessage);
-
   return VK_FALSE;
 }
 
 func VkDebugUtilsMessengerCreateInfoEXT
-RHI_VK_PopulateDebugMessengerCreateInfo(void)
-{
+RHI_VK_PopulateDebugMessengerCreateInfo(void) {
 	VkDebugUtilsMessengerCreateInfoEXT messenger_info = {0};
   messenger_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   messenger_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
@@ -2207,36 +1948,29 @@ RHI_VK_PopulateDebugMessengerCreateInfo(void)
 }
 
 func VkResult
-RHI_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger)
-{
+RHI_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger) {
   PFN_vkCreateDebugUtilsMessengerEXT f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 
-  if (f != 0)
-  {
+  if (f != 0) {
     return f(instance, pCreateInfo, pAllocator, pDebugMesseneger);
   }
-  else
-  {
+  else {
     return VK_ERROR_EXTENSION_NOT_PRESENT;
   }
 }
 
 func void
-RHI_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator)
-{
+RHI_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator) {
   PFN_vkDestroyDebugUtilsMessengerEXT f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 
-  if (f != 0)
-  {
+  if (f != 0) {
     f(instance, debugMessenger, pAllocator);
   }
 }
 
 func VkResult
-RHI_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger)
-{
+RHI_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger) {
   VkDebugUtilsMessengerCreateInfoEXT messengerInfo = RHI_VK_PopulateDebugMessengerCreateInfo();
-
   return RHI_VK_CreateDebugUtilsMessenger(instance, &messengerInfo, 0, debugMessenger);
 }
 #endif // IGNIS_VULKAN_DEBUG

@@ -400,8 +400,8 @@ Ignis_R_BeginFrame()
   RHI_ResetBuffer(_ignis_r_state.data_buffer);
   RHI_ResetBuffer(_ignis_r_state.transfer_buffer);
 
-  _ignis_r_state.swapchain = RHI_AcquireSwapchainTexture(_ignis_r_state.command_buffer);
   RHI_BeginCommandBuffer(command_buffer);
+  _ignis_r_state.swapchain = RHI_AcquireSwapchainTexture(command_buffer);
 }
 
 func void
@@ -411,7 +411,7 @@ Ignis_R_EndFrame()
   RHI_Texture swapchain_texture = _ignis_r_state.swapchain;
 
   RHI_SubmitCommandBuffer(command_buffer);
-  RHI_PresentTexture(command_buffer, swapchain_texture);
+  // RHI_PresentTexture(command_buffer, swapchain_texture);
 }
 
 func void
