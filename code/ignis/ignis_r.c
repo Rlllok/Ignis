@@ -4,17 +4,17 @@
 #include "third_party/stb_image.h"
 
 func void
-Ignis_R_Init(RHI_RendererType type, OS_Window* window)
+Ignis_R_Init(RHI_RendererKind kind, OS_Window* window)
 {
-  RHI_Init(type, window);
+  RHI_Init(kind, window);
   D_Init(Megabytes(16));
 
-  RHI_BufferUsageFlags triangle_buffer_usage_flags = RHI_BUFFER_USAGE_FLAG_VERTEX|RHI_BUFFER_USAGE_FLAG_INDEX|RHI_BUFFER_USAGE_FLAG_UNIFORM;
+  RHI_BufferUsageFlags triangle_buffer_usage_flags = RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform;
 
   _ignis_r_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _ignis_r_state.window = window;
-  _ignis_r_state.data_buffer = RHI_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, RHI_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
-  _ignis_r_state.transfer_buffer = RHI_CreateBuffer(Megabytes(128), RHI_BUFFER_USAGE_FLAG_TRANSFER, RHI_BUFFER_PROPERTY_FLAG_HOST_COHERENT);
+  _ignis_r_state.data_buffer = RHI_CreateBuffer(Megabytes(64), triangle_buffer_usage_flags, RHI_BufferPropertyFlag_HostCoherent);
+  _ignis_r_state.transfer_buffer = RHI_CreateBuffer(Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
   _ignis_r_state.command_buffer = RHI_GetCommandBuffer();
 
   Ignis_R_PrepareTextures();
@@ -38,7 +38,7 @@ Ignis_R_CreateLoadTexture(RHI_Buffer buffer, Str8 path, RHI_TextureFormat format
   I32 texture_size = tex_width * tex_height * 4;
 
   result = RHI_CreateTexture(&(RHI_TextureCreateInfo){
-    .type = RHI_TEXTURE_TYPE_2D,
+    .kind = RHI_TextureKind_2D,
     .format = format,
     .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
     .width = tex_width,
@@ -62,7 +62,7 @@ Ignis_R_PreparePipelines()
       _ignis_r_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/grid.vs.glsl"),
-        .type = RHI_SHADER_TYPE_VERTEX,
+        .kind = RHI_ShaderKind_Vertex,
         .global_uniforms_count = 1,
         .instance_uniforms_count = 1,
       }
@@ -72,7 +72,7 @@ Ignis_R_PreparePipelines()
       _ignis_r_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/grid.fs.glsl"),
-        .type = RHI_SHADER_TYPE_FRAGMENT,
+        .kind = RHI_ShaderKind_Fragment,
         .global_uniforms_count = 1,
         .instance_uniforms_count = 0,
       }
@@ -90,7 +90,7 @@ Ignis_R_PreparePipelines()
         .depth_stencil_state = {
           .depth_test_enable = 1,
           .depth_write_enable = 0,
-          .depth_compare_operation = RHI_COMPARE_OPERATION_GREATER,
+          .depth_compare_operation = RHI_CompareOperation_Greater,
           .depth_target_format = RHI_GetTextureFormat(_ignis_r_state.depth_texture),
         },
       }
@@ -101,44 +101,44 @@ Ignis_R_PreparePipelines()
   {
     RHI_Shader vertex_shader = RHI_CreateShader(_ignis_r_state.arena, &(RHI_ShaderCreateInfo){
       .file_name = Str8C("./data/shaders/ignis/depth_prepass.vs.glsl"),
-      .type = RHI_SHADER_TYPE_VERTEX,
+      .kind = RHI_ShaderKind_Vertex,
       .instance_uniforms_count = 1,
     });
 
     RHI_Shader fragment_shader = RHI_CreateShader(_ignis_r_state.arena, &(RHI_ShaderCreateInfo){
       .file_name = Str8C("./data/shaders/ignis/depth_prepass.fs.glsl"),
-      .type = RHI_SHADER_TYPE_FRAGMENT,
+      .kind = RHI_ShaderKind_Fragment,
     });
 
     RHI_VertexAttribute vertex_attributes[] = {
       {
         .location = 0,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, position),
       },
       {
         .location = 1,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, normal),
       },
       {
         .location = 2,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, tangent),
       },
       {
         .location = 3,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .format = RHI_VertexAttributeFormat_Vec2F32,
         .offset = offsetof(AST_Vertex, uv),
       },
       {
         .location = 4,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4I32,
+        .format = RHI_VertexAttributeFormat_Vec4I32,
         .offset = offsetof(AST_Vertex, joint_ids),
       },
       {
         .location = 5,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .format = RHI_VertexAttributeFormat_Vec4F32,
         .offset = offsetof(AST_Vertex, joint_weights),
       },
     };
@@ -151,7 +151,7 @@ Ignis_R_PreparePipelines()
       .depth_stencil_state = {
         .depth_test_enable = 1,
         .depth_write_enable = 1,
-        .depth_compare_operation = RHI_COMPARE_OPERATION_GREATER,
+        .depth_compare_operation = RHI_CompareOperation_Greater,
         .depth_target_format = RHI_GetTextureFormat(_ignis_r_state.depth_texture),
       },
     });
@@ -162,7 +162,7 @@ Ignis_R_PreparePipelines()
       _ignis_r_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/ignis/shadow_map.vs.glsl"),
-        .type = RHI_SHADER_TYPE_VERTEX,
+        .kind = RHI_ShaderKind_Vertex,
         .instance_uniforms_count = 1,
       }
     );
@@ -170,39 +170,39 @@ Ignis_R_PreparePipelines()
       _ignis_r_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/ignis/shadow_map.fs.glsl"),
-        .type = RHI_SHADER_TYPE_FRAGMENT,
+        .kind = RHI_ShaderKind_Fragment,
       }
     );
 
     RHI_VertexAttribute vertex_attributes[] = {
       {
         .location = 0,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, position),
       },
       {
         .location = 1,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, normal),
       },
       {
         .location = 2,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, tangent),
       },
       {
         .location = 3,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .format = RHI_VertexAttributeFormat_Vec2F32,
         .offset = offsetof(AST_Vertex, uv),
       },
       {
         .location = 4,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4I32,
+        .format = RHI_VertexAttributeFormat_Vec4I32,
         .offset = offsetof(AST_Vertex, joint_ids),
       },
       {
         .location = 5,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .format = RHI_VertexAttributeFormat_Vec4F32,
         .offset = offsetof(AST_Vertex, joint_weights),
       },
     };
@@ -216,7 +216,7 @@ Ignis_R_PreparePipelines()
         .depth_stencil_state = {
           .depth_test_enable = 1,
           .depth_write_enable = 1,
-          .depth_compare_operation = RHI_COMPARE_OPERATION_GREATER,
+          .depth_compare_operation = RHI_CompareOperation_Greater,
           .depth_target_format = RHI_GetTextureFormat(_ignis_r_state.shadow_map),
         },
       }
@@ -229,7 +229,7 @@ Ignis_R_PreparePipelines()
       _ignis_r_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/ignis/mesh.vs.glsl"),
-        .type = RHI_SHADER_TYPE_VERTEX,
+        .kind = RHI_ShaderKind_Vertex,
         .instance_uniforms_count = 1,
       }
     );
@@ -237,7 +237,7 @@ Ignis_R_PreparePipelines()
       _ignis_r_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/ignis/mesh.fs.glsl"),
-        .type = RHI_SHADER_TYPE_FRAGMENT,
+        .kind = RHI_ShaderKind_Fragment,
         .global_uniforms_count = 1,
         .global_samplers_count = 0,
       }
@@ -246,32 +246,32 @@ Ignis_R_PreparePipelines()
     RHI_VertexAttribute mesh_vertex_attributes[] = {
       {
         .location = 0,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, position),
       },
       {
         .location = 1,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, normal),
       },
       {
         .location = 2,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
         .offset = offsetof(AST_Vertex, tangent),
       },
       {
         .location = 3,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .format = RHI_VertexAttributeFormat_Vec2F32,
         .offset = offsetof(AST_Vertex, uv),
       },
       {
         .location = 4,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4I32,
+        .format = RHI_VertexAttributeFormat_Vec4I32,
         .offset = offsetof(AST_Vertex, joint_ids),
       },
       {
         .location = 5,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4F32,
+        .format = RHI_VertexAttributeFormat_Vec4F32,
         .offset = offsetof(AST_Vertex, joint_weights),
       },
     };
@@ -292,7 +292,7 @@ Ignis_R_PreparePipelines()
       .depth_stencil_state = {
         .depth_test_enable = 1,
         .depth_write_enable = 0,
-        .depth_compare_operation = RHI_COMPARE_OPERATION_EQUAL,
+        .depth_compare_operation = RHI_CompareOperation_Equal,
         .depth_target_format = RHI_GetTextureFormat(_ignis_r_state.depth_texture),
       },
     };
@@ -307,23 +307,23 @@ Ignis_R_PrepareTextures()
 
   _ignis_r_state.texture_sampler = RHI_CreateTextureSampler(
     &(RHI_TextureSamplerCreateInfo){
-      .mag_filter = RHI_FILTER_TYPE_LINEAR,
-      .min_filter = RHI_FILTER_TYPE_LINEAR,
-      .address_mode_u = RHI_SAMPLER_ADDRESS_MODE_REPEAT,
-      .address_mode_v = RHI_SAMPLER_ADDRESS_MODE_REPEAT,
-      .address_mode_w = RHI_SAMPLER_ADDRESS_MODE_REPEAT,
-      .mipmap_mode = RHI_SAMPLER_MIPMAP_MODE_LINEAR,
+      .mag_filter = RHI_FilterKind_Linear,
+      .min_filter = RHI_FilterKind_Linear,
+      .address_mode_u = RHI_SamplerAddressMode_Repeat,
+      .address_mode_v = RHI_SamplerAddressMode_Repeat,
+      .address_mode_w = RHI_SamplerAddressMode_Repeat,
+      .mipmap_mode = RHI_SamplerMipmapMode_Linear,
     }
   );
 
-  _ignis_r_state.default_color_texture = Ignis_R_CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"), RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB);
-  _ignis_r_state.mesh_color_texture    = Ignis_R_CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"), RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB);
-  _ignis_r_state.mesh_normal_texture   = Ignis_R_CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"), RHI_TEXTURE_FORMAT_R8G8B8A8_UNORM);
+  _ignis_r_state.default_color_texture = Ignis_R_CreateLoadTexture(transfer_buffer, Str8C("./data/uv_checker.png"), RHI_TextureFormat_R8G8B8A8_SRGB);
+  _ignis_r_state.mesh_color_texture    = Ignis_R_CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyColor.png"), RHI_TextureFormat_R8G8B8A8_SRGB);
+  _ignis_r_state.mesh_normal_texture   = Ignis_R_CreateLoadTexture(transfer_buffer, Str8C("./data/sphere_gltf/RockyNormal.png"), RHI_TextureFormat_R8G8B8A8_UNORM);
 
   _ignis_r_state.test_texture = RHI_CreateTexture(
     &(RHI_TextureCreateInfo){
-      .type = RHI_TEXTURE_TYPE_2D,
-      .format = RHI_TEXTURE_FORMAT_R16_UINT,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R16_UINT,
       .usage_flags = RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_FLAG_TRANSFER_SRC,
       .width = _ignis_r_state.window->size.w,
       .height = _ignis_r_state.window->size.h,
@@ -334,8 +334,8 @@ Ignis_R_PrepareTextures()
 
   _ignis_r_state.depth_texture = RHI_CreateTexture(
     &(RHI_TextureCreateInfo){
-      .type = RHI_TEXTURE_TYPE_2D,
-      .format = RHI_TEXTURE_FORMAT_D16_UNORM,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_D16_UNORM,
       .usage_flags = RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
       .width = _ignis_r_state.window->size.w,
       .height = _ignis_r_state.window->size.h,
@@ -346,8 +346,8 @@ Ignis_R_PrepareTextures()
 
   _ignis_r_state.shadow_map = RHI_CreateTexture(
     &(RHI_TextureCreateInfo){
-      .type= RHI_TEXTURE_TYPE_2D,
-      .format = RHI_TEXTURE_FORMAT_D16_UNORM,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_D16_UNORM,
       .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
       .width = 1024,
       .height = 1024,
@@ -366,8 +366,8 @@ Ignis_R_Resize(Vec2I32 size)
 
     RHI_VK_DestroyTexture(_ignis_r_state.depth_texture);
     RHI_TextureCreateInfo depth_texture_info = {
-      .type = RHI_TEXTURE_TYPE_2D,
-      .format = RHI_TEXTURE_FORMAT_D16_UNORM,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_D16_UNORM,
       .usage_flags = RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
       .width = _ignis_r_state.window->size.w,
       .height = _ignis_r_state.window->size.h,
@@ -378,8 +378,8 @@ Ignis_R_Resize(Vec2I32 size)
 
     RHI_VK_DestroyTexture(_ignis_r_state.test_texture);
     RHI_TextureCreateInfo test_texture_info = {
-      .type = RHI_TEXTURE_TYPE_2D,
-      .format = RHI_TEXTURE_FORMAT_R16_UINT,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R16_UINT,
       .usage_flags = RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_FLAG_TRANSFER_SRC | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
       .width = _ignis_r_state.window->size.w,
       .height = _ignis_r_state.window->size.h,
@@ -453,8 +453,8 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
 
   RHI_DepthStencilTarget depth_prepass_target = {
     .texture = _ignis_r_state.depth_texture,
-    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_CLEAR,
-    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
+    .load_operation = RHI_AttachmentLoadOperation_Clear,
+    .store_operation = RHI_AttachmentStoreOperation_Store,
     .clear_depth = 0.0f,
   };
 
@@ -483,16 +483,16 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
   RHI_ColorTarget entity_color_targets[] = {
     {
       .texture = swapchain_texture,
-      .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_CLEAR,
-      .store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
+      .load_operation = RHI_AttachmentLoadOperation_Clear,
+      .store_operation = RHI_AttachmentStoreOperation_Store,
       .clear_color = RGBAFromHex(0x111111FF),
     },
   };
 
   RHI_DepthStencilTarget entity_depth_target = {
     .texture = _ignis_r_state.depth_texture,
-    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
-    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+      .load_operation = RHI_AttachmentLoadOperation_Clear,
+      .store_operation = RHI_AttachmentStoreOperation_DontCare,
   };
 
   viewport = (RectI32){
@@ -520,14 +520,14 @@ Ignis_R_RenderScene(Ignis_Scene* scene)
 
   RHI_ColorTarget color_target = {
     .texture = swapchain_texture,
-    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
-    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
+    .load_operation = RHI_AttachmentLoadOperation_Load,
+    .store_operation = RHI_AttachmentStoreOperation_Store,
   };
 
   RHI_DepthStencilTarget depth_target = {
     .texture = _ignis_r_state.depth_texture,
-    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
-    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE,
+    .load_operation = RHI_AttachmentLoadOperation_Load,
+    .store_operation = RHI_AttachmentStoreOperation_DontCare,
   };
 
   Vei_BeginPoint(RenderGridPass);
@@ -548,8 +548,8 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
 
   RHI_ColorTarget color_target = {
     .texture = swapchain_texture,
-    .load_operation = RHI_ATTACHMENT_LOAD_OPERATION_LOAD,
-    .store_operation = RHI_ATTACHMENT_STORE_OPERATION_STORE,
+    .load_operation = RHI_AttachmentLoadOperation_Load,
+    .store_operation = RHI_AttachmentStoreOperation_Store,
   };
 
   RHI_BeginRenderPass(command_buffer, 1, &color_target, 0);
@@ -713,7 +713,7 @@ Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity)
 
     RHI_BindInstanceVertexShaderData(command_buffer, 1, &vertex_shader_instance_uniform, 0, 0);
     RHI_BindVertexBuffer(command_buffer, buffer, vertex_data_offset);
-    RHI_BindIndexBuffer(command_buffer, buffer, index_data_offset, RHI_INDEX_SIZE_U16);
+    RHI_BindIndexBuffer(command_buffer, buffer, index_data_offset, RHI_IndexSize_U16);
     RHI_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
 }
@@ -760,7 +760,7 @@ Ignis_R_RenderEntityPrepass(Ignis_Entity* camera, Ignis_Entity* entity)
 
     RHI_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
     RHI_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
-    RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_INDEX_SIZE_U16);
+    RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_IndexSize_U16);
     RHI_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
   Vei_EndPoint(Ignis_R_RenderEntityPrepass);
@@ -841,7 +841,7 @@ Ignis_R_RenderEntity(Ignis_Entity* camera, Ignis_Entity* entity, B32 selected)
     RHI_BindInstanceVertexShaderData(command_buffer, 1, &mesh_vertex_shader_instance_uniform, 0, 0);
     RHI_BindGlobalFragmentShaderData(command_buffer, 1, &mesh_fragment_shader_global_uniform, 0, 0);
     RHI_BindVertexBuffer(command_buffer, buffer, mesh_vertex_data_offset);
-    RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_INDEX_SIZE_U16);
+    RHI_BindIndexBuffer(command_buffer, buffer, mesh_index_data_offset, RHI_IndexSize_U16);
     RHI_DrawIndexedPrimitives(command_buffer, geometry->index_count, 1, 0, 0, 0);
   }
   Vei_EndPoint(Ignis_R_RenderEntity);

@@ -11,16 +11,16 @@ func VkBufferUsageFlags
 _VkFromBufferUsageFlags(RHI_BufferUsageFlags flags) {
   VkBufferUsageFlags result = 0;
 
-  if(flags & RHI_BUFFER_USAGE_FLAG_VERTEX) {
+  if(flags & RHI_BufferUsageFlag_Vertex) {
     result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   }
-  if(flags & RHI_BUFFER_USAGE_FLAG_INDEX) {
+  if(flags & RHI_BufferUsageFlag_Index) {
     result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
   }
-  if(flags & RHI_BUFFER_USAGE_FLAG_UNIFORM) {
+  if(flags & RHI_BufferUsageFlag_Uniform) {
     result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
   }
-  if(flags & RHI_BUFFER_USAGE_FLAG_TRANSFER) {
+  if(flags & RHI_BufferUsageFlag_Transfer) {
     result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
   }
@@ -32,10 +32,10 @@ func VkMemoryPropertyFlags
 _VkFromBufferPropertyFlags(RHI_BufferPropertyFlags flags) {
   VkMemoryPropertyFlags result = 0;
 
-  if (flags & RHI_BUFFER_PROPERTY_FLAG_HOST_COHERENT) {
+  if (flags & RHI_BufferPropertyFlag_HostCoherent) {
     result |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
   }
-  if (flags & RHI_BUFFER_PROPERTY_FLAG_HOST_VISIBLE) {
+  if (flags & RHI_BufferPropertyFlag_HostVisible) {
     result |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
   }
 
@@ -534,7 +534,7 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 }
 
 func void
-RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos) {
+RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_kind, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos) {
   Assert(uniform_buffers_count == 0 || uniform_infos != 0);
   Assert(sampler_count == 0 || sampler_infos != 0);
 
@@ -572,7 +572,7 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_ty
 
   I32 set_slot = 0;
   VkDescriptorSetLayout set_layout = VK_NULL_HANDLE;
-  if (shader_type == RHI_SHADER_TYPE_VERTEX) {
+  if (shader_kind == RHI_ShaderKind_Vertex) {
     set_slot = is_global ? RHI_VK_VERTEX_SHADER_GLOBAL_UNIFORM_SET_SLOT : RHI_VK_VERTEX_SHADER_INSTANCE_UNIFORM_SET_SLOT;
     set_layout = is_global ? vk_command_buffer->binded_graphics_pipeline->vertex_global_set_layout : vk_command_buffer->binded_graphics_pipeline->vertex_instance_set_layout;
   } else {
@@ -1433,7 +1433,7 @@ RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
   VkImageCreateInfo image_info = {0};
   image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
   image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  image_info.imageType = RHI_VK_GetVkImageType(info->type);
+  image_info.imageType = RHI_VK_GetVkImageType(info->kind);
   image_info.extent.width = info->width;
   image_info.extent.height= info->height;
   image_info.extent.depth = info->depth;
@@ -1447,7 +1447,7 @@ RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
   image_info.samples = VK_SAMPLE_COUNT_1_BIT;
   if (vkCreateImage(_rhi_vk_state.device.logical, &image_info, 0, &texture.image) != VK_SUCCESS) {
     LogError("Cannot create Image for Texture.\n");
-    return RHI_NIL;
+    return RHI_nil;
   }
 
   VkMemoryRequirements mem_requirements = {0};

@@ -135,7 +135,7 @@ struct RHI_VK_DescriptorPool {
 	I32              sets_count;
 };
 
-func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderType shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
+func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
@@ -189,7 +189,7 @@ struct RHI_VK_Texture {
 };
 RHI_VK_Texture RHI_VK_TextureNil = {0};
 DefineArray(RHI_VK_Texture, RHI_VK_TextureArray, RHI_VK_TextureNil)
-U32 RHI_VK_TextureFreeListNil = RHI_NIL;
+U32 RHI_VK_TextureFreeListNil = RHI_nil;
 DefineArray(U32, RHI_VK_TextureFreeList, RHI_VK_TextureFreeListNil)
 
 func RHI_VK_Texture*   RHI_VK_TextureFromHandle(RHI_Texture handle);
@@ -270,7 +270,7 @@ func void RHI_VK_HandleResize(OS_Window* window);
 // -------------------------------------------------------------------
 // -- Debug Tools ----------------------------------------------------
 #if IGNIS_VULKAN_DEBUG
-VKAPI_ATTR VkBool32 VKAPI_CALL RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+VKAPI_ATTR VkBool32 VKAPI_CALL RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageKind, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 func VkDebugUtilsMessengerCreateInfoEXT RHI_VK_PopulateDebugMessengerCreateInfo(void);
 func VkResult RHI_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger);
 func void RHI_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator);

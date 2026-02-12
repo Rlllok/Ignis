@@ -21,15 +21,15 @@ RHI_VK_GetVkAttachmentLoadOperation(RHI_LoadOperation operation)
   {
     default: Assert(1); break;
 
-    case (RHI_ATTACHMENT_LOAD_OPERATION_DONT_CARE):
+    case (RHI_AttachmentLoadOperation_DontCare):
     {
       result = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     } break;
-    case (RHI_ATTACHMENT_LOAD_OPERATION_LOAD):
+    case (RHI_AttachmentLoadOperation_Load):
     {
       result = VK_ATTACHMENT_LOAD_OP_LOAD;
     } break;
-    case (RHI_ATTACHMENT_LOAD_OPERATION_CLEAR):
+    case (RHI_AttachmentLoadOperation_Clear):
     {
       result = VK_ATTACHMENT_LOAD_OP_CLEAR;
     } break;
@@ -47,8 +47,8 @@ RHI_VK_GetVkAttachmentStoreOperation(RHI_StoreOperation operation)
   {
     default: Assert(1); break;
 
-    case RHI_ATTACHMENT_STORE_OPERATION_DONT_CARE: result = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
-    case RHI_ATTACHMENT_STORE_OPERATION_STORE: result = VK_ATTACHMENT_STORE_OP_STORE; break;
+    case RHI_AttachmentStoreOperation_DontCare: result = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
+    case RHI_AttachmentStoreOperation_Store:    result = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
   }
 
   return result;
@@ -61,11 +61,11 @@ RHI_VK_GetVkFormatAttribute(RHI_VertexAttributeFormat format)
 
   switch (format)
   {
-    case RHI_VERTEX_ATTRIBUTE_FORMAT_VEC2F32: result = VK_FORMAT_R32G32_SFLOAT; break;
-    case RHI_VERTEX_ATTRIBUTE_FORMAT_VEC3F32: result = VK_FORMAT_R32G32B32_SFLOAT; break;
-    case RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4F32: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+    case RHI_VertexAttributeFormat_Vec2F32: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+    case RHI_VertexAttributeFormat_Vec3F32: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+    case RHI_VertexAttributeFormat_Vec4F32: result = VK_FORMAT_R32G32B32A32_SFLOAT; break;
     
-    case RHI_VERTEX_ATTRIBUTE_FORMAT_VEC4I32: result = VK_FORMAT_R32G32B32A32_SINT; break;
+    case RHI_VertexAttributeFormat_Vec4I32: result = VK_FORMAT_R32G32B32A32_SINT; break;
 
     default: Assert(1); break;
   }
@@ -74,24 +74,24 @@ RHI_VK_GetVkFormatAttribute(RHI_VertexAttributeFormat format)
 }
 
 func VkShaderStageFlags
-RHI_VK_GetVkShaderStage(RHI_ShaderType shader_type)
+RHI_VK_GetVkShaderStage(RHI_ShaderKind shader_kind)
 {
-  switch (shader_type)
+  switch (shader_kind)
   {
-    case RHI_SHADER_TYPE_VERTEX: return VK_SHADER_STAGE_VERTEX_BIT;
-    case RHI_SHADER_TYPE_FRAGMENT: return VK_SHADER_STAGE_FRAGMENT_BIT;
+    case RHI_ShaderKind_Vertex:   return VK_SHADER_STAGE_VERTEX_BIT;
+    case RHI_ShaderKind_Fragment: return VK_SHADER_STAGE_FRAGMENT_BIT;
 
     default: Assert(1); return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
   }
 }
 
 func VkDescriptorType
-RHI_VK_GetVkDescriptorType(RHI_BindingType binding_type)
+RHI_VK_GetVkDescriptorType(RHI_BindingKind binding_kind)
 {
-  switch (binding_type)
+  switch (binding_kind)
   {
-    case RHI_BINDING_TYPE_UNIFORM_BUFFER: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    case RHI_BINDING_TYPE_TEXTURE_2D: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    case RHI_BindingKind_UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    case RHI_BindingKind_Sampler:       return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
     default: Assert(1); return VK_DESCRIPTOR_TYPE_MAX_ENUM;
   }
@@ -150,7 +150,7 @@ RHI_VK_GetVkImageType(VkImageType image_type)
   {
     default: Assert(1); break;
 
-    case RHI_TEXTURE_TYPE_2D: vk_image_type =  VK_IMAGE_TYPE_2D; break;
+    case RHI_TextureKind_2D: vk_image_type =  VK_IMAGE_TYPE_2D; break;
   }
 
   return vk_image_type;
@@ -164,11 +164,11 @@ func RHI_TextureFormat RHI_VK_TextureFormatFromVkFormat(VkFormat format)
   {
     default: Assert(1); break;
 
-    case VK_FORMAT_R8G8B8A8_SRGB: texture_format = RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB; break; 
-    case VK_FORMAT_R8G8B8A8_UNORM: texture_format = RHI_TEXTURE_FORMAT_R8G8B8A8_UNORM; break; 
-    case VK_FORMAT_B8G8R8A8_UNORM: texture_format = RHI_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
-    case VK_FORMAT_D16_UNORM: texture_format = RHI_TEXTURE_FORMAT_D16_UNORM; break;
-    case VK_FORMAT_R16_UINT: texture_format = RHI_TEXTURE_FORMAT_R16_UINT; break;
+    case VK_FORMAT_R8G8B8A8_SRGB: texture_format = RHI_TextureFormat_R8G8B8A8_SRGB; break; 
+    case VK_FORMAT_R8G8B8A8_UNORM: texture_format = RHI_TextureFormat_R8G8B8A8_UNORM; break; 
+    case VK_FORMAT_B8G8R8A8_UNORM: texture_format = RHI_TextureFormat_B8G8R8A8_UNORM; break;
+    case VK_FORMAT_D16_UNORM: texture_format = RHI_TextureFormat_D16_UNORM; break;
+    case VK_FORMAT_R16_UINT: texture_format = RHI_TextureFormat_R16_UINT; break;
   }
 
   return texture_format;
@@ -183,13 +183,13 @@ RHI_VK_GetVkFormat(RHI_TextureFormat format)
   {
     default: Assert(1); break;
 
-    case RHI_TEXTURE_FORMAT_NONE: vk_format = VK_FORMAT_UNDEFINED; break;
-    case RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
-    case RHI_TEXTURE_FORMAT_R8G8B8A8_UNORM: vk_format = VK_FORMAT_R8G8B8A8_UNORM; break;
-    case RHI_TEXTURE_FORMAT_B8G8R8A8_UNORM: vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
-    case RHI_TEXTURE_FORMAT_R16G16B16A16_SFLOAT: vk_format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
-    case RHI_TEXTURE_FORMAT_D16_UNORM: vk_format = VK_FORMAT_D16_UNORM; break;
-    case RHI_TEXTURE_FORMAT_R16_UINT: vk_format = VK_FORMAT_R16_UINT; break;
+    case RHI_TextureFormat_None: vk_format = VK_FORMAT_UNDEFINED; break;
+    case RHI_TextureFormat_R8G8B8A8_SRGB: vk_format = VK_FORMAT_R8G8B8A8_SRGB; break;
+    case RHI_TextureFormat_R8G8B8A8_UNORM: vk_format = VK_FORMAT_R8G8B8A8_UNORM; break;
+    case RHI_TextureFormat_B8G8R8A8_UNORM: vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
+    case RHI_TextureFormat_R16G16B16A16_SFLOAT: vk_format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
+    case RHI_TextureFormat_D16_UNORM: vk_format = VK_FORMAT_D16_UNORM; break;
+    case RHI_TextureFormat_R16_UINT: vk_format = VK_FORMAT_R16_UINT; break;
   }
 
   return vk_format;
@@ -204,13 +204,13 @@ RHI_VK_FormatFromVk(VkFormat format)
   {
     default: Assert(1); break;
 
-    case VK_FORMAT_UNDEFINED:           result = RHI_TEXTURE_FORMAT_NONE; break;
-    case VK_FORMAT_R8G8B8A8_SRGB:       result = RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB; break;
-    case VK_FORMAT_R8G8B8A8_UNORM:      result = RHI_TEXTURE_FORMAT_R8G8B8A8_UNORM; break;
-    case VK_FORMAT_B8G8R8A8_UNORM:      result = RHI_TEXTURE_FORMAT_B8G8R8A8_UNORM; break;
-    case VK_FORMAT_R16G16B16A16_SFLOAT: result = RHI_TEXTURE_FORMAT_R16G16B16A16_SFLOAT;
-    case VK_FORMAT_D16_UNORM:           result = RHI_TEXTURE_FORMAT_D16_UNORM; break;
-    case VK_FORMAT_R16_UINT:            result = RHI_TEXTURE_FORMAT_R16_UINT; break;
+    case VK_FORMAT_UNDEFINED:           result = RHI_TextureFormat_None; break;
+    case VK_FORMAT_R8G8B8A8_SRGB:       result = RHI_TextureFormat_R8G8B8A8_SRGB; break;
+    case VK_FORMAT_R8G8B8A8_UNORM:      result = RHI_TextureFormat_R8G8B8A8_UNORM; break;
+    case VK_FORMAT_B8G8R8A8_UNORM:      result = RHI_TextureFormat_B8G8R8A8_UNORM; break;
+    case VK_FORMAT_R16G16B16A16_SFLOAT: result = RHI_TextureFormat_R16G16B16A16_SFLOAT;
+    case VK_FORMAT_D16_UNORM:           result = RHI_TextureFormat_D16_UNORM; break;
+    case VK_FORMAT_R16_UINT:            result = RHI_TextureFormat_R16_UINT; break;
   }
 
   return result;
@@ -245,14 +245,14 @@ RHI_VK_GetVkImageUsageFlags(RHI_TextureUsageFlags flags)
 }
 
 func VkFilter
-RHI_VK_GetVkFilter(RHI_FilterType filter)
+RHI_VK_GetVkFilter(RHI_FilterKind filter)
 {
   switch (filter)
   {
     default: Assert(1); return 0;
 
-    case RHI_FILTER_TYPE_NEAREST: return VK_FILTER_NEAREST;
-    case RHI_FILTER_TYPE_LINEAR: return VK_FILTER_LINEAR;
+    case RHI_FilterKind_Nearest: return VK_FILTER_NEAREST;
+    case RHI_FilterKind_Linear:  return VK_FILTER_LINEAR;
   }
 }
 
@@ -263,8 +263,8 @@ RHI_VK_GetVkSamplerMipmapMode(RHI_SamplerMipmapMode mode)
   {
     default: Assert(1); return 0;
 
-    case RHI_SAMPLER_MIPMAP_MODE_NEAREST: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    case RHI_SAMPLER_MIPMAP_MODE_LINEAR: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    case RHI_SamplerMipmapMode_Nearest: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    case RHI_SamplerMipmapMode_Linear:  return VK_SAMPLER_MIPMAP_MODE_LINEAR;
   }
 }
 
@@ -275,10 +275,10 @@ RHI_VK_GetVkSamplerAddressMode(RHI_SamplerAddressMode mode)
   {
     default: Assert(1); return 0;
 
-    case RHI_SAMPLER_ADDRESS_MODE_REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    case RHI_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-    case RHI_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    case RHI_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    case RHI_SamplerAddressMode_Repeat:         return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    case RHI_SamplerAddressMode_MirroredRepeat: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+    case RHI_SamplerAddressMode_ClampToEdge:    return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    case RHI_SamplerAddressMode_ClampToBorder:  return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
   }
 }
 
@@ -291,12 +291,12 @@ RHI_VK_GetVkFromCompareOperation(RHI_CompareOperation operation)
   {
     default: Assert(1); break;
 
-    case RHI_COMPARE_OPERATION_EQUAL: vk_operation = VK_COMPARE_OP_EQUAL; break;
-    case RHI_COMPARE_OPERATION_NOT_EQUAL: vk_operation = VK_COMPARE_OP_NOT_EQUAL; break;
-    case RHI_COMPARE_OPERATION_LESS: vk_operation = VK_COMPARE_OP_LESS; break;
-    case RHI_COMPARE_OPERATION_LESS_OR_EQUAL: vk_operation = VK_COMPARE_OP_LESS_OR_EQUAL; break;
-    case RHI_COMPARE_OPERATION_GREATER: vk_operation = VK_COMPARE_OP_GREATER; break;
-    case RHI_COMPARE_OPERATION_GREATER_OR_EQUAL: vk_operation = VK_COMPARE_OP_GREATER_OR_EQUAL; break;
+    case RHI_CompareOperation_Equal: vk_operation = VK_COMPARE_OP_EQUAL; break;
+    case RHI_CompareOperation_NotEqual: vk_operation = VK_COMPARE_OP_NOT_EQUAL; break;
+    case RHI_CompareOperation_Less: vk_operation = VK_COMPARE_OP_LESS; break;
+    case RHI_CompareOperation_LessOrEqual: vk_operation = VK_COMPARE_OP_LESS_OR_EQUAL; break;
+    case RHI_CompareOperation_Greater: vk_operation = VK_COMPARE_OP_GREATER; break;
+    case RHI_CompareOperation_GreaterOrEqual: vk_operation = VK_COMPARE_OP_GREATER_OR_EQUAL; break;
   }
 
   return vk_operation;

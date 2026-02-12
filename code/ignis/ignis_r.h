@@ -31,7 +31,7 @@ struct Ignis_R_State
   RHI_Texture shadow_map;
 } _ignis_r_state;
 
-func void Ignis_R_Init(RHI_RendererType type, OS_Window* window);
+func void Ignis_R_Init(RHI_RendererKind kind, OS_Window* window);
 
 func RHI_Texture Ignis_R_CreateLoadTexture(RHI_Buffer buffer, Str8 path, RHI_TextureFormat format);
 

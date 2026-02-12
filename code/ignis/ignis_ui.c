@@ -20,8 +20,8 @@ Ignis_UI_Init(Arena* arena, U32 max_widgets_count)
 
   _ignis_ui_state.font.bitmap = RHI_CreateTexture(
     &(RHI_TextureCreateInfo){
-      .type = RHI_TEXTURE_TYPE_2D,
-      .format = RHI_TEXTURE_FORMAT_R8G8B8A8_SRGB,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R8G8B8A8_SRGB,
       .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
       .width = tex_width,
       .height = tex_height,

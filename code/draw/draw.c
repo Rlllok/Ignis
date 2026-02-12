@@ -20,7 +20,7 @@ D_PreparePipelines()
       _d_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/line3d.vs.glsl"),
-        .type = RHI_SHADER_TYPE_VERTEX,
+        .kind = RHI_ShaderKind_Vertex,
         .global_uniforms_count = 1,
         .instance_uniforms_count = 1,
       }
@@ -30,7 +30,7 @@ D_PreparePipelines()
       _d_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/line3d.fs.glsl"),
-        .type = RHI_SHADER_TYPE_FRAGMENT,
+        .kind = RHI_ShaderKind_Fragment,
       }
     );
 
@@ -51,7 +51,7 @@ D_PreparePipelines()
       _d_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/font.vs.glsl"),
-        .type = RHI_SHADER_TYPE_VERTEX,
+        .kind = RHI_ShaderKind_Vertex,
         .global_uniforms_count = 1,
       }
     );
@@ -60,7 +60,7 @@ D_PreparePipelines()
       _d_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/font.fs.glsl"),
-        .type = RHI_SHADER_TYPE_FRAGMENT,
+        .kind = RHI_ShaderKind_Fragment,
         .global_samplers_count = 1,
       }
     );
@@ -68,12 +68,12 @@ D_PreparePipelines()
     RHI_VertexAttribute font_vertex_attributes[] = {
       {
         .location = 0,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .format = RHI_VertexAttributeFormat_Vec2F32,
         .offset = offsetof(TextVertex, position),
       },
       {
         .location = 1,
-        .format = RHI_VERTEX_ATTRIBUTE_FORMAT_VEC2F32,
+        .format = RHI_VertexAttributeFormat_Vec2F32,
         .offset = offsetof(TextVertex, uv),
       },
     };
@@ -101,7 +101,7 @@ D_PreparePipelines()
       _d_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/square.vs.glsl"),
-        .type = RHI_SHADER_TYPE_VERTEX,
+        .kind = RHI_ShaderKind_Vertex,
         .global_uniforms_count = 1,
         .instance_uniforms_count = 1,
       }
@@ -110,7 +110,7 @@ D_PreparePipelines()
       _d_state.arena,
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/shaders/square.fs.glsl"),
-        .type = RHI_SHADER_TYPE_FRAGMENT,
+        .kind = RHI_ShaderKind_Fragment,
         .global_uniforms_count = 0,
         .instance_uniforms_count = 1,
       }
@@ -277,7 +277,7 @@ D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampl
   RHI_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1, &font_sampler_binding);
 
   RHI_BindVertexBuffer(command_buffer, buffer, vertex_buffer_offset);
-  RHI_BindIndexBuffer(command_buffer, buffer, index_buffer_offset, RHI_INDEX_SIZE_U16);
+  RHI_BindIndexBuffer(command_buffer, buffer, index_buffer_offset, RHI_IndexSize_U16);
   // RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
   RHI_DrawIndexedPrimitives(command_buffer, indecies_count, 1, 0, 0, 0);
 

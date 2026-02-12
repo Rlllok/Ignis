@@ -180,7 +180,7 @@ Init_Ignis()
   OS_CreateWindow(Str8C("Ignis"), MakeVec2U32(1280, 720), &_ignis_state.window);
   OS_ShowWindow(&_ignis_state.window);
 
-  Ignis_R_Init(RHI_RENDERER_TYPE_VK, &_ignis_state.window);
+  Ignis_R_Init(RHI_RendererKind_Vulkan, &_ignis_state.window);
   Ignis_UI_Init(_ignis_state.arena, 1024);
 }
 
