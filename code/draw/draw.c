@@ -4,16 +4,14 @@
 #include "base/base_memory.h"
 
 func void
-D_Init(U64 arena_size)
-{
+D_Init(U64 arena_size) {
   // --AlNov 7 January 2026: @TODO Should use arena_size?
   _d_state.arena = AllocateArena(Gigabytes(4), Kilobytes(64));
   D_PreparePipelines();
 }
 
 func void
-D_PreparePipelines()
-{
+D_PreparePipelines() {
   // 3D Line Pipeline
   {
     RHI_Shader line_vertex_shader = RHI_CreateShader(
@@ -135,11 +133,9 @@ D_PreparePipelines()
 }
 
 func void
-D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4F32 border_radius, Vec4F32 color, Vec4F32 border_color)
-{
+D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4F32 border_radius, Vec4F32 color, Vec4F32 border_color) {
   RHI_BindGraphicsPipeline(command_buffer, _d_state.square_pipeline);
-  struct
-  {
+  struct {
     Mat4F32 projection;
   } square_global_vertex_data;
   square_global_vertex_data.projection = MakeOrthographicMat4F32(
@@ -155,8 +151,7 @@ D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport
   };
   RHI_BindGlobalVertexShaderData(command_buffer, 1, &square_vertex_shader_global_uniform, 0, 0);
 
-  struct
-  {
+  struct {
     Vec2F32 position;
     Vec2F32 size;
   } square_instance_vertex_data;
@@ -170,8 +165,7 @@ D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport
   };
   RHI_BindInstanceVertexShaderData(command_buffer, 1, &square_vertex_shader_instance_uniform, 0, 0);
 
-  struct
-  {
+  struct {
     Vec4F32 color;
     Vec4F32 border_color;
     Vec4F32 border_radius;
@@ -191,8 +185,7 @@ D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport
 }
 
 func void
-D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampler sampler, RectI32 viewport, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color)
-{
+D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampler sampler, RectI32 viewport, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color) {
   TextVertex vertecies[1028] = {0};
   U32 vertecies_count = 0;
   U16 indecies[1028] = {0};
@@ -201,10 +194,8 @@ D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampl
   I32 line_count = 0;
   I32 symbols_on_line = 0;
 
-  for (I32 i = 0; i < text.length; i += 1)
-  {
-    if (text.data[i] == '\n')
-    {
+  for (I32 i = 0; i < text.length; i += 1) {
+    if (text.data[i] == '\n') {
       line_count += 1;
       symbols_on_line = 0;
       continue;
@@ -250,8 +241,7 @@ D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampl
 
   RHI_BindGraphicsPipeline(command_buffer, _d_state.font_pipeline);
 
-  struct
-  {
+  struct {
     Mat4F32 projection;
     Vec4F32 text_color;
   } font_vertex_shader_global_uniform_data;
@@ -262,8 +252,7 @@ D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampl
   );
   font_vertex_shader_global_uniform_data.text_color = color;
   U64 font_vertex_shader_global_uniform_data_offset = RHI_PushBuffer(buffer, (U8*)&font_vertex_shader_global_uniform_data, sizeof(font_vertex_shader_global_uniform_data));
-  RHI_UniformBufferBindingInfo font_vertex_shader_global_uniform = 
-  {
+  RHI_UniformBufferBindingInfo font_vertex_shader_global_uniform = {
     .buffer = buffer,
     .offset = font_vertex_shader_global_uniform_data_offset,
     .size = sizeof(font_vertex_shader_global_uniform_data),
@@ -280,5 +269,4 @@ D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampl
   RHI_BindIndexBuffer(command_buffer, buffer, index_buffer_offset, RHI_IndexSize_U16);
   // RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
   RHI_DrawIndexedPrimitives(command_buffer, indecies_count, 1, 0, 0, 0);
-
 }

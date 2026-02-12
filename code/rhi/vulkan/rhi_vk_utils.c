@@ -200,8 +200,7 @@ RHI_VK_GetVkImageUsageFlags(RHI_TextureUsageFlags flags) {
 
 func VkFilter
 RHI_VK_GetVkFilter(RHI_FilterKind filter) {
-  switch (filter)
-  {
+  switch (filter) {
     default: Assert(1); return 0;
 
     case RHI_FilterKind_Nearest: return VK_FILTER_NEAREST;

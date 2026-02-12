@@ -3,14 +3,11 @@
 #include "assets/mesh.h"
 #include "rhi/rhi_include.h"
 
-struct D_State
-{
+struct D_State {
   Arena* arena;
-
   // -- 2D
   RHI_GraphicsPipeline square_pipeline;
   RHI_GraphicsPipeline font_pipeline;
-
   // -- 3D
   RHI_GraphicsPipeline line_3d_pipeline;
 } _d_state;
