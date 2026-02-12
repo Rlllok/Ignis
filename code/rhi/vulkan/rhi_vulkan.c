@@ -103,7 +103,11 @@ RHI_VK_DestroyBuffer(RHI_Buffer buffer) {
 func U64 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
-	Assert((vk_buffer->size + size) < vk_buffer->capacity);
+	// Assert((vk_buffer->size + size) < vk_buffer->capacity);
+  if (vk_buffer->size + size > vk_buffer->capacity) {
+    LogDebug("RHI_VK. Ring buffer reseted to zero\n");
+    vk_buffer->size = 0;
+  }
 	U32 offset = vk_buffer->size;
 
 	memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
@@ -117,7 +121,7 @@ func U64 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 func void
 RHI_VK_ResetBuffer(RHI_Buffer buffer) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
-	vk_buffer->size = 0;
+	// vk_buffer->size = 0;
 }
 
 func void
@@ -223,7 +227,6 @@ RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
 
   RHI_VK_Texture* swapchain_texture = vk_command_buffer->current_swapchain_texture;
   if (swapchain_texture) {
-    LogInfo("Presenting\n");
     RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], swapchain_texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
   }
 
