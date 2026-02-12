@@ -568,24 +568,21 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
     {
       UI_DrawCommand* command = UI_DrawCommandArrayGetPointer(&commands, i);
 
-      switch (command->type)
+      switch (command->kind)
       {
         default: {}break;
 
-        case UI_DrawCommandType_Rectangle:
-        {
+        case UI_DrawCommandKind_Rectangle: {
           D_DrawRect(command_buffer, data_buffer, viewport, command->rectangle.bound, command->rectangle.radius, command->rectangle.color, command->rectangle.border_color);
         } break;
 
-        case UI_DrawCommandType_Text:
-        {
+        case UI_DrawCommandKind_Text: {
           D_DrawText(command_buffer, data_buffer, _ignis_r_state.texture_sampler, viewport, command->text.font, command->text.content, command->text.font_size, command->text.position, command->text.color);
         } break;
 
         // --AlNov 24 December 2025: @TODO
         // Doesn't save previous scissor rectangle, so it is lost.
-        case UI_DrawCommandType_ScissorBegin:
-        {
+        case UI_DrawCommandKind_ScissorBegin: {
           RHI_SetScissor(command_buffer, (RectI32){
             .x = (I32)command->scissor.bound.x,
             .y = (I32)command->scissor.bound.y,
@@ -594,8 +591,7 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
           });
         } break;
 
-        case UI_DrawCommandType_ScissorEnd:
-        {
+        case UI_DrawCommandKind_ScissorEnd: {
           RHI_SetScissor(command_buffer, (RectI32){
             .x = 0,
             .y = 0,
@@ -610,14 +606,12 @@ Ignis_R_RenderUI(UI_DrawCommandArray commands)
 }
 
 func void
-Ignis_R_RenderGrid(Ignis_Scene* scene, RHI_ColorTarget color, RHI_DepthStencilTarget depth)
-{
+Ignis_R_RenderGrid(Ignis_Scene* scene, RHI_ColorTarget color, RHI_DepthStencilTarget depth) {
   RHI_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
   RHI_Buffer data_buffer = _ignis_r_state.data_buffer;
   Ignis_Entity* camera = Ignis_GetCamera(scene);
 
-  struct
-  {
+  struct {
     Mat4F32 view_matrix;
     Mat4F32 projection_matrix;
   } grid_global_vertex_data;
@@ -630,16 +624,14 @@ Ignis_R_RenderGrid(Ignis_Scene* scene, RHI_ColorTarget color, RHI_DepthStencilTa
     45.0f, (F32)_ignis_r_state.window->size.x/(F32)_ignis_r_state.window->size.y,
     0.1f, 100.0f
   );
-  struct
-  {
+  struct {
     Vec3F32 position;
     F32 grid_scale;
   } grid_instance_vertex_data;
   grid_instance_vertex_data.position = MakeVec3F32(camera->transform.translation.x, 0.0f, camera->transform.translation.z);
   grid_instance_vertex_data.grid_scale = 2000.0f;
 
-  struct
-  {
+  struct {
     Vec4F32 color;
   } grid_global_fragment_data;
   grid_global_fragment_data.color = RGBAFromHex(0x95B8D1AA);
@@ -672,15 +664,13 @@ Ignis_R_RenderGrid(Ignis_Scene* scene, RHI_ColorTarget color, RHI_DepthStencilTa
 }
 
 func void
-Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity)
-{
+Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity) {
   RHI_CommandBuffer command_buffer = _ignis_r_state.command_buffer;
   RHI_Buffer buffer = _ignis_r_state.data_buffer;
   Vec3F32 light_position = MakeVec3F32(10.0f, -10.0f, 0.0f);
   Vec3F32 light_direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, -1.0f));
 
-  for (AST_GeometryListNode* geometry_node = entity->actor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next)
-  {
+  for (AST_GeometryListNode* geometry_node = entity->actor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
     AST_Geometry* geometry = &geometry_node->data;
 
     Mat4F32 view_matrix = MakeLookAtMat4F32(
@@ -693,8 +683,7 @@ Ignis_R_ShadowMapPass(Ignis_Scene* scene, Ignis_Entity* entity)
       0.1f, 100.0f
     );
 
-    struct
-    {
+    struct {
       Mat4F32 mvp;
     } instance_vertex_data;
     instance_vertex_data.mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(entity->transform)));

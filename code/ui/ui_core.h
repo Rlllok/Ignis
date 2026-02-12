@@ -14,17 +14,15 @@ DefineArray(UI_ID, UI_IDArray, _ui_id_nil)
 // UI Layer should not depend on Render Layer. tIt should just build Layout and DrawCommands.
 // (Remove usage for RHI_Texture from there)
 typedef struct FontBitmap FontBitmap;
-struct FontBitmap
-{
+struct FontBitmap {
   RHI_Texture bitmap;
-  Vec2U32 bitmap_size; // --AlNov: @TODO Should be in texture
-  Vec2U32 glyph_size;
-  U32 glyphs_per_row;
+  Vec2U32     bitmap_size; // --AlNov: @TODO Should be in texture
+  Vec2U32     glyph_size;
+  U32         glyphs_per_row;
 };
 
 typedef struct TextVertex TextVertex;
-struct TextVertex
-{
+struct TextVertex {
   Vec2F32 position;
   Vec2F32 uv;
 };
@@ -32,45 +30,38 @@ struct TextVertex
 func Vec2F32 GetTextSize(FontBitmap font, Str8 text, U32 font_size);
 
 typedef U8 UI_PositionType;
-enum UI_PositionTypeEnum
-{
+enum UI_PositionTypeEnum {
   UI_Position
 } UI_PositionTypeEnum;
 
 typedef U8 UI_LayoutDirection;
-enum UI_LayoutDirectionEnum
-{
+enum UI_LayoutDirectionEnum {
   UI_LayoutDirection_TopToBottom,
   UI_LayoutDirection_LeftToRight,
 } UI_LayoutDirectionEnum;
 
 typedef U8 UI_SizeType;
-enum UI_SizeTypeEnum
-{
-  UI_SizeType_FitChildren,
-  UI_SizeType_Percent,
-  UI_SizeType_Pixel,
-} UI_SizeTypeEnum;
+enum UI_SizeKindEnum {
+  UI_SizeKind_FitChildren,
+  UI_SizeKind_Percent,
+  UI_SizeKind_Pixel,
+} UI_SizeKindEnum;
 
 typedef struct UI_Size UI_Size;
-struct UI_Size
-{
-  UI_SizeType type;
-  F32 value;
+struct UI_Size {
+  UI_SizeType kind;
+  F32         value;
 };
 
-#define UI_FitChildrenSize()     ((UI_Size){.type = UI_SizeType_FitChildren, .value = 0.0f})
-#define UI_PercentSize(percent)  ((UI_Size){.type = UI_SizeType_Percent,     .value = percent})
-#define UI_PixelSize(coordinate) ((UI_Size){.type = UI_SizeType_Pixel,       .value = coordinate})
+#define UI_FitChildrenSize()     ((UI_Size){.kind = UI_SizeKind_FitChildren, .value = 0.0f})
+#define UI_PercentSize(percent)  ((UI_Size){.kind = UI_SizeKind_Percent,     .value = percent})
+#define UI_PixelSize(coordinate) ((UI_Size){.kind = UI_SizeKind_Pixel,       .value = coordinate})
 
 typedef struct UI_BorderRadius UI_BorderRadius;
-struct UI_BorderRadius
-{
-  union
-  {
+struct UI_BorderRadius {
+  union {
     Vec4F32 values;
-    struct 
-    {
+    struct {
       F32 top_left;
       F32 top_right;
       F32 bottom_left;
@@ -80,13 +71,10 @@ struct UI_BorderRadius
 };
 
 typedef struct UI_Padding UI_Padding;
-struct UI_Padding
-{
-  union
-  {
+struct UI_Padding {
+  union {
     Vec4F32 v;
-    struct
-    {
+    struct {
       F32 top;
       F32 right;
       F32 bottom;
@@ -98,8 +86,7 @@ struct UI_Padding
 #define UI_EqualPadding(value) {value, value, value, value}
 
 typedef U16 UI_WidgetFlags;
-enum UI_WidgetFlagEnum
-{
+enum UI_WidgetFlagEnum {
   // Interaction Flags
   UI_WidgetFlag_Hover = 1 << 0,
   UI_WidgetFlag_Clickable = 1 << 1,
@@ -110,79 +97,68 @@ enum UI_WidgetFlagEnum
 } UI_WidgetFlagEnum;
 
 typedef struct UI_LayoutDescription UI_LayoutDescription;
-struct UI_LayoutDescription
-{
-  UI_Size width;
-  UI_Size height;
-  UI_Padding padding;
-  I32 child_gap;
+struct UI_LayoutDescription {
+  UI_Size            width;
+  UI_Size            height;
+  UI_Padding         padding;
+  I32                child_gap;
   UI_LayoutDirection direction;
-  B32 clip;
-  Vec2I32 scroll_offset;
+  B32                clip;
+  Vec2I32            scroll_offset;
 };
 
 typedef struct UI_RectangleDescription UI_RectangleDescription;
-struct UI_RectangleDescription
-{
-  Vec4F32 color;
-  Vec4F32 border_color;
+struct UI_RectangleDescription {
+  Vec4F32         color;
+  Vec4F32         border_color;
   UI_BorderRadius radius;
 };
 
 typedef struct UI_TextDescription UI_TextDescription;
-struct UI_TextDescription
-{
-  Str8 str;
+struct UI_TextDescription {
+  Str8       str;
   FontBitmap font;
-  Vec4F32 color;
-  U32 font_size;
+  Vec4F32    color;
+  U32        font_size;
 };
 
-typedef U16 UI_WidgetType;
-enum UI_WidgetTypeEnum
-{
-  UI_WidgetType_Rectangle,
-  UI_WidgetType_Text
-} UI_WidgetTypeEnum;
+typedef U16 UI_WidgetKind;
+enum UI_WidgetKindEnum {
+  UI_WidgetKind_Rectangle,
+  UI_WidgetKind_Text
+} UI_WidgetKindEnum;
 
 typedef struct UI_WidgetDescription UI_WidgetDescription;
-struct UI_WidgetDescription
-{
-  Str8 name;
-
-  UI_WidgetType type;
-  UI_WidgetFlags flags;
-
+struct UI_WidgetDescription {
+  Str8                 name;
+  UI_WidgetKind        kind;
+  UI_WidgetFlags       flags;
   UI_LayoutDescription layout;
-  union
-  {
+  union {
     UI_RectangleDescription rectangle;
-    UI_TextDescription text;
+    UI_TextDescription      text;
   };
 };
 
 typedef struct UI_ScrollOffset UI_ScrollOffset;
-struct UI_ScrollOffset
-{
-  UI_ID element_id;
+struct UI_ScrollOffset {
+  UI_ID   element_id;
   Vec2I32 offset;
 };
 UI_ScrollOffset _scroll_offset_nil = {0};
 DefineArray(UI_ScrollOffset, UI_ScrollOffsetArray, _scroll_offset_nil)
 
 typedef struct UI_Widget UI_Widget;
-struct UI_Widget
-{
+struct UI_Widget {
   UI_ID id;
   UI_WidgetDescription description;
 
   // --AlNov 23 December 2025: @TEST
   UI_ID   clip_element_id;
 
-  struct
-  {
+  struct {
     UI_ID* ids;
-    I32 length;
+    I32    length;
   } children_array_slice;
 
   RectF32 rect;
@@ -192,42 +168,36 @@ struct UI_Widget
 UI_Widget UI_WidgetDefaultValue = {0};
 DefineArray(UI_Widget, UI_WidgetArray, UI_WidgetDefaultValue)
 
-typedef U8 UI_DrawCommandType;
-enum UI_DrawCommandTypeEnum
-{
-  UI_DrawCommandType_None,
-  UI_DrawCommandType_Rectangle,
-  UI_DrawCommandType_Text,
-  UI_DrawCommandType_ScissorBegin,
-  UI_DrawCommandType_ScissorEnd,
-  UI_DrawCommandTpye_Count,
-} UI_DrawCommandTypeEnum;
+typedef U8 UI_DrawCommandKind;
+enum UI_DrawCommandKindEnum {
+  UI_DrawCommandKind_None,
+  UI_DrawCommandKind_Rectangle,
+  UI_DrawCommandKind_Text,
+  UI_DrawCommandKind_ScissorBegin,
+  UI_DrawCommandKind_ScissorEnd,
+  UI_DrawCommandKind_Count,
+} UI_DrawCommandKindEnum;
 
 typedef struct UI_DrawCommand UI_DrawCommand;
-struct UI_DrawCommand
-{
-  UI_DrawCommandType type;
-  union
-  {
-    struct
-    {
+struct UI_DrawCommand {
+  UI_DrawCommandKind kind;
+  union {
+    struct {
       RectF32 bound;
       Vec4F32 color;
       Vec4F32 border_color;
       Vec4F32 radius;
     } rectangle;
 
-    struct
-    {
-      Str8 content;
+    struct {
+      Str8       content;
       FontBitmap font;
-      F32 font_size;
-      Vec4F32 color;
-      Vec2F32 position;
+      F32        font_size;
+      Vec4F32    color;
+      Vec2F32    position;
     } text;
 
-    struct
-    {
+    struct {
       RectF32 bound;
     } scissor;
   };
@@ -236,30 +206,23 @@ UI_DrawCommand UI_DrawCommandDefaultValue = {0};
 DefineArray(UI_DrawCommand, UI_DrawCommandArray, UI_DrawCommandDefaultValue)
 
 typedef struct UI_Context UI_Context;
-struct UI_Context
-{
-  // Interaction
-  UI_ID hot_id;
-  UI_ID active_id;
-  Vec2F32 mouse_position;
-  Vec2F32 mouse_scroll;
-
-  UI_WidgetArray elements;
-
-  UI_IDArray final_elements;
-  UI_IDArray open_elements_stack;
-  UI_IDArray clip_elements_stack;
-  UI_IDArray branches;
-  UI_IDArray children;
-  UI_IDArray children_formation_buffer;
-
-  UI_IDArray traversal_stack;
-  B32Array visited_lookup;
-
+struct UI_Context {
+  UI_ID                hot_id;
+  UI_ID                active_id;
+  Vec2F32              mouse_position;
+  Vec2F32              mouse_scroll;
+  UI_WidgetArray       elements;
+  UI_IDArray           final_elements;
+  UI_IDArray           open_elements_stack;
+  UI_IDArray           clip_elements_stack;
+  UI_IDArray           branches;
+  UI_IDArray           children;
+  UI_IDArray           children_formation_buffer;
+  UI_IDArray           traversal_stack;
+  B32Array             visited_lookup;
   UI_ScrollOffsetArray scroll_offsets;
-
-  UI_DrawCommandArray draw_commands;
-} ui_context; // -- AlNov. 12 December 2025: @TODO Multiole contexts?
+  UI_DrawCommandArray  draw_commands;
+} ui_context; // -- AlNov. 12 December 2025: @TODO Multiple contexts?
 
 func void UI_Init(Arena* arena, U32 max_elements_count);
 
@@ -275,7 +238,7 @@ func void UI_EndFrame();
 // -- UI Widgets ----------------------------------------------------
 func UI_Widget* UI_GetOpenedWidget();
 
-func UI_ID   UI_GetID()                {return UI_GetOpenedWidget()->id;}
+func UI_ID   UI_GetID() {return UI_GetOpenedWidget()->id;}
 func RectF32 UI_GetRectangle(UI_ID id) {return UI_WidgetArrayGet(&ui_context.elements, id).rect;}
 
 func Vec2I32 UI_GetScrollOffset();
@@ -301,12 +264,12 @@ UI_DefineWidgetDescriptionStructWrapper()
 // Interaction with UI is delayed by 1 frame.
 // While we adding Widgets we don't know the final configuration of layout.
 // The layout is in the final state after UI_EndFrame() is called.
-func B32 UI_Hovered();
-func B32 UI_Clicked();
+func B32     UI_Hovered();
+func B32     UI_Clicked();
 func RectF32 UI_GetWidgetRectF32();
 
 func UI_Widget* UI_Layout(UI_WidgetArray* array, Str8 label);
-func void        UI_Text(Str8 label, UI_TextDescription text);
-func void        UI_NumberInput(UI_WidgetArray* array, Str8 label, F32* value);
-func B32         UI_Button(UI_WidgetArray* array, Str8 label);
-func F32         UI_SliderF32(UI_WidgetArray* array, Str8 label, F32 min, F32 max, F32* value);
+func void       UI_Text(Str8 label, UI_TextDescription text);
+func void       UI_NumberInput(UI_WidgetArray* array, Str8 label, F32* value);
+func B32        UI_Button(UI_WidgetArray* array, Str8 label);
+func F32        UI_SliderF32(UI_WidgetArray* array, Str8 label, F32 min, F32 max, F32* value);

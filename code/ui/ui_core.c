@@ -57,7 +57,7 @@ UI_CalculateSizes(B32 is_width)
       UI_Size child_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
       F32* child_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
 
-      if (child_size.type == UI_SizeType_Percent)
+      if (child_size.kind == UI_SizeKind_Percent)
       {
         F32 parent_size_value = (is_width) ? branch->rect.size.x : branch->rect.size.y;
         F32 parent_padding_value_0 = (is_width) ? branch->description.layout.padding.left : branch->description.layout.padding.top;
@@ -114,7 +114,7 @@ UI_BeginFrame(Vec2F32 mouse_position, Vec2F32 mouse_scroll)
     UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
     UI_Widget* element = UI_WidgetArrayGetPointer(&ui_context.elements, element_id);
     
-    B32 item_is_hot = element->description.type == UI_WidgetType_Rectangle
+    B32 item_is_hot = element->description.kind == UI_WidgetKind_Rectangle
       && InsideRectF32(element->rect, ui_context.mouse_position)
       && InsideRectF32(UI_WidgetArrayGetPointer(&ui_context.elements, element->clip_element_id)->rect, ui_context.mouse_position);
 
@@ -231,7 +231,7 @@ func void UI_EndFrame()
           UI_DrawCommandArrayAdd(
             &ui_context.draw_commands,
             (UI_DrawCommand){
-              .type = UI_DrawCommandType_Rectangle,
+              .kind = UI_DrawCommandKind_Rectangle,
               .rectangle = {
                 .bound = current_element->rect,
                 .color = current_element->description.rectangle.color,
@@ -246,7 +246,7 @@ func void UI_EndFrame()
           UI_DrawCommandArrayAdd(
             &ui_context.draw_commands,
             (UI_DrawCommand){
-              .type = UI_DrawCommandType_Text,
+              .kind = UI_DrawCommandKind_Text,
               .text = {
                 .content = current_element->description.text.str,
                 .font = current_element->description.text.font,
@@ -260,7 +260,7 @@ func void UI_EndFrame()
         if (current_element->description.layout.clip)
         {
           UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
-            .type = UI_DrawCommandType_ScissorBegin,
+            .kind = UI_DrawCommandKind_ScissorBegin,
             .scissor = current_element->rect,
           });
         }
@@ -275,7 +275,7 @@ func void UI_EndFrame()
         if (current_element->description.layout.clip)
         {
           UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
-            .type = UI_DrawCommandType_ScissorEnd,
+            .kind = UI_DrawCommandKind_ScissorEnd,
           });
         }
         UI_IDArrayPop(&ui_context.traversal_stack);
@@ -333,11 +333,11 @@ UI_ConfigureWidget(UI_WidgetDescription description)
     element->clip_element_id = clip_element_id;
   }
 
-  if (element->description.layout.width.type == UI_SizeType_Pixel)
+  if (element->description.layout.width.kind == UI_SizeKind_Pixel)
   {
     element->rect.size.x = element->description.layout.width.value;
   }
-  if (element->description.layout.height.type == UI_SizeType_Pixel)
+  if (element->description.layout.height.kind == UI_SizeKind_Pixel)
   {
     element->rect.size.y = element->description.layout.height.value;
   }
@@ -375,12 +375,12 @@ func void UI_CloseWidget()
     UI_ID child_id = UI_IDArrayGet(&ui_context.children_formation_buffer, buffer_offset);
     UI_IDArrayAdd(&ui_context.children, child_id);
 
-    if (current_element->description.layout.height.type == UI_SizeType_FitChildren)
+    if (current_element->description.layout.height.kind == UI_SizeKind_FitChildren)
     {
       UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
       current_element->rect.size.y += child_element->rect.size.y;
     }
-    if (current_element->description.layout.width.type == UI_SizeType_FitChildren)
+    if (current_element->description.layout.width.kind == UI_SizeKind_FitChildren)
     {
       UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
       current_element->rect.size.x += child_element->rect.size.x;
@@ -454,7 +454,7 @@ UI_Text(Str8 text, UI_TextDescription text_description)
 
   UI_WidgetBlock({
     .name = text,
-    .type = UI_WidgetType_Text,
+    .kind = UI_WidgetKind_Text,
     .flags = UI_WidgetFlag_DrawLabel,
     .text = with_str,
     .layout = {
