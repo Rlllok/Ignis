@@ -16,6 +16,10 @@ enum LogMessageKindEnum {
 
 func void LogOutput(LogMessageKind message_kind, const char* message, ...);
 
+#ifndef  LogText
+#define LogText(message, ...) LogOutput(LogMessageKind_None, message, ##__VA_ARGS__);
+#endif // LogText
+
 #ifndef LogError
 #define LogError(message, ...) LogOutput(LogMessageKind_Error, message, ##__VA_ARGS__);
 #endif // LogError

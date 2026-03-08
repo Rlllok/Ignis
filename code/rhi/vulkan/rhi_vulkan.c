@@ -100,7 +100,8 @@ RHI_VK_DestroyBuffer(RHI_Buffer buffer) {
   *vk_buffer = (RHI_VK_Buffer){0};
 }
 
-func U64 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
+func U64
+RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
 	// Assert((vk_buffer->size + size) < vk_buffer->capacity);
@@ -197,7 +198,8 @@ RHI_VK_ReleaseCommandBuffer(RHI_CommandBuffer command_buffer) {
   }
 }
 
-func void RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
+func void
+RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   
   vk_command_buffer->active_render_pass = 0;
