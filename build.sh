@@ -30,10 +30,10 @@ echo "**************************************************"
 echo "Compilation started."
 echo "**************************************************"
 
-if [ "$1" == "ignis"  ]; then clang -g ./code/ignis/main.c  -o build/ignis $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
-if [ "$1" == "ray"  ];   then clang -g ./code/ray/main.c    -o build/ray $warnings $defines $include_flags $default_links $x11_links $wayland_links; fi
-if [ "$1" == "ember"  ]; then clang -g ./code/ember/ember.c -o build/ember $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
-if [ "$1" == "string" ]; then clang -g ./code/app/string.c  -o build/string $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
+if [ "$1" == "ignis"  ]; then time clang -g ./code/ignis/main.c  -o build/ignis $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
+if [ "$1" == "ray"  ];   then time clang -O2 -g ./code/ray/main.c    -o build/ray $warnings $defines $include_flags $default_links $x11_links $wayland_links; fi
+if [ "$1" == "ember"  ]; then time clang -g ./code/ember/ember.c -o build/ember $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
+if [ "$1" == "string" ]; then time clang -g ./code/app/string.c  -o build/string $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
 
 echo "**************************************************"
 echo "Compilation ended."
