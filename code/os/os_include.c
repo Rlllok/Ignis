@@ -15,8 +15,3 @@
 #include "win32/os_win32_gfx.c"
 #include "win32/os_win32_filysystem.c"
 #endif // IGNIS_PLATFORM_WIN32
-
-#ifdef IGNIS_PLATFORM_MACOS
-#include "macos/os_macos_memory.c"
-#include "macos/os_macos_gfx.c"
-#endif // IGNIS_PLATFORM_MACOS

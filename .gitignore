@@ -2,7 +2,6 @@
 .vscode
 .clang-format
 .nvim.project
-.DS_Store
 
 build
 
