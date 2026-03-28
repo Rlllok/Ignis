@@ -1,7 +1,10 @@
 .vs
+.DS_Store
 .vscode
+xcode
 .clang-format
 .nvim.project
+tags
 
 build
 
