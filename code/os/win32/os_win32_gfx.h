@@ -1,5 +1,8 @@
 #pragma once
 
+// --Alnov: @TODO I should remove header file and move all code to the .c file
+// There are no need in this header as all api defined in os_gfx.h
+
 #include <windows.h>
 
 #include "base/base_include.h"
