@@ -49,9 +49,6 @@ OS_CreateWindow(Str8 title, Vec2U32 size) {
   window->ns_window = (__bridge void*)ns_window;
 
   [ns_window setTitle:@(CFromStr8(title))];
-  [ns_window makeKeyAndOrderFront:nil];
-  NSApplication* ns_app = (__bridge NSApplication*)_os_macos_state.ns_app;
-  [ns_app activateIgnoringOtherApps:YES];
 
   return (OS_Window*)window;
 }
@@ -63,7 +60,9 @@ OS_DestroyWindow(OS_Window* window) {
 
 func void
 OS_ShowWindow(OS_Window* window) {
-  // --AlNov: @TODO
+  OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window;
+  NSWindow* ns_window = (__bridge NSWindow*)macos_window->ns_window;
+  [ns_window makeKeyAndOrderFront:nil];
 }
 
 func OS_EventList

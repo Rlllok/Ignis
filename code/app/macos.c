@@ -15,6 +15,7 @@ I32 main() {
 
   Vec2U32 window_size = MakeVec2U32(1280, 720);
   OS_Window* window = OS_CreateWindow(Str8C("Simple Triangle Test (MacOS)"), window_size);
+  OS_ShowWindow(window);
 
   while (!finished) {
     OS_EventList event_list = OS_GetEventList(frame_arena, window);
