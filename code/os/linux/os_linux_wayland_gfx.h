@@ -32,9 +32,10 @@ typedef struct zwp_pointer_constraints_v1 zwp_pointer_constraints_v1;
 typedef struct zwp_locked_pointer_v1 zwp_locked_pointer_v1;
 typedef struct zwp_confined_pointer_v1 zwp_confined_pointer_v1;
 
-typedef struct OS_WindowHandle OS_WindowHandle;
-struct OS_WindowHandle
-{
+typedef struct OS_WL_Window OS_WL_Window;
+struct OS_WL_Window {
+  OS_Window header;
+  
   wl_display* display;
   wl_registry* registry;
   wl_compositor* compositor;

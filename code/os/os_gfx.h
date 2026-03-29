@@ -2,10 +2,6 @@
 
 #include "base/base_include.h"
 
-// -- AlNov 7 January 2026: @TODO
-// Why using OS_WindowHandle
-typedef struct OS_WindowHandle OS_WindowHandle;
-
 typedef U16 OS_WindowStatus;
 typedef enum OS_WindowStatusEnum
 {
@@ -20,7 +16,6 @@ typedef enum OS_WindowStatusEnum
 typedef struct OS_Window OS_Window;
 struct OS_Window
 {
-    OS_WindowHandle* handle;
     Vec2U32 size;
     Vec2F32 cursor_position;
     Vec2F32 virtual_cursor_position;

@@ -14,19 +14,19 @@ OS_Init(U64 arena_size)
 func void
 _ShellHandlePing(void* data, xdg_wm_base* shell, U32 serial)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
-  xdg_wm_base_pong(handle->shell, serial);
+  xdg_wm_base_pong(window->shell, serial);
 }
 
 func void
 _PointerHandleEnter(void* data, wl_pointer* pointer, U32 serial, wl_surface* surface, I32 surface_x, I32 surface_y)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
-  handle->pointer_enter_serial = serial;
+  window->pointer_enter_serial = serial;
 
-  wl_pointer_set_cursor(handle->pointer, handle->pointer_enter_serial, 0, 0, 0);
+  wl_pointer_set_cursor(window->pointer, window->pointer_enter_serial, 0, 0, 0);
 
   OS_Event event = {
     .type = OS_EVENT_TYPE_MOUSE_ENTER,
@@ -46,7 +46,7 @@ _PointerHandleLeave(void*data, wl_pointer* pointer, U32 serial, wl_surface* surf
 func void
 _PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I32 surface_y)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
   OS_Event event = {
     .type = OS_EVENT_TYPE_MOUSE_MOVE,
@@ -58,7 +58,7 @@ _PointerHandleMotion(void* data, wl_pointer* pointer, U32 time, I32 surface_x, I
 func void
 _PointerHandleButton(void* data, wl_pointer* pointer, U32 serial, U32 time, U32 button, U32 state)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
   OS_Event event = {0};
   event.type = OS_EVENT_TYPE_MOUSE_PRESS;
@@ -135,14 +135,14 @@ struct wl_pointer_listener _pointer_listener = {
 func void
 _HandleKeyboardKeymap(void* data, struct wl_keyboard* keyboard, U32 format, I32 fd, U32 size)
 {
-	OS_WindowHandle* handle = (OS_WindowHandle*)data;
+	OS_WL_Window* window = (OS_WL_Window*)data;
 	char* keymap_string = mmap(0, size, PROT_READ, MAP_SHARED, fd, 0);
-	xkb_keymap_unref(handle->kb_keymap);
-	handle->kb_keymap = xkb_keymap_new_from_string(handle->kb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	xkb_keymap_unref(window->kb_keymap);
+	window->kb_keymap = xkb_keymap_new_from_string(window->kb_context, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
 	munmap(keymap_string, size);
 	close(fd);
-	xkb_state_unref(handle->kb_state);
-	handle->kb_state = xkb_state_new(handle->kb_keymap);
+	xkb_state_unref(window->kb_state);
+	window->kb_state = xkb_state_new(window->kb_keymap);
 }
 
 func void
@@ -158,13 +158,13 @@ _HandleKeyboardLeave(void* data, struct wl_keyboard* keyboard, U32 serial, struc
 func void
 _HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 time, U32 key, U32 state)
 {
-	OS_WindowHandle* handle = (OS_WindowHandle*)data;
+	OS_WL_Window* window = (OS_WL_Window*)data;
 
 	B32 key_pressed = (state == WL_KEYBOARD_KEY_STATE_PRESSED) || (state == WL_KEYBOARD_KEY_STATE_REPEATED);
 	B32 key_released = (state == WL_KEYBOARD_KEY_STATE_RELEASED);
 	if (key_pressed || key_released)
 	{
-		xkb_keysym_t keysym = xkb_state_key_get_one_sym(handle->kb_state, key+8);
+		xkb_keysym_t keysym = xkb_state_key_get_one_sym(window->kb_state, key+8);
 		char name[64];
 		xkb_keysym_get_name(keysym, name, 64);
 
@@ -270,9 +270,9 @@ _HandleKeyboardKey(void* data, struct wl_keyboard* keyboard, U32 serial, U32 tim
 func void
 _HandleKeyboardModifiers(void* data, struct wl_keyboard* keyboard, U32 serial, U32 mods_depressed, U32 mods_latched, U32 mods_locked, U32 group)
 {
-	OS_WindowHandle* handle = (OS_WindowHandle*)data;
+	OS_WL_Window* window = (OS_WL_Window*)data;
 
-	xkb_state_update_mask(handle->kb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+	xkb_state_update_mask(window->kb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
 }
 
 func void
@@ -293,25 +293,25 @@ struct wl_keyboard_listener _keyboard_listener = {
 func void
 _SeatHandleCapabilities(void* data, wl_seat* seat, U32 capabilities)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
   B32 have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
 
-  if (have_pointer && handle->pointer == 0)
+  if (have_pointer && window->pointer == 0)
   {
-    handle->pointer = wl_seat_get_pointer(handle->seat);
-    wl_pointer_add_listener(handle->pointer, &_pointer_listener, data);
+    window->pointer = wl_seat_get_pointer(window->seat);
+    wl_pointer_add_listener(window->pointer, &_pointer_listener, data);
     LogInfo("ADD POINTER\n");
   }
-  else if (!have_pointer && handle->pointer !=0)
+  else if (!have_pointer && window->pointer !=0)
   {
-    wl_pointer_release(handle->pointer);
-    handle->pointer = 0;
+    wl_pointer_release(window->pointer);
+    window->pointer = 0;
   }
 	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD)
 	{
-		handle->keyboard = wl_seat_get_keyboard(handle->seat);
-		wl_keyboard_add_listener(handle->keyboard, &_keyboard_listener, data);
+		window->keyboard = wl_seat_get_keyboard(window->seat);
+		wl_keyboard_add_listener(window->keyboard, &_keyboard_listener, data);
 	}
 }
 
@@ -333,29 +333,29 @@ struct xdg_wm_base_listener _shell_listener = {
 func void
 _RegistryHandleGlobal(void* data, wl_registry* registry, U32 name, const char* interface, U32 version)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
   if (strcmp(interface, wl_compositor_interface.name) == 0)
   {
-    handle->compositor = (wl_compositor*)wl_registry_bind(registry, name, &wl_compositor_interface, 1);
+    window->compositor = (wl_compositor*)wl_registry_bind(registry, name, &wl_compositor_interface, 1);
   }
   else if (strcmp(interface, xdg_wm_base_interface.name) == 0)
   {
-    handle->shell = (xdg_wm_base*)wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
-    xdg_wm_base_add_listener(handle->shell, &_shell_listener, handle);
+    window->shell = (xdg_wm_base*)wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+    xdg_wm_base_add_listener(window->shell, &_shell_listener, window);
   }
   else if (strcmp(interface, wl_seat_interface.name) == 0)
   {
-    handle->seat = (wl_seat*)wl_registry_bind(registry, name, &wl_seat_interface, 7);
-    wl_seat_add_listener(handle->seat, &_seat_listener, handle);
+    window->seat = (wl_seat*)wl_registry_bind(registry, name, &wl_seat_interface, 7);
+    wl_seat_add_listener(window->seat, &_seat_listener, window);
   }
   else if (strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0)
   {
-    handle->relative_pointer_manager = (zwp_relative_pointer_manager_v1*)wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface, 1);
+    window->relative_pointer_manager = (zwp_relative_pointer_manager_v1*)wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface, 1);
   }
   else if (strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0)
   {
-    handle->pointer_constraints = (zwp_pointer_constraints_v1*)wl_registry_bind(registry, name, &zwp_pointer_constraints_v1_interface, 1);
+    window->pointer_constraints = (zwp_pointer_constraints_v1*)wl_registry_bind(registry, name, &zwp_pointer_constraints_v1_interface, 1);
   }
 }
 
@@ -367,15 +367,15 @@ struct wl_registry_listener _registry_listener = {
 func void
 _ShellSurfaceHandleConfigure(void* data, xdg_surface* shell_surface, U32 serial)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
   xdg_surface_ack_configure(shell_surface, serial);
 
-  if (handle->request_resize)
+  if (window->request_resize)
   {
     OS_Event event = {
       .type = OS_EVENT_TYPE_RESIZE,
-      .window_size = handle->new_size,
+      .window_size = window->new_size,
     };
 
     // --AlNov: @NOTE Configure occures before GetEventList, so event_list is not initialized
@@ -384,8 +384,8 @@ _ShellSurfaceHandleConfigure(void* data, xdg_surface* shell_surface, U32 serial)
       OS_EventListPush(&_os_state.event_list, event);
     }
 
-    handle->request_resize = false;
-    wl_surface_commit(handle->surface);
+    window->request_resize = false;
+    wl_surface_commit(window->surface);
   }
 }
 
@@ -396,10 +396,10 @@ struct xdg_surface_listener _shell_surface_listener = {
 func void
 _ToplevelHandleConfigure(void* data, xdg_toplevel* toplevel, I32 new_width, I32 new_heigth, struct wl_array* states)
 {
-  OS_WindowHandle* handle = (OS_WindowHandle*)data;
+  OS_WL_Window* window = (OS_WL_Window*)data;
 
-  handle->new_size = MakeVec2U32((I32)new_width, (I32)new_heigth);
-  handle->request_resize = true;
+  window->new_size = MakeVec2U32((I32)new_width, (I32)new_heigth);
+  window->request_resize = true;
 }
 
 func void
@@ -429,50 +429,50 @@ struct zwp_relative_pointer_v1_listener _relative_pointer_listener = {
   .relative_motion = _HandleRelativeMotion
 };
 
-func void
-OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
+func OS_Window*
+OS_CreateWindow(Str8 title, Vec2U32 size)
 {
-  out->handle = (OS_WindowHandle*)OS_ReserveMemory(sizeof(OS_WindowHandle)).ptr;
-  OS_CommitMemory((void*)out->handle, sizeof(OS_WindowHandle));
-  out->size = size;
+  OS_WL_Window* result = (OS_WL_Window*)PushArena(_os_state.arena, sizeof(OS_WL_Window));
+  result->header.size = size;
 
-  out->handle->display = wl_display_connect(0);
-  out->handle->registry = wl_display_get_registry(out->handle->display);
-  wl_registry_add_listener(out->handle->registry, &_registry_listener, out->handle);
-  wl_display_roundtrip(out->handle->display);
+  result->display = wl_display_connect(0);
+  result->registry = wl_display_get_registry(result->display);
+  wl_registry_add_listener(result->registry, &_registry_listener, result);
+  wl_display_roundtrip(result->display);
 
-  out->handle->surface = wl_compositor_create_surface(out->handle->compositor);
-  out->handle->shell_surface = xdg_wm_base_get_xdg_surface(out->handle->shell, out->handle->surface);
-  out->handle->toplevel = xdg_surface_get_toplevel(out->handle->shell_surface);
-  xdg_surface_add_listener(out->handle->shell_surface, &_shell_surface_listener, out->handle);
-  xdg_toplevel_add_listener(out->handle->toplevel, &_toplevel_listener, out->handle);
+  result->surface = wl_compositor_create_surface(result->compositor);
+  result->shell_surface = xdg_wm_base_get_xdg_surface(result->shell, result->surface);
+  result->toplevel = xdg_surface_get_toplevel(result->shell_surface);
+  xdg_surface_add_listener(result->shell_surface, &_shell_surface_listener, result);
+  xdg_toplevel_add_listener(result->toplevel, &_toplevel_listener, result);
 
-  xdg_toplevel_set_title(out->handle->toplevel, CFromStr8(title));
-  xdg_toplevel_set_app_id(out->handle->toplevel, CFromStr8(title));
+  xdg_toplevel_set_title(result->toplevel, CFromStr8(title));
+  xdg_toplevel_set_app_id(result->toplevel, CFromStr8(title));
 
-  wl_surface_commit(out->handle->surface);
-  wl_display_roundtrip(out->handle->display);
-  wl_surface_commit(out->handle->surface);
+  wl_surface_commit(result->surface);
+  wl_display_roundtrip(result->display);
+  wl_surface_commit(result->surface);
 
-  if (!out->handle->relative_pointer_manager)
+  if (!result->relative_pointer_manager)
   {
     LogError("Relative Pointer is not supported by the compositor.\n");
-    return;
   }
 
-  out->handle->relative_pointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
-    out->handle->relative_pointer_manager,
-    out->handle->pointer
+  result->relative_pointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
+    result->relative_pointer_manager,
+    result->pointer
   );
   zwp_relative_pointer_v1_add_listener(
-    out->handle->relative_pointer,
+    result->relative_pointer,
     &_relative_pointer_listener,
-    out
+    result
   );
 
-	out->handle->kb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	result->kb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
   LogInfo("Window Created\n");
+
+  return (OS_Window*)result;
 }
 
 func void
@@ -531,46 +531,51 @@ struct zwp_confined_pointer_v1_listener _confined_pointer_listener = {
 func void
 OS_LockCursor(OS_Window* window)
 {
-  window->handle->confined_pointer = zwp_pointer_constraints_v1_confine_pointer(
-    window->handle->pointer_constraints,
-    window->handle->surface,
-    window->handle->pointer,
+  OS_WL_Window* w = (OS_WL_Window*)window;
+  w->confined_pointer = zwp_pointer_constraints_v1_confine_pointer(
+    w->pointer_constraints,
+    w->surface,
+    w->pointer,
     0,
     ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT
   );
-  zwp_confined_pointer_v1_add_listener(window->handle->confined_pointer, &_confined_pointer_listener, window);
+  zwp_confined_pointer_v1_add_listener(w->confined_pointer, &_confined_pointer_listener, w);
 
-  // window->handle->locked_pointer = zwp_pointer_constraints_v1_lock_pointer(
-  //   window->handle->pointer_constraints,
-  //   window->handle->surface,
-  //   window->handle->pointer,
+  // w->locked_pointer = zwp_pointer_constraints_v1_lock_pointer(
+  //   w->pointer_constraints,
+  //   w->surface,
+  //   w->pointer,
   //   0,
   //   ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT
   // );
-  // zwp_locked_pointer_v1_add_listener(window->handle->locked_pointer, &_locked_pointer_listener, window);
+  // zwp_locked_pointer_v1_add_listener(w->locked_pointer, &_locked_pointer_listener, w);
 }
 
 func void
 OS_UnlockCursor(OS_Window* window)
 {
-  zwp_relative_pointer_v1_destroy(window->handle->relative_pointer);
-  window->handle->relative_pointer = 0;
+  OS_WL_Window* w = (OS_WL_Window*)window;
 
-  // zwp_locked_pointer_v1_destroy(window->handle->locked_pointer);
-  // window->handle->locked_pointer = 0;
+  zwp_relative_pointer_v1_destroy(w->relative_pointer);
+  w->relative_pointer = 0;
 
-  zwp_confined_pointer_v1_destroy(window->handle->confined_pointer);
-  window->handle->confined_pointer = 0;
+  // zwp_locked_pointer_v1_destroy(w->locked_pointer);
+  // w->locked_pointer = 0;
+
+  zwp_confined_pointer_v1_destroy(w->confined_pointer);
+  w->confined_pointer = 0;
 }
 
 func OS_EventList
 OS_GetEventList(Arena* arena, OS_Window* window)
 {
+  OS_WL_Window* wayland_window = (OS_WL_Window*)window;
+
   _os_state.event_list = OS_EventListCreate(arena);
 	_os_state.keyboard_event_list = OS_EventListCreate(arena);
   _os_state.mouse_event_list = OS_EventListCreate(arena);
 
-  wl_display_dispatch_pending(window->handle->display);
+  wl_display_dispatch_pending(wayland_window->display);
 
 	for (I32 i = 0; i < OS_KEY_COUNT; i += 1)
 	{
