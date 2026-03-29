@@ -362,10 +362,12 @@ RHI_VK_CreateSwapchain(OS_Window* window) {
 #endif // IGNIS_PLATFORM_WIN32
 
 #if IGNIS_PLATFORM_LINUX_WAYLAND
+  OS_WL_Window* wayland_window = (OS_WL_Window*)window;
+
   VkWaylandSurfaceCreateInfoKHR surface_info = {
     .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
-    .display = window->handle->display,
-    .surface = window->handle->surface
+    .display = wayland_window->display,
+    .surface = wayland_window->surface
   };
 
   VK_CHECK(vkCreateWaylandSurfaceKHR(_rhi_vk_state.instance, &surface_info, 0, &_rhi_vk_state.swapchain.surface));

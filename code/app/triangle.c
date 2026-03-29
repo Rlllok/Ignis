@@ -20,10 +20,9 @@ I32 main() {
   OS_Init(Megabytes(32));
 
   Vec2U32 window_size = MakeVec2U32(1280, 720);
-  OS_Window window = ZeroStruct();
-  OS_CreateWindow(Str8C("Simple Triangle Test"), window_size, &window);
+  OS_Window* window = OS_CreateWindow(Str8C("Simple Triangle Test"), window_size);
 
-  RHI_Init(RHI_RendererKind_Vulkan, &window);
+  RHI_Init(RHI_RendererKind_Vulkan, window);
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
 
@@ -66,10 +65,10 @@ I32 main() {
   };
   RHI_GraphicsPipeline triangle_pipeline = RHI_CreateGraphicsPipeline(&triangle_pipeline_info);
 
-  OS_ShowWindow(&window);
+  OS_ShowWindow(window);
 
   while (!finished) {
-    OS_EventList event_list = OS_GetEventList(arena, &window);
+    OS_EventList event_list = OS_GetEventList(arena, window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       finished = 1;
