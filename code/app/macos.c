@@ -20,6 +20,10 @@ I32 main() {
   while (!finished) {
     OS_EventList event_list = OS_GetEventList(frame_arena, window);
 
+    if (OS_KeyPressed(OS_KEY_ESC)) {
+      finished = 1;
+    }
+
     ResetArena(frame_arena);
   }
 
