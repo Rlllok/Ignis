@@ -24,6 +24,11 @@ I32 main() {
       finished = 1;
     }
 
+    if (OS_KeyPressed(OS_KEY_M)) {
+      Vec2F32 p = OS_MousePosition(window);
+      LogInfo("MousePosition: %fx %fy\n", p.x, p.y);
+    }
+
     ResetArena(frame_arena);
   }
 

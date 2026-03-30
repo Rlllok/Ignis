@@ -210,7 +210,7 @@ func U64 OS_GetTimeTicks(void);
 
 func void OS_Sleep(U64 ms);
 
-func Vec2F32 OS_MousePosition(OS_Window window);
+func Vec2F32 OS_MousePosition(OS_Window* window);
 func Vec2F32 OS_MouseScroll();
 
 func void OS_ChangeKeyState(OS_KeyCode key_code, OS_KeyState state)
