@@ -6,6 +6,7 @@
 #pragma push_macro("func")
 #undef func
 #include <Cocoa/Cocoa.h>
+#include <QuartzCore/CAMetalLayer.h>
 #pragma pop_macro("func")
 
 typedef struct OS_MacOS OS_MacOS;
@@ -23,10 +24,37 @@ OS_Init(U64 arena_size) {
   [ns_app finishLaunching];
 }
 
+@interface OS_MacOS_View : NSView
+@property (nonatomic, strong) CAMetalLayer* metal_layer;
+@end
+
+@implementation OS_MacOS_View
++ (id)layerClass {
+  return NSClassFromString(@"CAMetalLayer");
+}
+
+- (BOOL)wantsUpdateLayer {
+  return YES;
+}
+
+- (CALayer*)makeBackingLayer {
+  return [self.class.layerClass layer];
+}
+
+- (instancetype)initWithFrame:(NSRect)frame {
+  self = [super initWithFrame:frame];
+  self.autoresizingMask = NSViewWidthSizable|NSViewHeightSizable;
+  self.metal_layer = (CAMetalLayer*)[self layer];
+
+  return self;
+}
+@end
+
 typedef struct OS_MacOS_Window OS_MacOS_Window;
 struct OS_MacOS_Window {
   OS_Window header;
   void* ns_window;
+  void* ns_view;
 };
 
 func OS_Window*
@@ -49,6 +77,9 @@ OS_CreateWindow(Str8 title, Vec2U32 size) {
   window->ns_window = (__bridge void*)ns_window;
 
   [ns_window setTitle:@(CFromStr8(title))];
+
+  window->ns_view = [[OS_MacOS_View alloc] initWithFrame:NSMakeRect(0, 0, size.w, size.h)];
+  [ns_window setContentView: window->ns_view];
 
   return (OS_Window*)window;
 }
