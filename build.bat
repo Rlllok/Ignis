@@ -25,6 +25,7 @@ rem --- Build ---
 @echo.
 
 if "%ignis%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\ignis\main.c  -o build\ignis.exe
+if "%shade%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\shade.c  -o build\shade.exe
 if "%config%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\config.c  -o build\config.exe
 if "%ember%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\ember\ember.c -o build\ember.exe
 if "%string%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% .\code\app\string.c  -o build\string.exe

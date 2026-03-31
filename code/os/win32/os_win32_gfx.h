@@ -8,8 +8,11 @@
 #include "base/base_include.h"
 #include "os/os_gfx.h"
 
-struct OS_WindowHandle
+typedef struct OS_Win32_Window OS_Win32_Window;
+struct OS_Win32_Window
 {
+  OS_Window header;
+
   HWND      handle;
   HINSTANCE instance;
 };

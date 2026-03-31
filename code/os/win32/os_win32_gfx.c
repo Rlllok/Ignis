@@ -15,17 +15,17 @@ OS_Init(U64 arena_size)
   QueryPerformanceFrequency(&win32_frequency);
 }
 
-func void
-OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
+func OS_Window*
+OS_CreateWindow(Str8 title, Vec2U32 size)
 {
-  out->handle = (OS_WindowHandle*)PushArena(_os_state.arena, sizeof(OS_WindowHandle*));
+  OS_Win32_Window* result = (OS_Win32_Window*)PushArena(_os_state.arena, sizeof(OS_Win32_Window*));
   
-  out->handle->instance = GetModuleHandle(0);
+  result->instance = GetModuleHandle(0);
 
   WNDCLASSW window_class     = {0};
   window_class.style         = CS_HREDRAW | CS_VREDRAW;
   window_class.lpfnWndProc   = OS_WIN32_WindowProcedure;
-  window_class.hInstance     = out->handle->instance;
+  window_class.hInstance     = result->instance;
   window_class.lpszClassName = OS_WIN32_WindowClassName;
   window_class.hCursor       = LoadCursor(0, IDC_ARROW);
 
@@ -37,21 +37,24 @@ OS_CreateWindow(Str8 title, Vec2U32 size, OS_Window* out)
   MultiByteToWideChar(CP_ACP, 0, CFromStr8(title), -1, wchar_title, 256);
   handle = CreateWindowW(
     OS_WIN32_WindowClassName, wchar_title, WS_OVERLAPPEDWINDOW,
-    CW_USEDEFAULT, CW_USEDEFAULT, size.w, size.h, 0, 0, out->handle->instance, 0
+    CW_USEDEFAULT, CW_USEDEFAULT, size.w, size.h, 0, 0, result->instance, 0
   );
 
   AssertMessage(handle, "Cannot create out->");
 
-  out->handle->handle = handle;
-  out->size = size;
-  out->status = OS_WINDOW_STATUS_CREATED;
+  result->handle = handle;
+  result->header.size = size;
+  result->header.status = OS_WINDOW_STATUS_CREATED;
+
+  return (OS_Window*)result;
 }
 
 func void
 OS_ShowWindow(OS_Window* window)
 {
-  ShowWindow(window->handle->handle, SW_SHOW);
-  UpdateWindow(window->handle->handle);
+  OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
+  ShowWindow(win32_window->handle, SW_SHOW);
+  UpdateWindow(win32_window->handle);
 
   window->status = OS_WINDOW_STATUS_OPEN;
 }
@@ -85,7 +88,7 @@ OS_WIN32_ToggleFullscreen(HWND window_handle)
 }
 
 func OS_EventList
-OS_GetEventList(Arena* arena, OS_Window* window)
+OS_DispatchEvents(Arena* arena, OS_Window* window)
 {
   _os_state.event_list = OS_EventListCreate(arena);
 	_os_state.keyboard_event_list = OS_EventListCreate(arena);
@@ -110,10 +113,6 @@ OS_GetEventList(Arena* arena, OS_Window* window)
 	{
 
 		OS_Event* event = &event_node->data;
-    if(event->key == OS_KEY_W)
-    {
-      LOG_DEBUG("Keyboard event W\n");
-    }
 		_os_state.keyboard.keys[event->key].pressed = event->pressed;
 		_os_state.keyboard.keys[event->key].released = !event->pressed;
 		if (event->pressed)
@@ -180,11 +179,13 @@ OS_Wait(F32 miliseconds)
 }
 
 func Vec2F32
-OS_MousePosition(OS_Window window)
+OS_MousePosition(OS_Window* window)
 {
+  OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
+
   POINT mouse_point;
   GetCursorPos(&mouse_point);
-  ScreenToClient(window.handle->handle, &mouse_point);
+  ScreenToClient(win32_window->handle, &mouse_point);
 
   return MakeVec2F32((F32)mouse_point.x, (F32)mouse_point.y);
 }
@@ -250,87 +251,86 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
         event.type = OS_EVENT_TYPE_KEYBOARD;
         event.pressed = !(l_param & (1 << 31));
         event.released = !event.pressed;
-        LOG_DEBUG("PRES: %i REL: %i\n", event.pressed, event.released);
 
         switch (w_param)
         {
           default: {}; break;
           
-          case VK_ESCAPE: {event.key = OS_KEY_ESC;};break;
-          case VK_F1: {event.key = OS_KEY_F1;};break;
-          case VK_F2: {event.key = OS_KEY_F2;};break;
-          case VK_F3: {event.key = OS_KEY_F3;};break;
-          case VK_F4: {event.key = OS_KEY_F4;};break;
-          case VK_F5: {event.key = OS_KEY_F5;};break;
-          case VK_F6: {event.key = OS_KEY_F6;};break;
-          case VK_F7: {event.key = OS_KEY_F7;};break;
-          case VK_F8: {event.key = OS_KEY_F8;};break;
-          case VK_F9: {event.key = OS_KEY_F9;};break;
-          case VK_F10: {event.key = OS_KEY_F10;};break;
-          case VK_F11: {event.key = OS_KEY_F11;};break;
-          case VK_F12: {event.key = OS_KEY_F12;};break;
-          case VK_OEM_3: {event.key = OS_KEY_BACKTICK;};break;
-          case '0': {event.key = OS_KEY_0;};break;
-          case '1': {event.key = OS_KEY_1;};break;
-          case '2': {event.key = OS_KEY_2;};break;
-          case '3': {event.key = OS_KEY_3;};break;
-          case '4': {event.key = OS_KEY_4;};break;
-          case '5': {event.key = OS_KEY_5;};break;
-          case '6': {event.key = OS_KEY_6;};break;
-          case '7': {event.key = OS_KEY_7;};break;
-          case '8': {event.key = OS_KEY_8;};break;
-          case '9': {event.key = OS_KEY_9;};break;
-          case VK_OEM_MINUS: {event.key = OS_KEY_MINUS;};break;
-          case VK_OEM_PLUS: {event.key = OS_KEY_EQUAL;};break;
-          case VK_BACK: {event.key = OS_KEY_BACKSPACE;};break;
-          case VK_TAB: {event.key = OS_KEY_TAB;};break;
-          case 'Q': {event.key = OS_KEY_Q;};break;
-          case 'W': {event.key = OS_KEY_W; LOG_DEBUG("WIN32 W\n");};break;
-          case 'E': {event.key = OS_KEY_E;};break;
-          case 'R': {event.key = OS_KEY_R;};break;
-          case 'T': {event.key = OS_KEY_T;};break;
-          case 'Y': {event.key = OS_KEY_Y;};break;
-          case 'U': {event.key = OS_KEY_U;};break;
-          case 'I': {event.key = OS_KEY_I;};break;
-          case 'O': {event.key = OS_KEY_O;};break;
-          case 'P': {event.key = OS_KEY_P;};break;
-          case VK_OEM_4: {event.key = OS_KEY_LEFT_BRACKET;};break;
-          case VK_OEM_6: {event.key = OS_KEY_RIGHT_BRACKET;};break;
-          case VK_OEM_5: {event.key = OS_KEY_BACK_SLASH;};break;
-          case VK_CAPITAL: {event.key = OS_KEY_CAPS_LOCK;};break;
-          case 'A': {event.key = OS_KEY_A;};break;
-          case 'S': {event.key = OS_KEY_S;};break;
-          case 'D': {event.key = OS_KEY_D;};break;
-          case 'F': {event.key = OS_KEY_F;};break;
-          case 'G': {event.key = OS_KEY_G;};break;
-          case 'H': {event.key = OS_KEY_H;};break;
-          case 'J': {event.key = OS_KEY_J;};break;
-          case 'K': {event.key = OS_KEY_K;};break;
-          case 'L': {event.key = OS_KEY_L;};break;
-          case VK_OEM_1: {event.key = OS_KEY_SEMICOLON;};break;
-          case VK_OEM_7: {event.key = OS_KEY_QUOTE;};break;
-          case VK_RETURN: {event.key = OS_KEY_RETURN;};break;
-          case VK_LSHIFT: {event.key = OS_KEY_SHIFT;};break;
-          case VK_RSHIFT: {event.key = OS_KEY_SHIFT;};break;
-          case 'Z': {event.key = OS_KEY_Z;};break;
-          case 'X': {event.key = OS_KEY_X;};break;
-          case 'C': {event.key = OS_KEY_C;};break;
-          case 'V': {event.key = OS_KEY_V;};break;
-          case 'B': {event.key = OS_KEY_B;};break;
-          case 'N': {event.key = OS_KEY_N;};break;
-          case 'M': {event.key = OS_KEY_M;};break;
-          case VK_OEM_COMMA: {event.key = OS_KEY_COMMA;};break;
+          case VK_ESCAPE    : {event.key = OS_KEY_ESC;};break;
+          case VK_F1        : {event.key = OS_KEY_F1;};break;
+          case VK_F2        : {event.key = OS_KEY_F2;};break;
+          case VK_F3        : {event.key = OS_KEY_F3;};break;
+          case VK_F4        : {event.key = OS_KEY_F4;};break;
+          case VK_F5        : {event.key = OS_KEY_F5;};break;
+          case VK_F6        : {event.key = OS_KEY_F6;};break;
+          case VK_F7        : {event.key = OS_KEY_F7;};break;
+          case VK_F8        : {event.key = OS_KEY_F8;};break;
+          case VK_F9        : {event.key = OS_KEY_F9;};break;
+          case VK_F10       : {event.key = OS_KEY_F10;};break;
+          case VK_F11       : {event.key = OS_KEY_F11;};break;
+          case VK_F12       : {event.key = OS_KEY_F12;};break;
+          case VK_OEM_3     : {event.key = OS_KEY_BACKTICK;};break;
+          case '0'          : {event.key = OS_KEY_0;};break;
+          case '1'          : {event.key = OS_KEY_1;};break;
+          case '2'          : {event.key = OS_KEY_2;};break;
+          case '3'          : {event.key = OS_KEY_3;};break;
+          case '4'          : {event.key = OS_KEY_4;};break;
+          case '5'          : {event.key = OS_KEY_5;};break;
+          case '6'          : {event.key = OS_KEY_6;};break;
+          case '7'          : {event.key = OS_KEY_7;};break;
+          case '8'          : {event.key = OS_KEY_8;};break;
+          case '9'          : {event.key = OS_KEY_9;};break;
+          case VK_OEM_MINUS : {event.key = OS_KEY_MINUS;};break;
+          case VK_OEM_PLUS  : {event.key = OS_KEY_EQUAL;};break;
+          case VK_BACK      : {event.key = OS_KEY_BACKSPACE;};break;
+          case VK_TAB       : {event.key = OS_KEY_TAB;};break;
+          case 'Q'          : {event.key = OS_KEY_Q;};break;
+          case 'W'          : {event.key = OS_KEY_W;};break;
+          case 'E'          : {event.key = OS_KEY_E;};break;
+          case 'R'          : {event.key = OS_KEY_R;};break;
+          case 'T'          : {event.key = OS_KEY_T;};break;
+          case 'Y'          : {event.key = OS_KEY_Y;};break;
+          case 'U'          : {event.key = OS_KEY_U;};break;
+          case 'I'          : {event.key = OS_KEY_I;};break;
+          case 'O'          : {event.key = OS_KEY_O;};break;
+          case 'P'          : {event.key = OS_KEY_P;};break;
+          case VK_OEM_4     : {event.key = OS_KEY_LEFT_BRACKET;};break;
+          case VK_OEM_6     : {event.key = OS_KEY_RIGHT_BRACKET;};break;
+          case VK_OEM_5     : {event.key = OS_KEY_BACK_SLASH;};break;
+          case VK_CAPITAL   : {event.key = OS_KEY_CAPS_LOCK;};break;
+          case 'A'          : {event.key = OS_KEY_A;};break;
+          case 'S'          : {event.key = OS_KEY_S;};break;
+          case 'D'          : {event.key = OS_KEY_D;};break;
+          case 'F'          : {event.key = OS_KEY_F;};break;
+          case 'G'          : {event.key = OS_KEY_G;};break;
+          case 'H'          : {event.key = OS_KEY_H;};break;
+          case 'J'          : {event.key = OS_KEY_J;};break;
+          case 'K'          : {event.key = OS_KEY_K;};break;
+          case 'L'          : {event.key = OS_KEY_L;};break;
+          case VK_OEM_1     : {event.key = OS_KEY_SEMICOLON;};break;
+          case VK_OEM_7     : {event.key = OS_KEY_QUOTE;};break;
+          case VK_RETURN    : {event.key = OS_KEY_RETURN;};break;
+          case VK_LSHIFT    : {event.key = OS_KEY_SHIFT;};break;
+          case VK_RSHIFT    : {event.key = OS_KEY_SHIFT;};break;
+          case 'Z'          : {event.key = OS_KEY_Z;};break;
+          case 'X'          : {event.key = OS_KEY_X;};break;
+          case 'C'          : {event.key = OS_KEY_C;};break;
+          case 'V'          : {event.key = OS_KEY_V;};break;
+          case 'B'          : {event.key = OS_KEY_B;};break;
+          case 'N'          : {event.key = OS_KEY_N;};break;
+          case 'M'          : {event.key = OS_KEY_M;};break;
+          case VK_OEM_COMMA : {event.key = OS_KEY_COMMA;};break;
           case VK_OEM_PERIOD: {event.key = OS_KEY_PERIOD;};break;
-          case VK_OEM_2: {event.key = OS_KEY_SLASH;};break;
-          case VK_LCONTROL: {event.key = OS_KEY_CTRL;};break;
-          case VK_RCONTROL: {event.key = OS_KEY_CTRL;};break;
-          case VK_LMENU: {event.key = OS_KEY_ALT;};break;
-          case VK_RMENU: {event.key = OS_KEY_ALT;};break;
-          case VK_SPACE: {event.key = OS_KEY_SPACE;};break;
-          case VK_UP: {event.key = OS_KEY_ARROW_UP;};break;
-          case VK_DOWN: {event.key = OS_KEY_ARROW_DOWN;};break;
-          case VK_LEFT: {event.key = OS_KEY_ARROW_LEFT;};break;
-          case VK_RIGHT: {event.key = OS_KEY_ARROW_RIGHT;};break;
+          case VK_OEM_2     : {event.key = OS_KEY_SLASH;};break;
+          case VK_LCONTROL  : {event.key = OS_KEY_CTRL;};break;
+          case VK_RCONTROL  : {event.key = OS_KEY_CTRL;};break;
+          case VK_LMENU     : {event.key = OS_KEY_ALT;};break;
+          case VK_RMENU     : {event.key = OS_KEY_ALT;};break;
+          case VK_SPACE     : {event.key = OS_KEY_SPACE;};break;
+          case VK_UP        : {event.key = OS_KEY_ARROW_UP;};break;
+          case VK_DOWN      : {event.key = OS_KEY_ARROW_DOWN;};break;
+          case VK_LEFT      : {event.key = OS_KEY_ARROW_LEFT;};break;
+          case VK_RIGHT     : {event.key = OS_KEY_ARROW_RIGHT;};break;
         };
       }
 

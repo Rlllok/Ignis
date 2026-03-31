@@ -203,7 +203,7 @@ func void OS_ShowWindow(OS_Window* window);
 func void OS_LockCursor(OS_Window* window);
 func void OS_UnlockCursor(OS_Window* window);
 
-func OS_EventList OS_GetEventList(Arena* arena, OS_Window* window);
+func OS_EventList OS_DispatchEvents(Arena* arena, OS_Window* window);
 
 func F32 OS_GetMonitorHZ(void);
 func U64 OS_GetTimeTicks(void);

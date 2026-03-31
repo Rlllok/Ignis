@@ -162,7 +162,6 @@ CStrFromU64(char* c_str, U64 length, U64 u) {
 
 func char*
 CStrFromI32(char* c_str, U64 length, I32 i) {
-  B32 negative = i & (1 << 31);
   if (i < 0) {
     i = -i;
     c_str[0] = '-';

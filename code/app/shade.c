@@ -35,13 +35,13 @@ I32 main() {
   OS_ShowWindow(shade_context.window);
 
   while (!shade_context.finished) {
-    OS_EventList event_list = OS_GetEventList(shade_context.frame_arena, shade_context.window);
+    OS_DispatchEvents(shade_context.frame_arena, shade_context.window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       shade_context.finished = 1;
     }
 
-    UI_BeginFrame(OS_MousePosition(*shade_context.window), OS_MouseScroll());
+    UI_BeginFrame(OS_MousePosition(shade_context.window), OS_MouseScroll());
     UI_WidgetBlock({
       .name = Str8C("Shade_UI_Context"),
       .layout = {

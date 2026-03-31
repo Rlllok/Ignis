@@ -121,8 +121,6 @@ RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
 func void
 RHI_VK_ResetBuffer(RHI_Buffer buffer) {
-  RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
-	// vk_buffer->size = 0;
 }
 
 func void
@@ -353,10 +351,12 @@ RHI_VK_DestroyDevice() {
 func void
 RHI_VK_CreateSwapchain(OS_Window* window) {
 #if IGNIS_PLATFORM_WIN32
+  OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
+
   VkWin32SurfaceCreateInfoKHR surface_info = {0};
   surface_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-  surface_info.hinstance = window->vk->instance;
-  surface_info.hwnd = window->vk->vk;
+  surface_info.hinstance = win32_window->instance;
+  surface_info.hwnd = win32_window->handle;
 
   VK_CHECK(vkCreateWin32SurfaceKHR(_rhi_vk_state.instance, &surface_info, 0, &_rhi_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_WIN32

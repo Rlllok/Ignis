@@ -3,7 +3,6 @@
 #include "base_core.h"
 
 typedef U16 LogMessageKind;
-typedef enum LogMessageKindEnum LogMessageKindEnum;
 enum LogMessageKindEnum {
   LogMessageKind_None,
   LogMessageKind_Error,
@@ -12,7 +11,7 @@ enum LogMessageKindEnum {
   LogMessageKind_Debug,
   
   LogMessageKind_Count
-};
+} LogMessageKindEnum;
 
 func void LogOutput(LogMessageKind message_kind, const char* message, ...);
 
