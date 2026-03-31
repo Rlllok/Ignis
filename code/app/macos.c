@@ -1,8 +1,10 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
+#include "rhi/rhi_include.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
+#include "rhi/rhi_include.c"
 
 I32 main() {
   LogInfo("Hello MacOS\n");

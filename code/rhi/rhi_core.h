@@ -447,6 +447,7 @@ typedef enum RHI_RendererKindEnum {
   RHI_RendererKind_None,
 
   RHI_RendererKind_Vulkan,
+  RHI_RendererKind_Metal,
 
   RHI_RendererKind_Count
 } RHI_RendererKindEnum;

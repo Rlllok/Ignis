@@ -297,12 +297,22 @@ RHI_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
 // -- State ----------------------------------------------------------
 func B32
 RHI_Init(RHI_RendererKind kind, OS_Window* window) {
+#ifdef IGNIS_PLATFORM_MACOS
+  if (kind == RHI_RendererKind_Metal) {
+    // --AlNov: @TODO Should be available only on MacOS
+    // AssignDeviceFunctions(Metal);
+  }
+	else {
+		AssertMessage(0, "Wrong type of rendering backend\n");
+	}
+#else
 	if (kind == RHI_RendererKind_Vulkan) {
 		AssignDeviceFunctions(VK);
 	}
 	else {
 		AssertMessage(0, "Wrong type of rendering backend\n");
 	}
+#endif // IGNIS_PLATFORM_MACOS
 
 	_r_state.device.Init(window);
 
