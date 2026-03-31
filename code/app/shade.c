@@ -41,37 +41,50 @@ I32 main() {
       shade_context.finished = 1;
     }
 
+    // --AlNov: @TODO
+    // There are bug or bad API design in the UI_Layer.
+    // For some reson I have to add other "full screen" widget to be able to
+    // draw background for Shade_UI_TopBar (there was no draw_command for this widget).
+    // But, it seems, layout calculation is working fine.
     UI_BeginFrame(OS_MousePosition(shade_context.window), OS_MouseScroll());
     UI_WidgetBlock({
-      .name = Str8C("Shade_UI_Context"),
+      .name = Str8C("UI_MainWidget"),
       .layout = {
         .width = UI_PixelSize(shade_context.window->size.w),
         .height = UI_PixelSize(shade_context.window->size.h),
         .direction = UI_LayoutDirection_TopToBottom,
       },
     }) {
-      UI_WidgetBlock({
-        .name = Str8C("Shade_UI_WindowTopBar"),
-        .flags = UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PercentSize(0.05f),
-          .direction = UI_LayoutDirection_LeftToRight,
-        },
-        .rectangle = {
-          .color = RGBAFromHex(0xff0000ff),
-        },
-      }) {
-      }
+     UI_WidgetBlock({
+      .name = Str8C("Shade_UI_Context"),
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PercentSize(1.0f),
+        .direction = UI_LayoutDirection_TopToBottom,
+      },
+     }) {
+        UI_WidgetBlock({
+          .name = Str8C("Shade_UI_TopBar"),
+          .flags = UI_WidgetFlag_DrawBackground,
+          .layout = {
+            .width = UI_PercentSize(1.0f),
+            .height = UI_PixelSize(250),
+          },
+          .rectangle = {
+            .color = RGBAFromHex(0xff0000ff),
+          },
+        }) {
+        }
 
-      UI_WidgetBlock({
-        .name = Str8C("Shade_UI_Canvas"),
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PercentSize(0.95f),
-        },
-      }) {
-        shade_context.canvas_id = UI_GetID();
+        UI_WidgetBlock({
+          .name = Str8C("Shade_UI_Canvas"),
+          .layout = {
+            .width = UI_PercentSize(1.0f),
+            .height = UI_PercentSize(0.95f),
+          },
+        }) {
+          shade_context.canvas_id = UI_GetID();
+        }
       }
     }
     UI_EndFrame();
@@ -160,6 +173,14 @@ Shade_Draw() {
       RHI_BindGraphicsPipeline(shade_context.command_buffer, shade_context.main_pipeline);
       RHI_DrawPrimitives(shade_context.command_buffer, 6, 1, 0, 0);
 
+      rect = (RectI32){
+        .x = 0,
+        .y = 0,
+        .w = (I32)shade_context.window->size.w,
+        .h = (I32)shade_context.window->size.h,
+      };
+      RHI_SetViewport(shade_context.command_buffer, rect);
+      RHI_SetScissor(shade_context.command_buffer, rect);
       for (I32 draw_command_index = 0; draw_command_index < ui_context.draw_commands.length; draw_command_index += 1) {
         UI_DrawCommand* command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, draw_command_index);
 
