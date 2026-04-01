@@ -1,7 +1,8 @@
 #version 460
 
 layout(set = 2, binding = 0) uniform GlobalData {
-  vec2 resolution;
+  vec2  resolution;
+  float time;
 };
 
 layout(location = 0) in vec2 in_uv;
@@ -85,11 +86,24 @@ vec3 smoothstep_example(vec2 uv) {
   return pixel;
 }
 
+vec3 animation_example(vec2 uv, float t) {
+  vec3 pixel = vec3(0.94f, 0.92f, 0.95f);
+
+  uv = (uv - 0.5f)/2.0f*(resolution/min(resolution.x, resolution.y));
+  float radius = 0.05f;
+  vec2 position = vec2(0.1f*cos(time*5.0f), mod(0.5f*time, 1.0f) - 0.5f);
+  float circle = 1.0f - smoothstep(radius - 0.0005f, radius + 0.0005f, length(uv - position));
+  pixel = mix(pixel, vec3(1.0f, 0.09f, 0.8f), circle);
+  
+  return pixel;
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy/resolution;
 
   // out_color = vec4(cosine_palette_example(uv), 1.0f);
   // out_color = vec4(grid_example(in_uv), 1.0f);
   // out_color = vec4(clamp_example(in_uv), 1.0f);
-  out_color = vec4(smoothstep_example(in_uv), 1.0f);
+  // out_color = vec4(smoothstep_example(in_uv), 1.0f);
+  out_color = vec4(animation_example(in_uv, time), 1.0f);
 }

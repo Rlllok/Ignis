@@ -16,6 +16,8 @@ struct Shade_Context {
   Arena*     frame_arena;
   OS_Window* window;
 
+  F32   dt;
+  F32   time;
   B32   finished;
   UI_ID canvas_id;
 
@@ -34,6 +36,7 @@ I32 main() {
 
   OS_ShowWindow(shade_context.window);
 
+  U64 start_ts = OS_GetTimeTicks();
   while (!shade_context.finished) {
     OS_DispatchEvents(shade_context.frame_arena, shade_context.window);
 
@@ -74,6 +77,19 @@ I32 main() {
             .color = RGBAFromHex(0x0000f1ff),
           },
         }) {
+          UI_WidgetBlock({
+            .name = Str8C("Shade_UI_TopBar_Close"),
+            .flags = UI_WidgetFlag_DrawBackground,
+            .layout = {
+              .width = UI_PixelSize(25),
+              .height = UI_PercentSize(1.0f),
+            },
+            .rectangle = {
+              .color = UI_Hovered() ? MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f) : MakeVec4F32(1.0f, 0.04f, 0.01f, 1.0f),
+            },
+          }) {
+            shade_context.finished = UI_Hovered() && OS_MousePressed(OS_MouseButton_Left);
+          }
         }
 
         UI_WidgetBlock({
@@ -92,6 +108,11 @@ I32 main() {
     Shade_Draw();
 
     ResetArena(shade_context.frame_arena);
+
+    U64 end_ts = OS_GetTimeTicks();
+    shade_context.dt = (F32)(end_ts - start_ts)/1000.0f;
+    shade_context.time += shade_context.dt;
+    start_ts = end_ts;
   }
   
   return 0;
@@ -180,8 +201,10 @@ Shade_Draw() {
       RHI_BindGraphicsPipeline(shade_context.command_buffer, shade_context.main_pipeline);
       struct {
         Vec2F32 resolution;
+        F32 time;
       } global_fragment_data = {
         .resolution = canvas_rect.size,
+        .time = shade_context.time,
       };
 
       RHI_UniformBufferBindingInfo global_fragment_data_uniform = {
