@@ -546,6 +546,8 @@ RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_ki
   RHI_VK_DescriptorPool* descriptor_pool = &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame];
   U32 max_sets = descriptor_pool->pool_count*RHI_VK_SETS_PER_POOL;
 
+  Assert(vk_command_buffer->binded_graphics_pipeline != 0);
+
   if (max_sets <= descriptor_pool->sets_count) {
     Assert(descriptor_pool->pool_count < RHI_VK_MAX_POOL_COUNT);
 

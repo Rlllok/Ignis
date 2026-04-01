@@ -482,9 +482,9 @@ OS_ShowWindow(OS_Window* window)
 }
 
 func Vec2F32
-OS_MousePosition(OS_Window window)
+OS_MousePosition(OS_Window* window)
 {
-  return window.cursor_position;
+  return window->cursor_position;
 }
 
 func Vec2F32
@@ -567,7 +567,7 @@ OS_UnlockCursor(OS_Window* window)
 }
 
 func OS_EventList
-OS_GetEventList(Arena* arena, OS_Window* window)
+OS_DispatchEvents(Arena* arena, OS_Window* window)
 {
   OS_WL_Window* wayland_window = (OS_WL_Window*)window;
 

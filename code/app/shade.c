@@ -68,10 +68,10 @@ I32 main() {
           .flags = UI_WidgetFlag_DrawBackground,
           .layout = {
             .width = UI_PercentSize(1.0f),
-            .height = UI_PixelSize(250),
+            .height = UI_PixelSize(25),
           },
           .rectangle = {
-            .color = RGBAFromHex(0xff0000ff),
+            .color = RGBAFromHex(0x000000ff),
           },
         }) {
         }
@@ -123,6 +123,7 @@ Shade_Init() {
       &(RHI_ShaderCreateInfo) {
         .file_name = Str8C("./data/shaders/shade.fs.glsl"),
         .kind = RHI_ShaderKind_Fragment,
+        .global_uniforms_count = 1,
       }
     );
 
@@ -171,6 +172,19 @@ Shade_Draw() {
       RHI_SetScissor(shade_context.command_buffer, rect);
 
       RHI_BindGraphicsPipeline(shade_context.command_buffer, shade_context.main_pipeline);
+      struct {
+        Vec2F32 resolution;
+      } global_fragment_data = {
+        .resolution = canvas_rect.size,
+      };
+
+      RHI_UniformBufferBindingInfo global_fragment_data_uniform = {
+        .buffer = shade_context.uniform_buffer,
+        .offset = RHI_PushBuffer(shade_context.uniform_buffer, (U8*)&global_fragment_data, sizeof(global_fragment_data)),
+        .size = sizeof(global_fragment_data),
+      };
+      RHI_BindGlobalFragmentShaderData(shade_context.command_buffer, 1, &global_fragment_data_uniform, 0, 0);
+
       RHI_DrawPrimitives(shade_context.command_buffer, 6, 1, 0, 0);
 
       rect = (RectI32){
