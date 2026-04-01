@@ -68,10 +68,10 @@ I32 main() {
           .flags = UI_WidgetFlag_DrawBackground,
           .layout = {
             .width = UI_PercentSize(1.0f),
-            .height = UI_PixelSize(25),
+            .height = UI_PercentSize(0.05f),
           },
           .rectangle = {
-            .color = RGBAFromHex(0x000000ff),
+            .color = RGBAFromHex(0x0000f1ff),
           },
         }) {
         }
@@ -162,14 +162,20 @@ Shade_Draw() {
 
     RHI_RenderPass* render_pass = RHI_BeginRenderPass(shade_context.command_buffer, 1, &color_target, 0); {
       RectF32 canvas_rect = UI_GetRectangle(shade_context.canvas_id);
-      RectI32 rect = {
+      RectI32 viewport = {
         .x = (I32)canvas_rect.x,
         .y = (I32)canvas_rect.y,
         .w = (I32)canvas_rect.w,
         .h = (I32)canvas_rect.h,
       };
-      RHI_SetViewport(shade_context.command_buffer, rect);
-      RHI_SetScissor(shade_context.command_buffer, rect);
+      RHI_SetViewport(shade_context.command_buffer, viewport);
+      RectI32 scissor = {
+        .x = 0,
+        .y = 0,
+        .w = shade_context.window->size.w,
+        .h = shade_context.window->size.h,
+      };
+      RHI_SetScissor(shade_context.command_buffer, scissor);
 
       RHI_BindGraphicsPipeline(shade_context.command_buffer, shade_context.main_pipeline);
       struct {
@@ -187,14 +193,13 @@ Shade_Draw() {
 
       RHI_DrawPrimitives(shade_context.command_buffer, 6, 1, 0, 0);
 
-      rect = (RectI32){
+      viewport = (RectI32){
         .x = 0,
         .y = 0,
         .w = (I32)shade_context.window->size.w,
         .h = (I32)shade_context.window->size.h,
       };
-      RHI_SetViewport(shade_context.command_buffer, rect);
-      RHI_SetScissor(shade_context.command_buffer, rect);
+      RHI_SetViewport(shade_context.command_buffer, viewport);
       for (I32 draw_command_index = 0; draw_command_index < ui_context.draw_commands.length; draw_command_index += 1) {
         UI_DrawCommand* command = UI_DrawCommandArrayGetPointer(&ui_context.draw_commands, draw_command_index);
 
@@ -202,7 +207,7 @@ Shade_Draw() {
           default: {} break;
 
           case UI_DrawCommandKind_Rectangle: {
-            D_DrawRect(shade_context.command_buffer, shade_context.uniform_buffer, rect, command->rectangle.bound, command->rectangle.radius, command->rectangle.color, command->rectangle.border_color);
+            D_DrawRect(shade_context.command_buffer, shade_context.uniform_buffer, viewport, command->rectangle.bound, command->rectangle.radius, command->rectangle.color, command->rectangle.border_color);
           } break;
         }
       }
