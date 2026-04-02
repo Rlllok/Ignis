@@ -17,6 +17,9 @@ I32 main() {
 
   Vec2U32 window_size = MakeVec2U32(1280, 720);
   OS_Window* window = OS_CreateWindow(Str8C("Simple Triangle Test (MacOS)"), window_size);
+
+  RHI_Init(RHI_RendererKind_Metal, window);
+
   OS_ShowWindow(window);
 
   while (!finished) {

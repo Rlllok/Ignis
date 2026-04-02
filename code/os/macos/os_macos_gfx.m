@@ -1,18 +1,6 @@
-#include "base/base_include.h"
+#pragma once
 
-#include "os/os_gfx.h"
-
-// --AlNov: @NOTE Have to do trick with push/pop macro (not in C standard, but de facto standard in compilers)
-#pragma push_macro("func")
-#undef func
-#include <Cocoa/Cocoa.h>
-#include <QuartzCore/CAMetalLayer.h>
-#pragma pop_macro("func")
-
-typedef struct OS_MacOS OS_MacOS;
-struct OS_MacOS {
-  void* ns_app;
-} _os_macos_state;
+#include "os_macos_gfx.h"
 
 func void
 OS_Init(U64 arena_size) {
@@ -23,10 +11,6 @@ OS_Init(U64 arena_size) {
   [ns_app setActivationPolicy:NSApplicationActivationPolicyRegular];
   [ns_app finishLaunching];
 }
-
-@interface OS_MacOS_View : NSView
-@property (nonatomic, strong) CAMetalLayer* metal_layer;
-@end
 
 @implementation OS_MacOS_View
 + (id)layerClass {
@@ -48,14 +32,11 @@ OS_Init(U64 arena_size) {
 
   return self;
 }
-@end
 
-typedef struct OS_MacOS_Window OS_MacOS_Window;
-struct OS_MacOS_Window {
-  OS_Window header;
-  void* ns_window;
-  void* ns_view;
-};
+- (CAMetalLayer*)MetalLayer {
+  return self.metal_layer;
+}
+@end
 
 func OS_Window*
 OS_CreateWindow(Str8 title, Vec2U32 size) {

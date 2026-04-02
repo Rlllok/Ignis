@@ -300,7 +300,7 @@ RHI_Init(RHI_RendererKind kind, OS_Window* window) {
 #ifdef IGNIS_PLATFORM_MACOS
   if (kind == RHI_RendererKind_Metal) {
     // --AlNov: @TODO Should be available only on MacOS
-    // AssignDeviceFunctions(Metal);
+    AssignDeviceFunctions(Metal);
   }
 	else {
 		AssertMessage(0, "Wrong type of rendering backend\n");
