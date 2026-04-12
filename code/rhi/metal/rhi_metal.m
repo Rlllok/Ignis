@@ -1,16 +1,9 @@
 #pragma once
 
-#include <Metal/Metal.h>
+#include "rhi_metal.h"
 
-#include "../rhi_core.h"
-
-// -------------------------------------------------------------------metal
+// -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
-typedef struct RHI_Metal_Buffer RHI_Metal_Buffer;
-struct RHI_Metal_Buffer {
-  id<MTLBuffer> handle;
-};
-
 func RHI_Buffer
 RHI_Metal_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags) {
   // --AlNov: @TODO
@@ -92,24 +85,29 @@ RHI_Metal_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
 
 // -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
- 
-typedef struct RHI_Metal_CommandBuffer RHI_Metal_CommandBuffer;
-struct RHI_Metal_CommandBuffer {
-};
+
+func RHI_Metal_CommandBuffer*
+RHI_Metal_CommandBufferFromHandle(RHI_CommandBuffer handle) {
+  return RHI_Metal_CommandBufferArrayGetPointer(&_rhi_metal_context.command_buffers, handle);
+}
 
 func RHI_CommandBuffer
 RHI_Metal_GetCommandBuffer() {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer result = ZeroStruct();
+
+  return RHI_Metal_CommandBufferArrayAdd(&_rhi_metal_context.command_buffers, result);
 }
 
 func void
 RHI_Metal_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  metal_command_buffer->mtl = [_rhi_metal_context.command_queue commandBuffer];
 }
 
 func void
 RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  [metal_command_buffer->mtl commit];
 }
 
 // -------------------------------------------------------------------
@@ -180,16 +178,16 @@ RHI_Metal_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) 
 
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------
-typedef struct RHI_Metal_Context RHI_Metal_Context;
-struct RHI_Metal_Context {
-  id<MTLDevice> device;
-} _rhi_metal_context;
-
 func B32
 RHI_Metal_Init(OS_Window* window) {
+  _rhi_metal_context.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
+  _rhi_metal_context.command_buffers = RHI_Metal_CommandBufferArrayAllocate(_rhi_metal_context.arena, 32);
+
   _rhi_metal_context.device = MTLCreateSystemDefaultDevice();
   Assert(_rhi_metal_context.device != nil);
   LogInfo("Metal. Device name: %s\n", [[_rhi_metal_context.device name]UTF8String]);
+
+  _rhi_metal_context.command_queue = [_rhi_metal_context.device newCommandQueue];
 
   OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window;
   OS_MacOS_View* view = (__bridge OS_MacOS_View*)macos_window->ns_view;

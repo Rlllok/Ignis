@@ -6,6 +6,8 @@
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
 
+func void Draw(RHI_CommandBuffer command_buffer, F32 dt);
+
 I32 main() {
   LogInfo("Hello MacOS\n");
 
@@ -22,6 +24,8 @@ I32 main() {
 
   OS_ShowWindow(window);
 
+  RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
+
   while (!finished) {
     OS_EventList event_list = OS_GetEventList(frame_arena, window);
 
@@ -34,8 +38,16 @@ I32 main() {
       LogInfo("MousePosition: %fx %fy\n", p.x, p.y);
     }
 
+    Draw(command_buffer, 0.0f);
+
     ResetArena(frame_arena);
   }
 
   return 0;
+}
+
+func void
+Draw(RHI_CommandBuffer command_buffer, F32 dt) {
+  RHI_BeginCommandBuffer(command_buffer);
+  RHI_SubmitCommandBuffer(command_buffer);
 }
