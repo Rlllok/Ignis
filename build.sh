@@ -32,6 +32,7 @@ echo "**************************************************"
 
 if [ "$1" == "ignis"  ]; then time clang -g ./code/ignis/main.c  -o build/ignis $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
 if [ "$1" == "triangle" ]; then time clang -g ./code/app/triangle.c  -o build/triangle $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
+if [ "$1" == "topdown" ]; then time clang -g ./code/topdown/topdown.c  -o build/topdown $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
 if [ "$1" == "shade" ]; then time clang -g ./code/app/shade.c  -o build/shade $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
 if [ "$1" == "ray"  ];   then time clang -O2 -g ./code/ray/main.c    -o build/ray $warnings $defines $include_flags $default_links $x11_links $wayland_links; fi
 if [ "$1" == "ember"  ]; then time clang -g ./code/ember/ember.c -o build/ember $warnings $defines $include_flags $default_links $x11_links $wayland_links $vulkan_links; fi
