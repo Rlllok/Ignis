@@ -13,7 +13,7 @@ OS_Init(U64 arena_size) {
 }
 
 @implementation OS_MacOS_View
-+ (id)layerClass {
++ (Class)layerClass {
   return NSClassFromString(@"CAMetalLayer");
 }
 
@@ -27,7 +27,10 @@ OS_Init(U64 arena_size) {
 
 - (instancetype)initWithFrame:(NSRect)frame {
   self = [super initWithFrame:frame];
+  Assert(self);
+
   self.autoresizingMask = NSViewWidthSizable|NSViewHeightSizable;
+  self.wantsLayer = YES;
   self.metal_layer = (CAMetalLayer*)[self layer];
 
   return self;

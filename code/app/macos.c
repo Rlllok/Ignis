@@ -49,5 +49,9 @@ I32 main() {
 func void
 Draw(RHI_CommandBuffer command_buffer, F32 dt) {
   RHI_BeginCommandBuffer(command_buffer);
+    RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(command_buffer);
+
+    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 0, 0, 0);
+    RHI_EndRenderPass(command_buffer, render_pass);
   RHI_SubmitCommandBuffer(command_buffer);
 }

@@ -107,6 +107,7 @@ RHI_Metal_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
 func void
 RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
   RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  [metal_command_buffer->mtl presentDrawable: _rhi_metal_context.current_drawable];
   [metal_command_buffer->mtl commit];
 }
 
@@ -115,25 +116,52 @@ RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
 
 func RHI_TextureFormat
 RHI_Metal_GetSwapchainTextureFormat() {
-  // --AlNov: @TODO
+  // --AlNov: @TODO¡
 }
 
 func RHI_Texture
 RHI_Metal_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
-  // --AlNov: @TODO
+    RHI_Texture result = _rhi_metal_context.current_swapchain_texture_index;
+
+    OS_MacOS_View* ns_view = (__bridge OS_MacOS_View*)_rhi_metal_context.window->ns_view;
+    _rhi_metal_context.current_drawable = [[ns_view MetalLayer] nextDrawable];
+
+    RHI_Metal_Texture* metal_texture = RHI_Metal_TextureArrayGetPointer(&_rhi_metal_context.swapchain_textures, result);
+    metal_texture->mtl = [_rhi_metal_context.current_drawable texture];
+
+    _rhi_metal_context.current_swapchain_texture_index = (_rhi_metal_context.current_swapchain_texture_index + 1)%_rhi_metal_context.drawable_count;
 }
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
-
 func RHI_RenderPass*
 RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target) {
-  // --AlNov: @TODO
+    RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+    
+    Assert(mtl_command_buffer->render_encoder == nil);
+
+    Assert(_rhi_metal_context.current_drawable != nil);
+
+    MTLRenderPassDescriptor* pass_descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
+    pass_descriptor.colorAttachments[0].texture = [_rhi_metal_context.current_drawable texture];
+    pass_descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+    pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.8f, 0.2f, 0.3f, 1.0f);
+    pass_descriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+    mtl_command_buffer->render_encoder = [mtl_command_buffer->mtl renderCommandEncoderWithDescriptor:pass_descriptor];
+
+    return 0;
 }
 
 func void
 RHI_Metal_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
   // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  
+  Assert(mtl_command_buffer->render_encoder != nil);
+
+  [mtl_command_buffer->render_encoder endEncoding];
+
+  mtl_command_buffer->render_encoder = nil;
 }
 
 // -------------------------------------------------------------------
@@ -180,6 +208,8 @@ RHI_Metal_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) 
 // -- Global State ---------------------------------------------------
 func B32
 RHI_Metal_Init(OS_Window* window) {
+  _rhi_metal_context.window = (OS_MacOS_Window*)window;
+
   _rhi_metal_context.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_metal_context.command_buffers = RHI_Metal_CommandBufferArrayAllocate(_rhi_metal_context.arena, 32);
 
@@ -198,6 +228,10 @@ RHI_Metal_Init(OS_Window* window) {
   metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
   metal_layer.framebufferOnly = YES;
   metal_layer.drawableSize = NSSizeToCGSize([view bounds].size);
+
+  _rhi_metal_context.drawable_count = [metal_layer maximumDrawableCount];
+  _rhi_metal_context.swapchain_textures = RHI_Metal_TextureArrayAllocate(_rhi_metal_context.arena, _rhi_metal_context.drawable_count);
+  _rhi_metal_context.swapchain_textures.length = _rhi_metal_context.drawable_count;
 
   return 0;
 }

@@ -27,4 +27,3 @@ struct OS_MacOS_Window {
   void* ns_window;
   void* ns_view;
 };
-
