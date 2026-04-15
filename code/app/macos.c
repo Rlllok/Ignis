@@ -14,6 +14,7 @@ I32 main() {
   Arena* arena = AllocateArena(Gigabytes(4), Kilobytes(16));
   Arena* frame_arena = AllocateArena(Gigabytes(4), Kilobytes(16));
   B32 finished = 0;
+  F32 dt = 0.0f;
 
   OS_Init(Megabytes(16));
 
@@ -26,6 +27,7 @@ I32 main() {
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
 
+  U64 start_ts = OS_GetTimeTicks();
   while (!finished) {
     OS_EventList event_list = OS_GetEventList(frame_arena, window);
 
@@ -38,9 +40,12 @@ I32 main() {
       LogInfo("MousePosition: %fx %fy\n", p.x, p.y);
     }
 
-    Draw(command_buffer, 0.0f);
+    Draw(command_buffer, dt);
 
     ResetArena(frame_arena);
+
+    U64 end_ts = OS_GetTimeTicks();
+    dt = ((F32)(end_ts - start_ts))*0.001f;
   }
 
   return 0;
@@ -51,7 +56,14 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
   RHI_BeginCommandBuffer(command_buffer);
     RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(command_buffer);
 
-    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 0, 0, 0);
+    RHI_ColorTarget color_target = {
+      .texture = swapchain_texture,
+      .load_operation = RHI_AttachmentLoadOperation_Clear,
+      .store_operation = RHI_AttachmentStoreOperation_Store,
+      .clear_color = MakeVec4F32(sinf(dt*0.003f), 0.09f, 0.18f, 1.0f),
+    };
+
+    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0);
     RHI_EndRenderPass(command_buffer, render_pass);
   RHI_SubmitCommandBuffer(command_buffer);
 }

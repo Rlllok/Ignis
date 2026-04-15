@@ -20,6 +20,8 @@ struct RHI_Metal_Texture {
 RHI_Metal_Texture RHI_Metal_TextureNil = ZeroStruct();
 DefineArray(RHI_Metal_Texture, RHI_Metal_TextureArray, RHI_Metal_TextureNil);
 
+func RHI_Metal_Texture* RHI_Metal_TextureFromHandle(RHI_Texture handle);
+
 // -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
 typedef struct RHI_Metal_CommandBuffer RHI_Metal_CommandBuffer;
@@ -31,6 +33,11 @@ RHI_Metal_CommandBuffer RHI_Metal_CommandBufferNil = ZeroStruct();
 DefineArray(RHI_Metal_CommandBuffer, RHI_Metal_CommandBufferArray, RHI_Metal_CommandBufferNil)
 
 func RHI_Metal_CommandBuffer* RHI_Metal_CommandBufferFromHandle(RHI_CommandBuffer handle);
+
+// -------------------------------------------------------------------
+// -- Utils ----------------------------------------------------------
+func MTLLoadAction  RHI_Metal_LoadActionFromRHI(RHI_LoadOperation operation);
+func MTLStoreAction RHI_Metal_StoreActionFromRHI(RHI_StoreOperation operation);
 
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------

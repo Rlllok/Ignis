@@ -38,6 +38,11 @@ RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader
 
 // -------------------------------------------------------------------
 // -- Texture --------------------------------------------------------
+func RHI_Metal_Texture*
+RHI_Metal_TextureFromHandle(RHI_Texture handle) {
+  return RHI_Metal_TextureArrayGetPointer(&_rhi_metal_context.swapchain_textures, handle);
+}
+
 func RHI_Texture
 RHI_Metal_CreateTexture(RHI_TextureCreateInfo* info) {
   // --AlNov: @TODO
@@ -85,7 +90,6 @@ RHI_Metal_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
 
 // -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
-
 func RHI_Metal_CommandBuffer*
 RHI_Metal_CommandBufferFromHandle(RHI_CommandBuffer handle) {
   return RHI_Metal_CommandBufferArrayGetPointer(&_rhi_metal_context.command_buffers, handle);
@@ -100,15 +104,19 @@ RHI_Metal_GetCommandBuffer() {
 
 func void
 RHI_Metal_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
-  RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
-  metal_command_buffer->mtl = [_rhi_metal_context.command_queue commandBuffer];
+  @autoreleasepool {
+    RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+    metal_command_buffer->mtl = [_rhi_metal_context.command_queue commandBuffer];
+  }
 }
 
 func void
 RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
-  RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
-  [metal_command_buffer->mtl presentDrawable: _rhi_metal_context.current_drawable];
-  [metal_command_buffer->mtl commit];
+  @autoreleasepool {
+    RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+    [metal_command_buffer->mtl presentDrawable: _rhi_metal_context.current_drawable];
+    [metal_command_buffer->mtl commit];
+  }
 }
 
 // -------------------------------------------------------------------
@@ -121,6 +129,7 @@ RHI_Metal_GetSwapchainTextureFormat() {
 
 func RHI_Texture
 RHI_Metal_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
+  @autoreleasepool {
     RHI_Texture result = _rhi_metal_context.current_swapchain_texture_index;
 
     OS_MacOS_View* ns_view = (__bridge OS_MacOS_View*)_rhi_metal_context.window->ns_view;
@@ -130,12 +139,16 @@ RHI_Metal_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
     metal_texture->mtl = [_rhi_metal_context.current_drawable texture];
 
     _rhi_metal_context.current_swapchain_texture_index = (_rhi_metal_context.current_swapchain_texture_index + 1)%_rhi_metal_context.drawable_count;
+
+    return result;
+  }
 }
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
 func RHI_RenderPass*
 RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target) {
+  @autoreleasepool {
     RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
     
     Assert(mtl_command_buffer->render_encoder == nil);
@@ -143,30 +156,38 @@ RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_co
     Assert(_rhi_metal_context.current_drawable != nil);
 
     MTLRenderPassDescriptor* pass_descriptor = [MTLRenderPassDescriptor renderPassDescriptor];
-    pass_descriptor.colorAttachments[0].texture = [_rhi_metal_context.current_drawable texture];
-    pass_descriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-    pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.8f, 0.2f, 0.3f, 1.0f);
-    pass_descriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+    for (I32 i = 0; i < color_targets_count; i += 1) {
+      RHI_Metal_Texture* texture = RHI_Metal_TextureFromHandle(color_targets[i].texture);
+      MTLLoadAction load_action = RHI_Metal_LoadActionFromRHI(color_targets[i].load_operation);
+      MTLClearColor clear_color = MTLClearColorMake(color_targets[i].clear_color.r, color_targets[i].clear_color.g, color_targets[i].clear_color.b, color_targets[i].clear_color.a);
+      MTLStoreAction store_action = RHI_Metal_StoreActionFromRHI(color_targets[i].store_operation);
+
+      pass_descriptor.colorAttachments[i].texture = texture->mtl;
+      pass_descriptor.colorAttachments[i].loadAction = load_action;
+      pass_descriptor.colorAttachments[i].clearColor = clear_color;
+      pass_descriptor.colorAttachments[i].storeAction = store_action;
+    }
     mtl_command_buffer->render_encoder = [mtl_command_buffer->mtl renderCommandEncoderWithDescriptor:pass_descriptor];
 
     return 0;
+  }
 }
 
 func void
 RHI_Metal_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
-  // --AlNov: @TODO
-  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
-  
-  Assert(mtl_command_buffer->render_encoder != nil);
+  @autoreleasepool {
+    RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+    
+    Assert(mtl_command_buffer->render_encoder != nil);
 
-  [mtl_command_buffer->render_encoder endEncoding];
+    [mtl_command_buffer->render_encoder endEncoding];
 
-  mtl_command_buffer->render_encoder = nil;
+    mtl_command_buffer->render_encoder = nil;
+  }
 }
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
-
 func RHI_GraphicsPipeline
 RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
   // --AlNov: @TODO
@@ -202,6 +223,33 @@ RHI_Metal_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_coun
 func void
 RHI_Metal_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
   // --AlNov: @TODO
+}
+
+// -------------------------------------------------------------------
+// -- Utils ----------------------------------------------------------
+func MTLLoadAction
+RHI_Metal_LoadActionFromRHI(RHI_LoadOperation operation) {
+  MTLLoadAction result = MTLLoadActionDontCare;
+  switch (operation) {
+    default: Assert(1); break;
+
+    case RHI_AttachmentLoadOperation_DontCare: result = MTLLoadActionDontCare; break;
+    case RHI_AttachmentLoadOperation_Load:     result = MTLLoadActionLoad;     break;
+    case RHI_AttachmentLoadOperation_Clear:    result = MTLLoadActionClear;    break;
+  }
+  return result;
+}
+
+func MTLStoreAction
+RHI_Metal_StoreActionFromRHI(RHI_StoreOperation operation) {
+  MTLStoreAction result = MTLStoreActionDontCare;
+  switch (operation) {
+    default: Assert(1); break;
+
+    case RHI_AttachmentStoreOperation_DontCare: result = MTLStoreActionDontCare; break;
+    case RHI_AttachmentStoreOperation_Store:    result = MTLStoreActionStore;    break;
+  }
+  return result;
 }
 
 // -------------------------------------------------------------------

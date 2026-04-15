@@ -62,8 +62,9 @@ OS_CreateWindow(Str8 title, Vec2U32 size) {
 
   [ns_window setTitle:@(CFromStr8(title))];
 
-  window->ns_view = [[OS_MacOS_View alloc] initWithFrame:NSMakeRect(0, 0, size.w, size.h)];
-  [ns_window setContentView: window->ns_view];
+  OS_MacOS_View* view = [[OS_MacOS_View alloc] initWithFrame:NSMakeRect(0, 0, size.w, size.h)];
+  window->ns_view = (__bridge void*)view;
+  [ns_window setContentView: view];
 
   return (OS_Window*)window;
 }
@@ -230,7 +231,12 @@ OS_GetEventList(Arena* arena, OS_Window* window) {
 }
 
 func F32 OS_GetMonitorHZ(void);
-func U64 OS_GetTimeTicks(void);
+func U64 OS_GetTimeTicks(void) {
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+
+  return (U64)(now.tv_sec*1000 + now.tv_nsec*0.000001);
+}
 
 func void OS_Sleep(U64 ms);
 

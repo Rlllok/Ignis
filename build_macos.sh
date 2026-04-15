@@ -29,7 +29,7 @@ echo "**************************************************"
 
 if [ "$1" == "macos"  ]; then
   time (
-    clang -x objective-c -g ./code/app/macos.c -o build/macos  $warnings $defines $default_links $include_flags;
+    clang -x objective-c -fobjc-arc -g ./code/app/macos.c -o build/macos  $warnings $defines $default_links $include_flags;
   );
 fi
 
