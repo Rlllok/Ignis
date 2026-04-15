@@ -12,6 +12,17 @@ struct RHI_Metal_Buffer {
 };
 
 // -------------------------------------------------------------------
+// -- Pipeline -------------------------------------------------------
+typedef struct RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipeline;
+struct RHI_Metal_GraphicsPipeline {
+  id<MTLRenderPipelineState> mtl;
+};
+RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
+DefineArray(RHI_Metal_GraphicsPipeline, RHI_Metal_GraphicsPipelineArray, RHI_Metal_GraphicsPipelineNil)
+
+RHI_Metal_GraphicsPipeline* RHI_Metal_GraphicsPipelineFromHandle(RHI_GraphicsPipeline handle);
+
+// -------------------------------------------------------------------
 // -- Texture --------------------------------------------------------
 typedef struct RHI_Metal_Texture RHI_Metal_Texture;
 struct RHI_Metal_Texture {
@@ -39,6 +50,9 @@ func RHI_Metal_CommandBuffer* RHI_Metal_CommandBufferFromHandle(RHI_CommandBuffe
 func MTLLoadAction  RHI_Metal_LoadActionFromRHI(RHI_LoadOperation operation);
 func MTLStoreAction RHI_Metal_StoreActionFromRHI(RHI_StoreOperation operation);
 
+func MTLPixelFormat    RHI_Metal_PixelFormatFromRHI(RHI_TextureFormat format);
+func RHI_TextureFormat RHI_TextureFormatFromMetal(MTLPixelFormat format);
+
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------
 typedef struct RHI_Metal_Context RHI_Metal_Context;
@@ -48,12 +62,14 @@ struct RHI_Metal_Context {
   id<MTLDevice>       device;
   id<MTLCommandQueue> command_queue;
 
+  MTLPixelFormat drawable_texture_format;
   id<CAMetalDrawable> current_drawable;
   I32 drawable_count;
   I32 current_swapchain_texture_index;
 
-  Arena*                       arena;
-  RHI_Metal_CommandBufferArray command_buffers;
-  RHI_Metal_TextureArray       swapchain_textures;
+  Arena*                          arena;
+  RHI_Metal_CommandBufferArray    command_buffers;
+  RHI_Metal_GraphicsPipelineArray graphics_pipelines;
+  RHI_Metal_TextureArray          swapchain_textures;
 } _rhi_metal_context;
 

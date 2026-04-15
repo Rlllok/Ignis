@@ -124,7 +124,7 @@ RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
 
 func RHI_TextureFormat
 RHI_Metal_GetSwapchainTextureFormat() {
-  // --AlNov: @TODO¡
+  return RHI_TextureFormatFromMetal(_rhi_metal_context.drawable_texture_format);
 }
 
 func RHI_Texture
@@ -188,14 +188,83 @@ RHI_Metal_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
+RHI_Metal_GraphicsPipeline*
+RHI_Metal_GraphicsPipelineFromHandle(RHI_GraphicsPipeline handle) {
+  return RHI_Metal_GraphicsPipelineArrayGetPointer(&_rhi_metal_context.graphics_pipelines, handle);
+}
+
+const char* rhi_metal_shader_source = R"D4LIN4R(
+using namespace metal;
+
+struct Vertex {
+  float4 position [[position]];
+  float4 color;
+};
+
+vertex Vertex vertex_main(uint vid [[vertex_id]]) {
+    const float2 positions[3] = {
+        float2( 0.0,  0.5),  // Top center
+        float2(-0.5, -0.5),  // Bottom left
+        float2( 0.5, -0.5)   // Bottom right
+    };
+
+    const float3 colors[3] = {
+        float3(1.0, 0.0, 0.0), // Red
+        float3(0.0, 1.0, 0.0), // Green
+        float3(0.0, 0.0, 1.0)  // Blue
+    };
+
+    Vertex out = {0};
+    out.position = float4(positions[vid], 0.0, 1.0);
+    out.color = float4(colors[vid], 1.0);
+    return out;}
+
+fragment float4 fragment_main(Vertex in [[stage_in]]) {
+  return in.color;
+}
+)D4LIN4R";
+
 func RHI_GraphicsPipeline
 RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
-  // --AlNov: @TODO
+  @autoreleasepool {
+    RHI_Metal_GraphicsPipeline pipeline = ZeroStruct();
+
+    NSString* source = [[NSString alloc] initWithUTF8String:rhi_metal_shader_source];
+    MTLCompileOptions* compile_options = [[MTLCompileOptions alloc] init];
+    compile_options.languageVersion = MTLLanguageVersion2_0;
+
+    NSError* err = nil;
+    id<MTLLibrary> library = [_rhi_metal_context.device newLibraryWithSource:source options:compile_options error:&err];
+
+    if (err) {
+      NSLog(@"%@", err);
+      Assert(1);
+    }
+
+    id<MTLFunction> vertex_function = [library newFunctionWithName:@"vertex_main"];
+    id<MTLFunction> fragment_function = [library newFunctionWithName:@"fragment_main"];
+
+    MTLRenderPipelineDescriptor* pipeline_descriptor = [MTLRenderPipelineDescriptor new];
+    pipeline_descriptor.vertexFunction = vertex_function;
+    pipeline_descriptor.fragmentFunction = fragment_function;
+    for (I32 i = 0; i < info->color_targets_count; i += 1) {
+      pipeline_descriptor.colorAttachments[0].pixelFormat = RHI_Metal_PixelFormatFromRHI(info->color_target_infos[i].format);
+    }
+
+    pipeline.mtl = [_rhi_metal_context.device newRenderPipelineStateWithDescriptor:pipeline_descriptor error:0];
+
+    return RHI_Metal_GraphicsPipelineArrayAdd(&_rhi_metal_context.graphics_pipelines, pipeline);
+  }
 }
 
 func void
 RHI_Metal_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  RHI_Metal_GraphicsPipeline* mtl_pipeline = RHI_Metal_GraphicsPipelineFromHandle(pipeline);
+
+  Assert(mtl_command_buffer->render_encoder != nil);
+  
+  [mtl_command_buffer->render_encoder setRenderPipelineState:mtl_pipeline->mtl];
 }
 
 // -------------------------------------------------------------------
@@ -212,7 +281,11 @@ RHI_Metal_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor) {
 
 func void
 RHI_Metal_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+
+  Assert(mtl_command_buffer->render_encoder);
+  
+  [mtl_command_buffer->render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount: 3];
 }
 
 func void
@@ -252,6 +325,40 @@ RHI_Metal_StoreActionFromRHI(RHI_StoreOperation operation) {
   return result;
 }
 
+func MTLPixelFormat
+RHI_Metal_PixelFormatFromRHI(RHI_TextureFormat format) {
+  MTLPixelFormat result = 0;
+  switch (format) {
+    default: Assert(1); break;
+
+    case RHI_TextureFormat_None:                result = MTLPixelFormatInvalid;         break;
+    case RHI_TextureFormat_R8G8B8A8_SRGB:       result = MTLPixelFormatRGBA8Unorm_sRGB; break;
+    case RHI_TextureFormat_R8G8B8A8_UNORM:      result = MTLPixelFormatRGBA8Unorm;      break;
+    case RHI_TextureFormat_B8G8R8A8_UNORM:      result = MTLPixelFormatBGRA8Unorm;      break;
+    case RHI_TextureFormat_R16G16B16A16_SFLOAT: result = MTLPixelFormatRGBA16Float;     break;
+    case RHI_TextureFormat_D16_UNORM:           result = MTLPixelFormatDepth16Unorm;    break;
+    case RHI_TextureFormat_R16_UINT:            result = MTLPixelFormatR16Uint;         break;
+  }
+  return result;
+}
+
+func RHI_TextureFormat
+RHI_TextureFormatFromMetal(MTLPixelFormat format) {
+  RHI_TextureFormat result = RHI_TextureFormat_None;
+  switch (format) {
+    default: Assert(1); break;
+
+    case MTLPixelFormatInvalid:         result = RHI_TextureFormat_None;                break;
+    case MTLPixelFormatRGBA8Unorm_sRGB: result = RHI_TextureFormat_R8G8B8A8_SRGB;       break;
+    case MTLPixelFormatRGBA8Unorm:      result = RHI_TextureFormat_R8G8B8A8_UNORM;      break;
+    case MTLPixelFormatBGRA8Unorm:      result = RHI_TextureFormat_B8G8R8A8_UNORM;      break;
+    case MTLPixelFormatRGBA16Float:     result = RHI_TextureFormat_R16G16B16A16_SFLOAT; break;
+    case MTLPixelFormatDepth16Unorm:    result = RHI_TextureFormat_D16_UNORM;           break;
+    case MTLPixelFormatR16Uint:         result = RHI_TextureFormat_R16_UINT;            break;
+  }
+  return result;
+}
+
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------
 func B32
@@ -260,6 +367,7 @@ RHI_Metal_Init(OS_Window* window) {
 
   _rhi_metal_context.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_metal_context.command_buffers = RHI_Metal_CommandBufferArrayAllocate(_rhi_metal_context.arena, 32);
+  _rhi_metal_context.graphics_pipelines = RHI_Metal_GraphicsPipelineArrayAllocate(_rhi_metal_context.arena, 32);
 
   _rhi_metal_context.device = MTLCreateSystemDefaultDevice();
   Assert(_rhi_metal_context.device != nil);
@@ -276,6 +384,8 @@ RHI_Metal_Init(OS_Window* window) {
   metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
   metal_layer.framebufferOnly = YES;
   metal_layer.drawableSize = NSSizeToCGSize([view bounds].size);
+
+  _rhi_metal_context.drawable_texture_format = MTLPixelFormatBGRA8Unorm;
 
   _rhi_metal_context.drawable_count = [metal_layer maximumDrawableCount];
   _rhi_metal_context.swapchain_textures = RHI_Metal_TextureArrayAllocate(_rhi_metal_context.arena, _rhi_metal_context.drawable_count);
