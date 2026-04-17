@@ -8,8 +8,14 @@
 // -- Buffer ---------------------------------------------------------
 typedef struct RHI_Metal_Buffer RHI_Metal_Buffer;
 struct RHI_Metal_Buffer {
-  id<MTLBuffer>       handle;
+  id<MTLBuffer> mtl;
+  U64           position;
+  U64           capacity;
 };
+RHI_Metal_Buffer RHI_Metal_BufferNil = ZeroStruct();
+DefineArray(RHI_Metal_Buffer, RHI_Metal_BufferArray, RHI_Metal_BufferNil)
+
+func RHI_Metal_Buffer* RHI_Metal_BufferFromHandle(RHI_Buffer handle);
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
@@ -20,7 +26,7 @@ struct RHI_Metal_GraphicsPipeline {
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
 DefineArray(RHI_Metal_GraphicsPipeline, RHI_Metal_GraphicsPipelineArray, RHI_Metal_GraphicsPipelineNil)
 
-RHI_Metal_GraphicsPipeline* RHI_Metal_GraphicsPipelineFromHandle(RHI_GraphicsPipeline handle);
+func RHI_Metal_GraphicsPipeline* RHI_Metal_GraphicsPipelineFromHandle(RHI_GraphicsPipeline handle);
 
 // -------------------------------------------------------------------
 // -- Texture --------------------------------------------------------
@@ -69,6 +75,7 @@ struct RHI_Metal_Context {
 
   Arena*                          arena;
   RHI_Metal_CommandBufferArray    command_buffers;
+  RHI_Metal_BufferArray           data_buffers;
   RHI_Metal_GraphicsPipelineArray graphics_pipelines;
   RHI_Metal_TextureArray          swapchain_textures;
 } _rhi_metal_context;

@@ -4,14 +4,40 @@
 
 // -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
+func RHI_Metal_Buffer*
+RHI_Metal_BufferFromHandle(RHI_Buffer handle) {
+  return RHI_Metal_BufferArrayGetPointer(&_rhi_metal_context.data_buffers, handle);
+}
+
 func RHI_Buffer
 RHI_Metal_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags) {
-  // --AlNov: @TODO
+  RHI_Metal_Buffer mtl_buffer = ZeroStruct();
+
+  mtl_buffer.mtl = [_rhi_metal_context.device newBufferWithLength:capacity options:MTLResourceCPUCacheModeDefaultCache];
+  mtl_buffer.capacity = capacity;
+
+  return RHI_Metal_BufferArrayAdd(&_rhi_metal_context.data_buffers, mtl_buffer);
 }
 
 func U64
 RHI_Metal_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
-  // --AlNov: @TODO
+  RHI_Metal_Buffer* mtl_buffer = RHI_Metal_BufferFromHandle(buffer);
+  
+  Assert(mtl_buffer->mtl.contents != nil);
+
+  if (mtl_buffer->position + size > mtl_buffer->capacity) {
+    LogDebug("RHI_Metal. Ring buffer reseted to zero\n")
+    mtl_buffer->position = 0;
+  }
+
+  U64 offset = mtl_buffer->position;
+
+  memcpy((U8*)mtl_buffer->mtl.contents + mtl_buffer->position, data, size);
+  mtl_buffer->position += size;
+  U64 padding = 64 - (mtl_buffer->position + 64)%64;
+  mtl_buffer->position += padding;
+
+  return offset;
 }
 
 func void
@@ -26,7 +52,10 @@ RHI_Metal_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U
 
 func void
 RHI_Metal_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  RHI_Metal_Buffer* mtl_buffer = RHI_Metal_BufferFromHandle(buffer);
+
+  [mtl_command_buffer->render_encoder setVertexBuffer:mtl_buffer->mtl offset:offset atIndex:0];
 }
 
 // -------------------------------------------------------------------
@@ -168,6 +197,7 @@ RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_co
       pass_descriptor.colorAttachments[i].storeAction = store_action;
     }
     mtl_command_buffer->render_encoder = [mtl_command_buffer->mtl renderCommandEncoderWithDescriptor:pass_descriptor];
+    [mtl_command_buffer->render_encoder setCullMode:MTLCullModeNone];
 
     return 0;
   }
@@ -188,7 +218,7 @@ RHI_Metal_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
-RHI_Metal_GraphicsPipeline*
+func RHI_Metal_GraphicsPipeline*
 RHI_Metal_GraphicsPipelineFromHandle(RHI_GraphicsPipeline handle) {
   return RHI_Metal_GraphicsPipelineArrayGetPointer(&_rhi_metal_context.graphics_pipelines, handle);
 }
@@ -197,29 +227,28 @@ const char* rhi_metal_shader_source = R"D4LIN4R(
 using namespace metal;
 
 struct Vertex {
+  float4 position;
+};
+
+struct VertexOut {
   float4 position [[position]];
   float4 color;
 };
 
-vertex Vertex vertex_main(uint vid [[vertex_id]]) {
-    const float2 positions[3] = {
-        float2( 0.0,  0.5),  // Top center
-        float2(-0.5, -0.5),  // Bottom left
-        float2( 0.5, -0.5)   // Bottom right
-    };
+vertex VertexOut vertex_main(const device Vertex* vertex_buffer[[buffer(0)]], uint vid [[vertex_id]]) {
+  const float3 colors[3] = {
+      float3(1.0, 0.0, 0.0), // Red
+      float3(0.0, 1.0, 0.0), // Green
+      float3(0.0, 0.0, 1.0)  // Blue
+  };
 
-    const float3 colors[3] = {
-        float3(1.0, 0.0, 0.0), // Red
-        float3(0.0, 1.0, 0.0), // Green
-        float3(0.0, 0.0, 1.0)  // Blue
-    };
+  VertexOut out = {0};
+  out.position = vertex_buffer[vid].position;
+  out.color = float4(colors[vid], 1.0);
+  return out;
+}
 
-    Vertex out = {0};
-    out.position = float4(positions[vid], 0.0, 1.0);
-    out.color = float4(colors[vid], 1.0);
-    return out;}
-
-fragment float4 fragment_main(Vertex in [[stage_in]]) {
+fragment float4 fragment_main(VertexOut in [[stage_in]]) {
   return in.color;
 }
 )D4LIN4R";
@@ -271,7 +300,19 @@ RHI_Metal_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPip
 // -- Set States And Draw --------------------------------------------
 func void
 RHI_Metal_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+
+  Assert(mtl_command_buffer->render_encoder != nil);
+
+  MTLViewport mtl_viewport = {
+    .originX = viewport.x,
+    .originY = viewport.y,
+    .width = viewport.w,
+    .height = viewport.h,
+    .znear = 0.0f,
+    .zfar = 10.0f,
+  };
+  [mtl_command_buffer->render_encoder setViewport:mtl_viewport];
 }
 
 func void
@@ -367,6 +408,7 @@ RHI_Metal_Init(OS_Window* window) {
 
   _rhi_metal_context.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_metal_context.command_buffers = RHI_Metal_CommandBufferArrayAllocate(_rhi_metal_context.arena, 32);
+  _rhi_metal_context.data_buffers = RHI_Metal_BufferArrayAllocate(_rhi_metal_context.arena, 32);
   _rhi_metal_context.graphics_pipelines = RHI_Metal_GraphicsPipelineArrayAllocate(_rhi_metal_context.arena, 32);
 
   _rhi_metal_context.device = MTLCreateSystemDefaultDevice();

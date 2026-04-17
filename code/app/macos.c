@@ -6,6 +6,11 @@
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
 
+typedef struct Vertex Vertex;
+struct Vertex {
+  Vec4F32 position;
+};
+
 typedef struct AppContext AppContext;
 struct AppContext {
   Arena* arena;
@@ -16,6 +21,8 @@ struct AppContext {
   OS_Window* window;
 
   RHI_GraphicsPipeline pipeline;
+  RHI_Buffer           storage_buffer;
+  U64                  vertecies_offset;
 } app_context;
 
 func void Draw(RHI_CommandBuffer command_buffer, F32 dt);
@@ -36,6 +43,14 @@ I32 main() {
   RHI_Init(RHI_RendererKind_Metal, app_context.window);
 
   OS_ShowWindow(app_context.window);
+
+  app_context.storage_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+  Vertex vertecies[] = {
+    MakeVec4F32(0.0f, 0.5f, 0.0f, 1.0f),
+    MakeVec4F32(0.5f, -0.5f, 0.0f, 1.0f),
+    MakeVec4F32(-0.5f, -0.5f, 0.0f, 1.0f),
+  };
+  app_context.vertecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
   RHI_GraphicsPipelineCreateInfo pipeline_info = {
@@ -78,7 +93,15 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
     };
 
     RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0);
+      RectI32 viewport = {
+        .x = 0,
+        .y = 0,
+        .w = app_context.window->size.w,
+        .h = app_context.window->size.h,
+      };
+      RHI_SetViewport(command_buffer, viewport);
       RHI_BindGraphicsPipeline(command_buffer, app_context.pipeline);
+      RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
       RHI_DrawPrimitives(command_buffer, 3, 1, 0, 0);
     RHI_EndRenderPass(command_buffer, render_pass);
   RHI_SubmitCommandBuffer(command_buffer);
