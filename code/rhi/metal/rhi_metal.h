@@ -59,6 +59,8 @@ func MTLStoreAction RHI_Metal_StoreActionFromRHI(RHI_StoreOperation operation);
 func MTLPixelFormat    RHI_Metal_PixelFormatFromRHI(RHI_TextureFormat format);
 func RHI_TextureFormat RHI_TextureFormatFromMetal(MTLPixelFormat format);
 
+func MTLVertexFormat RHI_Metal_VertexFormatFromRHI(RHI_VertexAttributeFormat format);
+
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------
 typedef struct RHI_Metal_Context RHI_Metal_Context;

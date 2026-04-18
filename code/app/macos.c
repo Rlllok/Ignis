@@ -8,7 +8,7 @@
 
 typedef struct Vertex Vertex;
 struct Vertex {
-  Vec4F32 position;
+  Vec3F32 position;
 };
 
 typedef struct AppContext AppContext;
@@ -46,14 +46,20 @@ I32 main() {
 
   app_context.storage_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   Vertex vertecies[] = {
-    MakeVec4F32(0.0f, 0.5f, 0.0f, 1.0f),
-    MakeVec4F32(0.5f, -0.5f, 0.0f, 1.0f),
-    MakeVec4F32(-0.5f, -0.5f, 0.0f, 1.0f),
+    MakeVec3F32(0.0f, 0.5f, 0.0f),
+    MakeVec3F32(0.5f, -0.5f, 0.0f),
+    MakeVec3F32(-0.5f, -0.5f, 0.0f),
   };
   app_context.vertecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
   RHI_GraphicsPipelineCreateInfo pipeline_info = {
+    .vertex_attributes_count = 1,
+    .vertex_attributes = &(RHI_VertexAttribute) {
+      .location = 0,
+      .format = RHI_VertexAttributeFormat_Vec3F32,
+      .offset = offsetof(Vertex, position),
+    },
     .color_targets_count = 1,
     .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
       .format = RHI_GetSwapchainTextureFormat(),

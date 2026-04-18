@@ -226,8 +226,8 @@ RHI_Metal_GraphicsPipelineFromHandle(RHI_GraphicsPipeline handle) {
 const char* rhi_metal_shader_source = R"D4LIN4R(
 using namespace metal;
 
-struct Vertex {
-  float4 position;
+struct VertexIn {
+  float4 position [[attribute(0)]];
 };
 
 struct VertexOut {
@@ -235,7 +235,7 @@ struct VertexOut {
   float4 color;
 };
 
-vertex VertexOut vertex_main(const device Vertex* vertex_buffer[[buffer(0)]], uint vid [[vertex_id]]) {
+vertex VertexOut vertex_main(VertexIn vertex_data [[stage_in]], uint vid [[vertex_id]]) {
   const float3 colors[3] = {
       float3(1.0, 0.0, 0.0), // Red
       float3(0.0, 1.0, 0.0), // Green
@@ -243,7 +243,7 @@ vertex VertexOut vertex_main(const device Vertex* vertex_buffer[[buffer(0)]], ui
   };
 
   VertexOut out = {0};
-  out.position = vertex_buffer[vid].position;
+  out.position = vertex_data.position;
   out.color = float4(colors[vid], 1.0);
   return out;
 }
@@ -276,11 +276,34 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     MTLRenderPipelineDescriptor* pipeline_descriptor = [MTLRenderPipelineDescriptor new];
     pipeline_descriptor.vertexFunction = vertex_function;
     pipeline_descriptor.fragmentFunction = fragment_function;
+    
+    U32 stride = 0;
+    MTLVertexDescriptor* vertex_descriptor = [MTLVertexDescriptor vertexDescriptor];
+    for (I32 i = 0; i < info->vertex_attributes_count; i += 1) {
+      RHI_VertexAttribute* vertex_attribute = info->vertex_attributes + i;
+
+      vertex_descriptor.attributes[i].format = RHI_Metal_VertexFormatFromRHI(vertex_attribute->format);
+      vertex_descriptor.attributes[i].offset = vertex_attribute->offset;
+      vertex_descriptor.attributes[i].bufferIndex = 0; // @NOTE @TODO fixed index for Vertex Buffer
+
+      stride += GetSizeOfVertexAttributeFormat(vertex_attribute->format);
+    }
+    if (stride > 0) {
+      vertex_descriptor.layouts[0].stride = stride;
+      vertex_descriptor.layouts[0].stepRate = 1;
+      vertex_descriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+    }
+    pipeline_descriptor.vertexDescriptor = vertex_descriptor;
+
     for (I32 i = 0; i < info->color_targets_count; i += 1) {
       pipeline_descriptor.colorAttachments[0].pixelFormat = RHI_Metal_PixelFormatFromRHI(info->color_target_infos[i].format);
     }
 
-    pipeline.mtl = [_rhi_metal_context.device newRenderPipelineStateWithDescriptor:pipeline_descriptor error:0];
+    NSError* error = nil;
+    pipeline.mtl = [_rhi_metal_context.device newRenderPipelineStateWithDescriptor:pipeline_descriptor error:&error];
+    if (pipeline.mtl == nil) {
+      LogError("Failed to create Graphics Pipeline. Error: %s\n", [error.localizedDescription UTF8String]);
+    }
 
     return RHI_Metal_GraphicsPipelineArrayAdd(&_rhi_metal_context.graphics_pipelines, pipeline);
   }
@@ -397,6 +420,21 @@ RHI_TextureFormatFromMetal(MTLPixelFormat format) {
     case MTLPixelFormatDepth16Unorm:    result = RHI_TextureFormat_D16_UNORM;           break;
     case MTLPixelFormatR16Uint:         result = RHI_TextureFormat_R16_UINT;            break;
   }
+  return result;
+}
+
+func MTLVertexFormat
+RHI_Metal_VertexFormatFromRHI(RHI_VertexAttributeFormat format) {
+  MTLVertexFormat result = MTLVertexFormatInvalid;
+  switch (format) {
+    default: Assert(1); break;
+
+    case RHI_VertexAttributeFormat_Vec2F32: result = MTLVertexFormatFloat2; break;
+    case RHI_VertexAttributeFormat_Vec3F32: result = MTLVertexFormatFloat3; break;
+    case RHI_VertexAttributeFormat_Vec4F32: result = MTLVertexFormatFloat4; break;
+    
+    case RHI_VertexAttributeFormat_Vec4I32: result = MTLVertexFormatInt4; break;
+  };
   return result;
 }
 
