@@ -22,6 +22,10 @@ func RHI_Metal_Buffer* RHI_Metal_BufferFromHandle(RHI_Buffer handle);
 typedef struct RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipeline;
 struct RHI_Metal_GraphicsPipeline {
   id<MTLRenderPipelineState> mtl;
+  id<MTLArgumentEncoder>     vertex_global_argument_encoder;
+  id<MTLBuffer>              vertex_global_argument_buffer;
+  id<MTLArgumentEncoder>     vertex_instance_argument_encoder;
+  id<MTLBuffer>              vertex_instance_argument_buffer;
 };
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
 DefineArray(RHI_Metal_GraphicsPipeline, RHI_Metal_GraphicsPipelineArray, RHI_Metal_GraphicsPipelineNil)
@@ -45,6 +49,8 @@ typedef struct RHI_Metal_CommandBuffer RHI_Metal_CommandBuffer;
 struct RHI_Metal_CommandBuffer {
   id<MTLCommandBuffer> mtl;
   id<MTLRenderCommandEncoder> render_encoder;
+
+  RHI_Metal_GraphicsPipeline* current_graphics_pipeline;
 };
 RHI_Metal_CommandBuffer RHI_Metal_CommandBufferNil = ZeroStruct();
 DefineArray(RHI_Metal_CommandBuffer, RHI_Metal_CommandBufferArray, RHI_Metal_CommandBufferNil)

@@ -62,7 +62,27 @@ RHI_Metal_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, 
 // -- Descriptor Set -------------------------------------------------
 func void
 RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_kind, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos) {
-  // --AlNov: @TODO
+  @autoreleasepool {
+    RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+    RHI_Metal_GraphicsPipeline* mtl_pipeline = mtl_command_buffer->current_graphics_pipeline;
+
+    Assert(mtl_pipeline != nil);
+    Assert(uniform_buffers_count == 1);
+
+    if (shader_kind == RHI_ShaderKind_Vertex) {
+      if (!is_global) {
+        [mtl_pipeline->vertex_instance_argument_encoder setArgumentBuffer:mtl_pipeline->vertex_instance_argument_buffer offset:0];
+
+        RHI_Metal_Buffer* uniform_buffer = RHI_Metal_BufferFromHandle(uniform_infos[0].buffer);
+        [mtl_pipeline->vertex_instance_argument_encoder setBuffer:uniform_buffer->mtl offset:uniform_infos[0].offset atIndex:0];
+
+        [mtl_command_buffer->render_encoder setVertexBuffer:mtl_pipeline->vertex_instance_argument_buffer offset:0 atIndex:3];
+        [mtl_command_buffer->render_encoder useResource:uniform_buffer->mtl usage:MTLResourceUsageRead stages:MTLRenderStageVertex];
+      }
+      else {
+      }
+    }
+  }
 }
 
 // -------------------------------------------------------------------
@@ -230,12 +250,24 @@ struct VertexIn {
   float4 position [[attribute(0)]];
 };
 
+struct InstanceUniformData {
+  float3 translation;
+};
+
+struct IntanceDataBuffer {
+  device InstanceUniformData* uniform [[id(0)]];
+};
+
 struct VertexOut {
   float4 position [[position]];
   float4 color;
 };
 
-vertex VertexOut vertex_main(VertexIn vertex_data [[stage_in]], uint vid [[vertex_id]]) {
+vertex VertexOut vertex_main(
+  VertexIn vertex_data [[stage_in]],
+  constant IntanceDataBuffer& instance_data_buffer [[buffer(3)]],
+  uint vid [[vertex_id]]
+) {
   const float3 colors[3] = {
       float3(1.0, 0.0, 0.0), // Red
       float3(0.0, 1.0, 0.0), // Green
@@ -243,7 +275,7 @@ vertex VertexOut vertex_main(VertexIn vertex_data [[stage_in]], uint vid [[verte
   };
 
   VertexOut out = {0};
-  out.position = vertex_data.position;
+  out.position = vertex_data.position + float4(instance_data_buffer.uniform->translation, 0.0f);
   out.color = float4(colors[vid], 1.0);
   return out;
 }
@@ -271,6 +303,16 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     }
 
     id<MTLFunction> vertex_function = [library newFunctionWithName:@"vertex_main"];
+    // if (info->vertex_shader.global_uniforms_count > 0 || info->vertex_shader.global_samplers_count > 0) {
+      // pipeline.vertex_global_argument_encoder = [vertex_function newArgumentEncoderWithBufferIndex:2];
+      // pipeline.vertex_global_argument_buffer = [_rhi_metal_context.device newBufferWithLength:pipeline.vertex_global_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
+    //}
+
+    // if (info->vertex_shader.instance_uniforms_count > 0 || info->vertex_shader.instance_samplers_count > 0) {
+      pipeline.vertex_instance_argument_encoder = [vertex_function newArgumentEncoderWithBufferIndex:3];
+      pipeline.vertex_instance_argument_buffer = [_rhi_metal_context.device newBufferWithLength:pipeline.vertex_instance_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
+    // }
+
     id<MTLFunction> fragment_function = [library newFunctionWithName:@"fragment_main"];
 
     MTLRenderPipelineDescriptor* pipeline_descriptor = [MTLRenderPipelineDescriptor new];
@@ -317,6 +359,7 @@ RHI_Metal_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPip
   Assert(mtl_command_buffer->render_encoder != nil);
   
   [mtl_command_buffer->render_encoder setRenderPipelineState:mtl_pipeline->mtl];
+  mtl_command_buffer->current_graphics_pipeline = mtl_pipeline;
 }
 
 // -------------------------------------------------------------------

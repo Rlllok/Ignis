@@ -96,24 +96,36 @@ RHI_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
 // -------------------------------------------------------------------
 // -- Uniform Data  --------------------------------------------------
 func void
-RHI_BindGlobalVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info) {
-  _r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Vertex, 1, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+RHI_BindGlobalVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos) {
+  Assert(uniform_buffers_count == 0 || uniform_infos != 0);
+  Assert(samplers_count == 0 || sampler_infos != 0);
+
+  _r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Vertex, 1, uniform_buffers_count, uniform_infos, samplers_count, sampler_infos);
 }
 
 func void
-RHI_BindInstanceVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info) {
-	_r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Vertex, 0, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+RHI_BindInstanceVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos) {
+  Assert(uniform_buffers_count == 0 || uniform_infos != 0);
+  Assert(samplers_count == 0 || sampler_infos != 0);
+
+	_r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Vertex, 0, uniform_buffers_count, uniform_infos, samplers_count, sampler_infos);
 }
 
 func void
-RHI_BindGlobalFragmentShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info)
+RHI_BindGlobalFragmentShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos)
 {
-  _r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Fragment, 1, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+  Assert(uniform_buffers_count == 0 || uniform_infos != 0);
+  Assert(samplers_count == 0 || sampler_infos != 0);
+
+  _r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Fragment, 1, uniform_buffers_count, uniform_infos, samplers_count, sampler_infos);
 }
 
 func void
-RHI_BindInstanceFragmentShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_info, I32 samplers_count, RHI_SamplerBindingInfo* sampler_info) {
-	_r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Fragment, 0, uniform_buffers_count, uniform_info, samplers_count, sampler_info);
+RHI_BindInstanceFragmentShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos) {
+  Assert(uniform_buffers_count == 0 || uniform_infos != 0);
+  Assert(samplers_count == 0 || sampler_infos != 0);
+
+	_r_state.device.BindShaderData(command_buffer, RHI_ShaderKind_Fragment, 0, uniform_buffers_count, uniform_infos, samplers_count, sampler_infos);
 }
 
 

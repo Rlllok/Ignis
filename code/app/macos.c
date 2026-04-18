@@ -22,6 +22,7 @@ struct AppContext {
 
   RHI_GraphicsPipeline pipeline;
   RHI_Buffer           storage_buffer;
+  RHI_Buffer           uniform_buffer;
   U64                  vertecies_offset;
 } app_context;
 
@@ -52,6 +53,8 @@ I32 main() {
   };
   app_context.vertecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
 
+  app_context.uniform_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
   RHI_GraphicsPipelineCreateInfo pipeline_info = {
     .vertex_attributes_count = 1,
@@ -80,7 +83,8 @@ I32 main() {
     ResetArena(app_context.frame_arena);
 
     U64 end_ts = OS_GetTimeTicks();
-    app_context.dt = ((F32)(end_ts - start_ts))*0.001f;
+    app_conte xt.dt = ((F32)(end_ts - start_ts))*0.001f;
+    start_ts = end_ts;
   }
 
   return 0;
@@ -88,6 +92,13 @@ I32 main() {
 
 func void
 Draw(RHI_CommandBuffer command_buffer, F32 dt) {
+  static F32 animation_time = 0.0f;
+  static F32 animation_duration = 5.0f;
+
+  if (animation_time > animation_duration) {
+    animation_time = 0.0f;
+  }
+
   RHI_BeginCommandBuffer(command_buffer);
     RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(command_buffer);
 
@@ -105,8 +116,23 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
         .w = app_context.window->size.w,
         .h = app_context.window->size.h,
       };
+
+      struct {
+        Vec3F32 translation;
+      } uniform_data = {
+        .translation = LerpVec3F32(MakeVec3F32(-1.0f, 0.0f, 0.0f), MakeVec3F32(1.0f, 0.0f, 0.0f), animation_time/animation_duration),
+      };
+      animation_time += dt;
+
+      U64 uniform_data_offset = RHI_PushBuffer(app_context.uniform_buffer, (U8*)&uniform_data, sizeof(uniform_data));
+
       RHI_SetViewport(command_buffer, viewport);
       RHI_BindGraphicsPipeline(command_buffer, app_context.pipeline);
+      RHI_BindInstanceVertexShaderData(command_buffer, 1, &(RHI_UniformBufferBindingInfo) {
+        .buffer = app_context.uniform_buffer,
+        .offset = uniform_data_offset,
+        .size = sizeof(uniform_data),
+      }, 0, 0);
       RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
       RHI_DrawPrimitives(command_buffer, 3, 1, 0, 0);
     RHI_EndRenderPass(command_buffer, render_pass);

@@ -539,9 +539,6 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 
 func void
 RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_kind, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos) {
-  Assert(uniform_buffers_count == 0 || uniform_infos != 0);
-  Assert(sampler_count == 0 || sampler_infos != 0);
-
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_DescriptorPool* descriptor_pool = &vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame];
   U32 max_sets = descriptor_pool->pool_count*RHI_VK_SETS_PER_POOL;
