@@ -51,7 +51,7 @@ GLTFReadFile(Buffer file_name)
   FILE* file = fopen(file_name_c, "rb");
   if (file)
   {
-  #if IGNIS_PLATFORM_LINUX
+  #if IGNIS_PLATFORM_LINUX || IGNIS_PLATFORM_MACOS
     struct stat file_stat;
     stat(file_name_c, &file_stat);
   #endif

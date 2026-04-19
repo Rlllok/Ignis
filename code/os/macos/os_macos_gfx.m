@@ -90,7 +90,7 @@ OS_UnlockCursor(OS_Window* window) {
 }
 
 func OS_EventList
-OS_GetEventList(Arena* arena, OS_Window* window) {
+OS_DispatchEvents(Arena* arena, OS_Window* window) {
   _os_state.event_list = OS_EventListCreate(arena);
   _os_state.keyboard_event_list = OS_EventListCreate(arena);
   _os_state.mouse_event_list = OS_EventListCreate(arena);

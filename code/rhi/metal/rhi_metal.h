@@ -47,10 +47,14 @@ func RHI_Metal_Texture* RHI_Metal_TextureFromHandle(RHI_Texture handle);
 // -- Command Buffer -------------------------------------------------
 typedef struct RHI_Metal_CommandBuffer RHI_Metal_CommandBuffer;
 struct RHI_Metal_CommandBuffer {
-  id<MTLCommandBuffer> mtl;
+  id<MTLCommandBuffer>        mtl;
   id<MTLRenderCommandEncoder> render_encoder;
 
   RHI_Metal_GraphicsPipeline* current_graphics_pipeline;
+
+  RHI_Metal_Buffer* current_index_buffer;
+  U64               index_buffer_offset;
+  RHI_IndexSize     index_size;
 };
 RHI_Metal_CommandBuffer RHI_Metal_CommandBufferNil = ZeroStruct();
 DefineArray(RHI_Metal_CommandBuffer, RHI_Metal_CommandBufferArray, RHI_Metal_CommandBufferNil)
@@ -66,6 +70,8 @@ func MTLPixelFormat    RHI_Metal_PixelFormatFromRHI(RHI_TextureFormat format);
 func RHI_TextureFormat RHI_TextureFormatFromMetal(MTLPixelFormat format);
 
 func MTLVertexFormat RHI_Metal_VertexFormatFromRHI(RHI_VertexAttributeFormat format);
+
+func MTLIndexType RHI_Metal_IndexTypeFromRHI(RHI_IndexSize index_size);
 
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------

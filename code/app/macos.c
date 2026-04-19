@@ -24,6 +24,7 @@ struct AppContext {
   RHI_Buffer           storage_buffer;
   RHI_Buffer           uniform_buffer;
   U64                  vertecies_offset;
+  U64                  indecies_offset;
 } app_context;
 
 func void Draw(RHI_CommandBuffer command_buffer, F32 dt);
@@ -53,6 +54,9 @@ I32 main() {
   };
   app_context.vertecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
 
+  U16 indecies[] = {0, 1, 2};
+  app_context.indecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(indecies), sizeof(U16)*ArrayLength(indecies));
+
   app_context.uniform_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
@@ -60,7 +64,7 @@ I32 main() {
   RHI_Shader vertex_shader = RHI_CreateShader(
     app_context.arena,
     &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/macos/triangle.vs.metal"),
+      .file_name = Str8C("./data/shaders/macos/triangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
       .instance_uniforms_count = 1,
     }
@@ -68,7 +72,7 @@ I32 main() {
   RHI_Shader fragment_shader = RHI_CreateShader(
     app_context.arena,
     &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/macos/triangle.fs.metal"),
+      .file_name = Str8C("./data/shaders/macos/triangle.fs"),
       .kind = RHI_ShaderKind_Fragment,
     }
   );
@@ -90,7 +94,7 @@ I32 main() {
 
   U64 start_ts = OS_GetTimeTicks();
   while (!app_context.finished) {
-    OS_EventList event_list = OS_GetEventList(app_context.frame_arena, app_context.window);
+    OS_EventList event_list = OS_DispatchEvents(app_context.frame_arena, app_context.window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       app_context.finished = 1;
@@ -152,7 +156,8 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
         .size = sizeof(uniform_data),
       }, 0, 0);
       RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
-      RHI_DrawPrimitives(command_buffer, 3, 1, 0, 0);
+      RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);
+      RHI_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, 0);
     RHI_EndRenderPass(command_buffer, render_pass);
   RHI_SubmitCommandBuffer(command_buffer);
 }

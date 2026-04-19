@@ -49,7 +49,12 @@ RHI_Metal_ResetBuffer(RHI_Buffer buffer) {
 
 func void
 RHI_Metal_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  RHI_Metal_Buffer* mtl_buffer = RHI_Metal_BufferFromHandle(buffer);
+
+  mtl_command_buffer->current_index_buffer = mtl_buffer;
+  mtl_command_buffer->index_buffer_offset = offset;
+  mtl_command_buffer->index_size = index_size;
 }
 
 func void
@@ -246,8 +251,11 @@ func RHI_Shader
 RHI_Metal_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
   RHI_Shader result = ZeroStruct();
 
-  FILE* file = fopen(CFromStr8(info->file_name), "r");
+  ScratchArena scratch = BeginScratchArena(arena); 
+  Str8 file_name = ConcatStr8(scratch.arena, info->file_name, Str8C(".metal"));
+  FILE* file = fopen(CFromStr8(file_name), "r");
   Assert(file);
+  EndScratchArena(scratch);
 
   fseek(file, 0L, SEEK_END);
   result.code_size = ftell(file);
@@ -433,7 +441,15 @@ RHI_Metal_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32
 
 func void
 RHI_Metal_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+
+  Assert(mtl_command_buffer->render_encoder);
+
+  [mtl_command_buffer->render_encoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+    indexCount:index_count indexType:RHI_Metal_IndexTypeFromRHI(mtl_command_buffer->index_size)
+    indexBuffer:mtl_command_buffer->current_index_buffer->mtl
+    indexBufferOffset:mtl_command_buffer->index_buffer_offset
+  ];
 }
 
 func void
@@ -514,6 +530,18 @@ RHI_Metal_VertexFormatFromRHI(RHI_VertexAttributeFormat format) {
     
     case RHI_VertexAttributeFormat_Vec4I32: result = MTLVertexFormatInt4; break;
   };
+  return result;
+}
+
+func MTLIndexType
+RHI_Metal_IndexTypeFromRHI(RHI_IndexSize index_size) {
+  MTLIndexType result = 0;
+  switch (index_size) {
+    default: Assert(1); break;
+
+    case RHI_IndexSize_U16: result = MTLIndexTypeUInt16; break;
+    case RHI_IndexSize_U32: result = MTLIndexTypeUInt32; break;
+  }
   return result;
 }
 
