@@ -10,6 +10,9 @@
 #include "assets/animation.c"
 #include "assets/mesh.c"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "third_party/stb_image.h"
+
 typedef struct TopDown_Camera TopDown_Camera;
 struct TopDown_Camera {
   Vec3F32 position;
@@ -31,6 +34,8 @@ struct TopDown_Context {
   // RHI Objects
   RHI_CommandBuffer    command_buffer;
   RHI_Buffer           frame_buffer;
+  RHI_Buffer           transfer_buffer;
+  RHI_Texture          default_texture;
   RHI_Texture          depth_texture;
   RHI_GraphicsPipeline pipeline;
 
@@ -55,6 +60,24 @@ I32 main() {
   // Init RHI Objects
   topdown_context.command_buffer = RHI_GetCommandBuffer();
   topdown_context.frame_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent);
+  topdown_context.transfer_buffer = RHI_CreateBuffer(Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
+
+  I32 tex_width = 0;
+  I32 tex_height = 0;
+  I32 tex_channels = 0;
+  U8* tex_pixels = stbi_load("data/uv_checker.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+
+  topdown_context.default_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
+    .kind = RHI_TextureKind_2D,
+    .format = RHI_TextureFormat_R8G8B8A8_UNORM,
+    .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+    .width = tex_width,
+    .height = tex_height,
+    .depth = 1,
+    .num_levels = 1,
+  });
+  U64 texture_offset = RHI_PushBuffer(topdown_context.transfer_buffer, tex_pixels, tex_width*tex_height*4);
+  RHI_CopyBufferToTexture(0, topdown_context.transfer_buffer, texture_offset, tex_width*tex_height*4, topdown_context.default_texture);
 
   topdown_context.depth_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
     .kind = RHI_TextureKind_2D,
@@ -79,6 +102,7 @@ I32 main() {
     &(RHI_ShaderCreateInfo){
       .file_name = Str8C("./data/shaders/topdown/topdown.fs"),
       .kind = RHI_ShaderKind_Fragment,
+      .global_samplers_count = 1,
     }
   );
 
@@ -128,7 +152,7 @@ I32 main() {
       .depth_stencil_state = (RHI_PipelineDepthStencilState) {
         .depth_test_enable = 1,
         .depth_write_enable = 1,
-        .depth_compare_operation = RHI_CompareOperation_Less,
+        .depth_compare_operation = RHI_CompareOperation_Greater,
         .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
       },
     }
@@ -141,7 +165,7 @@ I32 main() {
 
   // Init Game Objects
   topdown_context.camera = (TopDown_Camera){
-    .position = MakeVec3F32(1.0f, 5.0f, 10.0f),
+    .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
     .yaw = -90.0f,
     .pitch = -30.0f,
     .front = MakeVec3F32(1.0f, 0.0f, -1.0f),
@@ -170,7 +194,7 @@ I32 main() {
       .texture = topdown_context.depth_texture,
       .load_operation = RHI_AttachmentLoadOperation_Clear,
       .store_operation = RHI_AttachmentStoreOperation_Store,
-      .clear_depth = 1.0f,
+      .clear_depth = 0.0f,
     };
 
       RHI_RenderPass* render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &color_targets, &depth_target);
@@ -205,11 +229,16 @@ I32 main() {
 
           RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
           RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
+            .binding = 0,
             .buffer = topdown_context.frame_buffer,
             .offset = instance_vs_data_offset,
             .size = sizeof(instance_vs_data),
           },
           0, 0);
+          RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
+            .binding = 0,
+            .texture = topdown_context.default_texture,
+          });
           RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
           RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
           RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
