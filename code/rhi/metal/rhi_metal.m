@@ -337,7 +337,8 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
       NSLog(@"%@", error);
       Assert(1);
     }
-    id<MTLFunction> vertex_function = [vertex_library newFunctionWithName:@"vertex_main"];
+    id<MTLFunction> vertex_function = [vertex_library newFunctionWithName:@"VertexMain"];
+    Assert(vertex_function != nil)
     Assert(error == nil);
     if (info->vertex_shader.global_uniforms_count > 0 || info->vertex_shader.global_samplers_count > 0) {
       pipeline.vertex_global_argument_encoder = [vertex_function newArgumentEncoderWithBufferIndex:2];
@@ -355,7 +356,8 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
       NSLog(@"%@", error);
       Assert(1);
     }
-    id<MTLFunction> fragment_function = [fragment_library newFunctionWithName:@"fragment_main"];
+    id<MTLFunction> fragment_function = [fragment_library newFunctionWithName:@"FragmentMain"];
+    Assert(fragment_function != nil);
     Assert(error == nil);
 
     MTLRenderPipelineDescriptor* pipeline_descriptor = [MTLRenderPipelineDescriptor new];
