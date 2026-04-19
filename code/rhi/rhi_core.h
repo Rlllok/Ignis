@@ -463,5 +463,5 @@ struct RHI_State {
 	RHI_RendererKind renderer_type;
 } _r_state;
 
-func B32 RHI_Init(RHI_RendererKind kind, OS_Window* window);
+func B32 RHI_Init(OS_Window* window);
 func B32 RHI_Shutdown();

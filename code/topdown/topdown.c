@@ -50,7 +50,7 @@ I32 main() {
   OS_Init(Megabytes(64));
   topdown_context.window = OS_CreateWindow(Str8C("TopDown"), MakeVec2U32(1280, 720));
 
-  RHI_Init(RHI_RendererKind_Vulkan, topdown_context.window);
+  RHI_Init(topdown_context.window);
   // Init RHI Objects
   topdown_context.command_buffer = RHI_GetCommandBuffer();
   topdown_context.frame_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent);
@@ -58,7 +58,7 @@ I32 main() {
   RHI_Shader vertex_shader = RHI_CreateShader(
     topdown_context.global_arena,
     &(RHI_ShaderCreateInfo){
-      .file_name = Str8C("./data/shaders/topdown/topdown.vs.glsl"),
+      .file_name = Str8C("./data/shaders/topdown/topdown.vs"),
       .kind = RHI_ShaderKind_Vertex,
       .instance_uniforms_count = 1,
     }
@@ -66,7 +66,7 @@ I32 main() {
   RHI_Shader fragment_shader = RHI_CreateShader(
     topdown_context.global_arena,
     &(RHI_ShaderCreateInfo){
-      .file_name = Str8C("./data/shaders/topdown/topdown.fs.glsl"),
+      .file_name = Str8C("./data/shaders/topdown/topdown.fs"),
       .kind = RHI_ShaderKind_Fragment,
     }
   );
