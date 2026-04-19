@@ -31,6 +31,7 @@ struct TopDown_Context {
   // RHI Objects
   RHI_CommandBuffer    command_buffer;
   RHI_Buffer           frame_buffer;
+  RHI_Texture          depth_texture;
   RHI_GraphicsPipeline pipeline;
 
   // State
@@ -54,6 +55,16 @@ I32 main() {
   // Init RHI Objects
   topdown_context.command_buffer = RHI_GetCommandBuffer();
   topdown_context.frame_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent);
+
+  topdown_context.depth_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
+    .kind = RHI_TextureKind_2D,
+    .format = RHI_TextureFormat_D16_UNORM,
+    .usage_flags = RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+    .width = topdown_context.window->size.w,
+    .height = topdown_context.window->size.h,
+    .depth = 1,
+    .num_levels = 1,
+  });
   
   RHI_Shader vertex_shader = RHI_CreateShader(
     topdown_context.global_arena,
@@ -105,7 +116,7 @@ I32 main() {
   };
 
   topdown_context.pipeline = RHI_CreateGraphicsPipeline(
-    &(RHI_GraphicsPipelineCreateInfo){
+    &(RHI_GraphicsPipelineCreateInfo) {
       .vertex_shader = vertex_shader,
       .fragment_shader = fragment_shader,
       .vertex_attributes_count = ArrayLength(vertex_attributes),
@@ -113,6 +124,12 @@ I32 main() {
       .color_targets_count = 1,
       .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo){
         .format = RHI_GetSwapchainTextureFormat(),
+      },
+      .depth_stencil_state = (RHI_PipelineDepthStencilState) {
+        .depth_test_enable = 1,
+        .depth_write_enable = 1,
+        .depth_compare_operation = RHI_CompareOperation_Less,
+        .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
       },
     }
   );
@@ -149,7 +166,14 @@ I32 main() {
         .clear_color = RGBAFromHex(0xffffffff),
       };
 
-      RHI_RenderPass* render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &color_targets, 0);
+    RHI_DepthStencilTarget depth_target = {
+      .texture = topdown_context.depth_texture,
+      .load_operation = RHI_AttachmentLoadOperation_Clear,
+      .store_operation = RHI_AttachmentStoreOperation_Store,
+      .clear_depth = 1.0f,
+    };
+
+      RHI_RenderPass* render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &color_targets, &depth_target);
         RectI32 rect = {
           .x = 0,
           .y = 0,
