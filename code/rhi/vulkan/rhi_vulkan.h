@@ -16,6 +16,9 @@
 #include "vulkan/vulkan_wayland.h"
 #endif // IGNIS_PLATFORM_LINUX
 
+#include "third_party/glslang/include/Include/glslang_c_interface.h"
+#include "third_party/glslang/include/Public/resource_limits_c.h"
+
 #define VK_CHECK(expression) Assert((expression) == VK_SUCCESS)
 
 #include "rhi_vk_utils.h"
@@ -141,6 +144,8 @@ func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
 #define RHI_VK_MAX_OBJECTS 1024
+
+func void RHI_Shader RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
 
 typedef struct RHI_VK_GraphicsPipeline RHI_VK_GraphicsPipeline;
 struct RHI_VK_GraphicsPipeline {

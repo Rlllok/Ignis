@@ -56,7 +56,25 @@ I32 main() {
   app_context.uniform_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
+
+  RHI_Shader vertex_shader = RHI_CreateShader(
+    app_context.arena,
+    &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/macos/triangle.vs.metal"),
+      .kind = RHI_ShaderKind_Vertex,
+      .instance_uniforms_count = 1,
+    }
+  );
+  RHI_Shader fragment_shader = RHI_CreateShader(
+    app_context.arena,
+    &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/macos/triangle.fs.metal"),
+      .kind = RHI_ShaderKind_Fragment,
+    }
+  );
   RHI_GraphicsPipelineCreateInfo pipeline_info = {
+    .vertex_shader = vertex_shader,
+    .fragment_shader = fragment_shader,
     .vertex_attributes_count = 1,
     .vertex_attributes = &(RHI_VertexAttribute) {
       .location = 0,
@@ -83,7 +101,7 @@ I32 main() {
     ResetArena(app_context.frame_arena);
 
     U64 end_ts = OS_GetTimeTicks();
-    app_conte xt.dt = ((F32)(end_ts - start_ts))*0.001f;
+    app_context.dt = ((F32)(end_ts - start_ts))*0.001f;
     start_ts = end_ts;
   }
 

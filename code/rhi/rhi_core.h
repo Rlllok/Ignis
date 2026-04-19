@@ -243,6 +243,7 @@ typedef enum RHI_ShaderKindEnum {
 typedef U8 RHI_ShaderLanguage;
 typedef enum RHI_ShaderLanguageEnum {
   RHI_ShaderLanguage_SPIRV,
+  RHI_ShaderLanguage_Metal,
 
   RHI_ShaderLanguage_Count
 } RHI_ShaderLanguageEnum;
@@ -270,7 +271,7 @@ typedef enum RHI_VertexAttributeFormatEnum {
   RHI_VertexAttributeFormat_Count
 } RHI_VertexAttributeFormatEnum;
 
-func U32 GetSizeOfVertexAttributeFormat(RHI_VertexAttributeFormat format);
+func U32 RHI_GetSizeOfVertexAttributeFormat(RHI_VertexAttributeFormat format);
 
 typedef struct RHI_VertexAttribute RHI_VertexAttribute;
 struct RHI_VertexAttribute {
@@ -393,6 +394,9 @@ struct RHI_Device {
 	// Render Pass
 	RHI_RenderPass* (*BeginRenderPass)(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
 	void (*EndRenderPass)(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
+
+  // Shader
+  RHI_Shader (*CreateShader)(Arena* arena, RHI_ShaderCreateInfo* info);
 	
 	// Graphics Pipeline
 	RHI_GraphicsPipeline (*CreateGraphicsPipeline)(RHI_GraphicsPipelineCreateInfo* info);
@@ -432,6 +436,7 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, AcquireSwapchainTexture) \
 	AssignDeviceFunction(api_name, BeginRenderPass) \
 	AssignDeviceFunction(api_name, EndRenderPass) \
+  AssignDeviceFunction(api_name, CreateShader) \
 	AssignDeviceFunction(api_name, CreateGraphicsPipeline) \
 	AssignDeviceFunction(api_name, BindGraphicsPipeline) \
 	AssignDeviceFunction(api_name, SetViewport) \
