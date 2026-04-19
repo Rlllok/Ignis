@@ -26,6 +26,10 @@ struct RHI_Metal_GraphicsPipeline {
   id<MTLBuffer>              vertex_global_argument_buffer;
   id<MTLArgumentEncoder>     vertex_instance_argument_encoder;
   id<MTLBuffer>              vertex_instance_argument_buffer;
+  id<MTLArgumentEncoder>     fragment_global_argument_encoder;
+  id<MTLBuffer>              fragment_global_argument_buffer;
+  id<MTLArgumentEncoder>     fragment_instance_argument_encoder;
+  id<MTLBuffer>              fragment_instance_argument_buffer;
   id<MTLDepthStencilState>   depth_stencil_state;
 };
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
@@ -37,7 +41,8 @@ func RHI_Metal_GraphicsPipeline* RHI_Metal_GraphicsPipelineFromHandle(RHI_Graphi
 // -- Texture --------------------------------------------------------
 typedef struct RHI_Metal_Texture RHI_Metal_Texture;
 struct RHI_Metal_Texture {
-  id<MTLTexture> mtl;
+  id<MTLTexture>    mtl;
+  Vec3I32           size;
   RHI_TextureFormat format;
 };
 RHI_Metal_Texture RHI_Metal_TextureNil = ZeroStruct();

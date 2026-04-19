@@ -32,9 +32,27 @@ union Vec2I32 {
 #define ZeroVec2I() {0,0}
 #define OneVec2I() 	{1,1}
 
-func Vec2I32 MakeVec2I32(I32 a, I32 b);
+func Vec2I32 MakeVec2I32(I32 x, I32 y);
 func Vec2I32 AddVec2I32(Vec2I32 a, Vec2I32 b);
 func Vec2I32 SubVec2I32(Vec2I32 a, Vec2I32 b);
+
+typedef union Vec3I32 Vec3I32;
+union Vec3I32 {
+  struct {
+    I32 x;
+    I32 y;
+    I32 z;
+  };
+
+  I32 values[2];
+};
+
+#define ZeroVec3I() {0,0}
+#define OneVec3I() 	{1,1}
+
+func Vec3I32 MakeVec3I32(I32 x, I32 y, I32 z);
+func Vec3I32 AddVec3I32(Vec3I32 a, Vec3I32 b);
+func Vec3I32 SubVec3I32(Vec3I32 a, Vec3I32 b);
 
 typedef union Vec4U8 Vec4U8;
 union Vec4U8 {

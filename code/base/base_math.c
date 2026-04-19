@@ -5,6 +5,10 @@ func Vec2I32 MakeVec2I32(I32 x, I32 y) {Vec2I32 result = {x,y}; return result;}
 func Vec2I32 AddVec2I32(Vec2I32 a, Vec2I32 b) {return MakeVec2I32(a.x+b.x, a.y+b.y);}
 func Vec2I32 SubVec2I32(Vec2I32 a, Vec2I32 b) {return MakeVec2I32(a.x-b.x, a.y-b.y);}
 
+func Vec3I32 MakeVec3I32(I32 x, I32 y, I32 z) {Vec3I32 result = {x,y,z}; return result;}
+func Vec3I32 AddVec3I32(Vec3I32 a, Vec3I32 b) {return MakeVec3I32(a.x+b.x, a.y+b.y, a.z+b.z);}
+func Vec3I32 SubVec3I32(Vec3I32 a, Vec3I32 b) {return MakeVec3I32(a.x-b.x, a.y-b.y, a.z-b.z);}
+
 func Vec2U32 MakeVec2U32(U32 x, U32 y) {Vec2U32 result = {x,y}; return result;}
 func Vec2U32 AddVec2U32(Vec2U32 a, Vec2U32 b) {return MakeVec2U32(a.x+b.x, a.y+b.y);}
 func Vec2U32 SubVec2U32(Vec2U32 a, Vec2U32 b) {return MakeVec2U32(a.x-b.x, a.y-b.y);}

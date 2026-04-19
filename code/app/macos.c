@@ -173,7 +173,10 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
         .offset = uniform_data_offset,
         .size = sizeof(uniform_data),
       }, 0, 0);
-      RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
+      RHI_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1 &(RHI_SamplerBindingInfo) {
+        .texture = topdown_context.default_texture,
+      });
+      RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);B
       RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);
       RHI_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, 0);
     RHI_EndRenderPass(command_buffer, render_pass);

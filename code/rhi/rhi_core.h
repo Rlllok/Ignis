@@ -165,6 +165,7 @@ func RHI_TextureSampler RHI_CreateTextureSampler(RHI_TextureSamplerCreateInfo* i
 // -- Uniform Data ---------------------------------------------------
 typedef struct RHI_UniformBufferBindingInfo RHI_UniformBufferBindingInfo;
 struct RHI_UniformBufferBindingInfo {
+  U32        binding;
   RHI_Buffer buffer;
   U64        offset;
   U64        size;
@@ -172,6 +173,7 @@ struct RHI_UniformBufferBindingInfo {
 
 typedef struct RHI_SamplerBindingInfo RHI_SamplerBindingInfo;
 struct RHI_SamplerBindingInfo {
+  U32                binding;
   RHI_TextureSampler sampler;
   RHI_Texture        texture;
 };
