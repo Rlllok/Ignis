@@ -20,6 +20,7 @@ struct AppContext {
 
   OS_Window* window;
 
+  RHI_Texture depth_texture;
   RHI_GraphicsPipeline pipeline;
   RHI_Buffer           storage_buffer;
   RHI_Buffer           uniform_buffer;
@@ -60,6 +61,16 @@ I32 main() {
   app_context.uniform_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
+
+  app_context.depth_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
+    .kind = RHI_TextureKind_2D,
+    .format = RHI_TextureFormat_D16_UNORM,
+    .usage_flags = RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
+    .width = app_context.window->size.w,
+    .height = app_context.window->size.h,
+    .depth = 1,
+    .num_levels = 1,
+  });
 
   RHI_Shader vertex_shader = RHI_CreateShader(
     app_context.arena,
@@ -131,7 +142,14 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
       .clear_color = MakeVec4F32(sinf(dt*0.003f), 0.09f, 0.18f, 1.0f),
     };
 
-    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0);
+    RHI_DepthStencilTarget depth_target = {
+      .texture = app_context.depth_target,
+      .load_operation = RHI_AttachmentLoadOperation_Clear,
+      .store_operation = RHI_AttachmentStoreOperation_Store,
+      .clear_deapth = 0.0f,
+    };
+
+    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
       RectI32 viewport = {
         .x = 0,
         .y = 0,

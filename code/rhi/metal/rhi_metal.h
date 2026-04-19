@@ -26,6 +26,7 @@ struct RHI_Metal_GraphicsPipeline {
   id<MTLBuffer>              vertex_global_argument_buffer;
   id<MTLArgumentEncoder>     vertex_instance_argument_encoder;
   id<MTLBuffer>              vertex_instance_argument_buffer;
+  id<MTLDepthStencilState>   depth_stencil_state;
 };
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
 DefineArray(RHI_Metal_GraphicsPipeline, RHI_Metal_GraphicsPipelineArray, RHI_Metal_GraphicsPipelineNil)
@@ -37,6 +38,7 @@ func RHI_Metal_GraphicsPipeline* RHI_Metal_GraphicsPipelineFromHandle(RHI_Graphi
 typedef struct RHI_Metal_Texture RHI_Metal_Texture;
 struct RHI_Metal_Texture {
   id<MTLTexture> mtl;
+  RHI_TextureFormat format;
 };
 RHI_Metal_Texture RHI_Metal_TextureNil = ZeroStruct();
 DefineArray(RHI_Metal_Texture, RHI_Metal_TextureArray, RHI_Metal_TextureNil);
@@ -73,6 +75,8 @@ func MTLVertexFormat RHI_Metal_VertexFormatFromRHI(RHI_VertexAttributeFormat for
 
 func MTLIndexType RHI_Metal_IndexTypeFromRHI(RHI_IndexSize index_size);
 
+func MTLCompareFunction RHI_Metal_CompareFunctionFromRHI(RHI_CompareOperation operation);
+
 // -------------------------------------------------------------------
 // -- Global State ---------------------------------------------------
 typedef struct RHI_Metal_Context RHI_Metal_Context;
@@ -91,6 +95,6 @@ struct RHI_Metal_Context {
   RHI_Metal_CommandBufferArray    command_buffers;
   RHI_Metal_BufferArray           data_buffers;
   RHI_Metal_GraphicsPipelineArray graphics_pipelines;
-  RHI_Metal_TextureArray          swapchain_textures;
+  RHI_Metal_TextureArray          textures;
 } _rhi_metal_context;
 
