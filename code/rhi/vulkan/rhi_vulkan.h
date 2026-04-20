@@ -145,7 +145,7 @@ func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind
 // -- Pipeline -------------------------------------------------------
 #define RHI_VK_MAX_OBJECTS 1024
 
-func void RHI_Shader RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
+func RHI_Shader RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
 
 typedef struct RHI_VK_GraphicsPipeline RHI_VK_GraphicsPipeline;
 struct RHI_VK_GraphicsPipeline {

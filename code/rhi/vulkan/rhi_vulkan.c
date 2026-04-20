@@ -668,8 +668,11 @@ func RHI_Shader
 RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
   RHI_Shader result = {0};
 
-  FILE* file = fopen(CFromStr8(info->file_name), "r");
-  Assert(file);
+  ScratchArena scratch = BeginScratchArena(arena);
+    Str8 file_name = ConcatStr8(scratch.arena, info->file_name, Str8C(".glsl"));
+    FILE* file = fopen(CFromStr8(file_name), "r");
+    Assert(file);
+  EndScratchArena(scratch);
 
   fseek(file, 0L, SEEK_END);
   U32 shader_code_size = ftell(file);
@@ -903,7 +906,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
 		attribute_descriptions[i].format = RHI_VK_GetVkFormatAttribute(vertex_attribute->format),
 		attribute_descriptions[i].offset = vertex_attribute->offset,
 
-		stride += GetSizeOfVertexAttributeFormat(vertex_attribute->format);
+		stride += RHI_GetSizeOfVertexAttributeFormat(vertex_attribute->format);
   }
 
   VkVertexInputBindingDescription binding_description = {

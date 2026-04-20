@@ -29,6 +29,7 @@ if "%shade%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %lin
 if "%config%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\config.c  -o build\config.exe
 if "%ember%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\ember\ember.c -o build\ember.exe
 if "%string%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% .\code\app\string.c  -o build\string.exe
+if "%topdown%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\topdown\topdown.c  -o build\topdown.exe
 
 @echo.
 @echo **************************************************
