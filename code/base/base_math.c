@@ -427,7 +427,6 @@ SlerpQuaternion(Quaternion a, Quaternion b, F32 w) {
   return result;
 }
 
-
 func Quaternion
 QuaternionFromEuler(F32 roll, F32 pitch, F32 yaw) {
   Quaternion result = {0};

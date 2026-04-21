@@ -22,7 +22,14 @@ struct TopDown_Camera {
   Vec3F32 front;
   Vec3F32 right;
   Vec3F32 up;
+
+  RectI32 viewport;
+
+  Mat4F32 matrix;
+  Mat4F32 inverse;
 };
+
+func Vec3F32 TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position);
 
 typedef struct TopDown_Player TopDown_Player;
 struct TopDown_Player {
@@ -45,6 +52,7 @@ struct TopDown_Context {
   Arena*     frame_arena;
 
   OS_Window* window;
+  Vec2F32    cursor_position;
 
   // RHI Objects
   RHI_CommandBuffer    command_buffer;
@@ -189,6 +197,12 @@ I32 main() {
     .front = MakeVec3F32(1.0f, 0.0f, -1.0f),
     .right = MakeVec3F32(1.0f, 0.0f, 1.0f),
     .up = MakeVec3F32(0.0f, 1.0f, 0.0f),
+    .viewport = (RectI32) {
+      .x = 0,
+      .y = 0,
+      .w = topdown_context.window->size.x,
+      .h = topdown_context.window->size.y,
+    },
   };
 
   topdown_context.floor = (TopDown_Floor) {
@@ -201,6 +215,7 @@ I32 main() {
   U64 start_ts = OS_GetTimeTicks();
   while (!topdown_context.finished) {
     OS_EventList events = OS_DispatchEvents(topdown_context.frame_arena, topdown_context.window);
+    topdown_context.cursor_position = OS_MousePosition(topdown_context.window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       topdown_context.finished = 1;
@@ -225,12 +240,26 @@ I32 main() {
     LogDebug("dt: %f\n", topdown_context.dt);
 
     // Update World
+    Vec3F32 new_camera_position = AddVec3F32(topdown_context.player.transform.translation, MakeVec3F32(0.0f, 10.0f, 1.0f));
+    new_camera_position = MakeVec3F32(0.0f, 10.0f, 1.0f);
+    topdown_context.camera.position = new_camera_position;
+
+    Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, MakeVec3F32(0.0f, 0.0f, 0.0f), MakeVec3F32(0.0f, 1.0f, 0.0f));
+    Mat4F32 projection_matrix = MakePerspectiveMat4F32(
+      90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
+      0.01f, 100.0f
+    );
+    topdown_context.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
+    topdown_context.camera.inverse = InverseMat4F32(topdown_context.camera.matrix);
+
+    Mat4F32 test = MulMat4F32(topdown_context.camera.matrix, topdown_context.camera.inverse);
+
     TopDown_Player* player = &topdown_context.player;
     Vec3F32 velocity = ScaleVec3F32(input_direction, topdown_context.player.speed*topdown_context.dt);
     player->transform.translation = AddVec3F32(player->transform.translation, velocity);
+    player->transform.translation = TopDown_WorldFromScreen(&topdown_context.camera, topdown_context.cursor_position);
 
-    Vec3F32 new_camera_position = AddVec3F32(topdown_context.player.transform.translation, MakeVec3F32(0.0f, 10.0f, 1.0f));
-    topdown_context.camera.position = new_camera_position;
+    Vec3F32 world = TopDown_WorldFromScreen(&topdown_context.camera, MakeVec2F32(0.0f, 0.0f));
 
     RHI_BeginCommandBuffer(topdown_context.command_buffer);
       RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(topdown_context.command_buffer);
@@ -262,23 +291,17 @@ I32 main() {
         for (AST_GeometryListNode* geometry_node = topdown_context.player.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
           AST_Geometry* geometry = &geometry_node->data;
           
-          Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, topdown_context.player.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
-          Mat4F32 projection_matrix = MakePerspectiveMat4F32(
-            90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
-            0.01f, 100.0f
-          );
-
           struct {
             Mat4F32 mvp;
           } instance_vs_data = {
-            .mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(topdown_context.player.transform))),
+            .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.player.transform)),
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
           U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
           U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-
           RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
+
           RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
             .binding = 0,
             .buffer = topdown_context.frame_buffer,
@@ -298,16 +321,10 @@ I32 main() {
         for (AST_GeometryListNode* geometry_node = topdown_context.floor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
           AST_Geometry* geometry = &geometry_node->data;
           
-          Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, topdown_context.player.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
-          Mat4F32 projection_matrix = MakePerspectiveMat4F32(
-            90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
-            0.01f, 100.0f
-          );
-
           struct {
             Mat4F32 mvp;
           } instance_vs_data = {
-            .mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(topdown_context.floor.transform))),
+            .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.floor.transform)),
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -347,3 +364,16 @@ I32 main() {
   return 0;
 }
 
+func Vec3F32 TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position) {
+  Vec3F32 result = MakeVec3F32(0.0f, 0.0f, 0.0f);
+  Vec4F32 near_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->viewport.h - 1.0f, 0.0f, 1.0f), camera->inverse);
+  near_plane = ScaleVec4F32(near_plane, 1.0f/near_plane.w);
+  Vec4F32 far_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->viewport.h - 1.0f, 1.0f, 1.0f), camera->inverse);
+  far_plane = ScaleVec4F32(far_plane, 1.0f/far_plane.w);
+
+  Vec3F32 ray_origin = MakeVec3F32(near_plane.x, near_plane.y, near_plane.z);
+  Vec3F32 ray_direction = NormalizeVec3F32(SubVec3F32(MakeVec3F32(far_plane.x, far_plane.y, far_plane.z), ray_origin));
+  F32 target_height = 0.0f;
+  result = AddVec3F32(ray_origin, ScaleVec3F32(ray_direction, (target_height - ray_origin.y) / ray_direction.y));
+  return result;
+}
