@@ -238,7 +238,10 @@ func U64 OS_GetTimeTicks(void) {
   return (U64)(now.tv_sec*1000 + now.tv_nsec*0.000001);
 }
 
-func void OS_Sleep(U64 ms);
+func void
+OS_Sleep(U64 ms) {
+  sleep((F32)(ms)/1000.0f);
+}
 
 func Vec2F32
 OS_MousePosition(OS_Window* window) {
