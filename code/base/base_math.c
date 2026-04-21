@@ -215,6 +215,9 @@ InverseMat4F32(Mat4F32 m) {
 
 func Mat4F32
 MakeLookAtMat4F32(Vec3F32 position, Vec3F32 target, Vec3F32 up) {
+  // --AlNov: @TODO
+  // It works around Vulkan coordinate system. So there are a "gimbal lock"
+  // when up = {0.0, 1.0f, 0.0f} and position.z = 0.0f
   Mat4F32 result = MakeMat4F32(1.0f);
   
   Vec3F32 f = NormalizeVec3F32(SubVec3F32(target, position));

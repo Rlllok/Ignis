@@ -24,6 +24,21 @@ struct TopDown_Camera {
   Vec3F32 up;
 };
 
+typedef struct TopDown_Player TopDown_Player;
+struct TopDown_Player {
+  Transform transform;
+  F32 speed;
+
+  AST_StaticMesh mesh;
+};
+
+typedef struct TopDown_Floor TopDown_Floor;
+struct TopDown_Floor {
+  Transform transform;
+
+  AST_StaticMesh mesh;
+};
+
 typedef struct TopDown_Context TopDown_Context;
 struct TopDown_Context {
   Arena*     global_arena;
@@ -41,12 +56,12 @@ struct TopDown_Context {
 
   // State
   B32 finished;
-
-  // Assets
-  AST_StaticMesh cube;
+  F32 dt;
 
   // Game Objects
   TopDown_Camera camera;
+  TopDown_Player player;
+  TopDown_Floor  floor;
 } topdown_context = ZeroStruct();
 
 I32 main() {
@@ -160,10 +175,13 @@ I32 main() {
 
   OS_ShowWindow(topdown_context.window);
 
-  // Load Assets
-  topdown_context.cube = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
-
   // Init Game Objects
+  topdown_context.player = (TopDown_Player) {
+    .transform = IdentityTransform(),
+    .speed = 3.0f,
+    .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/monkey_gltf/monkey.gltf")),
+  };
+  
   topdown_context.camera = (TopDown_Camera){
     .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
     .yaw = -90.0f,
@@ -173,12 +191,46 @@ I32 main() {
     .up = MakeVec3F32(0.0f, 1.0f, 0.0f),
   };
 
+  topdown_context.floor = (TopDown_Floor) {
+    .transform.translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+    .transform.rotation = IdentityQuaternion(),
+    .transform.scale = MakeVec3F32(10.0f, 10.0f, 10.0f),
+    .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/plane.gltf")),
+  };
+
+  U64 start_ts = OS_GetTimeTicks();
   while (!topdown_context.finished) {
     OS_EventList events = OS_DispatchEvents(topdown_context.frame_arena, topdown_context.window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       topdown_context.finished = 1;
     }
+
+    Vec3F32 input_direction = MakeVec3F32(0.0f, 0.0f, 0.0f);
+    if (OS_KeyDown(OS_KEY_W)) {
+      input_direction.z = -1.0f;
+    }
+    if (OS_KeyDown(OS_KEY_S)) {
+      input_direction.z = 1.0f;
+    }
+    if (OS_KeyDown(OS_KEY_D)) {
+      input_direction.x = 1.0f;
+    }
+    if (OS_KeyDown(OS_KEY_A)) {
+      input_direction.x = -1.0f;
+    }
+
+    input_direction = NormalizeVec3F32(input_direction);
+
+    LogDebug("dt: %f\n", topdown_context.dt);
+
+    // Update World
+    TopDown_Player* player = &topdown_context.player;
+    Vec3F32 velocity = ScaleVec3F32(input_direction, topdown_context.player.speed*topdown_context.dt);
+    player->transform.translation = AddVec3F32(player->transform.translation, velocity);
+
+    Vec3F32 new_camera_position = AddVec3F32(topdown_context.player.transform.translation, MakeVec3F32(0.0f, 10.0f, 1.0f));
+    topdown_context.camera.position = new_camera_position;
 
     RHI_BeginCommandBuffer(topdown_context.command_buffer);
       RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(topdown_context.command_buffer);
@@ -207,20 +259,19 @@ I32 main() {
         RHI_SetViewport(topdown_context.command_buffer, rect);
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
-        for (AST_GeometryListNode* geometry_node = topdown_context.cube.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+        for (AST_GeometryListNode* geometry_node = topdown_context.player.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
           AST_Geometry* geometry = &geometry_node->data;
           
-          Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, MakeVec3F32(0.0f, 0.0f, 0.0f), MakeVec3F32(0.0f, 1.0f, 0.0f));
-
+          Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, topdown_context.player.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
           Mat4F32 projection_matrix = MakePerspectiveMat4F32(
-            45.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
-            0.1f, 100.0f
+            90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
+            0.01f, 100.0f
           );
 
           struct {
             Mat4F32 mvp;
           } instance_vs_data = {
-            .mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, MakeTransposeMat4F32(MakeVec3F32(1.0f, 1.0f, 1.0f)))),
+            .mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(topdown_context.player.transform))),
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -243,9 +294,56 @@ I32 main() {
           RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
           RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
         }
+
+        for (AST_GeometryListNode* geometry_node = topdown_context.floor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+          AST_Geometry* geometry = &geometry_node->data;
+          
+          Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, topdown_context.player.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
+          Mat4F32 projection_matrix = MakePerspectiveMat4F32(
+            90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
+            0.01f, 100.0f
+          );
+
+          struct {
+            Mat4F32 mvp;
+          } instance_vs_data = {
+            .mvp = MulMat4F32(projection_matrix, MulMat4F32(view_matrix, Mat4F32FromTransform(topdown_context.floor.transform))),
+          };
+
+          U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
+          U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+          U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
+
+          RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
+            .binding = 0,
+            .buffer = topdown_context.frame_buffer,
+            .offset = instance_vs_data_offset,
+            .size = sizeof(instance_vs_data),
+          },
+          0, 0);
+          RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
+            .binding = 0,
+            .texture = topdown_context.default_texture,
+          });
+          RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
+          RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
+          RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
+        }
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
     RHI_SubmitCommandBuffer(topdown_context.command_buffer);
+
+    U64 end_ts = OS_GetTimeTicks();
+    U64 dt_ms = end_ts - start_ts;
+    topdown_context.dt = (F32)(dt_ms)*0.001f;
+    start_ts = end_ts;
+
+    F32 target_frame_time = 1000.0f/60.0f;
+    F32 time_to_sleep = target_frame_time - dt_ms;
+    if (time_to_sleep > 0.0f) {
+      OS_Sleep(time_to_sleep);
+    }
   }
 
   return 0;
 }
+
