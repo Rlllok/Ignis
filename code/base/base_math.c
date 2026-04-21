@@ -264,7 +264,7 @@ MakePerspectiveMat4F32(F32 fov, F32 aspect, F32 near_z, F32 far_z) {
   F32 focal_length = 1.0 / tanf(fov_rad * 0.5f);
 
   result.values[0][0] = focal_length / aspect;
-  result.values[1][1] = -focal_length;
+  result.values[1][1] = focal_length;
   result.values[2][2] = near_z / (far_z - near_z);
   result.values[3][2] = (far_z * near_z) / (far_z - near_z);
   result.values[2][3] = -1.0f;
