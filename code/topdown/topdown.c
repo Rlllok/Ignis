@@ -240,26 +240,22 @@ I32 main() {
     LogDebug("dt: %f\n", topdown_context.dt);
 
     // Update World
+    TopDown_Player* player = &topdown_context.player;
+    Vec3F32 velocity = ScaleVec3F32(input_direction, topdown_context.player.speed*topdown_context.dt);
+    player->transform.translation = AddVec3F32(player->transform.translation, velocity);
+    Vec3F32 target_position = TopDown_WorldFromScreen(&topdown_context.camera, topdown_context.cursor_position);
+    player->transform.rotation = QuaternionLookAt(player->transform.translation, target_position);
+
     Vec3F32 new_camera_position = AddVec3F32(topdown_context.player.transform.translation, MakeVec3F32(0.0f, 10.0f, 1.0f));
-    new_camera_position = MakeVec3F32(0.0f, 10.0f, 1.0f);
     topdown_context.camera.position = new_camera_position;
 
-    Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, MakeVec3F32(0.0f, 0.0f, 0.0f), MakeVec3F32(0.0f, 1.0f, 0.0f));
+    Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, player->transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
     Mat4F32 projection_matrix = MakePerspectiveMat4F32(
       90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
       0.01f, 100.0f
     );
     topdown_context.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
     topdown_context.camera.inverse = InverseMat4F32(topdown_context.camera.matrix);
-
-    Mat4F32 test = MulMat4F32(topdown_context.camera.matrix, topdown_context.camera.inverse);
-
-    TopDown_Player* player = &topdown_context.player;
-    Vec3F32 velocity = ScaleVec3F32(input_direction, topdown_context.player.speed*topdown_context.dt);
-    player->transform.translation = AddVec3F32(player->transform.translation, velocity);
-    player->transform.translation = TopDown_WorldFromScreen(&topdown_context.camera, topdown_context.cursor_position);
-
-    Vec3F32 world = TopDown_WorldFromScreen(&topdown_context.camera, MakeVec2F32(0.0f, 0.0f));
 
     RHI_BeginCommandBuffer(topdown_context.command_buffer);
       RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(topdown_context.command_buffer);

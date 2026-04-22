@@ -252,6 +252,8 @@ func Quaternion QuaternionFromEuler(F32 roll, F32 yaw, F32 pitch);
 func Vec3F32 EulerFromQuaternion(Quaternion q);
 func Mat4F32 Mat4F32FromQuaternion(Quaternion q);
 
+func Quaternion QuaternionLookAt(Vec3F32 source, Vec3F32 target);
+
 // -------------------------------------------------------------------
 // -- Rectangle ------------------------------------------------------
 typedef union RectI32 RectI32;

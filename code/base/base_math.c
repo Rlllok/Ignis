@@ -483,6 +483,21 @@ Mat4F32FromQuaternion(Quaternion q) {
   return result;
 }
 
+func Quaternion
+QuaternionLookAt(Vec3F32 source, Vec3F32 target) {
+  Quaternion result = IdentityQuaternion();
+
+  Vec3F32 direction = NormalizeVec3F32(SubVec3F32(target, source));
+  Vec3F32 forward = MakeVec3F32(0.0f, 0.0f, 1.0f);
+  Vec3F32 axis = NormalizeVec3F32(CrossVec3F32(direction, forward));
+  F32 half_angle = acosf(DotVec3F32(forward, direction))*0.5f;
+  Vec3F32 imaginary = ScaleVec3F32(axis, sinf(half_angle));
+
+  result = MakeQuaternion(imaginary.x, imaginary.y, imaginary.z, cosf(half_angle));
+
+  return result;
+}
+
 // -------------------------------------------------------------------
 // -- Rectangle ------------------------------------------------------
 func B32
