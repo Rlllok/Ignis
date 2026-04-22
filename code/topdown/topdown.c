@@ -55,14 +55,18 @@ struct TopDown_Bullet {
   B32     active;
   F32     current_time;
   F32     lifetime;
-
-  AST_StaticMesh mesh;
 };
+TopDown_Bullet TopDown_Bullet_Nil = ZeroStruct();
+DefineArray(TopDown_Bullet, TopDown_BulletArray, TopDown_Bullet_Nil)
+
+func void TopDown_ActivateBullet();
+func void TopDown_UpdateBullets();
+func void TopDown_DrawBullets();
 
 typedef struct TopDown_Context TopDown_Context;
 struct TopDown_Context {
-  Arena*     global_arena;
-  Arena*     frame_arena;
+  Arena* global_arena;
+  Arena* frame_arena;
 
   OS_Window* window;
   Vec2F32    cursor_position;
@@ -80,10 +84,12 @@ struct TopDown_Context {
   F32 dt;
 
   // Game Objects
-  TopDown_Camera camera;
-  TopDown_Player player;
-  TopDown_Floor  floor;
-  TopDown_Bullet bullet;
+  TopDown_Camera      camera;
+  TopDown_Player      player;
+  TopDown_Floor       floor;
+  TopDown_BulletArray bullets;
+
+  AST_StaticMesh bullet_mesh;
 } topdown_context = ZeroStruct();
 
 I32 main() {
@@ -226,12 +232,9 @@ I32 main() {
     .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/plane.gltf")),
   };
 
-  topdown_context.bullet = (TopDown_Bullet) {
-    .transform = IdentityTransform(),
-    .speed = 7.0f,
-    .lifetime = 2.0f,
-    .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf")),
-  };
+  topdown_context.bullets = TopDown_BulletArrayAllocate(topdown_context.global_arena, 64);
+  topdown_context.bullets.length = topdown_context.bullets.capacity;
+  topdown_context.bullet_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
 
   U64 start_ts = OS_GetTimeTicks();
   while (!topdown_context.finished) {
@@ -257,14 +260,8 @@ I32 main() {
     }
     input_direction = NormalizeVec3F32(input_direction);
 
-    if (OS_KeyDown(OS_KEY_SPACE)) {
-      TopDown_Player* player = &topdown_context.player;
-      TopDown_Bullet* bullet = &topdown_context.bullet;
-      Vec3F32 player_forward = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, 1.0f), player->transform.rotation);
-      bullet->transform.translation = player->transform.translation;
-      bullet->direction = player_forward;
-      bullet->active = 1;
-      bullet->current_time = 0.0f;
+    if (OS_KeyPressed(OS_KEY_SPACE)) {
+      TopDown_ActivateBullet();
     }
 
     // Update World
@@ -285,18 +282,9 @@ I32 main() {
     topdown_context.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
     topdown_context.camera.inverse = InverseMat4F32(topdown_context.camera.matrix);
 
-    TopDown_Bullet* bullet = &topdown_context.bullet;
-    if (bullet->active) {
-      Vec3F32 velocity = ScaleVec3F32(bullet->direction, bullet->speed*topdown_context.dt);
-      bullet->transform.translation = AddVec3F32(bullet->transform.translation, velocity);
-      
-      bullet->current_time += topdown_context.dt;
-      if (bullet->current_time > bullet->lifetime) {
-        bullet->active = 0;
-        bullet->current_time = 0.0f;
-      }
-    }
+    TopDown_UpdateBullets();
 
+    // Draw World
     RHI_BeginCommandBuffer(topdown_context.command_buffer);
       RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(topdown_context.command_buffer);
 
@@ -383,36 +371,8 @@ I32 main() {
           RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
         }
 
-        if (topdown_context.bullet.active) {
-          for (AST_GeometryListNode* geometry_node = topdown_context.bullet.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
-            AST_Geometry* geometry = &geometry_node->data;
-            
-            struct {
-              Mat4F32 mvp;
-            } instance_vs_data = {
-              .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.bullet.transform)),
-            };
+        TopDown_DrawBullets();
 
-            U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
-            U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
-            U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-
-            RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
-              .binding = 0,
-              .buffer = topdown_context.frame_buffer,
-              .offset = instance_vs_data_offset,
-              .size = sizeof(instance_vs_data),
-            },
-            0, 0);
-            RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
-              .binding = 0,
-              .texture = topdown_context.default_texture,
-            });
-            RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
-            RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
-            RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
-          }
-        }
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
     RHI_SubmitCommandBuffer(topdown_context.command_buffer);
 
@@ -431,7 +391,8 @@ I32 main() {
   return 0;
 }
 
-func Vec3F32 TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position) {
+func Vec3F32
+TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position) {
   Vec3F32 result = MakeVec3F32(0.0f, 0.0f, 0.0f);
   Vec4F32 near_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->viewport.h - 1.0f, 0.0f, 1.0f), camera->inverse);
   near_plane = ScaleVec4F32(near_plane, 1.0f/near_plane.w);
@@ -443,4 +404,81 @@ func Vec3F32 TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_posi
   F32 target_height = 0.0f;
   result = AddVec3F32(ray_origin, ScaleVec3F32(ray_direction, (target_height - ray_origin.y) / ray_direction.y));
   return result;
+}
+
+func void
+TopDown_ActivateBullet() {
+  for (I32 i = 0; i < topdown_context.bullets.length; i += 1) {
+    TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
+
+    if (!bullet->active) {
+      bullet->transform = IdentityTransform();
+      bullet->speed = 10.0f;
+      bullet->lifetime = 2.0f;
+
+      TopDown_Player* player = &topdown_context.player;
+      TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
+      Vec3F32 player_forward = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, 1.0f), player->transform.rotation);
+      bullet->transform.translation = player->transform.translation;
+      bullet->direction = player_forward;
+      bullet->active = 1;
+      bullet->current_time = 0.0f;
+
+      break;
+    }
+  }
+}
+
+func void
+TopDown_UpdateBullets() {
+  for (I32 i = 0; i < topdown_context.bullets.length; i += 1) {
+    TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
+
+    if (bullet->active) {
+      Vec3F32 velocity = ScaleVec3F32(bullet->direction, bullet->speed*topdown_context.dt);
+      bullet->transform.translation = AddVec3F32(bullet->transform.translation, velocity);
+      bullet->transform.rotation = QuaternionFromEuler(0.0f, RadiansFromDegrees(720.0f)*(bullet->current_time/bullet->lifetime), 0.0f);
+      
+      bullet->current_time += topdown_context.dt;
+      bullet->active = bullet->current_time < bullet->lifetime;
+    }
+  }
+}
+
+func void
+TopDown_DrawBullets() {
+  for (I32 i = 0; i < topdown_context.bullets.length; i += 1) {
+    TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
+
+    if (bullet->active) {
+      for (AST_GeometryListNode* geometry_node = topdown_context.bullet_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+        AST_Geometry* geometry = &geometry_node->data;
+        
+        struct {
+          Mat4F32 mvp;
+        } instance_vs_data = {
+          .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(bullet->transform)),
+        };
+
+        U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
+        U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+        U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
+
+        RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
+          .binding = 0,
+          .buffer = topdown_context.frame_buffer,
+          .offset = instance_vs_data_offset,
+          .size = sizeof(instance_vs_data),
+        },
+        0, 0);
+        RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
+          .binding = 0,
+          .texture = topdown_context.default_texture,
+        });
+        RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
+        RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
+        RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
+      }
+    }
+  }
 }
