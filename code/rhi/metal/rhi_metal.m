@@ -81,7 +81,8 @@ RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader
     switch (shader_kind) {
       case RHI_ShaderKind_Vertex: {
         if (is_global) {
-          [mtl_pipeline->vertex_global_argument_encoder setArgumentBuffer:mtl_pipeline->vertex_global_argument_buffer offset:0];
+          id<MTLBuffer> vertex_global_argument_buffer = [_rhi_metal_context.device newBufferWithLength:mtl_pipeline->vertex_global_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
+          [mtl_pipeline->vertex_global_argument_encoder setArgumentBuffer:vertex_global_argument_buffer offset:0];
 
           for (I32 i = 0; i < uniform_buffers_count; i += 1) {
             RHI_Metal_Buffer* uniform_buffer = RHI_Metal_BufferFromHandle(uniform_infos[i].buffer);
@@ -95,10 +96,11 @@ RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader
             [mtl_command_buffer->render_encoder useResource:mtl_texture->mtl usage:MTLResourceUsageRead stages:MTLRenderStageVertex];
           }
 
-          [mtl_command_buffer->render_encoder setVertexBuffer:mtl_pipeline->vertex_global_argument_buffer offset:0 atIndex:2];
+          [mtl_command_buffer->render_encoder setVertexBuffer:vertex_global_argument_buffer offset:0 atIndex:2];
         }
         else {
-          [mtl_pipeline->vertex_instance_argument_encoder setArgumentBuffer:mtl_pipeline->vertex_instance_argument_buffer offset:0];
+          id<MTLBuffer> vertex_instance_argument_buffer = [_rhi_metal_context.device newBufferWithLength:mtl_pipeline->vertex_instance_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
+          [mtl_pipeline->vertex_instance_argument_encoder setArgumentBuffer:vertex_instance_argument_buffer offset:0];
 
           for (I32 i = 0; i < uniform_buffers_count; i += 1) {
             RHI_Metal_Buffer* uniform_buffer = RHI_Metal_BufferFromHandle(uniform_infos[0].buffer);
@@ -112,13 +114,14 @@ RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader
             [mtl_command_buffer->render_encoder useResource:mtl_texture->mtl usage:MTLResourceUsageRead stages:MTLRenderStageVertex];
           }
 
-          [mtl_command_buffer->render_encoder setVertexBuffer:mtl_pipeline->vertex_instance_argument_buffer offset:0 atIndex:3];
+          [mtl_command_buffer->render_encoder setVertexBuffer:vertex_instance_argument_buffer offset:0 atIndex:3];
         }
       } break;
 
       case RHI_ShaderKind_Fragment: {
         if (is_global) {
-          [mtl_pipeline->fragment_global_argument_encoder setArgumentBuffer:mtl_pipeline->fragment_global_argument_buffer offset:0];
+          id<MTLBuffer> fragment_global_argument_buffer = [_rhi_metal_context.device newBufferWithLength:mtl_pipeline->fragment_global_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
+          [mtl_pipeline->fragment_global_argument_encoder setArgumentBuffer:fragment_global_argument_buffer offset:0];
 
           for (I32 i = 0; i < uniform_buffers_count; i += 1) {
             RHI_Metal_Buffer* uniform_buffer = RHI_Metal_BufferFromHandle(uniform_infos[i].buffer);
@@ -132,10 +135,11 @@ RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader
             [mtl_command_buffer->render_encoder useResource:mtl_texture->mtl usage:MTLResourceUsageRead stages:MTLRenderStageFragment];
           }
 
-          [mtl_command_buffer->render_encoder setFragmentBuffer:mtl_pipeline->fragment_global_argument_buffer offset:0 atIndex:2];
+          [mtl_command_buffer->render_encoder setFragmentBuffer:fragment_global_argument_buffer offset:0 atIndex:2];
         }
         else {
-          [mtl_pipeline->fragment_instance_argument_encoder setArgumentBuffer:mtl_pipeline->fragment_instance_argument_buffer offset:0];
+          id<MTLBuffer> fragment_instance_argument_buffer = [_rhi_metal_context.device newBufferWithLength:mtl_pipeline->fragment_instance_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
+          [mtl_pipeline->fragment_instance_argument_encoder setArgumentBuffer:fragment_instance_argument_buffer offset:0];
 
           for (I32 i = 0; i < uniform_buffers_count; i += 1) {
             RHI_Metal_Buffer* uniform_buffer = RHI_Metal_BufferFromHandle(uniform_infos[i].buffer);
@@ -149,7 +153,7 @@ RHI_Metal_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader
             [mtl_command_buffer->render_encoder useResource:mtl_texture->mtl usage:MTLResourceUsageRead stages:MTLRenderStageFragment];
           }
 
-          [mtl_command_buffer->render_encoder setFragmentBuffer:mtl_pipeline->fragment_instance_argument_buffer offset:0 atIndex:3];
+          [mtl_command_buffer->render_encoder setFragmentBuffer:fragment_instance_argument_buffer offset:0 atIndex:3];
         }
       } break;
     }
@@ -459,12 +463,10 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
 
     if (info->vertex_shader.global_uniforms_count > 0 || info->vertex_shader.global_samplers_count > 0) {
       pipeline.vertex_global_argument_encoder = [vertex_function newArgumentEncoderWithBufferIndex:2];
-      pipeline.vertex_global_argument_buffer = [_rhi_metal_context.device newBufferWithLength:pipeline.vertex_global_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
     }
 
     if (info->vertex_shader.instance_uniforms_count > 0 || info->vertex_shader.instance_samplers_count > 0) {
       pipeline.vertex_instance_argument_encoder = [vertex_function newArgumentEncoderWithBufferIndex:3];
-      pipeline.vertex_instance_argument_buffer = [_rhi_metal_context.device newBufferWithLength:pipeline.vertex_instance_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
     }
 
     NSString* fragment_source = [[NSString alloc] initWithBytesNoCopy:info->fragment_shader.code length:info->fragment_shader.code_size encoding:NSUTF8StringEncoding freeWhenDone:NO];
@@ -479,12 +481,10 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
 
     if (info->fragment_shader.global_uniforms_count > 0 || info->fragment_shader.global_samplers_count > 0) {
       pipeline.fragment_global_argument_encoder = [fragment_function newArgumentEncoderWithBufferIndex:2];
-      pipeline.fragment_global_argument_buffer = [_rhi_metal_context.device newBufferWithLength:pipeline.fragment_global_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
     }
 
     if (info->fragment_shader.instance_uniforms_count > 0 || info->fragment_shader.instance_samplers_count > 0) {
       pipeline.fragment_instance_argument_encoder = [fragment_function newArgumentEncoderWithBufferIndex:3];
-      pipeline.fragment_instance_argument_buffer = [_rhi_metal_context.device newBufferWithLength:pipeline.fragment_instance_argument_encoder.encodedLength options:MTLResourceStorageModeShared];
     }
 
     MTLRenderPipelineDescriptor* pipeline_descriptor = [MTLRenderPipelineDescriptor new];
