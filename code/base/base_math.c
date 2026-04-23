@@ -334,9 +334,9 @@ AddQuaternion(Quaternion a, Quaternion b) {
 func Quaternion
 MulQuaternion(Quaternion l, Quaternion r) {
   Quaternion result = {.w = 1};
-  result.x = l.x*r.w + l.y*r.z - l.z*r.y + l.w*r.x;
+  result.x =  l.x*r.w + l.y*r.z - l.z*r.y + l.w*r.x;
   result.y = -l.x*r.z + l.y*r.w + l.z*r.x + l.w*r.y;
-  result.z = l.x*r.y - l.y * r.x + l.z * r.w + l.w*r.z;
+  result.z =  l.x*r.y - l.y*r.x + l.z*r.w + l.w*r.z;
   result.w = -l.x*r.x - l.y*r.y - l.z*r.z + l.w*r.w;
 
   return result;
@@ -349,28 +349,6 @@ ScaleQuaternion(Quaternion q, F32 s) {
   result.y = q.y*s;
   result.z = q.z*s;
   result.w = q.w*s;
-  return result;
-}
-
-func Quaternion
-MulQuaternionTest(Quaternion a, Quaternion b) {
-  Quaternion result;
-  result.x =  b.values[3] * +a.values[0];
-  result.y =  b.values[2] * -a.values[0];
-  result.z =  b.values[1] * +a.values[0];
-  result.w =  b.values[0] * -a.values[0];
-  result.x += b.values[2] * +a.values[1];
-  result.y += b.values[3] * +a.values[1];
-  result.z += b.values[0] * -a.values[1];
-  result.w += b.values[1] * -a.values[1];
-  result.x += b.values[1] * -a.values[2];
-  result.y += b.values[0] * +a.values[2];
-  result.z += b.values[3] * +a.values[2];
-  result.w += b.values[2] * -a.values[2];
-  result.x += b.values[0] * +a.values[3];
-  result.y += b.values[1] * +a.values[3];
-  result.z += b.values[2] * +a.values[3];
-  result.w += b.values[3] * +a.values[3];
   return result;
 }
 
@@ -393,7 +371,8 @@ func Vec3F32
 RotateVec3F32(Vec3F32 v, Quaternion q) {
   Vec3F32 result = {0};
 
-  Quaternion v_rotated = MulQuaternion(MulQuaternion(q, MakeQuaternion(v.x, v.y, v.z, 0.0f)), ConjugateQuaternion(q));
+  //Quaternion v_rotated = MulQuaternion(MulQuaternion(q, MakeQuaternion(v.x, v.y, v.z, 0.0f)), ConjugateQuaternion(q));
+  Quaternion v_rotated = MulQuaternion(MulQuaternion(ConjugateQuaternion(q), MakeQuaternion(v.x, v.y, v.z, 0.0f)), q);
 
   result.x = v_rotated.x;
   result.y = v_rotated.y;
@@ -479,6 +458,21 @@ Mat4F32FromQuaternion(Quaternion q) {
   result.values[3][1] = 0;
   result.values[3][2] = 0;
   result.values[3][3] = 1;
+
+  return result;
+}
+
+func Quaternion
+QuaternionLookAt(Vec3F32 source, Vec3F32 target) {
+  Quaternion result = IdentityQuaternion();
+
+  Vec3F32 direction = NormalizeVec3F32(SubVec3F32(target, source));
+  Vec3F32 forward = MakeVec3F32(0.0f, 0.0f, 1.0f);
+  Vec3F32 axis = NormalizeVec3F32(CrossVec3F32(direction, forward));
+  F32 half_angle = acosf(DotVec3F32(forward, direction))*0.5f;
+  Vec3F32 imaginary = ScaleVec3F32(axis, sinf(half_angle));
+
+  result = MakeQuaternion(imaginary.x, imaginary.y, imaginary.z, cosf(half_angle));
 
   return result;
 }

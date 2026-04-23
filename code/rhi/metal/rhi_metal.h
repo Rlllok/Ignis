@@ -23,13 +23,9 @@ typedef struct RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipeline;
 struct RHI_Metal_GraphicsPipeline {
   id<MTLRenderPipelineState> mtl;
   id<MTLArgumentEncoder>     vertex_global_argument_encoder;
-  id<MTLBuffer>              vertex_global_argument_buffer;
   id<MTLArgumentEncoder>     vertex_instance_argument_encoder;
-  id<MTLBuffer>              vertex_instance_argument_buffer;
   id<MTLArgumentEncoder>     fragment_global_argument_encoder;
-  id<MTLBuffer>              fragment_global_argument_buffer;
   id<MTLArgumentEncoder>     fragment_instance_argument_encoder;
-  id<MTLBuffer>              fragment_instance_argument_buffer;
   id<MTLDepthStencilState>   depth_stencil_state;
 };
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
