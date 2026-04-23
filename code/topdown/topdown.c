@@ -317,8 +317,10 @@ I32 main() {
           
           struct {
             Mat4F32 mvp;
+            Vec3F32 color;
           } instance_vs_data = {
             .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.player.transform)),
+            .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -347,8 +349,10 @@ I32 main() {
           
           struct {
             Mat4F32 mvp;
+            Vec3F32 color;
           } instance_vs_data = {
             .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.floor.transform)),
+            .color = MakeVec3F32(1.0f, 1.0f, 1.0f),
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -456,8 +460,10 @@ TopDown_DrawBullets() {
         
         struct {
           Mat4F32 mvp;
+          Vec3F32 color;
         } instance_vs_data = {
           .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(bullet->transform)),
+          .color = MakeVec3F32(0.5f, 0.5f, 0.25f),
         };
 
         U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
