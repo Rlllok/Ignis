@@ -1456,9 +1456,9 @@ RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
 
 	VkViewport vk_viewport = {
 		.x = viewport.x,
-		.y = viewport.y,
+		.y = viewport.h,
 		.width = viewport.w,
-		.height = viewport.h,
+		.height = -viewport.h,
     .minDepth = 0.0f,
     .maxDepth = 1.0f,
 	};
