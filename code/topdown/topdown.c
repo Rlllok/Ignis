@@ -209,6 +209,7 @@ I32 main() {
     .speed = 3.0f,
     .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/monkey_gltf/monkey.gltf")),
   };
+  topdown_context.player.transform.translation = MakeVec3F32(0.0f, 0.0f, -5.0f);
   
   topdown_context.camera = (TopDown_Camera){
     .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
