@@ -13,6 +13,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
 
+typedef struct TopDown_Material TopDown_Material;
+struct TopDown_Material {
+  Vec3F32 color;
+};
+
 typedef struct TopDown_Camera TopDown_Camera;
 struct TopDown_Camera {
   Vec3F32 position;
@@ -34,16 +39,25 @@ func Vec3F32 TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_posi
 typedef struct TopDown_Player TopDown_Player;
 struct TopDown_Player {
   Transform transform;
-  F32 speed;
+  F32       speed;
 
-  AST_StaticMesh mesh;
+  TopDown_Material material;
+};
+
+typedef struct TopDown_Enemy TopDown_Enemy;
+struct TopDown_Enemy {
+  Transform transform;
+  F32       speed;
+
+  TopDown_Material material;
 };
 
 typedef struct TopDown_Floor TopDown_Floor;
 struct TopDown_Floor {
   Transform transform;
 
-  AST_StaticMesh mesh;
+  TopDown_Material material;
+  AST_StaticMesh   mesh;
 };
 
 typedef struct TopDown_Bullet TopDown_Bullet;
@@ -55,6 +69,8 @@ struct TopDown_Bullet {
   B32     active;
   F32     current_time;
   F32     lifetime;
+
+  TopDown_Material material;
 };
 TopDown_Bullet TopDown_Bullet_Nil = ZeroStruct();
 DefineArray(TopDown_Bullet, TopDown_BulletArray, TopDown_Bullet_Nil)
@@ -83,9 +99,13 @@ struct TopDown_Context {
   B32 finished;
   F32 dt;
 
+  // Assets
+  AST_StaticMesh monkey_mesh;
+
   // Game Objects
   TopDown_Camera      camera;
   TopDown_Player      player;
+  TopDown_Enemy       enemy;
   TopDown_Floor       floor;
   TopDown_BulletArray bullets;
 
@@ -189,7 +209,7 @@ I32 main() {
       .vertex_attributes_count = ArrayLength(vertex_attributes),
       .vertex_attributes = vertex_attributes,
       .color_targets_count = 1,
-      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo){
+      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
         .format = RHI_GetSwapchainTextureFormat(),
       },
       .depth_stencil_state = (RHI_PipelineDepthStencilState) {
@@ -203,13 +223,20 @@ I32 main() {
 
   OS_ShowWindow(topdown_context.window);
 
+  // Load Assets
+  topdown_context.monkey_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/monkey_gltf/monkey.gltf")),
+
   // Init Game Objects
   topdown_context.player = (TopDown_Player) {
     .transform = IdentityTransform(),
     .speed = 3.0f,
-    .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/monkey_gltf/monkey.gltf")),
   };
   topdown_context.player.transform.translation = MakeVec3F32(0.0f, 0.0f, -5.0f);
+
+  topdown_context.enemy = (TopDown_Enemy) {
+    .transform = IdentityTransform(),
+    .speed = 3.0f,
+  };
   
   topdown_context.camera = (TopDown_Camera){
     .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
@@ -236,6 +263,13 @@ I32 main() {
   topdown_context.bullets = TopDown_BulletArrayAllocate(topdown_context.global_arena, 64);
   topdown_context.bullets.length = topdown_context.bullets.capacity;
   topdown_context.bullet_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
+
+  Vec3F32 start_point = MakeVec3F32(-5.0f, 0.0f, 5.0f);
+  Vec3F32 end_point = MakeVec3F32(5.0f, 0.0f, 5.0f);
+  F32 duration = 10.0f;
+  F32 current_time = 0.0f;
+  F32 t = 0.0f;
+  topdown_context.enemy.transform.translation = start_point;
 
   U64 start_ts = OS_GetTimeTicks();
   while (!topdown_context.finished) {
@@ -271,6 +305,22 @@ I32 main() {
     player->transform.translation = AddVec3F32(player->transform.translation, velocity);
     Vec3F32 target_position = TopDown_WorldFromScreen(&topdown_context.camera, topdown_context.cursor_position);
     player->transform.rotation = QuaternionLookAt(player->transform.translation, target_position);
+
+    TopDown_Enemy* enemy = &topdown_context.enemy;
+    if (current_time > duration) {
+      current_time = 0.0f;
+    }
+    t = current_time/duration;
+    if (t < 0.5f) {
+      Vec3F32 direction = NormalizeVec3F32(SubVec3F32(end_point, enemy->transform.translation));
+      Vec3F32 velocity = ScaleVec3F32(direction, enemy->speed*topdown_context.dt);
+      enemy->transform.translation = AddVec3F32(enemy->transform.translation, velocity);
+    } else {
+      Vec3F32 direction = NormalizeVec3F32(SubVec3F32(start_point, enemy->transform.translation));
+      Vec3F32 velocity = ScaleVec3F32(direction, enemy->speed*topdown_context.dt);
+      enemy->transform.translation = AddVec3F32(enemy->transform.translation, velocity);
+    }
+    current_time += topdown_context.dt;
 
     Vec3F32 new_camera_position = AddVec3F32(topdown_context.player.transform.translation, MakeVec3F32(0.0f, 10.0f, 1.0f));
     topdown_context.camera.position = new_camera_position;
@@ -313,7 +363,7 @@ I32 main() {
         RHI_SetViewport(topdown_context.command_buffer, rect);
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
-        for (AST_GeometryListNode* geometry_node = topdown_context.player.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+        for (AST_GeometryListNode* geometry_node = topdown_context.monkey_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
           AST_Geometry* geometry = &geometry_node->data;
           
           struct {
@@ -321,6 +371,38 @@ I32 main() {
             Vec3F32 color;
           } instance_vs_data = {
             .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.player.transform)),
+            .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
+          };
+
+          U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
+          U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+          U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
+          RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
+
+          RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
+            .binding = 0,
+            .buffer = topdown_context.frame_buffer,
+            .offset = instance_vs_data_offset,
+            .size = sizeof(instance_vs_data),
+          },
+          0, 0);
+          RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
+            .binding = 0,
+            .texture = topdown_context.default_texture,
+          });
+          RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
+          RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
+          RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
+        }
+
+        for (AST_GeometryListNode* geometry_node = topdown_context.monkey_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+          AST_Geometry* geometry = &geometry_node->data;
+          
+          struct {
+            Mat4F32 mvp;
+            Vec3F32 color;
+          } instance_vs_data = {
+            .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.enemy.transform)),
             .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
           };
 
