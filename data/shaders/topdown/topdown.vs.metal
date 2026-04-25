@@ -3,12 +3,16 @@ using namespace metal;
 struct VertexShaderInput {
   float3 position [[attribute(0)]];
   float3 normal   [[attribute(1)]];
-  float2 tangent  [[attribute(2)]];
-  float2 uv       [[attribute(3)]];
+};
+
+struct Material {
+  float3 color;
 };
 
 struct InstanceUniforms {
-  float4x4 mvp;
+  float4x4 transform;
+  float4x4 camera_transform;
+  Material material;
 };
 
 struct InstanceDataBuffer {
@@ -17,8 +21,9 @@ struct InstanceDataBuffer {
 
 struct VertexOut {
   float4 position [[position]];
-  float3 local_position;
-  float2 uv;
+  float3 world_position;
+  float3 normal;
+  float3 color [[flat]];
 };
 
 vertex VertexOut VertexMain(
@@ -28,9 +33,10 @@ vertex VertexOut VertexMain(
 ) {
   VertexOut out = {0};
 
-  out.local_position = vertex_data.position;
-  out.position = instance_data_buffer.uniform->mvp*float4(vertex_data.position, 1.0f);
-  out.uv = vertex_data.uv;
+  out.world_position = float3(instance_data_buffer.uniform->transform*float4(vertex_data.position, 1.0f));
+  out.position = instance_data_buffer.uniform->camera_transform*instance_data_buffer.uniform->transform*float4(vertex_data.position, 1.0f);
+  out.normal = vertex_data.normal;
+  out.color = instance_data_buffer.uniform->material.color;
 
   return out;
 }

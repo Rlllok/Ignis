@@ -525,6 +525,8 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     pipeline.mtl = [_rhi_metal_context.device newRenderPipelineStateWithDescriptor:pipeline_descriptor error:&error];
     if (pipeline.mtl == nil) {
       LogError("Failed to create Graphics Pipeline. Error: %s\n", [error.localizedDescription UTF8String]);
+      NSLog(@"%@", error);
+      Assert(1);
     }
 
     return RHI_Metal_GraphicsPipelineArrayAdd(&_rhi_metal_context.graphics_pipelines, pipeline);

@@ -13,6 +13,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
 
+typedef struct TopDown_Light TopDown_Light;
+struct TopDown_Light {
+  Vec3F32 direction;
+  F32 padding;
+  Vec3F32 color;
+};
+
 typedef struct TopDown_Material TopDown_Material;
 struct TopDown_Material {
   Vec3F32 color;
@@ -165,7 +172,7 @@ I32 main() {
     &(RHI_ShaderCreateInfo){
       .file_name = Str8C("./data/shaders/topdown/topdown.fs"),
       .kind = RHI_ShaderKind_Fragment,
-      .global_samplers_count = 1,
+      .global_uniforms_count = 1,
     }
   );
 
@@ -363,21 +370,44 @@ I32 main() {
         RHI_SetViewport(topdown_context.command_buffer, rect);
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
+        RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
+        struct {
+          TopDown_Light light;
+        } global_fs_data = {
+          .light = {
+            .direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, 0.0f)),
+            .color = MakeVec3F32(1.0f, 1.0f, 1.0f),
+          },
+        };
+        U64 global_fs_buffer_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&global_fs_data, sizeof(global_fs_data));
+        RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer,
+          1, &(RHI_UniformBufferBindingInfo) {
+            .binding = 0,
+            .buffer = topdown_context.frame_buffer,
+            .offset = global_fs_buffer_offset,
+            .size = sizeof(global_fs_data),
+          },
+          0, 0
+        );
+
         for (AST_GeometryListNode* geometry_node = topdown_context.monkey_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
           AST_Geometry* geometry = &geometry_node->data;
           
           struct {
-            Mat4F32 mvp;
-            Vec3F32 color;
+            Mat4F32 transform;
+            Mat4F32 camera_transform;
+            TopDown_Material material;
           } instance_vs_data = {
-            .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.player.transform)),
-            .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
+            .transform = Mat4F32FromTransform(topdown_context.player.transform),
+            .camera_transform = topdown_context.camera.matrix,
+            .material = {
+              .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
+            }
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
           U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
           U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-          RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
 
           RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
             .binding = 0,
@@ -386,10 +416,6 @@ I32 main() {
             .size = sizeof(instance_vs_data),
           },
           0, 0);
-          RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
-            .binding = 0,
-            .texture = topdown_context.default_texture,
-          });
           RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
           RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
           RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
@@ -399,11 +425,15 @@ I32 main() {
           AST_Geometry* geometry = &geometry_node->data;
           
           struct {
-            Mat4F32 mvp;
-            Vec3F32 color;
+            Mat4F32 transform;
+            Mat4F32 camera_transform;
+            TopDown_Material material;
           } instance_vs_data = {
-            .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.enemy.transform)),
-            .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
+            .transform = Mat4F32FromTransform(topdown_context.enemy.transform),
+            .camera_transform = topdown_context.camera.matrix,
+            .material = {
+              .color = MakeVec3F32(1.0f, 0.35f, 0.4f),
+            }
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -418,10 +448,6 @@ I32 main() {
             .size = sizeof(instance_vs_data),
           },
           0, 0);
-          RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
-            .binding = 0,
-            .texture = topdown_context.default_texture,
-          });
           RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
           RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
           RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
@@ -431,11 +457,15 @@ I32 main() {
           AST_Geometry* geometry = &geometry_node->data;
           
           struct {
-            Mat4F32 mvp;
-            Vec3F32 color;
+            Mat4F32 transform;
+            Mat4F32 camera_transform;
+            TopDown_Material material;
           } instance_vs_data = {
-            .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(topdown_context.floor.transform)),
-            .color = MakeVec3F32(1.0f, 1.0f, 1.0f),
+            .transform = Mat4F32FromTransform(topdown_context.floor.transform),
+            .camera_transform = topdown_context.camera.matrix,
+            .material = {
+              .color = MakeVec3F32(0.1f, 0.1f, 0.1f),
+            }
           };
 
           U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -449,10 +479,6 @@ I32 main() {
             .size = sizeof(instance_vs_data),
           },
           0, 0);
-          RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
-            .binding = 0,
-            .texture = topdown_context.default_texture,
-          });
           RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
           RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
           RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
@@ -542,11 +568,15 @@ TopDown_DrawBullets() {
         AST_Geometry* geometry = &geometry_node->data;
         
         struct {
-          Mat4F32 mvp;
-          Vec3F32 color;
+          Mat4F32 transform;
+          Mat4F32 camera_transform;
+          TopDown_Material material;
         } instance_vs_data = {
-          .mvp = MulMat4F32(topdown_context.camera.matrix, Mat4F32FromTransform(bullet->transform)),
-          .color = MakeVec3F32(0.5f, 0.5f, 0.25f),
+          .transform = Mat4F32FromTransform(bullet->transform),
+          .camera_transform = topdown_context.camera.matrix,
+          .material = {
+            .color = MakeVec3F32(0.5f, 0.5f, 0.25f),
+          }
         };
 
         U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -560,10 +590,6 @@ TopDown_DrawBullets() {
           .size = sizeof(instance_vs_data),
         },
         0, 0);
-        RHI_BindGlobalFragmentShaderData(topdown_context.command_buffer, 0, 0, 1, &(RHI_SamplerBindingInfo) {
-          .binding = 0,
-          .texture = topdown_context.default_texture,
-        });
         RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
         RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
         RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
