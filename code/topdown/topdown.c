@@ -13,6 +13,92 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
 
+typedef struct TopDown_Material TopDown_Material;
+struct TopDown_Material {
+  Vec3F32 color;
+};
+
+typedef U32 TopDown_EntityFlag;
+enum {
+  TopDown_EntityFlag_Nil = 0,
+
+  TopDown_EntityFlag_Actor   = 1 << 0,
+  TopDown_EntityFlag_Movable = 1 << 1,
+
+  TopDown_EntityFlag_Camera = (1 << 10),
+  TopDown_EntityFlag_Player = (1 << 11) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable,
+  TopDown_EntityFlag_Enemy  = (1 << 12) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable,
+  TopDown_EntityFlag_Floor  =             TopDown_EntityFlag_Actor,
+  TopDown_EntityFlag_Bullet = (1 << 13) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable,
+};
+
+typedef struct TopDown_EntityId TopDown_EntityId;
+struct TopDown_EntityId {
+  U32 id;
+};
+
+typedef struct TopDown_Entity TopDown_Entity;
+struct TopDown_Entity {
+  TopDown_EntityId   id;
+  TopDown_EntityFlag kind_flags;
+
+  struct {
+    Transform        transform;
+    TopDown_Material material;
+    AST_StaticMesh*  mesh;
+    B32              hidden;
+  } actor;
+
+  struct {
+    F32 speed;
+  } movable;
+
+  struct {
+    Vec3F32 position;
+    F32     yaw;
+    F32     pitch;
+    F32     fov;
+
+    Vec3F32 front;
+    Vec3F32 right;
+    Vec3F32 up;
+
+    RectI32 viewport;
+
+    Mat4F32 matrix;
+    Mat4F32 inverse;
+  } camera;
+
+  struct {
+    Vec3F32 start_point;
+    Vec3F32 end_point;
+    F32     duration;
+    F32     current_time;
+  } enemy;
+
+  struct {
+    Vec3F32 direction;
+    B32 active;
+    F32 lifetime;
+    F32 current_time;
+  } bullet;
+};
+TopDown_Entity TopDown_Entity_Nil = ZeroStruct();
+DefineArray(TopDown_Entity, TopDown_EntityArray, TopDown_Entity_Nil)
+
+func void TopDown_UpdateEntities();
+func void TopDown_DrawEntities();
+
+func TopDown_EntityId TopDown_CreateCamera();
+func TopDown_EntityId TopDown_CreatePlayer();
+
+func TopDown_EntityId TopDown_CreateEnemy();
+
+func TopDown_EntityId TopDown_CreateBullet();
+func void             TopDown_ActivateBullet(TopDown_EntityId parent_id);
+
+func TopDown_EntityId TopDown_CreateFloor();
+
 typedef struct TopDown_Light TopDown_Light;
 struct TopDown_Light {
   Vec3F32 direction;
@@ -20,71 +106,7 @@ struct TopDown_Light {
   Vec3F32 color;
 };
 
-typedef struct TopDown_Material TopDown_Material;
-struct TopDown_Material {
-  Vec3F32 color;
-};
-
-typedef struct TopDown_Camera TopDown_Camera;
-struct TopDown_Camera {
-  Vec3F32 position;
-  F32     yaw;
-  F32     pitch;
-
-  Vec3F32 front;
-  Vec3F32 right;
-  Vec3F32 up;
-
-  RectI32 viewport;
-
-  Mat4F32 matrix;
-  Mat4F32 inverse;
-};
-
-func Vec3F32 TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position);
-
-typedef struct TopDown_Player TopDown_Player;
-struct TopDown_Player {
-  Transform transform;
-  F32       speed;
-
-  TopDown_Material material;
-};
-
-typedef struct TopDown_Enemy TopDown_Enemy;
-struct TopDown_Enemy {
-  Transform transform;
-  F32       speed;
-
-  TopDown_Material material;
-};
-
-typedef struct TopDown_Floor TopDown_Floor;
-struct TopDown_Floor {
-  Transform transform;
-
-  TopDown_Material material;
-  AST_StaticMesh   mesh;
-};
-
-typedef struct TopDown_Bullet TopDown_Bullet;
-struct TopDown_Bullet {
-  Transform transform;
-  F32 speed;
-
-  Vec3F32 direction;
-  B32     active;
-  F32     current_time;
-  F32     lifetime;
-
-  TopDown_Material material;
-};
-TopDown_Bullet TopDown_Bullet_Nil = ZeroStruct();
-DefineArray(TopDown_Bullet, TopDown_BulletArray, TopDown_Bullet_Nil)
-
-func void TopDown_ActivateBullet();
-func void TopDown_UpdateBullets();
-func void TopDown_DrawBullets();
+func Vec3F32 TopDown_WorldFromScreen(Vec2F32 screen_position);
 
 typedef struct TopDown_Context TopDown_Context;
 struct TopDown_Context {
@@ -108,16 +130,21 @@ struct TopDown_Context {
 
   // Assets
   AST_StaticMesh monkey_mesh;
+  AST_StaticMesh bullet_mesh;
+  AST_StaticMesh floor_mesh;
 
   // Game Objects
-  TopDown_Camera      camera;
-  TopDown_Player      player;
-  TopDown_Enemy       enemy;
-  TopDown_Floor       floor;
-  TopDown_BulletArray bullets;
-
-  AST_StaticMesh bullet_mesh;
+  TopDown_EntityArray entities;
+  TopDown_EntityId    camera_id;
+  TopDown_EntityId    player_id;
+  TopDown_EntityId    first_bullet_id;
+  U32                 max_bullet_count;
 } topdown_context = ZeroStruct();
+
+func TopDown_Entity*
+TopDown_GetEntity(TopDown_EntityId id) {
+  return TopDown_EntityArrayGetPointer(&topdown_context.entities, id.id);
+}
 
 I32 main() {
   topdown_context.global_arena = AllocateArena(Gigabytes(16), Kilobytes(64));
@@ -129,7 +156,7 @@ I32 main() {
   RHI_Init(topdown_context.window);
   // Init RHI Objects
   topdown_context.command_buffer = RHI_GetCommandBuffer();
-  topdown_context.frame_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent);
+  topdown_context.frame_buffer = RHI_CreateBuffer(Megabytes(64), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent);
   topdown_context.transfer_buffer = RHI_CreateBuffer(Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
 
   I32 tex_width = 0;
@@ -232,51 +259,22 @@ I32 main() {
 
   // Load Assets
   topdown_context.monkey_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/monkey_gltf/monkey.gltf")),
+  topdown_context.bullet_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
+  topdown_context.floor_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/plane.gltf"));
 
   // Init Game Objects
-  topdown_context.player = (TopDown_Player) {
-    .transform = IdentityTransform(),
-    .speed = 3.0f,
-  };
-  topdown_context.player.transform.translation = MakeVec3F32(0.0f, 0.0f, -5.0f);
+  topdown_context.entities = TopDown_EntityArrayAllocate(topdown_context.global_arena, 128);
+  TopDown_EntityArrayAdd(&topdown_context.entities, (TopDown_Entity)ZeroStruct()); 
 
-  topdown_context.enemy = (TopDown_Enemy) {
-    .transform = IdentityTransform(),
-    .speed = 3.0f,
-  };
-  
-  topdown_context.camera = (TopDown_Camera){
-    .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
-    .yaw = -90.0f,
-    .pitch = -30.0f,
-    .front = MakeVec3F32(1.0f, 0.0f, -1.0f),
-    .right = MakeVec3F32(1.0f, 0.0f, 1.0f),
-    .up = MakeVec3F32(0.0f, 1.0f, 0.0f),
-    .viewport = (RectI32) {
-      .x = 0,
-      .y = 0,
-      .w = topdown_context.window->size.x,
-      .h = topdown_context.window->size.y,
-    },
-  };
-
-  topdown_context.floor = (TopDown_Floor) {
-    .transform.translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
-    .transform.rotation = IdentityQuaternion(),
-    .transform.scale = MakeVec3F32(10.0f, 10.0f, 10.0f),
-    .mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/plane.gltf")),
-  };
-
-  topdown_context.bullets = TopDown_BulletArrayAllocate(topdown_context.global_arena, 64);
-  topdown_context.bullets.length = topdown_context.bullets.capacity;
-  topdown_context.bullet_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
-
-  Vec3F32 start_point = MakeVec3F32(-5.0f, 0.0f, 5.0f);
-  Vec3F32 end_point = MakeVec3F32(5.0f, 0.0f, 5.0f);
-  F32 duration = 10.0f;
-  F32 current_time = 0.0f;
-  F32 t = 0.0f;
-  topdown_context.enemy.transform.translation = start_point;
+  topdown_context.player_id = TopDown_CreatePlayer();
+  topdown_context.camera_id = TopDown_CreateCamera();
+  TopDown_CreateEnemy();
+  topdown_context.max_bullet_count = 64;
+  topdown_context.first_bullet_id = TopDown_CreateBullet();
+  for (I32 i = 0; i < topdown_context.max_bullet_count - 1; i += 1) {
+    TopDown_CreateBullet();
+  }
+  TopDown_CreateFloor();
 
   U64 start_ts = OS_GetTimeTicks();
   while (!topdown_context.finished) {
@@ -287,60 +285,12 @@ I32 main() {
       topdown_context.finished = 1;
     }
 
-    Vec3F32 input_direction = MakeVec3F32(0.0f, 0.0f, 0.0f);
-    if (OS_KeyDown(OS_KEY_W)) {
-      input_direction.z = -1.0f;
-    }
-    if (OS_KeyDown(OS_KEY_S)) {
-      input_direction.z = 1.0f;
-    }
-    if (OS_KeyDown(OS_KEY_D)) {
-      input_direction.x = 1.0f;
-    }
-    if (OS_KeyDown(OS_KEY_A)) {
-      input_direction.x = -1.0f;
-    }
-    input_direction = NormalizeVec3F32(input_direction);
-
     if (OS_KeyPressed(OS_KEY_SPACE)) {
-      TopDown_ActivateBullet();
+      TopDown_ActivateBullet(topdown_context.player_id);
     }
 
     // Update World
-    TopDown_Player* player = &topdown_context.player;
-    Vec3F32 velocity = ScaleVec3F32(input_direction, topdown_context.player.speed*topdown_context.dt);
-    player->transform.translation = AddVec3F32(player->transform.translation, velocity);
-    Vec3F32 target_position = TopDown_WorldFromScreen(&topdown_context.camera, topdown_context.cursor_position);
-    player->transform.rotation = QuaternionLookAt(player->transform.translation, target_position);
-
-    TopDown_Enemy* enemy = &topdown_context.enemy;
-    if (current_time > duration) {
-      current_time = 0.0f;
-    }
-    t = current_time/duration;
-    if (t < 0.5f) {
-      Vec3F32 direction = NormalizeVec3F32(SubVec3F32(end_point, enemy->transform.translation));
-      Vec3F32 velocity = ScaleVec3F32(direction, enemy->speed*topdown_context.dt);
-      enemy->transform.translation = AddVec3F32(enemy->transform.translation, velocity);
-    } else {
-      Vec3F32 direction = NormalizeVec3F32(SubVec3F32(start_point, enemy->transform.translation));
-      Vec3F32 velocity = ScaleVec3F32(direction, enemy->speed*topdown_context.dt);
-      enemy->transform.translation = AddVec3F32(enemy->transform.translation, velocity);
-    }
-    current_time += topdown_context.dt;
-
-    Vec3F32 new_camera_position = AddVec3F32(topdown_context.player.transform.translation, MakeVec3F32(0.0f, 10.0f, 1.0f));
-    topdown_context.camera.position = new_camera_position;
-
-    Mat4F32 view_matrix = MakeLookAtMat4F32(topdown_context.camera.position, player->transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
-    Mat4F32 projection_matrix = MakePerspectiveMat4F32(
-      90.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
-      0.01f, 100.0f
-    );
-    topdown_context.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
-    topdown_context.camera.inverse = InverseMat4F32(topdown_context.camera.matrix);
-
-    TopDown_UpdateBullets();
+    TopDown_UpdateEntities();
 
     // Draw World
     RHI_BeginCommandBuffer(topdown_context.command_buffer);
@@ -390,101 +340,7 @@ I32 main() {
           0, 0
         );
 
-        for (AST_GeometryListNode* geometry_node = topdown_context.monkey_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
-          AST_Geometry* geometry = &geometry_node->data;
-          
-          struct {
-            Mat4F32 transform;
-            Mat4F32 camera_transform;
-            TopDown_Material material;
-          } instance_vs_data = {
-            .transform = Mat4F32FromTransform(topdown_context.player.transform),
-            .camera_transform = topdown_context.camera.matrix,
-            .material = {
-              .color = MakeVec3F32(0.0f, 1.0f, 0.0f),
-            }
-          };
-
-          U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
-          U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
-          U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-
-          RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
-            .binding = 0,
-            .buffer = topdown_context.frame_buffer,
-            .offset = instance_vs_data_offset,
-            .size = sizeof(instance_vs_data),
-          },
-          0, 0);
-          RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
-          RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
-          RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
-        }
-
-        for (AST_GeometryListNode* geometry_node = topdown_context.monkey_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
-          AST_Geometry* geometry = &geometry_node->data;
-          
-          struct {
-            Mat4F32 transform;
-            Mat4F32 camera_transform;
-            TopDown_Material material;
-          } instance_vs_data = {
-            .transform = Mat4F32FromTransform(topdown_context.enemy.transform),
-            .camera_transform = topdown_context.camera.matrix,
-            .material = {
-              .color = MakeVec3F32(1.0f, 0.35f, 0.4f),
-            }
-          };
-
-          U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
-          U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
-          U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-          RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
-
-          RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
-            .binding = 0,
-            .buffer = topdown_context.frame_buffer,
-            .offset = instance_vs_data_offset,
-            .size = sizeof(instance_vs_data),
-          },
-          0, 0);
-          RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
-          RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
-          RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
-        }
-
-        for (AST_GeometryListNode* geometry_node = topdown_context.floor.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
-          AST_Geometry* geometry = &geometry_node->data;
-          
-          struct {
-            Mat4F32 transform;
-            Mat4F32 camera_transform;
-            TopDown_Material material;
-          } instance_vs_data = {
-            .transform = Mat4F32FromTransform(topdown_context.floor.transform),
-            .camera_transform = topdown_context.camera.matrix,
-            .material = {
-              .color = MakeVec3F32(0.1f, 0.1f, 0.1f),
-            }
-          };
-
-          U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
-          U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
-          U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-
-          RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
-            .binding = 0,
-            .buffer = topdown_context.frame_buffer,
-            .offset = instance_vs_data_offset,
-            .size = sizeof(instance_vs_data),
-          },
-          0, 0);
-          RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
-          RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
-          RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
-        }
-
-        TopDown_DrawBullets();
+        TopDown_DrawEntities();
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
     RHI_SubmitCommandBuffer(topdown_context.command_buffer);
@@ -505,11 +361,12 @@ I32 main() {
 }
 
 func Vec3F32
-TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position) {
+TopDown_WorldFromScreen(Vec2F32 screen_position)  {
   Vec3F32 result = MakeVec3F32(0.0f, 0.0f, 0.0f);
-  Vec4F32 near_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->viewport.h - 1.0f, 0.0f, 1.0f), camera->inverse);
+  TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+  Vec4F32 near_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->camera.viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->camera.viewport.h - 1.0f, 0.0f, 1.0f), camera->camera.inverse);
   near_plane = ScaleVec4F32(near_plane, 1.0f/near_plane.w);
-  Vec4F32 far_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->viewport.h - 1.0f, 1.0f, 1.0f), camera->inverse);
+  Vec4F32 far_plane = TransformVec4F32(MakeVec4F32((2.0f*screen_position.x)/camera->camera.viewport.w  - 1.0f, (2.0f*screen_position.y)/camera->camera.viewport.h - 1.0f, 1.0f, 1.0f), camera->camera.inverse);
   far_plane = ScaleVec4F32(far_plane, 1.0f/far_plane.w);
 
   Vec3F32 ray_origin = MakeVec3F32(near_plane.x, near_plane.y, near_plane.z);
@@ -520,51 +377,89 @@ TopDown_WorldFromScreen(TopDown_Camera* camera, Vec2F32 screen_position) {
 }
 
 func void
-TopDown_ActivateBullet() {
-  for (I32 i = 0; i < topdown_context.bullets.length; i += 1) {
-    TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
+TopDown_UpdateEntities() {
+  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
+    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
+    
+    switch (entity->kind_flags) {
+      default: {} break;
 
-    if (!bullet->active) {
-      bullet->transform = IdentityTransform();
-      bullet->speed = 10.0f;
-      bullet->lifetime = 2.0f;
+      case TopDown_EntityFlag_Player: {
+        Vec3F32 input_direction = MakeVec3F32(0.0f, 0.0f, 0.0f);
+        if (OS_KeyDown(OS_KEY_W)) {
+          input_direction.z = -1.0f;
+        }
+        if (OS_KeyDown(OS_KEY_S)) {
+          input_direction.z = 1.0f;
+        }
+        if (OS_KeyDown(OS_KEY_D)) {
+          input_direction.x = 1.0f;
+        }
+        if (OS_KeyDown(OS_KEY_A)) {
+          input_direction.x = -1.0f;
+        }
+        input_direction = NormalizeVec3F32(input_direction);
 
-      TopDown_Player* player = &topdown_context.player;
-      TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
-      Vec3F32 player_forward = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, 1.0f), player->transform.rotation);
-      bullet->transform.translation = player->transform.translation;
-      bullet->direction = player_forward;
-      bullet->active = 1;
-      bullet->current_time = 0.0f;
+        Vec3F32 velocity = ScaleVec3F32(input_direction, entity->movable.speed*topdown_context.dt);
+        entity->actor.transform.translation = AddVec3F32(entity->actor.transform.translation, velocity);
+        Vec3F32 target_position = TopDown_WorldFromScreen(topdown_context.cursor_position);
+        entity->actor.transform.rotation = QuaternionLookAt(entity->actor.transform.translation, target_position);
+      } break;
 
-      break;
+      case TopDown_EntityFlag_Enemy: {
+        if (entity->enemy.current_time > entity->enemy.duration) {
+          entity->enemy.current_time = 0.0f;
+        }
+        F32 t = entity->enemy.current_time/entity->enemy.duration;
+        if (t < 0.5f) {
+          Vec3F32 direction = NormalizeVec3F32(SubVec3F32(entity->enemy.end_point, entity->actor.transform.translation));
+          Vec3F32 velocity = ScaleVec3F32(direction, entity->movable.speed*topdown_context.dt);
+          entity->actor.transform.translation = AddVec3F32(entity->actor.transform.translation, velocity);
+        } else {
+          Vec3F32 direction = NormalizeVec3F32(SubVec3F32(entity->enemy.start_point, entity->actor.transform.translation));
+          Vec3F32 velocity = ScaleVec3F32(direction, entity->movable.speed*topdown_context.dt);
+          entity->actor.transform.translation = AddVec3F32(entity->actor.transform.translation, velocity);
+        }
+        entity->enemy.current_time += topdown_context.dt;
+      } break;
+
+      case TopDown_EntityFlag_Camera: {
+        TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
+        entity->camera.position = AddVec3F32(player->actor.transform.translation, MakeVec3F32(0.0f, 30.0f, 15.0f));
+
+        Mat4F32 view_matrix = MakeLookAtMat4F32(entity->camera.position, player->actor.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
+        Mat4F32 projection_matrix = MakePerspectiveMat4F32(
+          entity->camera.fov/2.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
+          0.01f, 100.0f
+        );
+        entity->camera.matrix = MulMat4F32(projection_matrix, view_matrix);
+        entity->camera.inverse = InverseMat4F32(entity->camera.matrix);
+      } break;
+
+      case TopDown_EntityFlag_Bullet: {
+        if (entity->bullet.active) {
+          Vec3F32 velocity = ScaleVec3F32(entity->bullet.direction, entity->movable.speed*topdown_context.dt);
+          entity->actor.transform.translation = AddVec3F32(entity->actor.transform.translation, velocity);
+          entity->actor.transform.rotation = QuaternionFromEuler(0.0f, RadiansFromDegrees(720.0f)*(entity->bullet.current_time/entity->bullet.lifetime), 0.0f);
+          
+          entity->bullet.current_time += topdown_context.dt;
+          entity->bullet.active = entity->bullet.current_time < entity->bullet.lifetime;
+          entity->actor.hidden = !entity->bullet.active;
+        }
+      } break;
     }
   }
 }
 
 func void
-TopDown_UpdateBullets() {
-  for (I32 i = 0; i < topdown_context.bullets.length; i += 1) {
-    TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
+TopDown_DrawEntities() {
+  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
+    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
+    TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
 
-    if (bullet->active) {
-      Vec3F32 velocity = ScaleVec3F32(bullet->direction, bullet->speed*topdown_context.dt);
-      bullet->transform.translation = AddVec3F32(bullet->transform.translation, velocity);
-      bullet->transform.rotation = QuaternionFromEuler(0.0f, RadiansFromDegrees(720.0f)*(bullet->current_time/bullet->lifetime), 0.0f);
-      
-      bullet->current_time += topdown_context.dt;
-      bullet->active = bullet->current_time < bullet->lifetime;
-    }
-  }
-}
-
-func void
-TopDown_DrawBullets() {
-  for (I32 i = 0; i < topdown_context.bullets.length; i += 1) {
-    TopDown_Bullet* bullet = TopDown_BulletArrayGetPointer(&topdown_context.bullets, i);
-
-    if (bullet->active) {
-      for (AST_GeometryListNode* geometry_node = topdown_context.bullet_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Actor) && (!entity->actor.hidden);
+    if (to_draw) {
+      for (AST_GeometryListNode* geometry_node = entity->actor.mesh->geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
         AST_Geometry* geometry = &geometry_node->data;
         
         struct {
@@ -572,11 +467,9 @@ TopDown_DrawBullets() {
           Mat4F32 camera_transform;
           TopDown_Material material;
         } instance_vs_data = {
-          .transform = Mat4F32FromTransform(bullet->transform),
-          .camera_transform = topdown_context.camera.matrix,
-          .material = {
-            .color = MakeVec3F32(0.5f, 0.5f, 0.25f),
-          }
+          .transform = Mat4F32FromTransform(entity->actor.transform),
+          .camera_transform = camera->camera.matrix,
+          .material = entity->actor.material,
         };
 
         U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
@@ -596,4 +489,160 @@ TopDown_DrawBullets() {
       }
     }
   }
+}
+
+func TopDown_EntityId
+TopDown_CreateCamera() {
+  TopDown_EntityId result = ZeroStruct();
+
+  if (topdown_context.camera_id.id == 0) {
+    TopDown_Entity camera = {
+      .kind_flags = TopDown_EntityFlag_Camera,
+      .camera = {
+        .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
+        .yaw = -90.0f,
+        .pitch = -30.0f,
+        .fov = 90.0f,
+        .front = MakeVec3F32(1.0f, 0.0f, -1.0f),
+        .right = MakeVec3F32(1.0f, 0.0f, 1.0f),
+        .up = MakeVec3F32(0.0f, 1.0f, 0.0f),
+        .viewport = (RectI32) {
+          .x = 0,
+          .y = 0,
+          .w = topdown_context.window->size.x,
+          .h = topdown_context.window->size.y,
+        },
+      },
+    };
+    result.id = TopDown_EntityArrayAdd(&topdown_context.entities, camera);
+  }
+  else {
+    LogDebug("Camera is already created (id = %i)\n", topdown_context.camera_id)
+  }
+
+  return result;
+}
+
+func TopDown_EntityId
+TopDown_CreatePlayer() {
+  TopDown_EntityId result = ZeroStruct();
+
+  if (topdown_context.player_id.id == 0) {
+    TopDown_Entity player = {
+      .kind_flags = TopDown_EntityFlag_Player,
+      .actor = {
+        .transform = IdentityTransform(),
+        .material = {
+          .color = MakeVec3F32(1.0f, 1.0f, 0.0f),
+        },
+        .mesh = &topdown_context.monkey_mesh,
+      },
+      .movable = {
+        .speed = 3.0f,
+      }
+    };
+    result.id = TopDown_EntityArrayAdd(&topdown_context.entities, player);
+  }
+  else {
+    LogDebug("Player is already created (id = %i)\n", topdown_context.player_id);
+  }
+  
+  return result;
+}
+
+func TopDown_EntityId
+TopDown_CreateEnemy() {
+  TopDown_EntityId result = ZeroStruct();
+
+  TopDown_Entity enemy = {
+    .kind_flags = TopDown_EntityFlag_Enemy,
+    .actor = {
+      .transform = IdentityTransform(),
+      .material = {
+        .color = MakeVec3F32(1.0f, 0.0f, 1.0f),
+      },
+      .mesh = &topdown_context.monkey_mesh,
+    },
+    .movable = {
+      .speed = 7.0f,
+    },
+    .enemy = {
+      .start_point = MakeVec3F32(-5.0f, 0.0f, 5.0f),
+      .end_point = MakeVec3F32(5.0f, 0.0f, 5.0f),
+      .duration = 10.0f,
+      .current_time = 0.0f,
+    },
+  };
+  result.id = TopDown_EntityArrayAdd(&topdown_context.entities, enemy);
+
+  return result;
+}
+
+func TopDown_EntityId
+TopDown_CreateBullet() {
+  TopDown_EntityId result = ZeroStruct();
+
+  TopDown_Entity bullet = {
+    .kind_flags = TopDown_EntityFlag_Bullet,
+    .actor = {
+      .transform = IdentityTransform(),
+      .material = {
+        .color = MakeVec3F32(0.5f, 0.0f, 1.0f),
+      },
+      .mesh = &topdown_context.bullet_mesh,
+      .hidden = 1,
+    },
+    .movable = {
+      .speed = 10.0f,
+    },
+    .bullet = {
+      .lifetime = 3.0f,
+    }
+  };
+  result.id = TopDown_EntityArrayAdd(&topdown_context.entities, bullet);
+
+  return result;
+}
+
+func void
+TopDown_ActivateBullet(TopDown_EntityId parent_id) {
+  for (I32 bullet_id = topdown_context.first_bullet_id.id; bullet_id < topdown_context.max_bullet_count; bullet_id += 1) {
+    TopDown_Entity* bullet = TopDown_EntityArrayGetPointer(&topdown_context.entities, bullet_id);
+    TopDown_Entity* parent = TopDown_GetEntity(parent_id);
+
+    if (!bullet->bullet.active) {
+      Vec3F32 parent_forward = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, 1.0f), parent->actor.transform.rotation);
+
+      bullet->actor.transform.translation = parent->actor.transform.translation;
+      bullet->actor.hidden = 1;
+      bullet->bullet.direction = parent_forward;
+      bullet->bullet.active = 1;
+      bullet->bullet.current_time = 0.0f;
+
+      break;
+    }
+  }
+}
+
+func TopDown_EntityId
+TopDown_CreateFloor() {
+  TopDown_EntityId result = ZeroStruct();
+
+  TopDown_Entity floor = {
+    .kind_flags = TopDown_EntityFlag_Floor,
+    .actor = {
+      .transform = {
+        .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+        .rotation = IdentityQuaternion(),
+        .scale = MakeVec3F32(10.0f, 1.0f, 10.0f),
+      },
+      .material = {
+        .color = MakeVec3F32(0.5f, 0.5f, 0.5f),
+      },
+      .mesh = &topdown_context.floor_mesh,
+    },
+  };
+  result.id = TopDown_EntityArrayAdd(&topdown_context.entities, floor);
+
+  return result;
 }
