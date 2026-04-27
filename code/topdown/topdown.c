@@ -18,18 +18,27 @@ struct TopDown_Material {
   Vec3F32 color;
 };
 
+typedef struct TopDown_BoundingBox TopDown_BoundingBox;
+struct TopDown_BoundingBox {
+  Vec3F32 min;
+  Vec3F32 max;
+};
+
+func TopDown_BoundingBox TopDown_BoundingBoxFromMesh(AST_StaticMesh* mesh);
+
 typedef U32 TopDown_EntityFlag;
 enum {
   TopDown_EntityFlag_Nil = 0,
 
-  TopDown_EntityFlag_Actor   = 1 << 0,
-  TopDown_EntityFlag_Movable = 1 << 1,
+  TopDown_EntityFlag_Actor     = 1 << 0,
+  TopDown_EntityFlag_Movable   = 1 << 1,
+  TopDown_EntityFlag_Collision = 1 << 2,
 
   TopDown_EntityFlag_Camera = (1 << 10),
-  TopDown_EntityFlag_Player = (1 << 11) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable,
-  TopDown_EntityFlag_Enemy  = (1 << 12) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable,
+  TopDown_EntityFlag_Player = (1 << 11) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable | TopDown_EntityFlag_Collision,
+  TopDown_EntityFlag_Enemy  = (1 << 12) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable | TopDown_EntityFlag_Collision,
   TopDown_EntityFlag_Floor  =             TopDown_EntityFlag_Actor,
-  TopDown_EntityFlag_Bullet = (1 << 13) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable,
+  TopDown_EntityFlag_Bullet = (1 << 13) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable | TopDown_EntityFlag_Collision,
 };
 
 typedef struct TopDown_EntityId TopDown_EntityId;
@@ -52,6 +61,11 @@ struct TopDown_Entity {
   struct {
     F32 speed;
   } movable;
+
+  struct {
+    B32                 active;
+    TopDown_BoundingBox bounding_box;
+  } collision;
 
   struct {
     Vec3F32 position;
@@ -89,6 +103,8 @@ DefineArray(TopDown_Entity, TopDown_EntityArray, TopDown_Entity_Nil)
 func void TopDown_UpdateEntities();
 func void TopDown_DrawEntities();
 
+func void TopDown_DrawDebugCollision();
+
 func TopDown_EntityId TopDown_CreateCamera();
 func TopDown_EntityId TopDown_CreatePlayer();
 
@@ -123,6 +139,7 @@ struct TopDown_Context {
   RHI_Texture          default_texture;
   RHI_Texture          depth_texture;
   RHI_GraphicsPipeline pipeline;
+  RHI_GraphicsPipeline debug_pipeline;
 
   // State
   B32 finished;
@@ -255,6 +272,36 @@ I32 main() {
     }
   );
 
+  RHI_Shader debug_vertex_shader = RHI_CreateShader(
+    topdown_context.global_arena,
+    &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/topdown/debug.vs"),
+      .kind = RHI_ShaderKind_Vertex,
+      .instance_uniforms_count = 1,
+    }
+  );
+  RHI_Shader debug_fragment_shader = RHI_CreateShader(
+    topdown_context.global_arena,
+    &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/topdown/debug.fs"),
+      .kind = RHI_ShaderKind_Fragment,
+    }
+  );
+
+  topdown_context.debug_pipeline = RHI_CreateGraphicsPipeline(
+    &(RHI_GraphicsPipelineCreateInfo) {
+      .vertex_shader = debug_vertex_shader,
+      .fragment_shader = debug_fragment_shader,
+      .vertex_attributes_count = ArrayLength(vertex_attributes),
+      .vertex_attributes = vertex_attributes,
+      .color_targets_count = 1,
+      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+        .format = RHI_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
+      },
+    }
+  );
+
   OS_ShowWindow(topdown_context.window);
 
   // Load Assets
@@ -343,6 +390,17 @@ I32 main() {
         TopDown_DrawEntities();
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
+
+      RHI_ColorTarget debug_color_targets = {
+        .texture = swapchain_texture,
+        .load_operation = RHI_AttachmentLoadOperation_Load,
+        .store_operation = RHI_AttachmentStoreOperation_Store,
+      };
+      RHI_RenderPass* debug_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &debug_color_targets, 0);
+        RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.debug_pipeline);
+        TopDown_DrawDebugCollision();
+      RHI_EndRenderPass(topdown_context.command_buffer, debug_render_pass);
+  
     RHI_SubmitCommandBuffer(topdown_context.command_buffer);
 
     U64 end_ts = OS_GetTimeTicks();
@@ -358,6 +416,26 @@ I32 main() {
   }
 
   return 0;
+}
+
+func TopDown_BoundingBox
+TopDown_BoundingBoxFromMesh(AST_StaticMesh* mesh) {
+  TopDown_BoundingBox result = ZeroStruct();
+
+  for (AST_GeometryListNode* geometry_node = mesh->geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+    AST_Geometry* geometry = &geometry_node->data;
+    for (U64 vertex_index = 0; vertex_index < geometry->vertecies_count; vertex_index += 1) {
+      AST_Vertex* vertex = geometry->vertecies + vertex_index;
+      if (vertex->position.x < result.min.x) result.min.x = vertex->position.x;
+      if (vertex->position.y < result.min.y) result.min.y = vertex->position.y;
+      if (vertex->position.z < result.min.z) result.min.z = vertex->position.z;
+      if (vertex->position.x > result.max.x) result.max.x = vertex->position.x;
+      if (vertex->position.y > result.max.y) result.max.y = vertex->position.y;
+      if (vertex->position.z > result.max.z) result.max.z = vertex->position.z;
+    }
+  }
+
+  return result;
 }
 
 func Vec3F32
@@ -445,6 +523,7 @@ TopDown_UpdateEntities() {
           entity->bullet.current_time += topdown_context.dt;
           entity->bullet.active = entity->bullet.current_time < entity->bullet.lifetime;
           entity->actor.hidden = !entity->bullet.active;
+          entity->collision.active = entity->bullet.active;
         }
       } break;
     }
@@ -478,6 +557,50 @@ TopDown_DrawEntities() {
 
         RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
           .binding = 0,
+          .buffer = topdown_context.frame_buffer,
+          .offset = instance_vs_data_offset,
+          .size = sizeof(instance_vs_data),
+        },
+        0, 0);
+        RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
+        RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
+        RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
+      }
+    }
+  }
+}
+
+func void
+TopDown_DrawDebugCollision() {
+  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
+    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
+    TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+
+    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Collision) && entity->collision.active;
+    if (to_draw) {
+      for (AST_GeometryListNode* geometry_node = topdown_context.bullet_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+        AST_Geometry* geometry = &geometry_node->data;
+
+        TopDown_BoundingBox bounding_box = entity->collision.bounding_box;
+
+        Transform bounding_box_transform = {
+          .translation = entity->actor.transform.translation,
+          .rotation = entity->actor.transform.rotation,
+          .scale = MulVec3F32(entity->actor.transform.scale, SubVec3F32(bounding_box.max, bounding_box.min)),
+        };
+        
+        struct {
+          Mat4F32 transform;
+        } instance_vs_data = {
+          .transform = MulMat4F32(camera->camera.matrix, Mat4F32FromTransform(bounding_box_transform)),
+        };
+
+        U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
+        U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
+        U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
+
+        RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
+          .binding = 0, 
           .buffer = topdown_context.frame_buffer,
           .offset = instance_vs_data_offset,
           .size = sizeof(instance_vs_data),
@@ -537,6 +660,10 @@ TopDown_CreatePlayer() {
         },
         .mesh = &topdown_context.monkey_mesh,
       },
+      .collision = {
+        .active = 1,
+        .bounding_box = TopDown_BoundingBoxFromMesh(&topdown_context.monkey_mesh),
+      },
       .movable = {
         .speed = 3.0f,
       }
@@ -566,6 +693,10 @@ TopDown_CreateEnemy() {
     .movable = {
       .speed = 7.0f,
     },
+    .collision = {
+      .active = 1,
+      .bounding_box = TopDown_BoundingBoxFromMesh(&topdown_context.monkey_mesh),
+    },
     .enemy = {
       .start_point = MakeVec3F32(-5.0f, 0.0f, 5.0f),
       .end_point = MakeVec3F32(5.0f, 0.0f, 5.0f),
@@ -594,6 +725,10 @@ TopDown_CreateBullet() {
     },
     .movable = {
       .speed = 10.0f,
+    },
+    .collision = {
+      .active = 0,
+      .bounding_box = TopDown_BoundingBoxFromMesh(&topdown_context.bullet_mesh),
     },
     .bullet = {
       .lifetime = 3.0f,
