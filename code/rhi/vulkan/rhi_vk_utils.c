@@ -31,7 +31,7 @@ RHI_VK_GetVkAttachmentStoreOperation(RHI_StoreOperation operation) {
     default: Assert(1); break;
 
     case RHI_AttachmentStoreOperation_DontCare: result = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
-    case RHI_AttachmentStoreOperation_Store:    result = VK_ATTACHMENT_STORE_OP_DONT_CARE; break;
+    case RHI_AttachmentStoreOperation_Store:    result = VK_ATTACHMENT_STORE_OP_STORE;     break;
   }
   return result;
 }
