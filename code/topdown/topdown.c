@@ -508,7 +508,7 @@ TopDown_UpdateEntities() {
         Mat4F32 view_matrix = MakeLookAtMat4F32(entity->camera.position, player->actor.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
         Mat4F32 projection_matrix = MakePerspectiveMat4F32(
           entity->camera.fov/2.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
-          0.01f, 100.0f
+          0.1f, 100.0f
         );
         entity->camera.matrix = MulMat4F32(projection_matrix, view_matrix);
         entity->camera.inverse = InverseMat4F32(entity->camera.matrix);

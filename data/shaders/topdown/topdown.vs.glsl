@@ -3,15 +3,25 @@
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
 
-layout(set = 1, binding = 0) uniform InstanceData {
-  mat4 mvp;
+struct Material {
+  vec3 color;
 };
 
-layout(location = 0) out vec3 out_position;
-layout(location = 1) out vec3 out_normal;
+layout(set = 1, binding = 0) uniform InstanceData {
+  mat4     transform;
+  mat4     camera_transform;
+  Material material;
+};
+
+layout(location = 0)      out vec3 out_position;
+layout(location = 1)      out vec3 out_normal;
+layout(location = 2) flat out vec3 out_color;
 
 void main() {
-  out_position = position;
+  vec4 world_position = transform*vec4(position, 1.0f);
+
+  out_position = vec3(world_position);
   out_normal = normal;
-  gl_Position = mvp*vec4(position, 1.0f);
+  out_color = material.color;
+  gl_Position = camera_transform*world_position;
 }
