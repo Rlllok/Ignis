@@ -143,12 +143,14 @@ struct TopDown_Context {
 
   // State
   B32 finished;
+  B32 debug;
   F32 dt;
 
   // Assets
   AST_StaticMesh monkey_mesh;
   AST_StaticMesh bullet_mesh;
   AST_StaticMesh floor_mesh;
+  AST_StaticMesh bounding_box_mesh;
 
   // Game Objects
   TopDown_EntityArray entities;
@@ -206,7 +208,7 @@ I32 main() {
   RHI_Shader vertex_shader = RHI_CreateShader(
     topdown_context.global_arena,
     &(RHI_ShaderCreateInfo){
-      .file_name = Str8C("./data/shaders/topdown/topdown.vs"),
+      .file_name = Str8C("./data/TopDown/Shaders/topdown.vs"),
       .kind = RHI_ShaderKind_Vertex,
       .instance_uniforms_count = 1,
     }
@@ -214,7 +216,7 @@ I32 main() {
   RHI_Shader fragment_shader = RHI_CreateShader(
     topdown_context.global_arena,
     &(RHI_ShaderCreateInfo){
-      .file_name = Str8C("./data/shaders/topdown/topdown.fs"),
+      .file_name = Str8C("./data/TopDown/Shaders/topdown.fs"),
       .kind = RHI_ShaderKind_Fragment,
       .global_uniforms_count = 1,
     }
@@ -275,7 +277,7 @@ I32 main() {
   RHI_Shader debug_vertex_shader = RHI_CreateShader(
     topdown_context.global_arena,
     &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/topdown/debug.vs"),
+      .file_name = Str8C("./data/TopDown/Shaders/debug.vs"),
       .kind = RHI_ShaderKind_Vertex,
       .instance_uniforms_count = 1,
     }
@@ -283,7 +285,7 @@ I32 main() {
   RHI_Shader debug_fragment_shader = RHI_CreateShader(
     topdown_context.global_arena,
     &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/topdown/debug.fs"),
+      .file_name = Str8C("./data/TopDown/Shaders/debug.fs"),
       .kind = RHI_ShaderKind_Fragment,
     }
   );
@@ -305,9 +307,10 @@ I32 main() {
   OS_ShowWindow(topdown_context.window);
 
   // Load Assets
-  topdown_context.monkey_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/monkey_gltf/monkey.gltf")),
-  topdown_context.bullet_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
+  topdown_context.monkey_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/TopDown/Models/TopDown_Triangle.gltf")),
+  topdown_context.bullet_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/TopDown/Models/TopDown_Projectile.gltf"));
   topdown_context.floor_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/plane.gltf"));
+  topdown_context.bounding_box_mesh = AST_LoadStaticMeshFromGLTF(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
 
   // Init Game Objects
   topdown_context.entities = TopDown_EntityArrayAllocate(topdown_context.global_arena, 128);
@@ -332,8 +335,8 @@ I32 main() {
       topdown_context.finished = 1;
     }
 
-    if (OS_KeyPressed(OS_KEY_SPACE)) {
-      TopDown_ActivateBullet(topdown_context.player_id);
+    if (OS_KeyPressed(OS_KEY_F1)) {
+      topdown_context.debug = !topdown_context.debug;
     }
 
     // Update World
@@ -391,16 +394,17 @@ I32 main() {
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
 
-      RHI_ColorTarget debug_color_targets = {
-        .texture = swapchain_texture,
-        .load_operation = RHI_AttachmentLoadOperation_Load,
-        .store_operation = RHI_AttachmentStoreOperation_Store,
-      };
-      RHI_RenderPass* debug_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &debug_color_targets, 0);
-        RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.debug_pipeline);
-        TopDown_DrawDebugCollision();
-      RHI_EndRenderPass(topdown_context.command_buffer, debug_render_pass);
-  
+      if (topdown_context.debug) {
+        RHI_ColorTarget debug_color_targets = {
+          .texture = swapchain_texture,
+          .load_operation = RHI_AttachmentLoadOperation_Load,
+          .store_operation = RHI_AttachmentStoreOperation_Store,
+        };
+        RHI_RenderPass* debug_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &debug_color_targets, 0);
+          RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.debug_pipeline);
+          TopDown_DrawDebugCollision();
+        RHI_EndRenderPass(topdown_context.command_buffer, debug_render_pass);
+      }
     RHI_SubmitCommandBuffer(topdown_context.command_buffer);
 
     U64 end_ts = OS_GetTimeTicks();
@@ -463,6 +467,10 @@ TopDown_UpdateEntities() {
       default: {} break;
 
       case TopDown_EntityFlag_Player: {
+        if (OS_KeyPressed(OS_KEY_SPACE)) {
+          TopDown_ActivateBullet(topdown_context.player_id);
+        }
+
         Vec3F32 input_direction = MakeVec3F32(0.0f, 0.0f, 0.0f);
         if (OS_KeyDown(OS_KEY_W)) {
           input_direction.z = -1.0f;
@@ -503,12 +511,12 @@ TopDown_UpdateEntities() {
 
       case TopDown_EntityFlag_Camera: {
         TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
-        entity->camera.position = AddVec3F32(player->actor.transform.translation, MakeVec3F32(0.0f, 30.0f, 15.0f));
+        entity->camera.position = AddVec3F32(player->actor.transform.translation, MakeVec3F32(0.0f, 20.0f, 10.0f));
 
         Mat4F32 view_matrix = MakeLookAtMat4F32(entity->camera.position, player->actor.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
         Mat4F32 projection_matrix = MakePerspectiveMat4F32(
           entity->camera.fov/2.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
-          0.1f, 100.0f
+          1.0f, 100.0f
         );
         entity->camera.matrix = MulMat4F32(projection_matrix, view_matrix);
         entity->camera.inverse = InverseMat4F32(entity->camera.matrix);
@@ -518,7 +526,7 @@ TopDown_UpdateEntities() {
         if (entity->bullet.active) {
           Vec3F32 velocity = ScaleVec3F32(entity->bullet.direction, entity->movable.speed*topdown_context.dt);
           entity->actor.transform.translation = AddVec3F32(entity->actor.transform.translation, velocity);
-          entity->actor.transform.rotation = QuaternionFromEuler(0.0f, RadiansFromDegrees(720.0f)*(entity->bullet.current_time/entity->bullet.lifetime), 0.0f);
+          // entity->actor.transform.rotation = QuaternionFromEuler(0.0f, RadiansFromDegrees(720.0f)*(entity->bullet.current_time/entity->bullet.lifetime), 0.0f);
           
           entity->bullet.current_time += topdown_context.dt;
           entity->bullet.active = entity->bullet.current_time < entity->bullet.lifetime;
@@ -578,7 +586,7 @@ TopDown_DrawDebugCollision() {
 
     B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Collision) && entity->collision.active;
     if (to_draw) {
-      for (AST_GeometryListNode* geometry_node = topdown_context.bullet_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+      for (AST_GeometryListNode* geometry_node = topdown_context.bounding_box_mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
         AST_Geometry* geometry = &geometry_node->data;
 
         TopDown_BoundingBox bounding_box = entity->collision.bounding_box;
@@ -749,6 +757,7 @@ TopDown_ActivateBullet(TopDown_EntityId parent_id) {
       Vec3F32 parent_forward = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, 1.0f), parent->actor.transform.rotation);
 
       bullet->actor.transform.translation = parent->actor.transform.translation;
+      bullet->actor.transform.rotation = parent->actor.transform.rotation;
       bullet->actor.hidden = 1;
       bullet->bullet.direction = parent_forward;
       bullet->bullet.active = 1;
