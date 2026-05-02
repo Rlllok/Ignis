@@ -35,6 +35,11 @@ RHI_ResetBuffer(RHI_Buffer buffer) {
 	_r_state.device.ResetBuffer(buffer);
 }
 
+func RHI_DeviceAddress
+RHI_BufferDeviceAddress(RHI_Buffer buffer) {
+  return _r_state.device.BufferDeviceAddress(buffer);
+}
+
 func void
 RHI_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size) {
 	_r_state.device.BindIndexBuffer(command_buffer, buffer, offset, index_size);

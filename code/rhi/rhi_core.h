@@ -10,6 +10,8 @@
 typedef U32 RHI_Handle;
 #define RHI_nil 0
 
+typedef U64 RHI_DeviceAddress;
+
 typedef U8 RHI_CompareOperation;
 typedef enum RHI_CompareOperationEnum {
   RHI_CompareOperation_Equal,
@@ -21,7 +23,6 @@ typedef enum RHI_CompareOperationEnum {
 
   RHI_CompareOperation_Count,
 } RHI_CompareOperationEnum;
-
 
 // -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
@@ -37,10 +38,12 @@ typedef U32 RHI_BufferUsageFlags;
 enum {
   RHI_BufferUsageFlag_Zero = 0,
 
-  RHI_BufferUsageFlag_Vertex  = 1 << 0,
-  RHI_BufferUsageFlag_Index   = 1 << 1,
-  RHI_BufferUsageFlag_Uniform = 1 << 2,
-  RHI_BufferUsageFlag_Transfer = 1 << 3,
+  RHI_BufferUsageFlag_Vertex   = 1 << 0,
+  RHI_BufferUsageFlag_Index    = 1 << 1,
+  RHI_BufferUsageFlag_Uniform  = 1 << 2,
+  RHI_BufferUsageFlag_Storage  = 1 << 3,
+  RHI_BufferUsageFlag_Transfer = 1 << 4,
+  RHI_BufferUsageFlag_Address  = 1 << 5,
 
   RHI_BufferUsageFlag_Count
 };
@@ -56,9 +59,10 @@ enum {
 
 typedef RHI_Handle RHI_Buffer;
 
-func RHI_Buffer RHI_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
-func U64 RHI_PushBuffer(RHI_Buffer buffer, U8* data, U64 size);
-func void RHI_ResetBuffer(RHI_Buffer buffer);
+func RHI_Buffer        RHI_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
+func U64               RHI_PushBuffer(RHI_Buffer buffer, U8* data, U64 size);
+func void              RHI_ResetBuffer(RHI_Buffer buffer);
+func RHI_DeviceAddress RHI_BufferDeviceAddress(RHI_Buffer buffer);
 
 typedef U8 RHI_IndexSize;
 typedef enum RHI_IndexSizeEnum {
@@ -366,6 +370,7 @@ struct RHI_Device {
 	RHI_Buffer (*CreateBuffer)(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
 	U64 (*PushBuffer)(RHI_Buffer buffer, U8* data, U64 size);
 	void (*ResetBuffer)(RHI_Buffer buffer);
+  RHI_DeviceAddress (*BufferDeviceAddress)(RHI_Buffer buffer);
 	void (*BindIndexBuffer)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size);
 	void (*BindVertexBuffer)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset);
 
@@ -419,6 +424,7 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, CreateBuffer) \
 	AssignDeviceFunction(api_name, PushBuffer) \
 	AssignDeviceFunction(api_name, ResetBuffer) \
+	AssignDeviceFunction(api_name, BufferDeviceAddress) \
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
 	AssignDeviceFunction(api_name, BindShaderData) \

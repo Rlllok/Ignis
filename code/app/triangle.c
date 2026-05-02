@@ -11,6 +11,12 @@ struct Vertex {
   Vec3F32 position;
 };
 
+typedef struct TriangleData TriangleData;
+struct TriangleData {
+  Vec3F32 tint;
+  F32 tint_padding;
+};
+
 I32 main() {
   LogInfo("Hello\n");
 
@@ -22,30 +28,34 @@ I32 main() {
   Vec2U32 window_size = MakeVec2U32(1280, 720);
   OS_Window* window = OS_CreateWindow(Str8C("Simple Triangle Test"), window_size);
 
-  RHI_Init(RHI_RendererKind_Vulkan, window);
+  RHI_Init(window);
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
 
-  RHI_Buffer storage_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
-  Vertex vertecies[] = {
-    MakeVec3F32(0.0f, 0.5f, 0.0f),
-    MakeVec3F32(0.5f, -0.5f, 0.0f),
-    MakeVec3F32(-0.5f, -0.5f, 0.0f),
+  RHI_Buffer storage_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+  RHI_Buffer address_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Address|RHI_BufferUsageFlag_Storage, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+  RHI_DeviceAddress address_buffer_pointer = RHI_BufferDeviceAddress(address_buffer);
+
+  TriangleData triangle_datas[] = {
+    { .tint = MakeVec3F32(0.2f, 0.2f, 0.5f) },
+    { .tint = MakeVec3F32(0.9f, 0.2f, 0.5f) },
+    { .tint = MakeVec3F32(0.2f, 0.7f, 0.5f) },
   };
-  RHI_PushBuffer(storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
+  U64 triangle_data_offset = RHI_PushBuffer(address_buffer, (U8*)triangle_datas, sizeof(TriangleData)*3);
 
   RHI_Shader triangle_vertex_shader = RHI_CreateShader(
     arena,
     &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/triangle.vs.glsl"),
+      .file_name = Str8C("./data/shaders/triangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
     }
   );
   RHI_Shader triangle_fragment_shader = RHI_CreateShader(
     arena,
     &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/triangle.fs.glsl"),
+      .file_name = Str8C("./data/shaders/triangle.fs"),
       .kind = RHI_ShaderKind_Fragment,
+      .global_uniforms_count = 1,
     }
   );
 
@@ -68,7 +78,7 @@ I32 main() {
   OS_ShowWindow(window);
 
   while (!finished) {
-    OS_EventList event_list = OS_GetEventList(arena, window);
+    OS_EventList event_list = OS_DispatchEvents(arena, window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       finished = 1;
@@ -93,6 +103,30 @@ I32 main() {
         };
         RHI_SetViewport(command_buffer, rect);
         RHI_SetScissor(command_buffer, rect);
+
+        Vertex vertecies[] = {
+          MakeVec3F32(0.0f, 0.5f, 0.0f),
+          MakeVec3F32(0.5f, -0.5f, 0.0f),
+          MakeVec3F32(-0.5f, -0.5f, 0.0f),
+        };
+        U64 vertecies_offset = RHI_PushBuffer(storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
+
+        struct {
+          U64 buffer_address;
+        } global_fs_data = {
+          .buffer_address = address_buffer_pointer + triangle_data_offset,
+        };
+        U64 global_fs_data_offset = RHI_PushBuffer(storage_buffer, (U8*)&global_fs_data, sizeof(global_fs_data));
+        RHI_BindGlobalFragmentShaderData(command_buffer,
+          1, &(RHI_UniformBufferBindingInfo) {
+            .binding = 0,
+            .buffer = storage_buffer,
+            .offset = global_fs_data_offset,
+            .size = sizeof(global_fs_data),
+          },
+          0, 0
+        );
+
         RHI_BindVertexBuffer(command_buffer, storage_buffer, 0);
         RHI_DrawPrimitives(command_buffer, ArrayLength(vertecies), 1, 0, 0);
       RHI_EndRenderPass(command_buffer, triangle_pass);

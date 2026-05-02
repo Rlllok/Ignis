@@ -36,13 +36,14 @@ struct RHI_VK_Buffer {
 RHI_VK_Buffer RHI_VK_BufferNil = ZeroStruct();
 DefineArray(RHI_VK_Buffer, RHI_VK_BufferArray, RHI_VK_BufferNil)
 
-func RHI_VK_Buffer* RHI_VK_BufferFromHandle(RHI_Buffer handle);
-func RHI_Buffer     RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
-func void           RHI_VK_DestroyBuffer(RHI_Buffer buffer);
-func U64            RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size);
-func void           RHI_VK_ResetBuffer(RHI_Buffer buffer);
-func void           RHI_VK_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size);
-func void           RHI_VK_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset);
+func RHI_VK_Buffer*    RHI_VK_BufferFromHandle(RHI_Buffer handle);
+func RHI_Buffer        RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
+func void              RHI_VK_DestroyBuffer(RHI_Buffer buffer);
+func U64               RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size);
+func void              RHI_VK_ResetBuffer(RHI_Buffer buffer);
+func RHI_DeviceAddress RHI_VK_BufferDeviceAddress(RHI_Buffer buffer);
+func void              RHI_VK_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size);
+func void              RHI_VK_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset);
 
 func void RHI_VK_BufferGetData(RHI_Buffer buffer, U64 offset, void* dst, U64 data_size);
 

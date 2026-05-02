@@ -20,9 +20,15 @@ _VkFromBufferUsageFlags(RHI_BufferUsageFlags flags) {
   if(flags & RHI_BufferUsageFlag_Uniform) {
     result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
   }
+  if(flags & RHI_BufferUsageFlag_Storage) {
+    result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+  }
   if(flags & RHI_BufferUsageFlag_Transfer) {
     result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+  }
+  if (flags & RHI_BufferUsageFlag_Address) {
+    result |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
   }
 
   return result;
@@ -76,8 +82,16 @@ RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPr
     }
   }
 
+  VkMemoryAllocateFlagsInfo allocation_flags_info = {
+    .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+  };
+  if (usage_flags & RHI_BufferUsageFlag_Address) {
+    allocation_flags_info.flags |= VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+  }
+
   VkMemoryAllocateInfo allocation_info = {
     .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .pNext = &allocation_flags_info,
     .allocationSize = memory_requirements.size,
     .memoryTypeIndex = memory_type_index
   };
@@ -121,6 +135,19 @@ RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
 func void
 RHI_VK_ResetBuffer(RHI_Buffer buffer) {
+}
+
+func RHI_DeviceAddress
+RHI_VK_BufferDeviceAddress(RHI_Buffer buffer) {
+  RHI_DeviceAddress result = 0;
+
+  RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
+  VkBufferDeviceAddressInfo info = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+    .buffer = vk_buffer->vk,
+  };
+  result = vkGetBufferDeviceAddress(_rhi_vk_state.device.logical, &info);
+  return result;
 }
 
 func void
@@ -301,9 +328,20 @@ RHI_VK_CreateDevice() {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
       };
 
-      VkPhysicalDeviceVulkan13Features vulkan13_features = {0};
-      vulkan13_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-      vulkan13_features.dynamicRendering = VK_TRUE;
+      VkPhysicalDeviceVulkan12Features vulkan12_features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .descriptorIndexing = 1,
+        .shaderSampledImageArrayNonUniformIndexing = 1,
+        .descriptorBindingVariableDescriptorCount = 1,
+        .runtimeDescriptorArray = 1,
+        .bufferDeviceAddress = 1,
+      };
+
+      VkPhysicalDeviceVulkan13Features vulkan13_features = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .pNext = &vulkan12_features,
+        .dynamicRendering = 1,
+      };
 
       F32 queue_priority = 1.0f;
 
@@ -315,6 +353,7 @@ RHI_VK_CreateDevice() {
 
       VkPhysicalDeviceFeatures enabled_features = {
         .independentBlend = 1,
+        .shaderInt64 = 1,
       };
 
       VkDeviceCreateInfo device_info = {0};
@@ -1935,9 +1974,9 @@ RHI_VK_Init(OS_Window* window) {
 
   VkApplicationInfo app_info = ZeroStruct();
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  app_info.pApplicationName = "VulkanRenderingFramework";
+  app_info.pApplicationName = "Ignis_Vulkan_RHI";
   app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  app_info.pEngineName = "RenderingEngine";
+  app_info.pEngineName = "Ignis";
   app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
   app_info.apiVersion = VK_API_VERSION_1_3;
 
