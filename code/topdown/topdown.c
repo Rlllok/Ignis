@@ -16,6 +16,7 @@
 typedef struct TopDown_Material TopDown_Material;
 struct TopDown_Material {
   Vec3F32 color;
+  F32 color_padding;
 };
 
 typedef struct TopDown_BoundingBox TopDown_BoundingBox;
@@ -124,6 +125,18 @@ struct TopDown_Light {
 
 func Vec3F32 TopDown_WorldFromScreen(Vec2F32 screen_position);
 
+typedef struct TopDown_DrawCommand TopDown_DrawCommand;
+struct TopDown_DrawCommand {
+  U64 vertex_buffer_offset;
+  U64 indecies_count;
+  U64 index_buffer_offset;
+  U64 object_buffer_offset;
+};
+TopDown_DrawCommand TopDown_DrawCommandNil = ZeroStruct();
+DefineArray(TopDown_DrawCommand, TopDown_DrawCommandArray, TopDown_DrawCommandNil)
+
+func void TopDown_PrepareDrawCommands();
+
 typedef struct TopDown_Context TopDown_Context;
 struct TopDown_Context {
   Arena* global_arena;
@@ -135,6 +148,8 @@ struct TopDown_Context {
   // RHI Objects
   RHI_CommandBuffer    command_buffer;
   RHI_Buffer           frame_buffer;
+  RHI_Buffer           vertex_buffer;
+  RHI_Buffer           object_buffer;
   RHI_Buffer           transfer_buffer;
   RHI_Texture          default_texture;
   RHI_Texture          depth_texture;
@@ -158,6 +173,9 @@ struct TopDown_Context {
   TopDown_EntityId    player_id;
   TopDown_EntityId    first_bullet_id;
   U32                 max_bullet_count;
+
+  // Rendering
+  TopDown_DrawCommandArray draw_commands;
 } topdown_context = ZeroStruct();
 
 func TopDown_Entity*
@@ -176,7 +194,11 @@ I32 main() {
   // Init RHI Objects
   topdown_context.command_buffer = RHI_GetCommandBuffer();
   topdown_context.frame_buffer = RHI_CreateBuffer(Megabytes(64), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index|RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent);
+  topdown_context.vertex_buffer = RHI_CreateBuffer(Megabytes(64), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent);
+  topdown_context.object_buffer = RHI_CreateBuffer(Megabytes(64), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent);
   topdown_context.transfer_buffer = RHI_CreateBuffer(Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
+
+  topdown_context.draw_commands = TopDown_DrawCommandArrayAllocate(topdown_context.global_arena, 2048);
 
   I32 tex_width = 0;
   I32 tex_height = 0;
@@ -210,7 +232,7 @@ I32 main() {
     &(RHI_ShaderCreateInfo){
       .file_name = Str8C("./data/TopDown/Shaders/topdown.vs"),
       .kind = RHI_ShaderKind_Vertex,
-      .instance_uniforms_count = 1,
+      .global_uniforms_count = 1,
     }
   );
   RHI_Shader fragment_shader = RHI_CreateShader(
@@ -259,8 +281,6 @@ I32 main() {
     &(RHI_GraphicsPipelineCreateInfo) {
       .vertex_shader = vertex_shader,
       .fragment_shader = fragment_shader,
-      .vertex_attributes_count = ArrayLength(vertex_attributes),
-      .vertex_attributes = vertex_attributes,
       .color_targets_count = 1,
       .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
         .format = RHI_GetSwapchainTextureFormat(),
@@ -343,6 +363,8 @@ I32 main() {
     TopDown_UpdateEntities();
 
     // Draw World
+    TopDown_PrepareDrawCommands();
+
     RHI_BeginCommandBuffer(topdown_context.command_buffer);
       RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(topdown_context.command_buffer);
 
@@ -459,6 +481,42 @@ TopDown_WorldFromScreen(Vec2F32 screen_position)  {
 }
 
 func void
+TopDown_PrepareDrawCommands() {
+  TopDown_DrawCommandArrayReset(&topdown_context.draw_commands);
+
+  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
+    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
+    TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+
+    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Actor) && (!entity->actor.hidden);
+    if (to_draw) {
+      for (AST_GeometryListNode* geometry_node = entity->actor.mesh->geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+        AST_Geometry* geometry = &geometry_node->data;
+
+        struct {
+          Mat4F32 transform;
+          Mat4F32 camera_transform;
+          TopDown_Material material;
+          RHI_DeviceAddress vertex_ptr;
+        } object_data = {
+          .transform = Mat4F32FromTransform(entity->actor.transform),
+          .camera_transform = camera->camera.matrix,
+          .material = entity->actor.material,
+          .vertex_ptr = RHI_BufferDeviceAddress(topdown_context.vertex_buffer) + RHI_PushBuffer(topdown_context.vertex_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex)),
+        };
+
+        TopDown_DrawCommand draw_command = {
+          .indecies_count = geometry->index_count,
+          .index_buffer_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_count*geometry->index_size),
+          .object_buffer_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&object_data, sizeof(object_data)),
+        };
+        TopDown_DrawCommandArrayAdd(&topdown_context.draw_commands, draw_command);
+      }
+    }
+  }
+}
+
+func void
 TopDown_UpdateEntities() {
   for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
     TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
@@ -540,41 +598,32 @@ TopDown_UpdateEntities() {
 
 func void
 TopDown_DrawEntities() {
-  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
-    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
-    TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+  if (topdown_context.draw_commands.length == 0) return;
 
-    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Actor) && (!entity->actor.hidden);
-    if (to_draw) {
-      for (AST_GeometryListNode* geometry_node = entity->actor.mesh->geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
-        AST_Geometry* geometry = &geometry_node->data;
-        
-        struct {
-          Mat4F32 transform;
-          Mat4F32 camera_transform;
-          TopDown_Material material;
-        } instance_vs_data = {
-          .transform = Mat4F32FromTransform(entity->actor.transform),
-          .camera_transform = camera->camera.matrix,
-          .material = entity->actor.material,
-        };
+    TopDown_DrawCommand* first_draw_command = TopDown_DrawCommandArrayGetPointer(&topdown_context.draw_commands, 0);
 
-        U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
-        U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
-        U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
+  struct {
+    RHI_DeviceAddress object_buffer_address;
+  } address = {
+    .object_buffer_address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + first_draw_command->object_buffer_offset,
+  };
+  U64 address_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&address, sizeof(address));
 
-        RHI_BindInstanceVertexShaderData(topdown_context.command_buffer, 1, &(RHI_UniformBufferBindingInfo){
-          .binding = 0,
-          .buffer = topdown_context.frame_buffer,
-          .offset = instance_vs_data_offset,
-          .size = sizeof(instance_vs_data),
-        },
-        0, 0);
-        RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
-        RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
-        RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
-      }
-    }
+  RHI_BindGlobalVertexShaderData(topdown_context.command_buffer,
+    1, &(RHI_UniformBufferBindingInfo) {
+      .binding = 0,
+      .buffer = topdown_context.frame_buffer,
+      .offset = address_offset,
+      .size = sizeof(address),
+    },
+    0, 0
+  );
+
+  for (I32 draw_command_index = 0; draw_command_index < topdown_context.draw_commands.length; draw_command_index += 1) {
+    TopDown_DrawCommand* draw_command = TopDown_DrawCommandArrayGetPointer(&topdown_context.draw_commands, draw_command_index);
+
+    RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, draw_command->index_buffer_offset, RHI_IndexSize_U16);
+    RHI_DrawIndexedPrimitives(topdown_context.command_buffer, draw_command->indecies_count, 1, 0, 0, draw_command_index);
   }
 }
 

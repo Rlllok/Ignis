@@ -127,7 +127,8 @@ RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
 	memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
 	vk_buffer->size += size;
-	U64 padding = 64 - (vk_buffer->size + 64)%64;
+  U64 allignment = 16;
+	U64 padding = allignment - (vk_buffer->size + allignment)%allignment;
 	vk_buffer->size += padding;
 
 	return offset;

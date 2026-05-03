@@ -7,9 +7,13 @@ typedef struct AST_Vertex AST_Vertex;
 struct AST_Vertex
 {
   Vec3F32 position;
+  F32 pad0;
   Vec3F32 normal;
+  F32 pad1;
   Vec3F32 tangent;
+  F32 pad2;
   Vec2F32 uv;
+  F32 pad3[2];
   Vec4I32 joint_ids;
   Vec4F32 joint_weights;
 };

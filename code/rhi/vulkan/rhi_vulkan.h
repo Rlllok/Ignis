@@ -19,7 +19,8 @@
 #include "third_party/glslang/include/Include/glslang_c_interface.h"
 #include "third_party/glslang/include/Public/resource_limits_c.h"
 
-#define VK_CHECK(expression) Assert((expression) == VK_SUCCESS)
+VkResult VK_CHECK_RESULT = VK_SUCCESS;
+#define VK_CHECK(expression) VK_CHECK_RESULT = expression; Assert((VK_CHECK_RESULT) == VK_SUCCESS)
 
 #include "rhi_vk_utils.h"
 
