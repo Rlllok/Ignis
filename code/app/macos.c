@@ -110,19 +110,19 @@ I32 main() {
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
 
-  RHI_Shader vertex_shader = RHI_CreateShaderNew(
+  RHI_Shader vertex_shader = RHI_CreateShader(
     app_context.arena,
-    &(RHI_ShaderCreateInfoNew) {
+    &(RHI_ShaderCreateInfo) {
       .file_name = Str8C("./data/shaders/macos/triangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
-      .arguments[0] = {
+      .arguments_info = {
         .size = sizeof(Arguments),
       }
     }
   );
-  RHI_Shader fragment_shader = RHI_CreateShaderNew(
+  RHI_Shader fragment_shader = RHI_CreateShader(
     app_context.arena,
-    &(RHI_ShaderCreateInfoNew) {
+    &(RHI_ShaderCreateInfo) {
       .file_name = Str8C("./data/shaders/macos/triangle.fs"),
       .kind = RHI_ShaderKind_Fragment,
     }
@@ -141,7 +141,7 @@ I32 main() {
       .format = RHI_GetSwapchainTextureFormat(),
     },
   };
-  app_context.pipeline = RHI_CreateGraphicsPipelineNew(&pipeline_info);
+  app_context.pipeline = RHI_CreateGraphicsPipeline(&pipeline_info);
 
   U64 start_ts = OS_GetTimeTicks();
   while (!app_context.finished) {
@@ -191,7 +191,7 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
       },
     };
 
-    RHI_RenderPass* render_pass = RHI_BeginRenderPassNew(command_buffer, 1, &color_target, 0, resources, ArrayLength(resources));
+    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0, resources, ArrayLength(resources));
       RectI32 viewport = {
         .x = 0,
         .y = 0,
@@ -201,18 +201,15 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
       RHI_SetViewport(command_buffer, viewport);
       RHI_SetScissor(command_buffer, viewport);
       RHI_BindGraphicsPipeline(command_buffer, app_context.pipeline);
-      Arguments args = {
-        .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
-        .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer),
-      };
+        Arguments args = {
+          .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
+          .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer),
+        };
         RHI_BindShaderArgument(command_buffer, (RHI_ShaderArgument){
-          .slot = 4,
           .stage = RHI_ShaderKind_Vertex,
-          .buffer = app_context.arguments_buffer,
           .size = sizeof(args),
           .data = (U8*)&args,
         });
-
 
         RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
         RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);

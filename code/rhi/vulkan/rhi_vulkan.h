@@ -101,8 +101,7 @@ func B32 RHI_VK_RenderPassEqual(RHI_VK_RenderPass a, RHI_VK_RenderPass b);
 
 func RHI_VK_RenderPass* RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
 func VkRenderPass       RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info);
-func RHI_RenderPass*    RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
-func RHI_RenderPass*    RHI_VK_BeginRenderPassNew(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
+func RHI_RenderPass*    RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
 func void               RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
 
 // -------------------------------------------------------------------
@@ -149,7 +148,6 @@ func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind
 #define RHI_VK_MAX_OBJECTS 1024
 
 func RHI_Shader RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
-func RHI_Shader RHI_VK_CreateShaderNew(Arena* arena, RHI_ShaderCreateInfoNew* info);
 
 typedef struct RHI_VK_GraphicsPipeline RHI_VK_GraphicsPipeline;
 struct RHI_VK_GraphicsPipeline {
@@ -163,7 +161,6 @@ DefineArray(RHI_VK_GraphicsPipeline, RHI_VK_GraphicsPipelineArray, RHI_VK_Graphi
 
 func RHI_VK_GraphicsPipeline* RHI_VK_GraphicsPipelineFromHandle(RHI_GraphicsPipeline pipeline);
 func RHI_GraphicsPipeline     RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info);
-func RHI_GraphicsPipeline     RHI_VK_CreateGraphicsPipelineNew(RHI_GraphicsPipelineCreateInfo* info);
 func void                     RHI_VK_DestroyGraphicsPipeline(RHI_GraphicsPipeline pipeline);
 func void                     RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline);
 

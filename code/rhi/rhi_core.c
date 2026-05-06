@@ -152,13 +152,8 @@ RHI_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 // -- Render Pass ----------------------------------------------------
 
 func RHI_RenderPass*
-RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target) {
-	return _r_state.device.BeginRenderPass(command_buffer, color_targets_count, color_targets, depth_stencil_target);
-}
-
-func RHI_RenderPass*
-RHI_BeginRenderPassNew(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count) {
-	return _r_state.device.BeginRenderPassNew(command_buffer, color_targets_count, color_targets, depth_stencil_target, resources, resources_count);
+RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count) {
+	return _r_state.device.BeginRenderPass(command_buffer, color_targets_count, color_targets, depth_stencil_target, resources, resources_count);
 }
 
 func void
@@ -186,19 +181,9 @@ RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
   return _r_state.device.CreateShader(arena, info);
 }
 
-func RHI_Shader
-RHI_CreateShaderNew(Arena* arena, RHI_ShaderCreateInfoNew* info) {
-  return _r_state.device.CreateShaderNew(arena, info);
-}
-
 func RHI_GraphicsPipeline
 RHI_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
 	return _r_state.device.CreateGraphicsPipeline(info);
-}
-
-func RHI_GraphicsPipeline
-RHI_CreateGraphicsPipelineNew(RHI_GraphicsPipelineCreateInfo* info) {
-	return _r_state.device.CreateGraphicsPipelineNew(info);
 }
 
 func void
