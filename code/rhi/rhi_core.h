@@ -294,6 +294,7 @@ typedef struct RHI_ShaderArgumentInfo RHI_ShaderArgumentInfo;
 struct RHI_ShaderArgumentInfo {
   I32                            bindings_count;
   RHI_ShaderArgumentBindingInfo* bindings;
+  U32                            size;
 };
 
 typedef struct RHI_ShaderArgument RHI_ShaderArgument;
@@ -303,6 +304,8 @@ struct RHI_ShaderArgument {
   RHI_Buffer buffer; // --AlNov: @TODO To make just work with Metal Argument Buffer (How to find a common place between metal tier2 model and vulkan?)
   I32                        bindings_count; 
   RHI_ShaderArgumentBinding* bindings;
+  U8*                        data;
+  U64                        size;
 };
 
 typedef struct RHI_Shader RHI_Shader;

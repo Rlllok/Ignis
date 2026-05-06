@@ -38,7 +38,7 @@ RHI_VK_Buffer RHI_VK_BufferNil = ZeroStruct();
 DefineArray(RHI_VK_Buffer, RHI_VK_BufferArray, RHI_VK_BufferNil)
 
 func RHI_VK_Buffer*    RHI_VK_BufferFromHandle(RHI_Buffer handle);
-func RHI_Buffer        RHI_VK_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
+func RHI_Buffer        RHI_VK_CreateBuffer(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
 func void              RHI_VK_DestroyBuffer(RHI_Buffer buffer);
 func U64               RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size);
 func void              RHI_VK_ResetBuffer(RHI_Buffer buffer);
@@ -102,6 +102,7 @@ func B32 RHI_VK_RenderPassEqual(RHI_VK_RenderPass a, RHI_VK_RenderPass b);
 func RHI_VK_RenderPass* RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
 func VkRenderPass       RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info);
 func RHI_RenderPass*    RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
+func RHI_RenderPass*    RHI_VK_BeginRenderPassNew(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
 func void               RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
 
 // -------------------------------------------------------------------
@@ -148,29 +149,21 @@ func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind
 #define RHI_VK_MAX_OBJECTS 1024
 
 func RHI_Shader RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
+func RHI_Shader RHI_VK_CreateShaderNew(Arena* arena, RHI_ShaderCreateInfoNew* info);
 
 typedef struct RHI_VK_GraphicsPipeline RHI_VK_GraphicsPipeline;
 struct RHI_VK_GraphicsPipeline {
   VkPipeline            vk;
   VkPipelineLayout      layout;
-	VkDescriptorSetLayout vertex_global_set_layout;
-	VkDescriptorSetLayout vertex_instance_set_layout;
-	VkDescriptorSetLayout fragment_global_set_layout;
-	VkDescriptorSetLayout fragment_instance_set_layout;
-	U32                   vertex_global_uniforms_count;
-  U32                   vertex_global_samplers_count;
-  U32                   vertex_instance_uniforms_count;
-  U32                   vertex_instance_samplers_count;
-	U32                   fragment_global_uniforms_count;
-	U32                   fragment_global_samplers_count;
-  U32                   fragment_instance_uniforms_count;
-  U32                   fragment_instance_samplers_count;
+  RHI_Shader*           vertex_shader; // --AlNov: @TODO Not really like the idea of pointer to RHI_Shader
+  RHI_Shader*           fragment_shader;
 };
 RHI_VK_GraphicsPipeline RHI_VK_GraphicsPipelineNil = {0};
 DefineArray(RHI_VK_GraphicsPipeline, RHI_VK_GraphicsPipelineArray, RHI_VK_GraphicsPipelineNil)
 
 func RHI_VK_GraphicsPipeline* RHI_VK_GraphicsPipelineFromHandle(RHI_GraphicsPipeline pipeline);
 func RHI_GraphicsPipeline     RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info);
+func RHI_GraphicsPipeline     RHI_VK_CreateGraphicsPipelineNew(RHI_GraphicsPipelineCreateInfo* info);
 func void                     RHI_VK_DestroyGraphicsPipeline(RHI_GraphicsPipeline pipeline);
 func void                     RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline);
 

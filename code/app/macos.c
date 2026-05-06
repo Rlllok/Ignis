@@ -65,7 +65,7 @@ I32 main() {
 
   OS_ShowWindow(app_context.window);
 
-  app_context.storage_buffer = RHI_CreateBuffer(Str8C("StorageBuffer"), Megabytes(16), RHI_BufferUsageFlag_Vertex, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+  app_context.storage_buffer = RHI_CreateBuffer(Str8C("StorageBuffer"), Megabytes(16), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   Vertex vertecies[] = {
     MakeVec3F32(0.0f, 0.5f, 0.0f),
     MakeVec3F32(0.5f, -0.5f, 0.0f),
@@ -73,7 +73,7 @@ I32 main() {
   };
   app_context.vertecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
 
-  app_context.materials_buffer = RHI_CreateBuffer(Str8C("MaterialsBuffer"), Megabytes(16), 0, 0);
+  app_context.materials_buffer = RHI_CreateBuffer(Str8C("MaterialsBuffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   Material materials [] = {
     MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
     MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
@@ -81,7 +81,7 @@ I32 main() {
   };
   RHI_PushBuffer(app_context.materials_buffer, (U8*)materials, sizeof(Material)*3);
 
-  app_context.entity_datas_buffer = RHI_CreateBuffer(Str8C("ObjectsDataBuffer"), Megabytes(16), 0, 0);
+  app_context.entity_datas_buffer = RHI_CreateBuffer(Str8C("ObjectsDataBuffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   EntityData entity_datas[] = {
     {
       .translation = MakeVec4F32(-1.0f, 0.0f, 0.0f, 1.0f),
@@ -95,7 +95,7 @@ I32 main() {
   };
   RHI_PushBuffer(app_context.entity_datas_buffer, (U8*)entity_datas, sizeof(EntityData)*3);
 
-  app_context.arguments_buffer = RHI_CreateBuffer(Str8C("ArgumentsBuffer"), Megabytes(16), 0, 0);
+  app_context.arguments_buffer = RHI_CreateBuffer(Str8C("ArgumentsBuffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   RHI_DeviceAddress materials_buffer_address = RHI_BufferDeviceAddress(app_context.materials_buffer);
   Arguments args = {
     .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
@@ -110,16 +110,19 @@ I32 main() {
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
 
-  RHI_Shader vertex_shader = RHI_CreateShader(
+  RHI_Shader vertex_shader = RHI_CreateShaderNew(
     app_context.arena,
-    &(RHI_ShaderCreateInfo) {
+    &(RHI_ShaderCreateInfoNew) {
       .file_name = Str8C("./data/shaders/macos/triangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
+      .arguments[0] = {
+        .size = sizeof(Arguments),
+      }
     }
   );
-  RHI_Shader fragment_shader = RHI_CreateShader(
+  RHI_Shader fragment_shader = RHI_CreateShaderNew(
     app_context.arena,
-    &(RHI_ShaderCreateInfo) {
+    &(RHI_ShaderCreateInfoNew) {
       .file_name = Str8C("./data/shaders/macos/triangle.fs"),
       .kind = RHI_ShaderKind_Fragment,
     }
@@ -138,7 +141,7 @@ I32 main() {
       .format = RHI_GetSwapchainTextureFormat(),
     },
   };
-  app_context.pipeline = RHI_CreateGraphicsPipeline(&pipeline_info);
+  app_context.pipeline = RHI_CreateGraphicsPipelineNew(&pipeline_info);
 
   U64 start_ts = OS_GetTimeTicks();
   while (!app_context.finished) {
@@ -196,12 +199,20 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
         .h = app_context.window->size.h,
       };
       RHI_SetViewport(command_buffer, viewport);
+      RHI_SetScissor(command_buffer, viewport);
       RHI_BindGraphicsPipeline(command_buffer, app_context.pipeline);
+      Arguments args = {
+        .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
+        .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer),
+      };
         RHI_BindShaderArgument(command_buffer, (RHI_ShaderArgument){
           .slot = 4,
           .stage = RHI_ShaderKind_Vertex,
           .buffer = app_context.arguments_buffer,
+          .size = sizeof(args),
+          .data = (U8*)&args,
         });
+
 
         RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
         RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);
