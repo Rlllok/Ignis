@@ -22,12 +22,10 @@ func RHI_Metal_Buffer* RHI_Metal_BufferFromHandle(RHI_Buffer handle);
 typedef struct RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipeline;
 struct RHI_Metal_GraphicsPipeline {
   id<MTLRenderPipelineState> mtl;
-  id<MTLArgumentEncoder>     vertex_global_argument_encoder;
-  id<MTLArgumentEncoder>     vertex_instance_argument_encoder;
-  id<MTLArgumentEncoder>     fragment_global_argument_encoder;
-  id<MTLArgumentEncoder>     fragment_instance_argument_encoder;
-  RHI_Shader* vertex_shader; // --AlNov: @TODO Not really like the idea of pointer to RHI_Shader
-  RHI_Shader* fragment_shader;
+  RHI_Shader*                vertex_shader; // --AlNov: @TODO Not really like the idea of pointer to RHI_Shader
+  id<MTL4ArgumentTable>      vertex_argument_table;
+  RHI_Shader*                fragment_shader;
+  id<MTL4ArgumentTable>      fragment_argument_table;
   id<MTLDepthStencilState>   depth_stencil_state;
 };
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();
@@ -52,8 +50,10 @@ func RHI_Metal_Texture* RHI_Metal_TextureFromHandle(RHI_Texture handle);
 // -- Command Buffer -------------------------------------------------
 typedef struct RHI_Metal_CommandBuffer RHI_Metal_CommandBuffer;
 struct RHI_Metal_CommandBuffer {
-  id<MTLCommandBuffer>        mtl;
-  id<MTLRenderCommandEncoder> render_encoder;
+  id<MTL4CommandBuffer>        mtl;
+  id<MTL4CommandAllocator>     allocator[RHI_FRAMES_IN_FLIGHT];
+  id<MTLResidencySet>          residency_set[RHI_FRAMES_IN_FLIGHT];
+  id<MTL4RenderCommandEncoder> render_encoder;
 
   RHI_Metal_GraphicsPipeline* current_graphics_pipeline;
 
@@ -87,7 +87,7 @@ struct RHI_Metal_Context {
   OS_MacOS_Window* window;
 
   id<MTLDevice>       device;
-  id<MTLCommandQueue> command_queue;
+  id<MTL4CommandQueue> command_queue;
 
   MTLPixelFormat drawable_texture_format;
   id<CAMetalDrawable> current_drawable;
@@ -99,5 +99,7 @@ struct RHI_Metal_Context {
   RHI_Metal_BufferArray           data_buffers;
   RHI_Metal_GraphicsPipelineArray graphics_pipelines;
   RHI_Metal_TextureArray          textures;
+
+  I32 current_frame;
 } _rhi_metal_context;
 

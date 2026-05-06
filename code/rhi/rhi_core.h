@@ -391,7 +391,6 @@ struct RHI_Device {
 	void (*BindVertexBuffer)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset);
 
 	// Uniform Data
-  void (*BindShaderData)(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
   void (*BindShaderArgument)(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument);
 
   // Texture
@@ -444,7 +443,6 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, BufferDeviceAddress) \
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
-	AssignDeviceFunction(api_name, BindShaderData) \
 	AssignDeviceFunction(api_name, BindShaderArgument) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \

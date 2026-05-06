@@ -82,18 +82,6 @@ I32 main() {
   RHI_PushBuffer(app_context.materials_buffer, (U8*)materials, sizeof(Material)*3);
 
   app_context.entity_datas_buffer = RHI_CreateBuffer(Str8C("ObjectsDataBuffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
-  EntityData entity_datas[] = {
-    {
-      .translation = MakeVec4F32(-1.0f, 0.0f, 0.0f, 1.0f),
-    },
-    {
-      .translation = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
-    },
-    {
-      .translation = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
-    },
-  };
-  RHI_PushBuffer(app_context.entity_datas_buffer, (U8*)entity_datas, sizeof(EntityData)*3);
 
   app_context.arguments_buffer = RHI_CreateBuffer(Str8C("ArgumentsBuffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   RHI_DeviceAddress materials_buffer_address = RHI_BufferDeviceAddress(app_context.materials_buffer);
@@ -171,6 +159,29 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
   if (animation_time > animation_duration) {
     animation_time = 0.0f;
   }
+  struct {
+        Vec3F32 translation;
+      } uniform_data = {
+        .translation = LerpVec3F32(MakeVec3F32(-1.0f, 0.0f, 0.0f), MakeVec3F32(1.0f, 0.0f, 0.0f), animation_time/animation_duration),
+      };
+    Vec3F32 positions[3] = {
+      LerpVec3F32(MakeVec3F32(-1.0f, 0.0f, 0.0f), MakeVec3F32(0.0f, 0.25f, 0.0f), animation_time/animation_duration),
+      LerpVec3F32(MakeVec3F32( 0.0f, 0.0f, 0.0f), MakeVec3F32(0.0f, 0.5f, 0.0f), animation_time/animation_duration),
+      LerpVec3F32(MakeVec3F32( 1.0f, 0.0f, 0.0f), MakeVec3F32(0.0f, 1.0f, 0.0f), animation_time/animation_duration),
+    };
+  EntityData entity_datas[] = {
+    {
+      .translation = MakeVec4F32(positions[0].x, positions[0].y, positions[0].z, 1.0f),
+    },
+    {
+      .translation = MakeVec4F32(positions[1].x, positions[1].y, positions[1].z, 1.0f),
+    },
+    {
+      .translation = MakeVec4F32(positions[2].x, positions[2].y, positions[2].z, 1.0f),
+    },
+  };
+  U64 entity_datas_offset = RHI_PushBuffer(app_context.entity_datas_buffer, (U8*)entity_datas, sizeof(EntityData)*3);
+  animation_time += dt;
 
   RHI_BeginCommandBuffer(command_buffer);
     RHI_Texture swapchain_texture = RHI_AcquireSwapchainTexture(command_buffer);
@@ -183,6 +194,9 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
     };
 
     RHI_Resource resources[] = {
+      {
+        .buffer = app_context.storage_buffer,
+      },
       {
         .buffer = app_context.materials_buffer,
       },
@@ -203,7 +217,7 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
       RHI_BindGraphicsPipeline(command_buffer, app_context.pipeline);
         Arguments args = {
           .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
-          .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer),
+          .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer) + entity_datas_offset,
         };
         RHI_BindShaderArgument(command_buffer, (RHI_ShaderArgument){
           .stage = RHI_ShaderKind_Vertex,
