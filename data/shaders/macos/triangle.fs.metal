@@ -5,6 +5,6 @@ struct VertexOut {
   float4 color;
 };
 
-fragment float4 fragment_main(VertexOut in [[stage_in]]) {
+fragment float4 FragmentMain(VertexOut in [[stage_in]]) {
   return in.color;
 }

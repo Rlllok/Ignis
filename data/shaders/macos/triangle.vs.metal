@@ -4,12 +4,17 @@ struct VertexIn {
   float4 position [[attribute(0)]];
 };
 
-struct InstanceUniformData {
-  float3 translation;
+struct Material {
+  float4 color;
 };
 
-struct IntanceDataBuffer {
-  device InstanceUniformData* uniform [[id(0)]];
+struct EntityData {
+  float4 translation;
+};
+
+struct Arguments {
+  device Material* materials;
+  device EntityData* entity_datas;
 };
 
 struct VertexOut {
@@ -17,19 +22,21 @@ struct VertexOut {
   float4 color;
 };
 
-vertex VertexOut vertex_main(
+vertex VertexOut VertexMain(
   VertexIn vertex_data [[stage_in]],
-  constant IntanceDataBuffer& instance_data_buffer [[buffer(3)]],
-  uint vid [[vertex_id]]
+  uint vid [[vertex_id]],
+  uint instance_index [[instance_id]],
+  constant Arguments& args [[buffer(4)]]
 ) {
-  const float3 colors[3] = {
-      float3(1.0, 0.0, 0.0), // Red
-      float3(0.0, 1.0, 0.0), // Green
-      float3(0.0, 0.0, 1.0)  // Blue
-  };
 
   VertexOut out = {0};
-  out.position = vertex_data.position + float4(instance_data_buffer.uniform->translation, 0.0f);
-  out.color = float4(colors[vid], 1.0);
+  out.position = vertex_data.position + args.entity_datas[instance_index].translation;
+  if((uint64_t)args.materials < 0x1000 || (uint64_t)args.materials > 0x7FFFFFFFFFFF) {
+    out.color = float4(0, 1, 0, 1);
+  }
+  else {
+    Material material = args.materials[instance_index];
+    out.color = material.color;
+  }
   return out;
 }

@@ -59,7 +59,7 @@ enum {
 
 typedef RHI_Handle RHI_Buffer;
 
-func RHI_Buffer        RHI_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
+func RHI_Buffer        RHI_CreateBuffer(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
 func U64               RHI_PushBuffer(RHI_Buffer buffer, U8* data, U64 size);
 func void              RHI_ResetBuffer(RHI_Buffer buffer);
 func RHI_DeviceAddress RHI_BufferDeviceAddress(RHI_Buffer buffer);
@@ -225,6 +225,14 @@ struct RHI_DepthStencilTarget {
   F32                clear_depth;
 };
 
+typedef struct RHI_Resource RHI_Resource;
+struct RHI_Resource {
+  // --AlNov: @TODO Only Buffer for now
+  RHI_Buffer buffer;
+  // --AlNov: @TODO RHI_ResourceUsage usage;
+  // --AlNvo: @TODO RHI_RenderStage stage;
+};
+
 typedef struct RHI_RenderPass RHI_RenderPass;
 struct RHI_RenderPass {
   RHI_ColorTarget        color_targets[RHI_MAX_COLOR_ATTACHMENTS];
@@ -233,6 +241,7 @@ struct RHI_RenderPass {
 };
 
 func RHI_RenderPass* RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
+func RHI_RenderPass* RHI_BeginRenderPassNew(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
 func RHI_RenderPass* RHI_BeginRenderPassOld(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
 func void            RHI_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
 
@@ -254,6 +263,48 @@ typedef enum RHI_ShaderLanguageEnum {
   RHI_ShaderLanguage_Count
 } RHI_ShaderLanguageEnum;
 
+typedef U8 RHI_ShaderArgumentBindingKind;
+enum RHI_ShaderArgumentBindingKindEnum {
+  RHI_ShaderArgumentBindingKind_None,
+  RHI_ShaderArgumentBindingKind_Uniform,
+  RHI_ShaderArgumentBindingKind_Texture2D,
+  RHI_ShaderArgumentBindingKind_BufferAddress,
+};
+
+typedef struct RHI_ShaderArgumentBindingInfo RHI_ShaderArgumentBindingInfo;
+struct RHI_ShaderArgumentBindingInfo {
+  I32                           binding_slot;
+  RHI_ShaderArgumentBindingKind kind;
+};
+
+typedef struct RHI_ShaderArgumentBinding RHI_ShaderArgumentBinding;
+struct RHI_ShaderArgumentBinding {
+  I32                           binding_slot;
+  RHI_ShaderArgumentBindingKind kind;
+  union {
+    struct {
+      RHI_Buffer buffer;
+      U64        offset;
+    } buffer;
+  };
+};
+
+#define RHI_MaxShaderArgumentCount 4
+typedef struct RHI_ShaderArgumentInfo RHI_ShaderArgumentInfo;
+struct RHI_ShaderArgumentInfo {
+  I32                            bindings_count;
+  RHI_ShaderArgumentBindingInfo* bindings;
+};
+
+typedef struct RHI_ShaderArgument RHI_ShaderArgument;
+struct RHI_ShaderArgument {
+  I32                        slot;
+  RHI_ShaderKind             stage;
+  RHI_Buffer buffer; // --AlNov: @TODO To make just work with Metal Argument Buffer (How to find a common place between metal tier2 model and vulkan?)
+  I32                        bindings_count; 
+  RHI_ShaderArgumentBinding* bindings;
+};
+
 typedef struct RHI_Shader RHI_Shader;
 struct RHI_Shader {
   RHI_ShaderKind     kind;
@@ -264,6 +315,7 @@ struct RHI_Shader {
   I32                global_samplers_count;
   I32                instance_uniforms_count;
   I32                instance_samplers_count;
+  RHI_ShaderArgumentInfo arguments[4];
 };
 
 typedef U8 RHI_VertexAttributeFormat;
@@ -327,8 +379,8 @@ struct RHI_GraphicsPipelineColorTargetInfo {
 
 typedef struct RHI_GraphicsPipelineCreateInfo RHI_GraphicsPipelineCreateInfo;
 struct RHI_GraphicsPipelineCreateInfo {
-	RHI_Shader                           vertex_shader;
-	RHI_Shader                           fragment_shader;
+	RHI_Shader*                          vertex_shader;
+	RHI_Shader*                          fragment_shader;
 	U32                                  vertex_attributes_count;
 	RHI_VertexAttribute*                 vertex_attributes;
   U32                                  color_targets_count;
@@ -349,7 +401,17 @@ struct RHI_ShaderCreateInfo {
 };
 func RHI_Shader           RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
 func RHI_GraphicsPipeline RHI_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info);
+func RHI_GraphicsPipeline RHI_CreateGraphicsPipelineNew(RHI_GraphicsPipelineCreateInfo* info);
 func void                 RHI_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline);
+
+typedef struct RHI_ShaderCreateInfoNew RHI_ShaderCreateInfoNew;
+struct RHI_ShaderCreateInfoNew {
+  Str8                   file_name;
+  RHI_ShaderKind         kind;
+  RHI_ShaderArgumentInfo arguments[RHI_MaxShaderArgumentCount];
+};
+
+func RHI_Shader RHI_CreateShaderNew(Arena* arena, RHI_ShaderCreateInfoNew* info);
 
 // -------------------------------------------------------------------
 // -- Set States And Draw --------------------------------------------
@@ -367,7 +429,7 @@ struct RHI_Device {
   B32 (*Shutdown)(void);
 
 	// Buffer
-	RHI_Buffer (*CreateBuffer)(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
+	RHI_Buffer (*CreateBuffer)(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
 	U64 (*PushBuffer)(RHI_Buffer buffer, U8* data, U64 size);
 	void (*ResetBuffer)(RHI_Buffer buffer);
   RHI_DeviceAddress (*BufferDeviceAddress)(RHI_Buffer buffer);
@@ -376,6 +438,7 @@ struct RHI_Device {
 
 	// Uniform Data
   void (*BindShaderData)(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
+  void (*BindShaderArgument)(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument);
 
   // Texture
   RHI_Texture (*CreateTexture)(RHI_TextureCreateInfo* info);
@@ -400,13 +463,16 @@ struct RHI_Device {
 
 	// Render Pass
 	RHI_RenderPass* (*BeginRenderPass)(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
+	RHI_RenderPass* (*BeginRenderPassNew)(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
 	void (*EndRenderPass)(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
 
   // Shader
   RHI_Shader (*CreateShader)(Arena* arena, RHI_ShaderCreateInfo* info);
+  RHI_Shader (*CreateShaderNew)(Arena* arena, RHI_ShaderCreateInfoNew* info);
 	
 	// Graphics Pipeline
 	RHI_GraphicsPipeline (*CreateGraphicsPipeline)(RHI_GraphicsPipelineCreateInfo* info);
+	RHI_GraphicsPipeline (*CreateGraphicsPipelineNew)(RHI_GraphicsPipelineCreateInfo* info);
 	void (*BindGraphicsPipeline)(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline);
 
 	// State and Draw
@@ -428,6 +494,7 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
 	AssignDeviceFunction(api_name, BindShaderData) \
+	AssignDeviceFunction(api_name, BindShaderArgument) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
   AssignDeviceFunction(api_name, LoadDataToTexture) \
@@ -443,9 +510,12 @@ struct RHI_Device {
   AssignDeviceFunction(api_name, GetSwapchainTextureFormat) \
 	AssignDeviceFunction(api_name, AcquireSwapchainTexture) \
 	AssignDeviceFunction(api_name, BeginRenderPass) \
+	AssignDeviceFunction(api_name, BeginRenderPassNew) \
 	AssignDeviceFunction(api_name, EndRenderPass) \
   AssignDeviceFunction(api_name, CreateShader) \
+  AssignDeviceFunction(api_name, CreateShaderNew) \
 	AssignDeviceFunction(api_name, CreateGraphicsPipeline) \
+	AssignDeviceFunction(api_name, CreateGraphicsPipelineNew) \
 	AssignDeviceFunction(api_name, BindGraphicsPipeline) \
 	AssignDeviceFunction(api_name, SetViewport) \
 	AssignDeviceFunction(api_name, SetScissor) \

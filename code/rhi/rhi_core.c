@@ -21,8 +21,8 @@ RHI_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
 
 // -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
-func RHI_Buffer RHI_CreateBuffer(U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags) {
-	return _r_state.device.CreateBuffer(capacity, usage_flags, property_flags);
+func RHI_Buffer RHI_CreateBuffer(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags) {
+	return _r_state.device.CreateBuffer(label, capacity, usage_flags, property_flags);
 }
 
 func U64
@@ -106,6 +106,11 @@ RHI_BindGlobalVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buf
 }
 
 func void
+RHI_BindShaderArgument(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument) {
+  _r_state.device.BindShaderArgument(command_buffer, argument);
+}
+
+func void
 RHI_BindInstanceVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 samplers_count, RHI_SamplerBindingInfo* sampler_infos) {
   Assert(uniform_buffers_count == 0 || uniform_infos != 0);
   Assert(samplers_count == 0 || sampler_infos != 0);
@@ -151,6 +156,11 @@ RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, R
 	return _r_state.device.BeginRenderPass(command_buffer, color_targets_count, color_targets, depth_stencil_target);
 }
 
+func RHI_RenderPass*
+RHI_BeginRenderPassNew(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count) {
+	return _r_state.device.BeginRenderPassNew(command_buffer, color_targets_count, color_targets, depth_stencil_target, resources, resources_count);
+}
+
 func void
 RHI_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
 	_r_state.device.EndRenderPass(command_buffer, render_pass);
@@ -176,9 +186,19 @@ RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
   return _r_state.device.CreateShader(arena, info);
 }
 
+func RHI_Shader
+RHI_CreateShaderNew(Arena* arena, RHI_ShaderCreateInfoNew* info) {
+  return _r_state.device.CreateShaderNew(arena, info);
+}
+
 func RHI_GraphicsPipeline
 RHI_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
 	return _r_state.device.CreateGraphicsPipeline(info);
+}
+
+func RHI_GraphicsPipeline
+RHI_CreateGraphicsPipelineNew(RHI_GraphicsPipelineCreateInfo* info) {
+	return _r_state.device.CreateGraphicsPipelineNew(info);
 }
 
 func void

@@ -26,6 +26,8 @@ struct RHI_Metal_GraphicsPipeline {
   id<MTLArgumentEncoder>     vertex_instance_argument_encoder;
   id<MTLArgumentEncoder>     fragment_global_argument_encoder;
   id<MTLArgumentEncoder>     fragment_instance_argument_encoder;
+  RHI_Shader* vertex_shader; // --AlNov: @TODO Not really like the idea of pointer to RHI_Shader
+  RHI_Shader* fragment_shader;
   id<MTLDepthStencilState>   depth_stencil_state;
 };
 RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipelineNil = ZeroStruct();

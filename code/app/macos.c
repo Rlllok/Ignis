@@ -20,15 +20,33 @@ struct AppContext {
 
   OS_Window* window;
 
-  RHI_Texture depth_texture;
   RHI_GraphicsPipeline pipeline;
   RHI_Buffer           storage_buffer;
   RHI_Buffer           uniform_buffer;
+  RHI_Buffer           materials_buffer;
+  RHI_Buffer           entity_datas_buffer;
+  RHI_Buffer           arguments_buffer;
   U64                  vertecies_offset;
   U64                  indecies_offset;
 } app_context;
 
 func void Draw(RHI_CommandBuffer command_buffer, F32 dt);
+
+typedef struct Material Material;
+struct Material {
+  Vec4F32 color;
+};
+
+typedef struct EntityData EntityData;
+struct EntityData {
+  Vec4F32 translation;
+};
+
+typedef struct Arguments Arguments;
+struct Arguments {
+  U64 materials;
+  U64 entity_datas;
+};
 
 I32 main() {
   LogInfo("Hello MacOS\n");
@@ -43,11 +61,11 @@ I32 main() {
   Vec2U32 window_size = MakeVec2U32(1280, 720);
   app_context.window = OS_CreateWindow(Str8C("Simple Triangle Test (MacOS)"), window_size);
 
-  RHI_Init(RHI_RendererKind_Metal, app_context.window);
+  RHI_Init(app_context.window);
 
   OS_ShowWindow(app_context.window);
 
-  app_context.storage_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Vertex, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+  app_context.storage_buffer = RHI_CreateBuffer(Str8C("StorageBuffer"), Megabytes(16), RHI_BufferUsageFlag_Vertex, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   Vertex vertecies[] = {
     MakeVec3F32(0.0f, 0.5f, 0.0f),
     MakeVec3F32(0.5f, -0.5f, 0.0f),
@@ -55,29 +73,48 @@ I32 main() {
   };
   app_context.vertecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(vertecies), sizeof(Vertex)*ArrayLength(vertecies));
 
+  app_context.materials_buffer = RHI_CreateBuffer(Str8C("MaterialsBuffer"), Megabytes(16), 0, 0);
+  Material materials [] = {
+    MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+    MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
+    MakeVec4F32(0.0f, 0.0f, 1.0f, 1.0f),
+  };
+  RHI_PushBuffer(app_context.materials_buffer, (U8*)materials, sizeof(Material)*3);
+
+  app_context.entity_datas_buffer = RHI_CreateBuffer(Str8C("ObjectsDataBuffer"), Megabytes(16), 0, 0);
+  EntityData entity_datas[] = {
+    {
+      .translation = MakeVec4F32(-1.0f, 0.0f, 0.0f, 1.0f),
+    },
+    {
+      .translation = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
+    },
+    {
+      .translation = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+    },
+  };
+  RHI_PushBuffer(app_context.entity_datas_buffer, (U8*)entity_datas, sizeof(EntityData)*3);
+
+  app_context.arguments_buffer = RHI_CreateBuffer(Str8C("ArgumentsBuffer"), Megabytes(16), 0, 0);
+  RHI_DeviceAddress materials_buffer_address = RHI_BufferDeviceAddress(app_context.materials_buffer);
+  Arguments args = {
+    .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
+    .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer),
+  };
+  RHI_PushBuffer(app_context.arguments_buffer, (U8*)&args, sizeof(Arguments));
+
   U16 indecies[] = {0, 1, 2};
   app_context.indecies_offset = RHI_PushBuffer(app_context.storage_buffer, (U8*)(indecies), sizeof(U16)*ArrayLength(indecies));
 
-  app_context.uniform_buffer = RHI_CreateBuffer(Megabytes(16), RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
+  app_context.uniform_buffer = RHI_CreateBuffer(Str8C("UniformBuffer"), Megabytes(16), RHI_BufferUsageFlag_Uniform, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
-
-  app_context.depth_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
-    .kind = RHI_TextureKind_2D,
-    .format = RHI_TextureFormat_D16_UNORM,
-    .usage_flags = RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT,
-    .width = app_context.window->size.w,
-    .height = app_context.window->size.h,
-    .depth = 1,
-    .num_levels = 1,
-  });
 
   RHI_Shader vertex_shader = RHI_CreateShader(
     app_context.arena,
     &(RHI_ShaderCreateInfo) {
       .file_name = Str8C("./data/shaders/macos/triangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
-      .instance_uniforms_count = 1,
     }
   );
   RHI_Shader fragment_shader = RHI_CreateShader(
@@ -88,8 +125,8 @@ I32 main() {
     }
   );
   RHI_GraphicsPipelineCreateInfo pipeline_info = {
-    .vertex_shader = vertex_shader,
-    .fragment_shader = fragment_shader,
+    .vertex_shader = &vertex_shader,
+    .fragment_shader = &fragment_shader,
     .vertex_attributes_count = 1,
     .vertex_attributes = &(RHI_VertexAttribute) {
       .location = 0,
@@ -142,43 +179,35 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
       .clear_color = MakeVec4F32(sinf(dt*0.003f), 0.09f, 0.18f, 1.0f),
     };
 
-    RHI_DepthStencilTarget depth_target = {
-      .texture = app_context.depth_target,
-      .load_operation = RHI_AttachmentLoadOperation_Clear,
-      .store_operation = RHI_AttachmentStoreOperation_Store,
-      .clear_deapth = 0.0f,
+    RHI_Resource resources[] = {
+      {
+        .buffer = app_context.materials_buffer,
+      },
+      {
+        .buffer = app_context.entity_datas_buffer,
+      },
     };
 
-    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, &depth_target);
+    RHI_RenderPass* render_pass = RHI_BeginRenderPassNew(command_buffer, 1, &color_target, 0, resources, ArrayLength(resources));
       RectI32 viewport = {
         .x = 0,
         .y = 0,
         .w = app_context.window->size.w,
         .h = app_context.window->size.h,
       };
-
-      struct {
-        Vec3F32 translation;
-      } uniform_data = {
-        .translation = LerpVec3F32(MakeVec3F32(-1.0f, 0.0f, 0.0f), MakeVec3F32(1.0f, 0.0f, 0.0f), animation_time/animation_duration),
-      };
-      animation_time += dt;
-
-      U64 uniform_data_offset = RHI_PushBuffer(app_context.uniform_buffer, (U8*)&uniform_data, sizeof(uniform_data));
-
       RHI_SetViewport(command_buffer, viewport);
       RHI_BindGraphicsPipeline(command_buffer, app_context.pipeline);
-      RHI_BindInstanceVertexShaderData(command_buffer, 1, &(RHI_UniformBufferBindingInfo) {
-        .buffer = app_context.uniform_buffer,
-        .offset = uniform_data_offset,
-        .size = sizeof(uniform_data),
-      }, 0, 0);
-      RHI_BindGlobalFragmentShaderData(command_buffer, 0, 0, 1 &(RHI_SamplerBindingInfo) {
-        .texture = topdown_context.default_texture,
-      });
-      RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);B
-      RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);
-      RHI_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, 0);
+        RHI_BindShaderArgument(command_buffer, (RHI_ShaderArgument){
+          .slot = 4,
+          .stage = RHI_ShaderKind_Vertex,
+          .buffer = app_context.arguments_buffer,
+        });
+
+        RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
+        RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);
+        for (I32 i = 0; i < 3; i += 1) {
+          RHI_DrawIndexedPrimitives(command_buffer, 3, 1, 0, 0, i);
+        }
     RHI_EndRenderPass(command_buffer, render_pass);
   RHI_SubmitCommandBuffer(command_buffer);
 }
