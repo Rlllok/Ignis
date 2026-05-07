@@ -104,8 +104,8 @@ RHI_BindGlobalVertexShaderData(RHI_CommandBuffer command_buffer, I32 uniform_buf
 }
 
 func void
-RHI_BindShaderArgument(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument) {
-  _r_state.device.BindShaderArgument(command_buffer, argument);
+RHI_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count) {
+  _r_state.device.BindShaderArguments(command_buffer, stage, arguments, arguments_count);
 }
 
 func void

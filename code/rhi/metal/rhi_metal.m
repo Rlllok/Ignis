@@ -82,19 +82,24 @@ RHI_Metal_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, 
 // -------------------------------------------------------------------
 // -- Descriptor Set -------------------------------------------------
 func void
-RHI_Metal_BindShaderArgument(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument) {
+RHI_Metal_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count) {
   RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
   RHI_Metal_GraphicsPipeline* mtl_pipeline = mtl_command_buffer->current_graphics_pipeline;
 
   Assert(mtl_pipeline != 0);
 
-  if (argument.stage == RHI_ShaderKind_Vertex) {
-    RHI_DeviceAddress* args = (RHI_DeviceAddress*)argument.data;
-    [mtl_pipeline->vertex_argument_table setAddress:args[0] atIndex:1];
-    [mtl_pipeline->vertex_argument_table setAddress:args[1] atIndex:2];
+  if (stage == RHI_ShaderKind_Vertex) {
+    for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
+      RHI_DeviceAddress address = arguments[argument_index].address;
+      [mtl_pipeline->vertex_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
+    }
     [mtl_command_buffer->render_encoder setArgumentTable:mtl_pipeline->vertex_argument_table atStages:MTLRenderStageVertex];
   }
-  else if (argument.stage == RHI_ShaderKind_Fragment) {
+  else if (stage == RHI_ShaderKind_Fragment) {
+    for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
+      [mtl_pipeline->fragment_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
+    }
+    [mtl_command_buffer->render_encoder setArgumentTable:mtl_pipeline->fragment_argument_table atStages:MTLRenderStageFragment];
   }
 }
 
@@ -355,7 +360,11 @@ RHI_Metal_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
 
   result.kind = info->kind;
   result.language = RHI_ShaderLanguage_Metal;
-  result.arguments_info = info->arguments_info;
+  result.arguments = PushArena(arena, sizeof(RHI_ShaderArgumentKind)*info->arguments_count);
+  for (I32 argument_index = 0; argument_index < info->arguments_count; argument_index += 1) {
+    result.arguments[argument_index] = info->arguments[argument_index];
+  }
+  result.arguments_count = info->arguments_count;
 
   return result;
 }
@@ -395,12 +404,31 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     Assert(fragment_function != nil);
     Assert(error == nil);
 
-    MTL4ArgumentTableDescriptor* table_descriptor = [MTL4ArgumentTableDescriptor new];
-    table_descriptor.initializeBindings = 1,
-    table_descriptor.maxBufferBindCount = 4;
+    {
+      I32 buffer_addresses_count = 1; // --AlNov: @NOTO buffer(0) is reserved as vertex buffer
+      for(I32 argument_index = 0; argument_index < info->vertex_shader->arguments_count; argument_index += 1) {
+        if (info->vertex_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
+          buffer_addresses_count += 1;
+        };
+      }
+      MTL4ArgumentTableDescriptor* table_descriptor = [MTL4ArgumentTableDescriptor new];
+      table_descriptor.initializeBindings = 1,
+      table_descriptor.maxBufferBindCount = buffer_addresses_count;
+      pipeline.vertex_argument_table = [_rhi_metal_context.device newArgumentTableWithDescriptor:table_descriptor error:&error];
+    }
 
-    pipeline.vertex_argument_table = [_rhi_metal_context.device newArgumentTableWithDescriptor:table_descriptor error:&error];
-    pipeline.fragment_argument_table = [_rhi_metal_context.device newArgumentTableWithDescriptor:table_descriptor error:&error];
+    {
+      I32 buffer_addresses_count = 1; // --AlNov: @NOTO buffer(0) is reserved as vertex buffer
+      for(I32 argument_index = 0; argument_index < info->fragment_shader->arguments_count; argument_index += 1) {
+        if (info->fragment_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
+          buffer_addresses_count += 1;
+        };
+      }
+      MTL4ArgumentTableDescriptor* table_descriptor = [MTL4ArgumentTableDescriptor new];
+      table_descriptor.initializeBindings = 1,
+      table_descriptor.maxBufferBindCount = buffer_addresses_count;
+      pipeline.fragment_argument_table = [_rhi_metal_context.device newArgumentTableWithDescriptor:table_descriptor error:&error];
+    }
 
     MTLRenderPipelineDescriptor* pipeline_descriptor = [MTLRenderPipelineDescriptor new];
     pipeline_descriptor.vertexFunction = vertex_function;

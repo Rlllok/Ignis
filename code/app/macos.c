@@ -98,14 +98,17 @@ I32 main() {
 
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
 
+  RHI_ShaderArgumentKind vertex_shader_arguments[] = {
+    RHI_ShaderArgumentKind_BufferAddress,
+    RHI_ShaderArgumentKind_BufferAddress,
+  };
   RHI_Shader vertex_shader = RHI_CreateShader(
     app_context.arena,
     &(RHI_ShaderCreateInfo) {
       .file_name = Str8C("./data/shaders/macos/triangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
-      .arguments_info = {
-        .size = sizeof(Arguments),
-      }
+      .arguments = vertex_shader_arguments,
+      .arguments_count = ArrayLength(vertex_shader_arguments),
     }
   );
   RHI_Shader fragment_shader = RHI_CreateShader(
@@ -219,11 +222,17 @@ Draw(RHI_CommandBuffer command_buffer, F32 dt) {
           .materials = RHI_BufferDeviceAddress(app_context.materials_buffer),
           .entity_datas = RHI_BufferDeviceAddress(app_context.entity_datas_buffer) + entity_datas_offset,
         };
-        RHI_BindShaderArgument(command_buffer, (RHI_ShaderArgument){
-          .stage = RHI_ShaderKind_Vertex,
-          .size = sizeof(args),
-          .data = (U8*)&args,
-        });
+        RHI_ShaderArgument vertex_shader_arguments[] = {
+          {
+            .kind = RHI_ShaderArgumentKind_BufferAddress,
+            .address = RHI_BufferDeviceAddress(app_context.materials_buffer),
+          },
+          {
+            .kind = RHI_ShaderArgumentKind_BufferAddress,
+            .address = RHI_BufferDeviceAddress(app_context.entity_datas_buffer) + entity_datas_offset,
+          },
+        };
+        RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex, vertex_shader_arguments, ArrayLength(vertex_shader_arguments));
 
         RHI_BindVertexBuffer(command_buffer, app_context.storage_buffer, app_context.vertecies_offset);
         RHI_BindIndexBuffer(command_buffer, app_context.storage_buffer, app_context.indecies_offset, RHI_IndexSize_U16);

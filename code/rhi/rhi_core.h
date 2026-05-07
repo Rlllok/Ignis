@@ -261,26 +261,27 @@ typedef enum RHI_ShaderLanguageEnum {
   RHI_ShaderLanguage_Count
 } RHI_ShaderLanguageEnum;
 
-#define RHI_MaxShaderArgumentCount 4
-typedef struct RHI_ShaderArgumentInfo RHI_ShaderArgumentInfo;
-struct RHI_ShaderArgumentInfo {
-  U32 size;
-};
+typedef U8 RHI_ShaderArgumentKind;
+typedef enum RHI_ShaderArgumentKindEnum {
+  RHI_ShaderArgumentKind_BufferAddress,
+} RHI_ShaderArgumentKindEnum;
 
 typedef struct RHI_ShaderArgument RHI_ShaderArgument;
 struct RHI_ShaderArgument {
-  RHI_ShaderKind             stage;
-  U8*                        data;
-  U64                        size;
+  RHI_ShaderArgumentKind kind;
+  union {
+    RHI_DeviceAddress address;
+  };
 };
 
 typedef struct RHI_Shader RHI_Shader;
 struct RHI_Shader {
-  RHI_ShaderKind         kind;
-  RHI_ShaderLanguage     language; // --AlNov: Only SPIRV for now
-  U32                    code_size;
-  U8*                    code;
-  RHI_ShaderArgumentInfo arguments_info;
+  RHI_ShaderKind          kind;
+  RHI_ShaderLanguage      language; // --AlNov: Only SPIRV for now
+  U32                     code_size;
+  U8*                     code;
+  RHI_ShaderArgumentKind* arguments;
+  I32                     arguments_count;
 };
 
 typedef U8 RHI_VertexAttributeFormat;
@@ -359,13 +360,16 @@ func RHI_GraphicsPipeline RHI_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateI
 func void                 RHI_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline);
 
 typedef struct RHI_ShaderCreateInfo RHI_ShaderCreateInfo;
-struct RHI_ShaderCreateInfo{
-  Str8                   file_name;
-  RHI_ShaderKind         kind;
-  RHI_ShaderArgumentInfo arguments_info;
+struct RHI_ShaderCreateInfo {
+  Str8                    file_name;
+  RHI_ShaderKind          kind;
+  RHI_ShaderArgumentKind* arguments;
+  I32                     arguments_count;
 };
 
 func RHI_Shader RHI_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
+
+func void RHI_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count);
 
 // -------------------------------------------------------------------
 // -- Set States And Draw --------------------------------------------
@@ -391,7 +395,7 @@ struct RHI_Device {
 	void (*BindVertexBuffer)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset);
 
 	// Uniform Data
-  void (*BindShaderArgument)(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument);
+  void (*BindShaderArguments)(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count);
 
   // Texture
   RHI_Texture (*CreateTexture)(RHI_TextureCreateInfo* info);
@@ -443,7 +447,7 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, BufferDeviceAddress) \
 	AssignDeviceFunction(api_name, BindIndexBuffer) \
 	AssignDeviceFunction(api_name, BindVertexBuffer) \
-	AssignDeviceFunction(api_name, BindShaderArgument) \
+	AssignDeviceFunction(api_name, BindShaderArguments) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
   AssignDeviceFunction(api_name, LoadDataToTexture) \
