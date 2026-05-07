@@ -78,14 +78,8 @@ struct TopDown_Entity {
   } collision;
 
   struct {
-    Vec3F32 position;
-    F32     yaw;
-    F32     pitch;
-    F32     fov;
-
-    Vec3F32 front;
-    Vec3F32 right;
-    Vec3F32 up;
+    Transform transform;
+    F32       fov;
 
     RectI32 viewport;
 
@@ -597,9 +591,13 @@ TopDown_UpdateEntities() {
 
       case TopDown_EntityFlag_Camera: {
         TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
-        entity->camera.position = AddVec3F32(player->actor.transform.translation, MakeVec3F32(0.0f, 20.0f, 10.0f));
+        F32 camera_height = 25.0f;
+        Vec3F32 camera_offset = MakeVec3F32(0.0f, camera_height, camera_height/5.67128f);
+        entity->camera.transform.translation = AddVec3F32(player->actor.transform.translation, camera_offset);
 
-        Mat4F32 view_matrix = MakeLookAtMat4F32(entity->camera.position, player->actor.transform.translation, MakeVec3F32(0.0f, 1.0f, 0.0f));
+        Vec3F32 camera_front = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, -1.0f), entity->camera.transform.rotation);
+
+        Mat4F32 view_matrix = MakeLookAtMat4F32(entity->camera.transform.translation, AddVec3F32(entity->camera.transform.translation, camera_front), MakeVec3F32(0.0f, 1.0f, 0.0f));
         Mat4F32 projection_matrix = MakePerspectiveMat4F32(
           entity->camera.fov/2.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
           1.0f, 100.0f
@@ -693,13 +691,11 @@ TopDown_CreateCamera() {
     TopDown_Entity camera = {
       .kind_flags = TopDown_EntityFlag_Camera,
       .camera = {
-        .position = MakeVec3F32(1.0f, 2.0f, 5.0f),
-        .yaw = -90.0f,
-        .pitch = -30.0f,
+        .transform = {
+          .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+          .rotation = QuaternionFromEuler(RadiansFromDegrees(80.0f), 0.0f, 0.0f),
+        },
         .fov = 90.0f,
-        .front = MakeVec3F32(1.0f, 0.0f, -1.0f),
-        .right = MakeVec3F32(1.0f, 0.0f, 1.0f),
-        .up = MakeVec3F32(0.0f, 1.0f, 0.0f),
         .viewport = (RectI32) {
           .x = 0,
           .y = 0,
