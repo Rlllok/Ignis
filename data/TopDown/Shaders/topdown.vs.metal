@@ -9,14 +9,10 @@ struct Material {
   float3 color;
 };
 
-struct InstanceUniforms {
+struct ObjectData {
   float4x4 transform;
   float4x4 camera_transform;
   Material material;
-};
-
-struct InstanceDataBuffer {
-  device InstanceUniforms* uniform [[id(0)]];
 };
 
 struct VertexOut {
@@ -28,15 +24,18 @@ struct VertexOut {
 
 vertex VertexOut VertexMain(
   VertexShaderInput vertex_data [[stage_in]],
-  constant InstanceDataBuffer& instance_data_buffer [[buffer(3)]],
-  uint vid [[vertex_id]]
+  uint vid [[vertex_id]],
+  uint instance_index [[instance_id]],
+  constant ObjectData* object_datas [[buffer(1)]]
 ) {
   VertexOut out = {0};
 
-  out.world_position = float3(instance_data_buffer.uniform->transform*float4(vertex_data.position, 1.0f));
-  out.position = instance_data_buffer.uniform->camera_transform*instance_data_buffer.uniform->transform*float4(vertex_data.position, 1.0f);
+  ObjectData current_object = object_datas[instance_index];
+
+  out.world_position = float3(current_object.transform*float4(vertex_data.position, 1.0f));
+  out.position = current_object.camera_transform*float4(out.world_position, 1.0f);
   out.normal = vertex_data.normal;
-  out.color = instance_data_buffer.uniform->material.color;
+  out.color = current_object.material.color;
 
   return out;
 }

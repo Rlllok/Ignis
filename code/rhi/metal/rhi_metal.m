@@ -234,7 +234,7 @@ RHI_Metal_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
 
     metal_command_buffer->event_count += 1;
     [metal_command_buffer->shared_event waitUntilSignaledValue:metal_command_buffer->event_count - RHI_FRAMES_IN_FLIGHT timeoutMS:10];
-
+ 
     [metal_command_buffer->allocator[_rhi_metal_context.current_frame] reset];
     [metal_command_buffer->mtl beginCommandBufferWithAllocator:metal_command_buffer->allocator[_rhi_metal_context.current_frame]];
   }
