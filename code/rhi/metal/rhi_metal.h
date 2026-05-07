@@ -53,6 +53,8 @@ struct RHI_Metal_CommandBuffer {
   id<MTL4CommandBuffer>        mtl;
   id<MTL4CommandAllocator>     allocator[RHI_FRAMES_IN_FLIGHT];
   id<MTLResidencySet>          residency_set[RHI_FRAMES_IN_FLIGHT];
+  id<MTLSharedEvent>           shared_event;
+  U64                          event_count;
   id<MTL4RenderCommandEncoder> render_encoder;
 
   RHI_Metal_GraphicsPipeline* current_graphics_pipeline;

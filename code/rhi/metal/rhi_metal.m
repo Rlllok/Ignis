@@ -214,6 +214,9 @@ RHI_Metal_GetCommandBuffer() {
     MTLResidencySetDescriptor* residency_set_descriptor = [[MTLResidencySetDescriptor new] init];
     residency_set_descriptor.initialCapacity = 42;
     result.residency_set[i] = [_rhi_metal_context.device newResidencySetWithDescriptor:residency_set_descriptor error:0];
+    result.event_count = 0;
+    result.shared_event = [_rhi_metal_context.device newSharedEvent];
+    result.shared_event.signaledValue = result.event_count;
   }
 
   return RHI_Metal_CommandBufferArrayAdd(&_rhi_metal_context.command_buffers, result);
@@ -223,6 +226,10 @@ func void
 RHI_Metal_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
   @autoreleasepool {
     RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+
+    metal_command_buffer->event_count += 1;
+    [metal_command_buffer->shared_event waitUntilSignaledValue:metal_command_buffer->event_count - RHI_FRAMES_IN_FLIGHT timeoutMS:10];
+
     [metal_command_buffer->allocator[_rhi_metal_context.current_frame] reset];
     [metal_command_buffer->mtl beginCommandBufferWithAllocator:metal_command_buffer->allocator[_rhi_metal_context.current_frame]];
   }
@@ -234,6 +241,9 @@ RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
     RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
     [metal_command_buffer->mtl endCommandBuffer];
     [_rhi_metal_context.command_queue commit:&metal_command_buffer->mtl count:1];
+    [_rhi_metal_context.command_queue waitForDrawable:_rhi_metal_context.current_drawable];
+    [_rhi_metal_context.command_queue signalEvent:metal_command_buffer->shared_event value:metal_command_buffer->event_count];
+    [_rhi_metal_context.command_queue signalDrawable:_rhi_metal_context.current_drawable];
     [_rhi_metal_context.current_drawable present];
 
     _rhi_metal_context.current_frame = (_rhi_metal_context.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
@@ -688,7 +698,8 @@ RHI_Metal_Init(OS_Window* window) {
   CAMetalLayer* metal_layer = [view MetalLayer];
   metal_layer.device = _rhi_metal_context.device;
   metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-  metal_layer.framebufferOnly = YES;
+  metal_layer.displaySyncEnabled = 1;
+  metal_layer.framebufferOnly = 1;
   metal_layer.drawableSize = NSSizeToCGSize([view bounds].size);
 
   _rhi_metal_context.drawable_texture_format = MTLPixelFormatBGRA8Unorm;
