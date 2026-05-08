@@ -578,20 +578,41 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 }
 
 func void
-RHI_VK_BindShaderArgument(RHI_CommandBuffer command_buffer, RHI_ShaderArgument argument) {
+RHI_VK_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_GraphicsPipeline* vk_pipeline = vk_command_buffer->binded_graphics_pipeline;
 
   Assert(vk_pipeline != 0);
 
-  VkShaderStageFlags stage_flags = 0;
-  if (argument.stage == RHI_ShaderKind_Vertex) {
-    stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+  ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena); {
+    I32 arguments_size = 0;
+    for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
+      RHI_ShaderArgument* argument = arguments + argument_index;
+      if (argument->kind == RHI_ShaderArgumentKind_BufferAddress) {
+        arguments_size += sizeof(RHI_DeviceAddress);
+      }
+    }
+
+    U8* arguments_data = PushArena(scratch.arena, arguments_size);
+    U8* current_argument = arguments_data;
+    for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
+      RHI_ShaderArgument* argument = arguments + argument_index;
+      if (argument->kind == RHI_ShaderArgumentKind_BufferAddress) {
+        *(RHI_DeviceAddress*)current_argument = argument->address;
+        current_argument += sizeof(RHI_DeviceAddress);
+      }
+    }
+
+    VkShaderStageFlags stage_flags = 0;
+    if (stage == RHI_ShaderKind_Vertex) {
+      stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    }
+    else if (stage == RHI_ShaderKind_Fragment) {
+      stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    }
+    vkCmdPushConstants(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_pipeline->layout, stage_flags, 0, arguments_size, arguments_data);
   }
-  else if (argument.stage == RHI_ShaderKind_Fragment) {
-    stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-  }
-  vkCmdPushConstants(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_pipeline->layout, stage_flags, 0, argument.size, argument.data);
+  EndScratchArena(scratch);
 }
 
 func void
@@ -796,7 +817,11 @@ RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
   result.language = RHI_ShaderLanguage_SPIRV;
   result.code_size = 4 * glslang_program_SPIRV_get_size(program);
   result.code = (U8*)PushArena(arena, result.code_size * sizeof(U8));
-  result.arguments_info = info->arguments_info;
+  result.arguments = PushArena(arena, sizeof(RHI_ShaderArgumentKind)*info->arguments_count);
+  for (I32 argument_index = 0; argument_index < info->arguments_count; argument_index += 1) {
+    result.arguments[argument_index] = info->arguments[argument_index];
+  }
+  result.arguments_count = info->arguments_count;
 
   glslang_program_SPIRV_get(program, (U32*)result.code);
 
@@ -826,14 +851,22 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   // --AlNov: @TODO Doesn't support textures (Planning to add bindless support)
   VkPushConstantRange push_constant_ranges[2] = ZeroStruct(); // --AlNov: For Vertex and Fragment shaders
   I32 push_constants_count = 0;
-  if (pipeline.vertex_shader->arguments_info.size != 0) {
+  if (pipeline.vertex_shader->arguments_count != 0) {
     push_constant_ranges[push_constants_count].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    push_constant_ranges[push_constants_count].size = pipeline.vertex_shader->arguments_info.size;
+    for (I32 argument_index = 0; argument_index < pipeline.vertex_shader->arguments_count; argument_index += 1) {
+      if (pipeline.vertex_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
+        push_constant_ranges[push_constants_count].size += sizeof(RHI_DeviceAddress);
+      }
+    }
     push_constants_count += 1;
   }
-  if (pipeline.fragment_shader->arguments_info.size != 0) {
+  if (pipeline.fragment_shader->arguments_count != 0) {
     push_constant_ranges[push_constants_count].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    push_constant_ranges[push_constants_count].size = pipeline.fragment_shader->arguments_info.size;
+    for (I32 argument_index = 0; argument_index < pipeline.fragment_shader->arguments_count; argument_index += 1) {
+      if (pipeline_info->fragment_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
+        push_constant_ranges[push_constants_count].size += sizeof(RHI_DeviceAddress);
+      }
+    }
     push_constants_count += 1;
   }
   VkPipelineLayoutCreateInfo layout_info = {

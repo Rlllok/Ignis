@@ -140,8 +140,7 @@ struct RHI_VK_DescriptorPool {
 	I32              sets_count;
 };
 
-
-func void RHI_VK_BindShaderData(RHI_CommandBuffer command_buffer, RHI_ShaderKind shader_type, B32 is_global, I32 uniform_buffers_count, RHI_UniformBufferBindingInfo* uniform_infos, I32 sampler_count, RHI_SamplerBindingInfo* sampler_infos);
+func void RHI_VK_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count);
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
