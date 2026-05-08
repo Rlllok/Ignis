@@ -25,7 +25,6 @@ func TopDown_Mesh TopDown_LoadAndPrepareMesh(Arena* arena, Str8 path);
 typedef struct TopDown_Material TopDown_Material;
 struct TopDown_Material {
   Vec3F32 color;
-  F32 color_padding;
 };
 
 typedef struct TopDown_BoundingBox TopDown_BoundingBox;
@@ -156,7 +155,6 @@ struct TopDown_Context {
   RHI_Texture          default_texture;
   RHI_Texture          depth_texture;
   RHI_GraphicsPipeline pipeline;
-  RHI_GraphicsPipeline debug_pipeline;
 
   // State
   B32 finished;
@@ -195,7 +193,7 @@ I32 main() {
   RHI_Init(topdown_context.window);
   // Init RHI Objects
   topdown_context.command_buffer = RHI_GetCommandBuffer();
-  topdown_context.vertex_buffer = RHI_CreateBuffer(Str8C("VertexIndexBuffer"), Megabytes(64), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent);
+  topdown_context.vertex_buffer = RHI_CreateBuffer(Str8C("VertexIndexBuffer"), Megabytes(64), RHI_BufferUsageFlag_Vertex|RHI_BufferUsageFlag_Index, RHI_BufferPropertyFlag_HostCoherent);
   topdown_context.object_buffer = RHI_CreateBuffer(Str8C("ObjectBuffer"), Megabytes(64), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostCoherent);
   topdown_context.transfer_buffer = RHI_CreateBuffer(Str8C("TransferBuffer"), Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
 
@@ -297,35 +295,6 @@ I32 main() {
         .depth_write_enable = 1,
         .depth_compare_operation = RHI_CompareOperation_Greater,
         .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
-      },
-    }
-  );
-
-  RHI_Shader debug_vertex_shader = RHI_CreateShader(
-    topdown_context.global_arena,
-    &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/TopDown/Shaders/debug.vs"),
-      .kind = RHI_ShaderKind_Vertex,
-    }
-  );
-  RHI_Shader debug_fragment_shader = RHI_CreateShader(
-    topdown_context.global_arena,
-    &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/TopDown/Shaders/debug.fs"),
-      .kind = RHI_ShaderKind_Fragment,
-    }
-  );
-
-  topdown_context.debug_pipeline = RHI_CreateGraphicsPipeline(
-    &(RHI_GraphicsPipelineCreateInfo) {
-      .vertex_shader = &debug_vertex_shader,
-      .fragment_shader = &debug_fragment_shader,
-      .vertex_attributes_count = ArrayLength(vertex_attributes),
-      .vertex_attributes = vertex_attributes,
-      .color_targets_count = 1,
-      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
-        .format = RHI_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
       },
     }
   );
