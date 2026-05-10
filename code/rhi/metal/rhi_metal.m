@@ -530,7 +530,7 @@ RHI_Metal_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32
 
   Assert(mtl_command_buffer->render_encoder);
   
-  [mtl_command_buffer->render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3 instanceCount:instance_count baseInstance:first_instance];
+  [mtl_command_buffer->render_encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:vertex_count instanceCount:instance_count baseInstance:first_instance];
 }
 
 func void
