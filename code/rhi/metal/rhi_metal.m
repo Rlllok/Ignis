@@ -39,7 +39,7 @@ RHI_Metal_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
   memcpy((U8*)mtl_buffer->mtl.contents + mtl_buffer->position, data, size);
   mtl_buffer->position += size;
-  U64 alignment = 0;
+  U64 alignment = 16;
   U64 padding = alignment - (mtl_buffer->position + alignment)%alignment;
   if (alignment == 0) padding = 0;
   mtl_buffer->position += padding;

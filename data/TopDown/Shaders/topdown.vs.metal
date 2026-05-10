@@ -6,7 +6,7 @@ struct VertexShaderInput {
 };
 
 struct Material {
-  float3 color;
+  packed_float3 color;
 };
 
 struct ObjectData {
