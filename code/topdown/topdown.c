@@ -46,8 +46,8 @@ enum {
   TopDown_EntityFlag_Camera = (1 << 10),
   TopDown_EntityFlag_Player = (1 << 11) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable | TopDown_EntityFlag_Collision,
   TopDown_EntityFlag_Enemy  = (1 << 12) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable | TopDown_EntityFlag_Collision,
-  TopDown_EntityFlag_Floor  =             TopDown_EntityFlag_Actor,
   TopDown_EntityFlag_Bullet = (1 << 13) | TopDown_EntityFlag_Actor | TopDown_EntityFlag_Movable | TopDown_EntityFlag_Collision,
+  TopDown_EntityFlag_Floor  = (1 << 14) | TopDown_EntityFlag_Actor,
 };
 
 typedef struct TopDown_EntityId TopDown_EntityId;
@@ -106,6 +106,8 @@ DefineArray(TopDown_Entity, TopDown_EntityArray, TopDown_Entity_Nil)
 func void TopDown_UpdateEntities();
 func void TopDown_DrawEntities();
 
+func void TopDown_DrawHexGrid();
+
 func void TopDown_DrawDebugCollision();
 
 func TopDown_EntityId TopDown_CreateCamera();
@@ -154,7 +156,8 @@ struct TopDown_Context {
   RHI_Buffer           transfer_buffer;
   RHI_Texture          default_texture;
   RHI_Texture          depth_texture;
-  RHI_GraphicsPipeline pipeline;
+  RHI_GraphicsPipeline entity_pipeline;
+  RHI_GraphicsPipeline hex_grid_pipeline;
 
   // State
   B32 finished;
@@ -280,7 +283,7 @@ I32 main() {
     },
   };
 
-  topdown_context.pipeline = RHI_CreateGraphicsPipeline(
+  topdown_context.entity_pipeline = RHI_CreateGraphicsPipeline(
     &(RHI_GraphicsPipelineCreateInfo) {
       .vertex_shader = &vertex_shader,
       .fragment_shader = &fragment_shader,
@@ -299,10 +302,57 @@ I32 main() {
     }
   );
 
+  {
+    RHI_ShaderArgumentKind vs_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+
+    RHI_Shader hex_grid_vertex_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/hex_grid.vs"),
+        .kind = RHI_ShaderKind_Vertex,
+        .arguments = vs_arguments,
+        .arguments_count = ArrayLength(vs_arguments),
+      }
+    );
+
+    RHI_ShaderArgumentKind fs_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress
+    };
+
+    RHI_Shader hex_grid_fragment_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/hex_grid.fs"),
+        .kind = RHI_ShaderKind_Fragment,
+        .arguments = fs_arguments,
+        .arguments_count = ArrayLength(fs_arguments),
+      }
+    );
+
+    topdown_context.hex_grid_pipeline = RHI_CreateGraphicsPipeline(
+      &(RHI_GraphicsPipelineCreateInfo) {
+        .vertex_shader = &hex_grid_vertex_shader,
+        .fragment_shader = &hex_grid_fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+          .format = RHI_GetSwapchainTextureFormat(),
+        },
+        .depth_stencil_state = (RHI_PipelineDepthStencilState) {
+          .depth_test_enable = 1,
+          .depth_write_enable = 1,
+          .depth_compare_operation = RHI_CompareOperation_Greater,
+          .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
+        },
+      }
+    );
+  }
+
   OS_ShowWindow(topdown_context.window);
 
   // Load Assets
-  topdown_context.monkey_mesh= TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/TopDown/Models/TopDown_Triangle.gltf"));
+  topdown_context.monkey_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/TopDown/Models/TopDown_Triangle.gltf"));
   topdown_context.bullet_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/TopDown/Models/TopDown_Projectile.gltf"));
   topdown_context.floor_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/primitives/plane.gltf"));
   topdown_context.bounding_box_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
@@ -376,15 +426,7 @@ I32 main() {
         RHI_SetViewport(topdown_context.command_buffer, rect);
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
-        RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pipeline);
-        struct {
-          TopDown_Light light;
-        } global_fs_data = {
-          .light = {
-            .direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, 0.0f)),
-            .color = MakeVec3F32(1.0f, 1.0f, 1.0f),
-          },
-        };
+        TopDown_DrawHexGrid();
         TopDown_DrawEntities();
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
@@ -477,7 +519,9 @@ TopDown_PrepareDrawCommands() {
     TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
     TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
 
-    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Actor) && (!entity->actor.hidden);
+    B32 is_floor = ((entity->kind_flags & TopDown_EntityFlag_Floor) == TopDown_EntityFlag_Floor);
+    B32 is_actor = ((entity->kind_flags & TopDown_EntityFlag_Actor) == TopDown_EntityFlag_Actor);
+    B32 to_draw = (!is_floor) && (is_actor) && (!entity->actor.hidden);
     if (to_draw) {
       I32 geometry_index = 0;
       for (AST_GeometryListNode* geometry_node = entity->actor.mesh->mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
@@ -592,8 +636,62 @@ TopDown_UpdateEntities() {
 }
 
 func void
+TopDown_DrawHexGrid() {
+  TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+
+  Transform floor_transform = {
+    .translation = camera->actor.transform.translation,
+    .rotation = IdentityQuaternion(),
+    .scale = MakeVec3F32(100.0f, 0.0f, 100.0f),
+  };
+
+  struct {
+    Mat4F32 transform;
+    Mat4F32 camera_transform;
+  } grid_data = {
+    .transform = Mat4F32FromTransform(floor_transform),
+    .camera_transform = camera->camera.matrix,
+  };
+  U64 grid_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&grid_data, sizeof(grid_data));
+
+  struct {
+    RHI_DeviceAddress grid_data_address;
+  } args = {
+    .grid_data_address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + grid_data_offset,
+  };
+  RHI_ShaderArgument arguments[] = {
+    {
+      .kind = RHI_ShaderArgumentKind_BufferAddress,
+      .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + grid_data_offset,
+    },
+  };
+
+  struct {
+    Vec3F32 background_color;
+    Vec3F32 grid_color;
+  } fs_grid_data = {
+    .background_color = MakeVec3F32(0.02f, 0.11f, 0.01f),
+    .grid_color = MakeVec3F32(0.98f, 0.75f, 0.34f),
+  };
+  U64 fs_grid_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&fs_grid_data, sizeof(fs_grid_data));
+  RHI_ShaderArgument fs_arguments[] = {
+    {
+      .kind = RHI_ShaderArgumentKind_BufferAddress,
+      .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + fs_grid_data_offset,
+    },
+  };
+
+  RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.hex_grid_pipeline);
+  RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex, arguments, ArrayLength(arguments));
+  RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Fragment, fs_arguments, ArrayLength(arguments));
+  RHI_DrawPrimitives(topdown_context.command_buffer, 6, 1, 0, 0);
+}
+
+func void
 TopDown_DrawEntities() {
   if (topdown_context.draw_commands.length == 0) return;
+
+  RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.entity_pipeline);
 
   TopDown_DrawCommand* first_draw_command = TopDown_DrawCommandArrayGetPointer(&topdown_context.draw_commands, 0);
   RHI_ShaderArgument arguments[] = {

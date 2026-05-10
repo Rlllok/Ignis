@@ -405,6 +405,7 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     Assert(error == nil);
 
     {
+        
       I32 buffer_addresses_count = 1; // --AlNov: @NOTO buffer(0) is reserved as vertex buffer
       for(I32 argument_index = 0; argument_index < info->vertex_shader->arguments_count; argument_index += 1) {
         if (info->vertex_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
