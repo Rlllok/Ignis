@@ -24,7 +24,7 @@ func TopDown_Mesh TopDown_LoadAndPrepareMesh(Arena* arena, Str8 path);
 
 typedef struct TopDown_Material TopDown_Material;
 struct TopDown_Material {
-  Vec3F32 color;
+  Vec3F32 color; F32 padding0;
 };
 
 typedef struct TopDown_BoundingBox TopDown_BoundingBox;
@@ -648,9 +648,13 @@ TopDown_DrawHexGrid() {
   struct {
     Mat4F32 transform;
     Mat4F32 camera_transform;
+    Vec3F32 background_color; F32 padding0;
+    Vec3F32 grid_color; F32 padding1;
   } grid_data = {
     .transform = Mat4F32FromTransform(floor_transform),
     .camera_transform = camera->camera.matrix,
+    .background_color = MakeVec3F32(0.02f, 0.11f, 0.01f),
+    .grid_color = MakeVec3F32(0.98f, 0.75f, 0.34f),
   };
   U64 grid_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&grid_data, sizeof(grid_data));
 
@@ -666,24 +670,13 @@ TopDown_DrawHexGrid() {
     },
   };
 
-  struct {
-    Vec3F32 background_color;
-    Vec3F32 grid_color;
-  } fs_grid_data = {
-    .background_color = MakeVec3F32(0.02f, 0.11f, 0.01f),
-    .grid_color = MakeVec3F32(0.98f, 0.75f, 0.34f),
-  };
-  U64 fs_grid_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&fs_grid_data, sizeof(fs_grid_data));
-  RHI_ShaderArgument fs_arguments[] = {
-    {
-      .kind = RHI_ShaderArgumentKind_BufferAddress,
-      .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + fs_grid_data_offset,
-    },
-  };
-
   RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.hex_grid_pipeline);
-  RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex, arguments, ArrayLength(arguments));
-  RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Fragment, fs_arguments, ArrayLength(arguments));
+  // --AlNov: @TODO (Investigate Metal)
+  // Shader Arguments should be binded to vertex and fragment stages simultaniously.
+  // In vulkan stages shares push_constants. So there was a problem (as vertex arguments and fragment arguments was binded separatly) of data
+  // overwriting. Solved by binding to both stages and repeting push_constants in both shadres
+  // (this is why it coult be better to use one shader file for both stages)
+  RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
   RHI_DrawPrimitives(topdown_context.command_buffer, 6, 1, 0, 0);
 }
 

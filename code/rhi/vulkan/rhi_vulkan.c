@@ -127,8 +127,8 @@ RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
 	memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
 	vk_buffer->size += size;
-  U64 allignment = 16;
-	U64 padding = allignment - (vk_buffer->size + allignment)%allignment;
+  U64 allignment = 0;
+  U64 padding = (allignment == 0) ? 0 : allignment - (vk_buffer->size + allignment)%allignment;
 	vk_buffer->size += padding;
 
 	return offset;
@@ -603,14 +603,7 @@ RHI_VK_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind stag
       }
     }
 
-    VkShaderStageFlags stage_flags = 0;
-    if (stage == RHI_ShaderKind_Vertex) {
-      stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    }
-    else if (stage == RHI_ShaderKind_Fragment) {
-      stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    }
-    vkCmdPushConstants(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_pipeline->layout, stage_flags, 0, arguments_size, arguments_data);
+    vkCmdPushConstants(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT|VK_SHADER_STAGE_FRAGMENT_BIT, 0, arguments_size, arguments_data);
   }
   EndScratchArena(scratch);
 }
