@@ -39,7 +39,7 @@ RHI_Metal_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
   memcpy((U8*)mtl_buffer->mtl.contents + mtl_buffer->position, data, size);
   mtl_buffer->position += size;
-  U64 alignment = 16;
+  U64 alignment = 0;
   U64 padding = alignment - (mtl_buffer->position + alignment)%alignment;
   if (alignment == 0) padding = 0;
   mtl_buffer->position += padding;
@@ -88,14 +88,14 @@ RHI_Metal_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind s
 
   Assert(mtl_pipeline != 0);
 
-  if (stage == RHI_ShaderKind_Vertex) {
+  if ((stage & RHI_ShaderKind_Vertex) == RHI_ShaderKind_Vertex) {
     for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
       RHI_DeviceAddress address = arguments[argument_index].address;
       [mtl_pipeline->vertex_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
     }
     [mtl_command_buffer->render_encoder setArgumentTable:mtl_pipeline->vertex_argument_table atStages:MTLRenderStageVertex];
   }
-  else if (stage == RHI_ShaderKind_Fragment) {
+  if ((stage & RHI_ShaderKind_Fragment) == RHI_ShaderKind_Fragment) {
     for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
       [mtl_pipeline->fragment_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
     }

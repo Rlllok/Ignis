@@ -15,6 +15,8 @@ constant uint indecies[] = {
 struct GridData {
   float4x4 transform;
   float4x4 camera_transform;
+  float3   background_color;
+  float3   grid_color;
 };
 
 struct VertexOutput {

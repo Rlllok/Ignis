@@ -26,8 +26,10 @@ float HexagonGrid(float2 uv) {
 }
 
 struct GridData {
-  packed_float3 background_color;
-  packed_float3 grid_color;
+  float4x4 transform;
+  float4x4 camera_transform;
+  float3   background_color;
+  float3   grid_color;
 };
 
 fragment float4 FragmentMain(
