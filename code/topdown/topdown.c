@@ -604,8 +604,20 @@ TopDown_UpdateEntities() {
 
       case TopDown_EntityFlag_Camera: {
         TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
+        Vec3F32 cursor_world = TopDown_WorldFromScreen(topdown_context.cursor_position);
+        Vec3F32 player_to_cursor = SubVec3F32(cursor_world, player->actor.transform.translation);
+        F32 distance = MagnitudeVec3F32(player_to_cursor);
+        F32 min_distance = 5.0f;
+        F32 max_distance = 15.0f;
+        F32 max_camera_player_offset = 2.0f;
+        F32 t = 0;
+        if (distance > min_distance) {
+          t = (distance - min_distance)/(max_distance - min_distance);
+        }
+        Vec3F32 cursor_offset = ScaleVec3F32(NormalizeVec3F32(player_to_cursor), max_camera_player_offset*t);
+
         F32 camera_height = 25.0f;
-        Vec3F32 camera_offset = MakeVec3F32(0.0f, camera_height, camera_height/5.67128f);
+        Vec3F32 camera_offset = AddVec3F32(MakeVec3F32(0.0f, camera_height, camera_height/5.67128f), cursor_offset);
         entity->camera.transform.translation = AddVec3F32(player->actor.transform.translation, camera_offset);
 
         Vec3F32 camera_front = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, -1.0f), entity->camera.transform.rotation);
@@ -764,6 +776,16 @@ TopDown_CreateCamera() {
         },
       },
     };
+
+    Vec3F32 camera_front = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, -1.0f), camera.camera.transform.rotation);
+    Mat4F32 view_matrix = MakeLookAtMat4F32(camera.camera.transform.translation, AddVec3F32(camera.camera.transform.translation, camera_front), MakeVec3F32(0.0f, 1.0f, 0.0f));
+    Mat4F32 projection_matrix = MakePerspectiveMat4F32(
+      camera.camera.fov/2.0f, (F32)topdown_context.window->size.x/(F32)topdown_context.window->size.y,
+      1.0f, 100.0f
+    );
+    camera.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
+    camera.camera.inverse = InverseMat4F32(camera.camera.matrix);
+
     result.id = TopDown_EntityArrayAdd(&topdown_context.entities, camera);
   }
   else {
