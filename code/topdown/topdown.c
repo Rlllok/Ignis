@@ -158,6 +158,7 @@ struct TopDown_Context {
   RHI_Texture          depth_texture;
   RHI_GraphicsPipeline entity_pipeline;
   RHI_GraphicsPipeline hex_grid_pipeline;
+  RHI_GraphicsPipeline bounding_box_pipeline;
 
   // State
   B32 finished;
@@ -230,78 +231,82 @@ I32 main() {
     .num_levels = 1,
   });
   
-  RHI_ShaderArgumentKind vs_arguments[] = {
-    RHI_ShaderArgumentKind_BufferAddress,
-  };
-  RHI_Shader vertex_shader = RHI_CreateShader(
-    topdown_context.global_arena,
-    &(RHI_ShaderCreateInfo){
-      .file_name = Str8C("./data/TopDown/Shaders/topdown.vs"),
-      .kind = RHI_ShaderKind_Vertex,
-      .arguments = vs_arguments,
-      .arguments_count = ArrayLength(vs_arguments),
-    }
-  );
-  RHI_Shader fragment_shader = RHI_CreateShader(
-    topdown_context.global_arena,
-    &(RHI_ShaderCreateInfo){
-      .file_name = Str8C("./data/TopDown/Shaders/topdown.fs"),
-      .kind = RHI_ShaderKind_Fragment,
-    }
-  );
+  // Entity Pipeline
+  {
+    RHI_ShaderArgumentKind vs_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader vertex_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo){
+        .file_name = Str8C("./data/TopDown/Shaders/topdown.vs"),
+        .kind = RHI_ShaderKind_Vertex,
+        .arguments = vs_arguments,
+        .arguments_count = ArrayLength(vs_arguments),
+      }
+    );
+    RHI_Shader fragment_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo){
+        .file_name = Str8C("./data/TopDown/Shaders/topdown.fs"),
+        .kind = RHI_ShaderKind_Fragment,
+      }
+    );
 
-  RHI_VertexAttribute vertex_attributes[] = {
-    {
-      .location = 0,
-      .format = RHI_VertexAttributeFormat_Vec3F32,
-      .offset = offsetof(AST_Vertex, position),
-    },
-    {
-      .location = 1,
-      .format = RHI_VertexAttributeFormat_Vec3F32,
-      .offset = offsetof(AST_Vertex, normal),
-    },
-    {
-      .location = 2,
-      .format = RHI_VertexAttributeFormat_Vec3F32,
-      .offset = offsetof(AST_Vertex, tangent),
-    },
-    {
-      .location = 3,
-      .format = RHI_VertexAttributeFormat_Vec2F32,
-      .offset = offsetof(AST_Vertex, uv),
-    },
-    {
-      .location = 4,
-      .format = RHI_VertexAttributeFormat_Vec4I32,
-      .offset = offsetof(AST_Vertex, joint_ids),
-    },
-    {
-      .location = 5,
-      .format = RHI_VertexAttributeFormat_Vec4F32,
-      .offset = offsetof(AST_Vertex, joint_weights),
-    },
-  };
-
-  topdown_context.entity_pipeline = RHI_CreateGraphicsPipeline(
-    &(RHI_GraphicsPipelineCreateInfo) {
-      .vertex_shader = &vertex_shader,
-      .fragment_shader = &fragment_shader,
-      .vertex_attributes_count = ArrayLength(vertex_attributes),
-      .vertex_attributes = vertex_attributes,
-      .color_targets_count = 1,
-      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
-        .format = RHI_GetSwapchainTextureFormat(),
+    RHI_VertexAttribute vertex_attributes[] = {
+      {
+        .location = 0,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
+        .offset = offsetof(AST_Vertex, position),
       },
-      .depth_stencil_state = (RHI_PipelineDepthStencilState) {
-        .depth_test_enable = 1,
-        .depth_write_enable = 1,
-        .depth_compare_operation = RHI_CompareOperation_Greater,
-        .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
+      {
+        .location = 1,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
+        .offset = offsetof(AST_Vertex, normal),
       },
-    }
-  );
+      {
+        .location = 2,
+        .format = RHI_VertexAttributeFormat_Vec3F32,
+        .offset = offsetof(AST_Vertex, tangent),
+      },
+      {
+        .location = 3,
+        .format = RHI_VertexAttributeFormat_Vec2F32,
+        .offset = offsetof(AST_Vertex, uv),
+      },
+      {
+        .location = 4,
+        .format = RHI_VertexAttributeFormat_Vec4I32,
+        .offset = offsetof(AST_Vertex, joint_ids),
+      },
+      {
+        .location = 5,
+        .format = RHI_VertexAttributeFormat_Vec4F32,
+        .offset = offsetof(AST_Vertex, joint_weights),
+      },
+    };
 
+    topdown_context.entity_pipeline = RHI_CreateGraphicsPipeline(
+      &(RHI_GraphicsPipelineCreateInfo) {
+        .vertex_shader = &vertex_shader,
+        .fragment_shader = &fragment_shader,
+        .vertex_attributes_count = ArrayLength(vertex_attributes),
+        .vertex_attributes = vertex_attributes,
+        .color_targets_count = 1,
+        .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+          .format = RHI_GetSwapchainTextureFormat(),
+        },
+        .depth_stencil_state = (RHI_PipelineDepthStencilState) {
+          .depth_test_enable = 1,
+          .depth_write_enable = 1,
+          .depth_compare_operation = RHI_CompareOperation_Greater,
+          .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
+        },
+      }
+    );
+  }
+
+  // Grid Pipeline
   {
     RHI_ShaderArgumentKind vs_arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,
@@ -344,6 +349,45 @@ I32 main() {
           .depth_write_enable = 1,
           .depth_compare_operation = RHI_CompareOperation_Greater,
           .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
+        },
+      }
+    );
+  }
+
+  // Bounding Box Pipline
+  {
+    RHI_ShaderArgumentKind arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+
+    RHI_Shader vertex_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/debug.vs"),
+        .kind = RHI_ShaderKind_Vertex,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
+      }
+    );
+
+    RHI_Shader fragment_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/debug.fs"),
+        .kind = RHI_ShaderKind_Fragment,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
+      }
+    );
+
+    topdown_context.bounding_box_pipeline = RHI_CreateGraphicsPipeline(
+      &(RHI_GraphicsPipelineCreateInfo) {
+        .vertex_shader = &vertex_shader,
+        .fragment_shader = &fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+          .format = RHI_GetSwapchainTextureFormat(),
+          .blend_enable = 1,
         },
       }
     );
@@ -431,19 +475,24 @@ I32 main() {
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
 
-#if 0
       if (topdown_context.debug) {
+        RHI_Resource debug_render_pass_resources[] = {
+          {
+            .buffer = topdown_context.object_buffer,
+          },
+        };
+
         RHI_ColorTarget debug_color_targets = {
           .texture = swapchain_texture,
           .load_operation = RHI_AttachmentLoadOperation_Load,
           .store_operation = RHI_AttachmentStoreOperation_Store,
         };
-        RHI_RenderPass* debug_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &debug_color_targets, 0);
-          RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.debug_pipeline);
+        RHI_RenderPass* debug_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &debug_color_targets, 0, debug_render_pass_resources, ArrayLength(debug_render_pass_resources)); {
+          RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.bounding_box_pipeline);
           TopDown_DrawDebugCollision();
+        }
         RHI_EndRenderPass(topdown_context.command_buffer, debug_render_pass);
       }
-#endif
     RHI_SubmitCommandBuffer(topdown_context.command_buffer);
 
     U64 end_ts = OS_GetTimeTicks();
@@ -718,6 +767,43 @@ TopDown_DrawEntities() {
 
 func void
 TopDown_DrawDebugCollision() {
+  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
+    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
+    TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+
+    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Collision) && entity->collision.active;
+    if (to_draw) {
+      TopDown_BoundingBox bounding_box = entity->collision.bounding_box;
+
+      Transform bounding_box_transform = {
+        .translation = entity->actor.transform.translation,
+        .rotation = entity->actor.transform.rotation,
+        .scale = SubVec3F32(bounding_box.max, bounding_box.min),
+      };
+
+      struct {
+        Mat4F32 transform;
+        Mat4F32 camera_transform;
+        Vec4F32 rgba;
+      } bounding_box_data = {
+        .transform = Mat4F32FromTransform(bounding_box_transform),
+        .camera_transform = camera->camera.matrix,
+        .rgba = MakeVec4F32(0.14f, 0.87f, 0.09f, 0.2f),
+      };
+      U64 bounding_box_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&bounding_box_data, sizeof(bounding_box_data));
+
+      RHI_ShaderArgument arguments[] = {
+        {
+          .kind = RHI_ShaderArgumentKind_BufferAddress,
+          .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + bounding_box_data_offset,
+        }
+      };
+      RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.bounding_box_pipeline);
+      RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+      RHI_DrawPrimitives(topdown_context.command_buffer, 36, 1, 0, 0);
+    }
+  }
+
 #if 0 
   for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
     TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);

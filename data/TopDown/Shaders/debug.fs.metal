@@ -1,5 +1,12 @@
 using namespace metal;
 
-fragment float4 FragmentMain(float4 input [[stage_in]]) {
-  return float4(1.0f, 0.0f, 0.0f, 0.3f);
+struct VertexOut {
+  float4 position [[position]];
+  float4 rgba [[flat]];
+};
+
+fragment float4 FragmentMain(
+  VertexOut input [[stage_in]]
+) {
+  return input.rgba;
 }
