@@ -15,6 +15,11 @@ RHI_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
 }
 
 func void
+RHI_EndCommandBuffer(RHI_CommandBuffer command_buffer) {
+	_r_state.device.EndCommandBuffer(command_buffer);
+}
+
+func void
 RHI_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
 	_r_state.device.SubmitCommandBuffer(command_buffer);
 }
@@ -51,6 +56,22 @@ func void RHI_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buff
 
 // -------------------------------------------------------------------
 // -- Texture --------------------------------------------------------
+func U8
+RHI_BytesPerPixelFromFormat(RHI_TextureFormat format) {
+  const static U8 table[] = {
+  0, // RHI_TextureFormat_None,
+  4, // RHI_TextureFormat_R8G8B8A8_SRGB,
+  4, // RHI_TextureFormat_R8G8B8A8_UNORM,
+  4, // RHI_TextureFormat_B8G8R8A8_UNORM,
+  8, // RHI_TextureFormat_R16G16B16A16_SFLOAT,
+  1, // RHI_TextureFormat_R8_UNORM,
+  2, // RHI_TextureFormat_D16_UNORM,
+  2, // RHI_TextureFormat_R16_UINT,
+  };
+
+  return table[format];
+}
+
 func RHI_Texture
 RHI_CreateTexture(RHI_TextureCreateInfo* info) {
   return _r_state.device.CreateTexture(info);
@@ -76,8 +97,8 @@ RHI_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, R
 }
 
 func void
-RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture) {
-  _r_state.device.CopyBufferToTexture(command_buffer, buffer, offset, size, texture);
+RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture) {
+  _r_state.device.CopyBufferToTexture(command_buffer, buffer, offset, texture);
 }
 
 func RHI_TextureFormat
@@ -138,6 +159,11 @@ RHI_GetSwapchainTextureFormat() {
 func RHI_Texture
 RHI_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 	return _r_state.device.AcquireSwapchainTexture(command_buffer);
+}
+
+func void
+RHI_Present(RHI_CommandBuffer command_buffer) {
+	_r_state.device.Present(command_buffer);
 }
 
 // -------------------------------------------------------------------
@@ -203,11 +229,6 @@ RHI_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 insta
 func void
 RHI_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance) {
 	_r_state.device.DrawIndexedPrimitives(command_buffer, index_count, instance_count, first_index, vertex_offset, first_instance);
-}
-
-func void
-RHI_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
-  _r_state.device.PresentTexture(command_buffer, texture);
 }
 
 // -------------------------------------------------------------------

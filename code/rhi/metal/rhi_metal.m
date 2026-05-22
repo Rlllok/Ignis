@@ -19,6 +19,9 @@ RHI_Metal_CreateBuffer(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flag
     
     mtl_buffer.mtl.label = [NSString stringWithUTF8String:CFromStr8(label)];
 
+    [_rhi_metal_context.residency_set addAllocation:mtl_buffer.mtl];
+    [_rhi_metal_context.residency_set commit];
+
     return RHI_Metal_BufferArrayAdd(&_rhi_metal_context.data_buffers, mtl_buffer);
   }
 }
@@ -39,7 +42,7 @@ RHI_Metal_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
 
   memcpy((U8*)mtl_buffer->mtl.contents + mtl_buffer->position, data, size);
   mtl_buffer->position += size;
-  U64 alignment = 0;
+  U64 alignment = 16;
   U64 padding = alignment - (mtl_buffer->position + alignment)%alignment;
   if (alignment == 0) padding = 0;
   mtl_buffer->position += padding;
@@ -90,14 +93,39 @@ RHI_Metal_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKind s
 
   if ((stage & RHI_ShaderKind_Vertex) == RHI_ShaderKind_Vertex) {
     for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
-      RHI_DeviceAddress address = arguments[argument_index].address;
-      [mtl_pipeline->vertex_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
+      RHI_ShaderArgument* argument = arguments + argument_index;
+      switch (argument->kind) {
+        case RHI_ShaderArgumentKind_BufferAddress: {
+          RHI_DeviceAddress address = arguments[argument_index].address;
+          [mtl_pipeline->vertex_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
+        } break;
+
+        case RHI_ShaderArgumentKind_ArrayOfTextures: {
+          for (I32 texture_index = 0; texture_index < argument->textures.count; texture_index += 1) {
+            RHI_Metal_Texture* texture = RHI_Metal_TextureFromHandle(argument->textures.array[texture_index]);
+            [mtl_pipeline->vertex_argument_table setTexture:texture->mtl.gpuResourceID atIndex:texture_index];
+          };
+        } break;
+      };
     }
     [mtl_command_buffer->render_encoder setArgumentTable:mtl_pipeline->vertex_argument_table atStages:MTLRenderStageVertex];
   }
   if ((stage & RHI_ShaderKind_Fragment) == RHI_ShaderKind_Fragment) {
     for (I32 argument_index = 0; argument_index < arguments_count; argument_index += 1) {
-      [mtl_pipeline->fragment_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as vertex buffer
+      RHI_ShaderArgument* argument = arguments + argument_index;
+      switch (argument->kind) {
+        case RHI_ShaderArgumentKind_BufferAddress: {
+          RHI_DeviceAddress address = arguments[argument_index].address;
+          [mtl_pipeline->fragment_argument_table setAddress:arguments[argument_index].address atIndex:argument_index + 1]; // --AlNov: @NOTE Buffer with index 0 is reserved as fragment buffer
+        } break;
+
+        case RHI_ShaderArgumentKind_ArrayOfTextures: {
+          for (I32 texture_index = 0; texture_index < argument->textures.count; texture_index += 1) {
+            RHI_Metal_Texture* texture = RHI_Metal_TextureFromHandle(argument->textures.array[texture_index]);
+            [mtl_pipeline->fragment_argument_table setTexture:texture->mtl.gpuResourceID atIndex:texture_index];
+          };
+        } break;
+      };
     }
     [mtl_command_buffer->render_encoder setArgumentTable:mtl_pipeline->fragment_argument_table atStages:MTLRenderStageFragment];
   }
@@ -121,10 +149,13 @@ RHI_Metal_CreateTexture(RHI_TextureCreateInfo* info) {
     } else if (info->usage_flags & RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) {
       descriptor.usage = MTLTextureUsageRenderTarget;
     }
-    descriptor.storageMode = MTLStorageModePrivate;
+    descriptor.storageMode = MTLStorageModeShared;
     result.mtl = [_rhi_metal_context.device newTextureWithDescriptor:descriptor];
     result.size = MakeVec3I32(info->width, info->height, info->depth);
     result.format = info->format;
+
+    [_rhi_metal_context.residency_set addAllocation:result.mtl];
+    [_rhi_metal_context.residency_set commit];
 
     return RHI_Metal_TextureArrayAdd(&_rhi_metal_context.textures, result);
   }
@@ -155,31 +186,32 @@ RHI_Metal_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture text
 }
 
 func void
-RHI_Metal_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture) {
+RHI_Metal_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture) {
   @autoreleasepool {
-    id<MTL4CommandBuffer> mtl_command_buffer = 0;
-    if (command_buffer != 0) {
-      mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer)->mtl;
-    } else {
-      mtl_command_buffer = [_rhi_metal_context.device newCommandBuffer];
-    }
+    RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
     RHI_Metal_Buffer* mtl_buffer = RHI_Metal_BufferFromHandle(buffer);
     RHI_Metal_Texture* mtl_texture = RHI_Metal_TextureFromHandle(texture);
 
-    id<MTL4ComputeCommandEncoder> blit_encoder = [mtl_command_buffer computeCommandEncoder];
-    [blit_encoder copyFromBuffer:mtl_buffer->mtl
-      sourceOffset:offset
-      sourceBytesPerRow:4*mtl_texture->size.x
-      sourceBytesPerImage:4*mtl_texture->size.x*mtl_texture->size.y
-      sourceSize:MTLSizeMake(mtl_texture->size.x, mtl_texture->size.y, mtl_texture->size.z)
-      toTexture:mtl_texture->mtl
-      destinationSlice:0
-      destinationLevel:0
-      destinationOrigin:MTLOriginMake(0, 0, 0)
-    ];
-    [blit_encoder endEncoding];
-    [mtl_command_buffer endCommandBuffer];
-    [_rhi_metal_context.command_queue commit:&mtl_command_buffer count: 1];
+    id<MTL4ComputeCommandEncoder> compute_encoder = [mtl_command_buffer->mtl computeCommandEncoder]; {
+      [mtl_command_buffer->mtl useResidencySet:_rhi_metal_context.residency_set];
+
+      [compute_encoder copyFromBuffer:mtl_buffer->mtl
+        sourceOffset: offset
+        sourceBytesPerRow:mtl_texture->size.x*RHI_BytesPerPixelFromFormat(mtl_texture->format)
+        sourceBytesPerImage:mtl_texture->size.x*mtl_texture->size.y*RHI_BytesPerPixelFromFormat(mtl_texture->format)
+        sourceSize:MTLSizeMake(mtl_texture->size.x, mtl_texture->size.y, mtl_texture->size.z)
+        toTexture:mtl_texture->mtl
+        destinationSlice:0
+        destinationLevel:0
+        destinationOrigin:MTLOriginMake(0, 0, 0)
+      ];
+
+      [compute_encoder barrierAfterStages:MTLStageBlit
+        beforeQueueStages:MTLStageFragment
+        visibilityOptions:MTL4VisibilityOptionResourceAlias
+      ];
+    }
+    [compute_encoder endEncoding];
   }
 }
 
@@ -218,7 +250,6 @@ RHI_Metal_GetCommandBuffer() {
 
     MTLResidencySetDescriptor* residency_set_descriptor = [[MTLResidencySetDescriptor new] init];
     residency_set_descriptor.initialCapacity = 42;
-    result.residency_set[i] = [_rhi_metal_context.device newResidencySetWithDescriptor:residency_set_descriptor error:0];
     result.event_count = 0;
     result.shared_event = [_rhi_metal_context.device newSharedEvent];
     result.shared_event.signaledValue = result.event_count;
@@ -235,23 +266,24 @@ RHI_Metal_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
     metal_command_buffer->event_count += 1;
     [metal_command_buffer->shared_event waitUntilSignaledValue:metal_command_buffer->event_count - RHI_FRAMES_IN_FLIGHT timeoutMS:10];
  
-    [metal_command_buffer->allocator[_rhi_metal_context.current_frame] reset];
-    [metal_command_buffer->mtl beginCommandBufferWithAllocator:metal_command_buffer->allocator[_rhi_metal_context.current_frame]];
+    [metal_command_buffer->allocator[metal_command_buffer->current_frame] reset];
+    [metal_command_buffer->mtl beginCommandBufferWithAllocator:metal_command_buffer->allocator[metal_command_buffer->current_frame]];
   }
+}
+
+func void
+RHI_Metal_EndCommandBuffer(RHI_CommandBuffer command_buffer) {
+  RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+
+  [metal_command_buffer->mtl endCommandBuffer];
+  metal_command_buffer->current_frame = (metal_command_buffer->current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
 }
 
 func void
 RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
   @autoreleasepool {
     RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
-    [metal_command_buffer->mtl endCommandBuffer];
     [_rhi_metal_context.command_queue commit:&metal_command_buffer->mtl count:1];
-    [_rhi_metal_context.command_queue waitForDrawable:_rhi_metal_context.current_drawable];
-    [_rhi_metal_context.command_queue signalEvent:metal_command_buffer->shared_event value:metal_command_buffer->event_count];
-    [_rhi_metal_context.command_queue signalDrawable:_rhi_metal_context.current_drawable];
-    [_rhi_metal_context.current_drawable present];
-
-    _rhi_metal_context.current_frame = (_rhi_metal_context.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
   }
 }
 
@@ -278,6 +310,16 @@ RHI_Metal_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
     return result;
   }
 }
+
+func void
+RHI_Metal_Present(RHI_CommandBuffer command_buffer) {
+  RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  [_rhi_metal_context.command_queue waitForDrawable:_rhi_metal_context.current_drawable];
+  [_rhi_metal_context.command_queue signalEvent:metal_command_buffer->shared_event value:metal_command_buffer->event_count];
+  [_rhi_metal_context.command_queue signalDrawable:_rhi_metal_context.current_drawable];
+  [_rhi_metal_context.current_drawable present];
+}
+
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
@@ -313,14 +355,8 @@ RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_co
     }
 
     mtl_command_buffer->render_encoder = [mtl_command_buffer->mtl renderCommandEncoderWithDescriptor:pass_descriptor];
+    [mtl_command_buffer->mtl useResidencySet:_rhi_metal_context.residency_set];
     [mtl_command_buffer->render_encoder setCullMode:MTLCullModeNone];
-
-    for (I32 i = 0; i < resources_count; i += 1) {
-      RHI_Metal_Buffer* resource_buffer = RHI_Metal_BufferFromHandle(resources[i].buffer);
-      [mtl_command_buffer->residency_set[_rhi_metal_context.current_frame] addAllocation:resource_buffer->mtl];
-    }
-    [mtl_command_buffer->residency_set[_rhi_metal_context.current_frame] commit];
-    [mtl_command_buffer->mtl useResidencySet:mtl_command_buffer->residency_set[_rhi_metal_context.current_frame]];
 
     return 0;
   }
@@ -334,7 +370,6 @@ RHI_Metal_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render
     Assert(mtl_command_buffer->render_encoder != nil);
 
     [mtl_command_buffer->render_encoder endEncoding];
-    // [_rhi_metal_context.command_queue removeResidencySet:mtl_command_buffer->residency_set];
     mtl_command_buffer->render_encoder = nil;
   }
 }
@@ -407,23 +442,32 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     {
         
       I32 buffer_addresses_count = 1; // --AlNov: @NOTO buffer(0) is reserved as vertex buffer
+      I32 textures_count = 0;
       for(I32 argument_index = 0; argument_index < info->vertex_shader->arguments_count; argument_index += 1) {
         if (info->vertex_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
           buffer_addresses_count += 1;
         };
+        if (info->vertex_shader->arguments[argument_index] == RHI_ShaderArgumentKind_ArrayOfTextures) {
+          textures_count = 512;
+        }
       }
       MTL4ArgumentTableDescriptor* table_descriptor = [MTL4ArgumentTableDescriptor new];
       table_descriptor.initializeBindings = 1,
       table_descriptor.maxBufferBindCount = buffer_addresses_count;
+      table_descriptor.maxTextureBindCount = textures_count;
       pipeline.vertex_argument_table = [_rhi_metal_context.device newArgumentTableWithDescriptor:table_descriptor error:&error];
     }
 
     {
+      I32 textures_count = 0;
       I32 buffer_addresses_count = 1; // --AlNov: @NOTO buffer(0) is reserved as vertex buffer
       for(I32 argument_index = 0; argument_index < info->fragment_shader->arguments_count; argument_index += 1) {
         if (info->fragment_shader->arguments[argument_index] == RHI_ShaderArgumentKind_BufferAddress) {
           buffer_addresses_count += 1;
         };
+        if (info->vertex_shader->arguments[argument_index] == RHI_ShaderArgumentKind_ArrayOfTextures) {
+          textures_count = 512;
+        }
       }
       MTL4ArgumentTableDescriptor* table_descriptor = [MTL4ArgumentTableDescriptor new];
       table_descriptor.initializeBindings = 1,
@@ -595,6 +639,7 @@ RHI_Metal_PixelFormatFromRHI(RHI_TextureFormat format) {
     case RHI_TextureFormat_R8G8B8A8_UNORM:      result = MTLPixelFormatRGBA8Unorm;      break;
     case RHI_TextureFormat_B8G8R8A8_UNORM:      result = MTLPixelFormatBGRA8Unorm;      break;
     case RHI_TextureFormat_R16G16B16A16_SFLOAT: result = MTLPixelFormatRGBA16Float;     break;
+    case RHI_TextureFormat_R8_UNORM:            result = MTLPixelFormatR8Unorm;         break;
     case RHI_TextureFormat_D16_UNORM:           result = MTLPixelFormatDepth16Unorm;    break;
     case RHI_TextureFormat_R16_UINT:            result = MTLPixelFormatR16Uint;         break;
   }
@@ -612,6 +657,7 @@ RHI_TextureFormatFromMetal(MTLPixelFormat format) {
     case MTLPixelFormatRGBA8Unorm:      result = RHI_TextureFormat_R8G8B8A8_UNORM;      break;
     case MTLPixelFormatBGRA8Unorm:      result = RHI_TextureFormat_B8G8R8A8_UNORM;      break;
     case MTLPixelFormatRGBA16Float:     result = RHI_TextureFormat_R16G16B16A16_SFLOAT; break;
+    case MTLPixelFormatR8Unorm:         result = RHI_TextureFormat_R8_UNORM;            break;
     case MTLPixelFormatDepth16Unorm:    result = RHI_TextureFormat_D16_UNORM;           break;
     case MTLPixelFormatR16Uint:         result = RHI_TextureFormat_R16_UINT;            break;
   }
@@ -677,6 +723,9 @@ RHI_Metal_Init(OS_Window* window) {
   LogInfo("Metal. Device name: %s\n", [[_rhi_metal_context.device name]UTF8String]);
 
   _rhi_metal_context.command_queue = [_rhi_metal_context.device newMTL4CommandQueue];
+  MTLResidencySetDescriptor* residency_set_descriptor = [[MTLResidencySetDescriptor new] init];
+  residency_set_descriptor.initialCapacity = 42;
+  _rhi_metal_context.residency_set = [_rhi_metal_context.device newResidencySetWithDescriptor:residency_set_descriptor error:0];
 
   OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window;
   OS_MacOS_View* view = (__bridge OS_MacOS_View*)macos_window->ns_view;
@@ -692,7 +741,7 @@ RHI_Metal_Init(OS_Window* window) {
   _rhi_metal_context.drawable_texture_format = MTLPixelFormatBGRA8Unorm;
 
   _rhi_metal_context.drawable_count = [metal_layer maximumDrawableCount];
-  _rhi_metal_context.textures = RHI_Metal_TextureArrayAllocate(_rhi_metal_context.arena, 32);
+  _rhi_metal_context.textures = RHI_Metal_TextureArrayAllocate(_rhi_metal_context.arena, 512);
   _rhi_metal_context.textures.length = _rhi_metal_context.drawable_count;
 
   return 0;

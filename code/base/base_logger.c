@@ -23,6 +23,7 @@ LogOutput(LogMessageKind message_kind, const char* message, ...) {
   sprintf(final_message, "%s%s", type_strings[message_kind], output_message);
 
   printf("%s", final_message);
+
 }
 
 func void

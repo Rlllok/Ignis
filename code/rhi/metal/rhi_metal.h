@@ -59,6 +59,7 @@ struct RHI_Metal_CommandBuffer {
 
   RHI_Metal_GraphicsPipeline* current_graphics_pipeline;
 
+  I32               current_frame;
   RHI_Metal_Buffer* current_index_buffer;
   U64               index_buffer_offset;
   RHI_IndexSize     index_size;
@@ -88,8 +89,9 @@ typedef struct RHI_Metal_Context RHI_Metal_Context;
 struct RHI_Metal_Context {
   OS_MacOS_Window* window;
 
-  id<MTLDevice>       device;
+  id<MTLDevice>        device;
   id<MTL4CommandQueue> command_queue;
+  id<MTLResidencySet>  residency_set;
 
   MTLPixelFormat drawable_texture_format;
   id<CAMetalDrawable> current_drawable;
@@ -101,7 +103,5 @@ struct RHI_Metal_Context {
   RHI_Metal_BufferArray           data_buffers;
   RHI_Metal_GraphicsPipelineArray graphics_pipelines;
   RHI_Metal_TextureArray          textures;
-
-  I32 current_frame;
 } _rhi_metal_context;
 

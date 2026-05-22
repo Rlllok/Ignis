@@ -89,9 +89,12 @@ enum RHI_TextureFormatEnum {
   RHI_TextureFormat_R8G8B8A8_UNORM,
   RHI_TextureFormat_B8G8R8A8_UNORM,
   RHI_TextureFormat_R16G16B16A16_SFLOAT,
+  RHI_TextureFormat_R8_UNORM,
   RHI_TextureFormat_D16_UNORM,
   RHI_TextureFormat_R16_UINT,
 } RHI_TextureFormatEnum;
+
+func U8 RHI_BytesPerPixelFromFormat(RHI_TextureFormat format);
 
 typedef U16 RHI_TextureUsageFlags;
 enum RHI_TextureUsageFlagsEnum {
@@ -120,7 +123,7 @@ func B32               RHI_DestroyTexture(RHI_Texture texture);
 func void              RHI_LoadImageToTexture(Str8 image_path, RHI_Texture texture);
 func void              RHI_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
 func U64               RHI_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
-func void              RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture);
+func void              RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
 func RHI_TextureFormat RHI_GetTextureFormat(RHI_Texture texture);
 func Vec2I32           RHI_GetTextureDimension(RHI_Texture texture);
 
@@ -191,6 +194,7 @@ func void RHI_BindInstanceFragmentShaderData(RHI_CommandBuffer command_buffer, I
 // -- Swapchain ------------------------------------------------------
 func RHI_TextureFormat RHI_GetSwapchainTextureFormat();
 func RHI_Texture       RHI_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer);
+func void              RHI_PresentTexture(RHI_CommandBuffer command_buffer);
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
@@ -225,10 +229,22 @@ struct RHI_DepthStencilTarget {
   F32                clear_depth;
 };
 
+typedef U8 RHI_ResourceKind;
+typedef enum RHI_ResourceKindEnum {
+  RHI_ResourceKind_Buffer,
+  RHI_ResourceKind_ArrayOfTextures,
+} RHI_ResourceKindEnum;
+
 typedef struct RHI_Resource RHI_Resource;
 struct RHI_Resource {
-  // --AlNov: @TODO Only Buffer for now
-  RHI_Buffer buffer;
+  RHI_ResourceKind kind;
+  union {
+    RHI_Buffer   buffer;
+    struct {
+      RHI_Texture* array;
+      I32          count;
+    } textures;
+  };
   // --AlNov: @TODO RHI_ResourceUsage usage;
   // --AlNvo: @TODO RHI_RenderStage stage;
 };
@@ -264,6 +280,7 @@ typedef enum RHI_ShaderLanguageEnum {
 typedef U8 RHI_ShaderArgumentKind;
 typedef enum RHI_ShaderArgumentKindEnum {
   RHI_ShaderArgumentKind_BufferAddress,
+  RHI_ShaderArgumentKind_ArrayOfTextures,
 } RHI_ShaderArgumentKindEnum;
 
 typedef struct RHI_ShaderArgument RHI_ShaderArgument;
@@ -271,6 +288,11 @@ struct RHI_ShaderArgument {
   RHI_ShaderArgumentKind kind;
   union {
     RHI_DeviceAddress address;
+
+    struct {
+      RHI_Texture* array;
+      I32          count;
+    } textures;
   };
 };
 
@@ -377,7 +399,6 @@ func void RHI_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport);
 func void RHI_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor);
 func void RHI_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 func void RHI_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
-func void RHI_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture);
 
 // -------------------------------------------------------------------
 // -- Device ---------------------------------------------------------
@@ -403,7 +424,7 @@ struct RHI_Device {
   void (*LoadDataToTexture)(U8* data, U64 data_size, RHI_Texture texture);
   void (*CopyTexture)(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
   U64 (*CopyTextureToBuffer)(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
-  void (*CopyBufferToTexture)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture);
+  void (*CopyBufferToTexture)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
   RHI_TextureFormat (*GetTextureFormat)(RHI_Texture texture);
   Vec2I32         (*GetTextureDimension)(RHI_Texture texture);
 
@@ -412,11 +433,13 @@ struct RHI_Device {
 	// Command Buffer
 	RHI_CommandBuffer (*GetCommandBuffer)(void);
 	void (*BeginCommandBuffer)(RHI_CommandBuffer command_buffer);
+  void (*EndCommandBuffer)(RHI_CommandBuffer command_buffer);
 	void (*SubmitCommandBuffer)(RHI_CommandBuffer command_buffer);
 
 	// Swapchain
   RHI_TextureFormat (*GetSwapchainTextureFormat)();
 	RHI_Texture (*AcquireSwapchainTexture)(RHI_CommandBuffer command_buffer);
+  void (*Present)(RHI_CommandBuffer command_buffer);
 
 	// Render Pass
 	RHI_RenderPass* (*BeginRenderPass)(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
@@ -459,9 +482,11 @@ struct RHI_Device {
   AssignDeviceFunction(api_name, CreateTextureSampler) \
 	AssignDeviceFunction(api_name, GetCommandBuffer) \
 	AssignDeviceFunction(api_name, BeginCommandBuffer) \
+	AssignDeviceFunction(api_name, EndCommandBuffer) \
 	AssignDeviceFunction(api_name, SubmitCommandBuffer) \
   AssignDeviceFunction(api_name, GetSwapchainTextureFormat) \
 	AssignDeviceFunction(api_name, AcquireSwapchainTexture) \
+	AssignDeviceFunction(api_name, Present) \
 	AssignDeviceFunction(api_name, BeginRenderPass) \
 	AssignDeviceFunction(api_name, EndRenderPass) \
   AssignDeviceFunction(api_name, CreateShader) \
