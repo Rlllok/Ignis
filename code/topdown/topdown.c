@@ -26,8 +26,14 @@ func TopDown_Mesh TopDown_LoadAndPrepareMesh(Arena* arena, Str8 path);
 
 typedef struct TopDown_Font TopDown_Font;
 struct TopDown_Font {
-  RHI_Texture glyphs[92];
-  Vec2I32     sizes[92];
+  RHI_Texture glyphs[96];
+  Vec2I32     sizes[96];
+  I32         x_offsets[96];
+  I32         y_offsets[96];
+  I32         advances[96];
+  I32         lsbs[96];
+  I32         ascent;
+  F32         scale;
 };
 
 func TopDown_Font TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size);
@@ -119,6 +125,8 @@ func void TopDown_DrawEntities();
 func void TopDown_DrawHexGrid();
 
 func void TopDown_DrawDebugCollision();
+
+func void TopDown_DrawText(Str8 text, I32 baseline_x, I32 baseline_y, Vec3F32 color);
 
 func TopDown_EntityId TopDown_CreateCamera();
 func TopDown_EntityId TopDown_CreatePlayer();
@@ -456,7 +464,7 @@ I32 main() {
   topdown_context.bullet_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/TopDown/Models/TopDown_Projectile.gltf"));
   topdown_context.floor_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/primitives/plane.gltf"));
   topdown_context.bounding_box_mesh = TopDown_LoadAndPrepareMesh(topdown_context.global_arena, Str8C("data/primitives/cube.gltf"));
-  topdown_context.font = TopDown_LoadFontFromTTF(topdown_context.global_arena, Str8C("data/fonts/RobotoMono-Regular.ttf"), 32);
+  topdown_context.font = TopDown_LoadFontFromTTF(topdown_context.global_arena, Str8C("data/fonts/RobotoMono-Regular.ttf"), 24);
 
   // Init Game Objects
   topdown_context.entities = TopDown_EntityArrayAllocate(topdown_context.global_arena, 128);
@@ -572,28 +580,7 @@ I32 main() {
         .store_operation = RHI_AttachmentStoreOperation_Store,
       };
       RHI_RenderPass* text_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &text_color_targets, 0, text_render_pass_resources, ArrayLength(text_render_pass_resources)); {
-          RHI_Metal_Texture* mtl_texture = RHI_Metal_TextureFromHandle(topdown_context.font.glyphs['J' - 32]);
-          Vec2I32 glyph_size = topdown_context.font.sizes['J' - 32];
-          struct {
-            Mat4F32 projection;
-            Vec4F32 position_size;
-            MTLResourceID texture_id;
-          } glyph_data = {
-            .projection = MakeOrthographicMat4F32(0.0f, topdown_context.window->size.w, topdown_context.window->size.y, 0.0f, -1.0f, 1.0f),
-            .position_size = MakeVec4F32(50.0f, 50.0f, glyph_size.x, glyph_size.y),
-            .texture_id = mtl_texture->mtl.gpuResourceID,
-          };
-          U64 glyph_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&glyph_data, sizeof(glyph_data));
-
-        RHI_ShaderArgument arguments[] = {
-          {
-            .kind = RHI_ShaderArgumentKind_BufferAddress,
-            .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + glyph_data_offset,
-          },
-        };
-        RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.text_pipeline);
-        RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
-        RHI_DrawPrimitives(topdown_context.command_buffer, 6, 1, 0, 0);
+        TopDown_DrawText(Str8C("Testing Font Rendering"), 0, 20, MakeVec3F32(1.0f, 0.1f, 0.0f));
       }
       RHI_EndRenderPass(topdown_context.command_buffer, text_render_pass);
     RHI_EndCommandBuffer(topdown_context.command_buffer);
@@ -634,29 +621,37 @@ TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size) {
   TopDown_Font result = ZeroStruct();
   ScratchArena scratch = BeginScratchArena(arena); {
     AST_Font ast_font = AST_FontFromTTF(scratch.arena, Str8C("data/fonts/RobotoMono-Regular.ttf"), size);
+    result.ascent = ast_font.ascent;
+    result.scale = ast_font.scale;
     
-    for(I32 ascii_code = 33; ascii_code <= 126; ascii_code += 1) {
+    for (I32 ascii_code = 32; ascii_code <= 126; ascii_code += 1) {
       AST_FontGlyph* ast_glyph = ast_font.glyphs + ascii_code - 32;
 
-      result.glyphs[ascii_code - 32] = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
-        .kind = RHI_TextureKind_2D,
-        .format = RHI_TextureFormat_R8_UNORM,
-        .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED|RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-        .width = ast_glyph->width,
-        .height = ast_glyph->height,
-        .depth = 1,
-        .num_levels = 1,
-      });
-      U64 texture_offset = RHI_PushBuffer(topdown_context.transfer_buffer, ast_glyph->bitmap, ast_glyph->width*ast_glyph->height);
-      RHI_BeginCommandBuffer(topdown_context.transfer_command_buffer); {
-        RHI_CopyBufferToTexture(topdown_context.transfer_command_buffer, topdown_context.transfer_buffer, texture_offset, result.glyphs[ascii_code - 32]);
+      if (ast_glyph->width != 0 && ast_glyph->height != 0) {
+        result.glyphs[ascii_code - 32] = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
+          .kind = RHI_TextureKind_2D,
+          .format = RHI_TextureFormat_R8_UNORM,
+          .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED|RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+          .width = ast_glyph->width,
+          .height = ast_glyph->height,
+          .depth = 1,
+          .num_levels = 1,
+        });
+        U64 texture_offset = RHI_PushBuffer(topdown_context.transfer_buffer, ast_glyph->bitmap, ast_glyph->width*ast_glyph->height);
+        RHI_BeginCommandBuffer(topdown_context.transfer_command_buffer); {
+          RHI_CopyBufferToTexture(topdown_context.transfer_command_buffer, topdown_context.transfer_buffer, texture_offset, result.glyphs[ascii_code - 32]);
+        }
+        RHI_EndCommandBuffer(topdown_context.transfer_command_buffer);
+        id<MTLSharedEvent> sync_event = [_rhi_metal_context.device newSharedEvent];
+        [_rhi_metal_context.command_queue signalEvent:sync_event value:1];
+        RHI_SubmitCommandBuffer(topdown_context.transfer_command_buffer);
       }
-      RHI_EndCommandBuffer(topdown_context.transfer_command_buffer);
-      id<MTLSharedEvent> sync_event = [_rhi_metal_context.device newSharedEvent];
-      [_rhi_metal_context.command_queue signalEvent:sync_event value:1];
-      RHI_SubmitCommandBuffer(topdown_context.transfer_command_buffer);
 
       result.sizes[ascii_code - 32] = MakeVec2I32(ast_glyph->width, ast_glyph->height);
+      result.x_offsets[ascii_code - 32] = ast_glyph->x_offset;
+      result.y_offsets[ascii_code - 32] = ast_glyph->y_offset;
+      result.advances[ascii_code - 32] = ast_glyph->advance;
+      result.lsbs[ascii_code - 32] = ast_glyph->lsb;
     }
   }
   EndScratchArena(scratch);
@@ -979,6 +974,52 @@ TopDown_DrawDebugCollision() {
     }
   }
 #endif
+}
+
+func void
+TopDown_DrawText(Str8 text, I32 baseline_x, I32 baseline_y, Vec3F32 color) {
+  F32 spacing = 0;
+  for (I32 character_index = 0; character_index < text.length; character_index += 1) {
+    U8 character = text.data[character_index];
+    RHI_Metal_Texture* mtl_texture = RHI_Metal_TextureFromHandle(topdown_context.font.glyphs[character - 32]);
+    Vec2I32 glyph_size = topdown_context.font.sizes[character - 32];
+    I32 x_offset = topdown_context.font.x_offsets[character - 32];
+    I32 y_offset = topdown_context.font.y_offsets[character - 32];
+    I32 ascent = topdown_context.font.ascent;
+    F32 scale = topdown_context.font.scale;
+    F32 advance = topdown_context.font.advances[character - 32];
+
+    if (character == ' ') {
+      spacing += advance*scale;
+      continue;
+    }
+
+    struct {
+      Mat4F32 projection;
+      Vec4F32 position_size;
+      Vec3F32 color; F32 color_padding;
+      MTLResourceID texture_id;
+    } glyph_data = {
+      .projection = MakeOrthographicMat4F32(0.0f, topdown_context.window->size.w, topdown_context.window->size.y, 0.0f, -1.0f, 1.0f),
+      .position_size = MakeVec4F32(baseline_x + x_offset + spacing, baseline_y + y_offset, glyph_size.x, glyph_size.y),
+      .color = color,
+      .texture_id = mtl_texture->mtl.gpuResourceID,
+    };
+    U64 glyph_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&glyph_data, sizeof(glyph_data));
+
+    RHI_ShaderArgument arguments[] = {
+      {
+        .kind = RHI_ShaderArgumentKind_BufferAddress,
+        .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + glyph_data_offset,
+      },
+    };
+    RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.text_pipeline);
+    RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+    // -- Text Test
+    RHI_DrawPrimitives(topdown_context.command_buffer, 6, 1, 0, 0);
+
+    spacing += (F32)(advance)*scale;
+  }
 }
 
 func TopDown_EntityId

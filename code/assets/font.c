@@ -21,10 +21,9 @@ AST_FontFromTTF(Arena* arena, Str8 file_path, U16 size) {
   fclose(file);
 
   stbtt_InitFont(&font_info, ttf_content, stbtt_GetFontOffsetForIndex(ttf_content, 0));
+  F32 scale = stbtt_ScaleForPixelHeight(&font_info, size);
 
-  for (I32 ascii_code = 33; ascii_code <= 126; ascii_code += 1) {
-    F32 scale = stbtt_ScaleForPixelHeight(&font_info, size);
-
+  for (I32 ascii_code = 32; ascii_code <= 126; ascii_code += 1) {
     I32 x0 = 0;
     I32 y0 = 0;
     I32 x1 = 0;
@@ -32,14 +31,19 @@ AST_FontFromTTF(Arena* arena, Str8 file_path, U16 size) {
     stbtt_GetCodepointBitmapBox(&font_info, ascii_code, scale, scale, &x0, &y0, &x1, &y1);
 
     AST_FontGlyph* glyph = result.glyphs + ascii_code - 32;
+    glyph->x_offset = x0;
+    glyph->y_offset = y0;
     glyph->width = x1 - x0;
     glyph->height = y1 - y0;
+    stbtt_GetCodepointHMetrics(&font_info, ascii_code, &glyph->advance, &glyph->lsb);
 
     glyph->bitmap = (U8*)PushArena(arena, glyph->width*glyph->height);
     stbtt_MakeCodepointBitmap(&font_info, glyph->bitmap, glyph->width, glyph->height, glyph->width, scale, scale, ascii_code);
   }
 
   result.font_size = size;
+  stbtt_GetFontVMetrics(&font_info, &result.ascent,0,0);
+  result.scale = scale;
 
   return result;
 }

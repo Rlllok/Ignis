@@ -22,12 +22,14 @@ constant uint indecies[] = {
 struct GlyphData {
   float4x4         projection;
   float4           position_size;
+  float3           color;
   texture2d<float> texture;
 };
 
 struct VertexOutput {
   float4 position [[position]];
   float2 uv;
+  float3 color [[flat]];
   uint   instance_index;
 };
 

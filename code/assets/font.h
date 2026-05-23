@@ -3,14 +3,20 @@
 typedef struct AST_FontGlyph AST_FontGlyph;
 struct AST_FontGlyph {
   U8* bitmap;
-  U16 width;
-  U16 height;
+  I32 width;
+  I32 height;
+  I32 x_offset;
+  I32 y_offset;
+  I32 advance;
+  I32 lsb;
 };
 
 typedef struct AST_Font AST_Font;
 struct AST_Font {
   AST_FontGlyph glyphs[96]; // from space (32) to ~ (126)
-  U16 font_size;
+  I32 ascent;
+  F32 scale;
+  I32 font_size;
 };
 
 func AST_Font AST_FontFromTTF(Arena* arena, Str8 file_path, U16 size);
