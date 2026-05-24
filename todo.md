@@ -1,7 +1,10 @@
 # TODO
 
 ## RHI
--[ ] Add sync tools
+### Metal
+### Vulkan
+-[ ] Add api for sync tools
+-[ ] Add resource id for textures
 
 ## TopDown
 -[ ] Add SceneData to shaders (for now such data as camera_transform stored in data related to object)
@@ -11,6 +14,11 @@
 # BUGS
 
 # Done
+## RHI
+### Metal
+-[x] (23.05.2026) Add api for sync tools
+-[x] (23.05.2026) Add resource id for textures
+
 ## TopDown
 -[x] (23.05.2026) Render lines of text
 -[x] (16.05.2026) Debug view of Bounding Boxes

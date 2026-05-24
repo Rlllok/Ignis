@@ -5,6 +5,16 @@
 #include "../rhi_core.h"
 
 // -------------------------------------------------------------------
+// -- Synchronization ------------------------------------------------
+typedef struct RHI_Metal_Semaphore RHI_Metal_Semaphore;
+struct RHI_Metal_Semaphore {
+  id<MTLSharedEvent> event;
+  B32                in_use;
+};
+RHI_Metal_Semaphore RHI_Metal_Semaphore_Nil = ZeroStruct();
+DefineArray(RHI_Metal_Semaphore, RHI_Metal_SemaphoreArray, RHI_Metal_Semaphore_Nil);
+
+// -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
 typedef struct RHI_Metal_Buffer RHI_Metal_Buffer;
 struct RHI_Metal_Buffer {
@@ -100,6 +110,7 @@ struct RHI_Metal_Context {
 
   Arena*                          arena;
   RHI_Metal_CommandBufferArray    command_buffers;
+  RHI_Metal_SemaphoreArray        semaphores;
   RHI_Metal_BufferArray           data_buffers;
   RHI_Metal_GraphicsPipelineArray graphics_pipelines;
   RHI_Metal_TextureArray          textures;

@@ -11,6 +11,7 @@ typedef U32 RHI_Handle;
 #define RHI_nil 0
 
 typedef U64 RHI_DeviceAddress;
+typedef U64 RHI_TextureDeviceId;
 
 typedef U8 RHI_CompareOperation;
 typedef enum RHI_CompareOperationEnum {
@@ -25,12 +26,27 @@ typedef enum RHI_CompareOperationEnum {
 } RHI_CompareOperationEnum;
 
 // -------------------------------------------------------------------
+// -- Synchronization ------------------------------------------------
+typedef RHI_Handle RHI_Semaphore;
+
+func RHI_Semaphore RHI_CreateSemaphore();
+func void          RHI_DestroySemaphore(RHI_Semaphore);
+func void          RHI_WaitSemaphore(RHI_Semaphore semaphore, U64 value);
+
+typedef struct RHI_SemaphoreSignalInfo RHI_SemaphoreSignalInfo;
+struct RHI_SemaphoreSignalInfo {
+  RHI_Semaphore semaphore;
+  U64           value;
+  // --AlNov: @TODO Add Stage
+};
+
+// -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
 typedef RHI_Handle RHI_CommandBuffer;
 
 func RHI_CommandBuffer RHI_GetCommandBuffer(void);
 func void RHI_BeginCommandBuffer(RHI_CommandBuffer command_buffer);
-func void RHI_SubmitCommandBuffer(RHI_CommandBuffer command_buffer);
+func void RHI_SubmitCommandBuffer(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignalInfo* wait_semaphores, I32 wait_semaphores_count, RHI_SemaphoreSignalInfo* signal_semaphores, I32 signal_semaphores_count);
 
 // -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
@@ -118,14 +134,15 @@ struct RHI_TextureCreateInfo {
 };
 typedef RHI_Handle RHI_Texture;
 
-func RHI_Texture       RHI_CreateTexture(RHI_TextureCreateInfo* info);
-func B32               RHI_DestroyTexture(RHI_Texture texture);
-func void              RHI_LoadImageToTexture(Str8 image_path, RHI_Texture texture);
-func void              RHI_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
-func U64               RHI_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
-func void              RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
-func RHI_TextureFormat RHI_GetTextureFormat(RHI_Texture texture);
-func Vec2I32           RHI_GetTextureDimension(RHI_Texture texture);
+func RHI_Texture         RHI_CreateTexture(RHI_TextureCreateInfo* info);
+func B32                 RHI_DestroyTexture(RHI_Texture texture);
+func RHI_TextureDeviceId RHI_GetTextureDeviceId(RHI_Texture texture);
+func void                RHI_LoadImageToTexture(Str8 image_path, RHI_Texture texture);
+func void                RHI_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
+func U64                 RHI_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
+func void                RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
+func RHI_TextureFormat   RHI_GetTextureFormat(RHI_Texture texture);
+func Vec2I32             RHI_GetTextureDimension(RHI_Texture texture);
 
 typedef U8 RHI_FilterKind;
 enum RHI_FilterKindEnum {
@@ -407,6 +424,11 @@ struct RHI_Device {
 	B32 (*Init)(OS_Window* window);
   B32 (*Shutdown)(void);
 
+  // -- Synchronization
+  RHI_Semaphore (*CreateSemaphore)();
+  void (*DestroySemaphore)(RHI_Semaphore semaphore);
+  void (*WaitSemaphore)(RHI_Semaphore semphore, U64 value);
+
 	// Buffer
 	RHI_Buffer (*CreateBuffer)(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags);
 	U64 (*PushBuffer)(RHI_Buffer buffer, U8* data, U64 size);
@@ -421,6 +443,7 @@ struct RHI_Device {
   // Texture
   RHI_Texture (*CreateTexture)(RHI_TextureCreateInfo* info);
   B32 (*DestroyTexture)(RHI_Texture texture);
+  RHI_TextureDeviceId (*GetTextureDeviceId)(RHI_Texture texture);
   void (*LoadDataToTexture)(U8* data, U64 data_size, RHI_Texture texture);
   void (*CopyTexture)(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
   U64 (*CopyTextureToBuffer)(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
@@ -434,7 +457,7 @@ struct RHI_Device {
 	RHI_CommandBuffer (*GetCommandBuffer)(void);
 	void (*BeginCommandBuffer)(RHI_CommandBuffer command_buffer);
   void (*EndCommandBuffer)(RHI_CommandBuffer command_buffer);
-	void (*SubmitCommandBuffer)(RHI_CommandBuffer command_buffer);
+  void (*SubmitCommandBuffer)(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignalInfo* wait_semaphores, I32 wait_semaphores_count, RHI_SemaphoreSignalInfo* signal_semaphores, I32 signal_semaphores_count);
 
 	// Swapchain
   RHI_TextureFormat (*GetSwapchainTextureFormat)();
@@ -464,6 +487,9 @@ struct RHI_Device {
 #define AssignDeviceFunctions(api_name) \
 	AssignDeviceFunction(api_name, Init) \
   AssignDeviceFunction(api_name, Shutdown) \
+  AssignDeviceFunction(api_name, CreateSemaphore) \
+  AssignDeviceFunction(api_name, DestroySemaphore) \
+  AssignDeviceFunction(api_name, WaitSemaphore) \
 	AssignDeviceFunction(api_name, CreateBuffer) \
 	AssignDeviceFunction(api_name, PushBuffer) \
 	AssignDeviceFunction(api_name, ResetBuffer) \
@@ -473,6 +499,7 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, BindShaderArguments) \
   AssignDeviceFunction(api_name, CreateTexture) \
   AssignDeviceFunction(api_name, DestroyTexture) \
+  AssignDeviceFunction(api_name, GetTextureDeviceId) \
   AssignDeviceFunction(api_name, LoadDataToTexture) \
   AssignDeviceFunction(api_name, CopyTexture) \
   AssignDeviceFunction(api_name, CopyTextureToBuffer) \

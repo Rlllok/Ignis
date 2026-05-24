@@ -3,6 +3,23 @@
 #include "base/base_logger.h"
 
 // -------------------------------------------------------------------
+// -- Synchronization ------------------------------------------------
+func RHI_Semaphore
+RHI_CreateSemaphore() {
+  return _r_state.device.CreateSemaphore();
+}
+
+func void
+RHI_DestroySemaphore(RHI_Semaphore semaphore) {
+  _r_state.device.DestroySemaphore(semaphore);
+}
+
+func void
+RHI_WaitSemaphore(RHI_Semaphore semaphore, U64 value) {
+  _r_state.device.WaitSemaphore(semaphore, value);
+}
+
+// -------------------------------------------------------------------
 // -- Command Buffer - -----------------------------------------------
 func RHI_CommandBuffer
 RHI_GetCommandBuffer(void) {
@@ -20,8 +37,8 @@ RHI_EndCommandBuffer(RHI_CommandBuffer command_buffer) {
 }
 
 func void
-RHI_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
-	_r_state.device.SubmitCommandBuffer(command_buffer);
+RHI_SubmitCommandBuffer(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignalInfo* wait_semaphores, I32 wait_semaphores_count, RHI_SemaphoreSignalInfo* signal_semaphores, I32 signal_semaphores_count) {
+	_r_state.device.SubmitCommandBuffer(command_buffer, wait_semaphores, wait_semaphores_count, signal_semaphores, signal_semaphores_count);
 }
 
 // -------------------------------------------------------------------
@@ -80,6 +97,11 @@ RHI_CreateTexture(RHI_TextureCreateInfo* info) {
 func B32
 RHI_DestroyTexture(RHI_Texture texture) {
   return _r_state.device.DestroyTexture(texture);
+}
+
+func RHI_TextureDeviceId
+RHI_GetTextureDeviceId(RHI_Texture texture) {
+  return _r_state.device.GetTextureDeviceId(texture);
 }
 
 func void RHI_LoadImageToTexture(Str8 image_path, RHI_Texture texture) {

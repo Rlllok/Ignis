@@ -243,9 +243,15 @@ I32 main() {
     RHI_CopyBufferToTexture(topdown_context.transfer_command_buffer, topdown_context.transfer_buffer, 0, topdown_context.default_texture);
   }
   RHI_EndCommandBuffer(topdown_context.transfer_command_buffer);
-  id<MTLSharedEvent> sync_event = [_rhi_metal_context.device newSharedEvent];
-  [_rhi_metal_context.command_queue signalEvent:sync_event value:1];
-  RHI_SubmitCommandBuffer(topdown_context.transfer_command_buffer);
+
+  RHI_Semaphore copy_semaphore = RHI_CreateSemaphore();
+  RHI_SemaphoreSignalInfo signal_semaphore = {
+    .semaphore = copy_semaphore,
+    .value = 1,
+  };
+  RHI_SubmitCommandBuffer(topdown_context.transfer_command_buffer, 0, 0, &signal_semaphore, 1);
+  RHI_WaitSemaphore(copy_semaphore, 1);
+  RHI_DestroySemaphore(copy_semaphore);
 
   topdown_context.depth_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
     .kind = RHI_TextureKind_2D,
@@ -584,7 +590,7 @@ I32 main() {
       }
       RHI_EndRenderPass(topdown_context.command_buffer, text_render_pass);
     RHI_EndCommandBuffer(topdown_context.command_buffer);
-    RHI_SubmitCommandBuffer(topdown_context.command_buffer);
+    RHI_SubmitCommandBuffer(topdown_context.command_buffer, 0, 0, 0, 0);
     RHI_Present(topdown_context.command_buffer);
 
     U64 end_ts = OS_GetTimeTicks();
@@ -642,9 +648,15 @@ TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size) {
           RHI_CopyBufferToTexture(topdown_context.transfer_command_buffer, topdown_context.transfer_buffer, texture_offset, result.glyphs[ascii_code - 32]);
         }
         RHI_EndCommandBuffer(topdown_context.transfer_command_buffer);
-        id<MTLSharedEvent> sync_event = [_rhi_metal_context.device newSharedEvent];
-        [_rhi_metal_context.command_queue signalEvent:sync_event value:1];
-        RHI_SubmitCommandBuffer(topdown_context.transfer_command_buffer);
+
+        RHI_Semaphore semaphore = RHI_CreateSemaphore();
+        RHI_SemaphoreSignalInfo signal_semaphore = {
+          .semaphore = semaphore,
+          .value = 1,
+        };
+        RHI_SubmitCommandBuffer(topdown_context.transfer_command_buffer, 0, 0, &signal_semaphore, 1);
+        RHI_WaitSemaphore(semaphore, 1);
+        RHI_DestroySemaphore(semaphore);
       }
 
       result.sizes[ascii_code - 32] = MakeVec2I32(ast_glyph->width, ast_glyph->height);
@@ -981,7 +993,6 @@ TopDown_DrawText(Str8 text, I32 baseline_x, I32 baseline_y, Vec3F32 color) {
   F32 spacing = 0;
   for (I32 character_index = 0; character_index < text.length; character_index += 1) {
     U8 character = text.data[character_index];
-    RHI_Metal_Texture* mtl_texture = RHI_Metal_TextureFromHandle(topdown_context.font.glyphs[character - 32]);
     Vec2I32 glyph_size = topdown_context.font.sizes[character - 32];
     I32 x_offset = topdown_context.font.x_offsets[character - 32];
     I32 y_offset = topdown_context.font.y_offsets[character - 32];
@@ -998,12 +1009,12 @@ TopDown_DrawText(Str8 text, I32 baseline_x, I32 baseline_y, Vec3F32 color) {
       Mat4F32 projection;
       Vec4F32 position_size;
       Vec3F32 color; F32 color_padding;
-      MTLResourceID texture_id;
+      U64 texture_id;
     } glyph_data = {
       .projection = MakeOrthographicMat4F32(0.0f, topdown_context.window->size.w, topdown_context.window->size.y, 0.0f, -1.0f, 1.0f),
       .position_size = MakeVec4F32(baseline_x + x_offset + spacing, baseline_y + y_offset, glyph_size.x, glyph_size.y),
       .color = color,
-      .texture_id = mtl_texture->mtl.gpuResourceID,
+      .texture_id = RHI_GetTextureDeviceId(topdown_context.font.glyphs[character - 32]),
     };
     U64 glyph_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&glyph_data, sizeof(glyph_data));
 

@@ -3,6 +3,51 @@
 #include "rhi_metal.h"
 
 // -------------------------------------------------------------------
+// -- Synchronization ------------------------------------------------
+func RHI_Metal_Semaphore*
+RHI_Metal_SemaphoreFromHandle(RHI_Semaphore semaphore) {
+  return RHI_Metal_SemaphoreArrayGetPointer(&_rhi_metal_context.semaphores, semaphore);
+}
+
+func RHI_Semaphore
+RHI_Metal_CreateSemaphore() {
+  @autoreleasepool {
+    RHI_Semaphore result = 0;
+
+    for (I32 semaphore_index = 1; semaphore_index < _rhi_metal_context.semaphores.length; semaphore_index += 1) {
+      RHI_Metal_Semaphore* mtl_semaphore = RHI_Metal_SemaphoreArrayGetPointer(&_rhi_metal_context.semaphores, semaphore_index);
+
+      if (!mtl_semaphore->in_use) {
+        mtl_semaphore->event = [_rhi_metal_context.device newSharedEvent];
+        mtl_semaphore->in_use = 1;
+        result = semaphore_index;
+        break;
+      }
+    }
+
+    Assert(result != 0);
+    return result;
+  }
+}
+
+func void
+RHI_Metal_DestroySemaphore(RHI_Semaphore semaphore) {
+  @autoreleasepool {
+    RHI_Metal_Semaphore* mtl_semaphore = RHI_Metal_SemaphoreArrayGetPointer(&_rhi_metal_context.semaphores, semaphore);
+    mtl_semaphore->event = 0;
+    mtl_semaphore->in_use = 0;
+  }
+}
+
+func void
+RHI_Metal_WaitSemaphore(RHI_Semaphore semaphore, U64 value) {
+  @autoreleasepool {
+    RHI_Metal_Semaphore* mtl_semaphore = RHI_Metal_SemaphoreArrayGetPointer(&_rhi_metal_context.semaphores, semaphore);
+    [mtl_semaphore->event waitUntilSignaledValue:value timeoutMS:U64_MAX];
+  }
+}
+
+// -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
 func RHI_Metal_Buffer*
 RHI_Metal_BufferFromHandle(RHI_Buffer handle) {
@@ -168,6 +213,12 @@ RHI_Metal_DestroyTexture(RHI_Texture texture) {
   return result;
 }
 
+func RHI_TextureDeviceId
+RHI_Metal_GetTextureDeviceId(RHI_Texture texture) {
+  RHI_Metal_Texture* mtl_texture = RHI_Metal_TextureFromHandle(texture);
+  return mtl_texture->mtl.gpuResourceID._impl;
+}
+
 func void
 RHI_Metal_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture) {
   // --AlNov: @TODO
@@ -280,10 +331,16 @@ RHI_Metal_EndCommandBuffer(RHI_CommandBuffer command_buffer) {
 }
 
 func void
-RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
+RHI_Metal_SubmitCommandBuffer(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignalInfo* wait_semaphores, I32 wait_semaphores_count, RHI_SemaphoreSignalInfo* signal_semaphores, I32 signal_semaphores_count) {
   @autoreleasepool {
     RHI_Metal_CommandBuffer* metal_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
     [_rhi_metal_context.command_queue commit:&metal_command_buffer->mtl count:1];
+
+    for (I32 signal_index = 0; signal_index < signal_semaphores_count; signal_index += 1) {
+      RHI_SemaphoreSignalInfo* info = signal_semaphores + signal_index;
+      RHI_Metal_Semaphore* mtl_semaphore = RHI_Metal_SemaphoreFromHandle(info->semaphore);
+      [_rhi_metal_context.command_queue signalEvent:mtl_semaphore->event value:info->value];
+    }
   }
 }
 
@@ -715,6 +772,8 @@ RHI_Metal_Init(OS_Window* window) {
 
   _rhi_metal_context.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_metal_context.command_buffers = RHI_Metal_CommandBufferArrayAllocate(_rhi_metal_context.arena, 32);
+  _rhi_metal_context.semaphores = RHI_Metal_SemaphoreArrayAllocate(_rhi_metal_context.arena, 128);
+  _rhi_metal_context.semaphores.length = _rhi_metal_context.semaphores.capacity;
   _rhi_metal_context.data_buffers = RHI_Metal_BufferArrayAllocate(_rhi_metal_context.arena, 32);
   _rhi_metal_context.graphics_pipelines = RHI_Metal_GraphicsPipelineArrayAllocate(_rhi_metal_context.arena, 32);
 
