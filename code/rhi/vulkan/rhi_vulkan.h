@@ -25,6 +25,16 @@ VkResult VK_CHECK_RESULT = VK_SUCCESS;
 #include "rhi_vk_utils.h"
 
 // -------------------------------------------------------------------
+// -- Synchronization ------------------------------------------------
+typedef struct RHI_VK_Semaphore RHI_VK_Semaphore;
+struct RHI_VK_Semaphore {
+  VkSemaphore vk;
+  B32         in_use;
+};
+RHI_VK_Semaphore RHI_VK_SemaphoreNil = ZeroStruct();
+DefineArray(RHI_VK_Semaphore, RHI_VK_SemaphoreArray, RHI_VK_SemaphoreNil)
+
+// -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
 typedef struct RHI_VK_Buffer RHI_VK_Buffer;
 struct RHI_VK_Buffer {
@@ -195,7 +205,7 @@ func B32               RHI_VK_DestroyTexture(RHI_Texture texture);
 func void              RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture);
 func void              RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
 func U64               RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
-func void              RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture);
+func void              RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
 func RHI_TextureFormat RHI_VK_GetTextureFormat(RHI_Texture texture);
 func Vec2I32           RHI_VK_GetTextureDimension(RHI_Texture texture);
 
@@ -231,7 +241,6 @@ func RHI_VK_CommandBuffer* RHI_VK_CommandBufferFromHandle(RHI_CommandBuffer comm
 func RHI_CommandBuffer     RHI_VK_GetCommandBuffer();
 func void                  RHI_VK_ReleaseCommandBuffer(RHI_CommandBuffer command_buffer);
 func void                  RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer);
-func void                  RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer);
 func VkCommandBuffer       RHI_VK_BeginSingleCmd();
 func void                  RHI_VK_EndSingleCmd(VkCommandBuffer cmd);
 
@@ -244,6 +253,7 @@ struct RHI_VK_State {
   RHI_VK_Device                device;
   RHI_VK_Swapchain             swapchain;
 	VkCommandPool                command_pool;
+  RHI_VK_SemaphoreArray        semaphores;
   RHI_VK_BufferArray           buffers;
   RHI_VK_RenderPassArray       render_passes;
   RHI_VK_FramebufferArray      framebuffers;

@@ -6,6 +6,44 @@
 #include "base/base_core.h"
 
 // -------------------------------------------------------------------
+// -- Synchronization ------------------------------------------------
+func RHI_VK_Semaphore*
+RHI_VK_SemaphoreFromHandle(RHI_Semaphore handle) {
+  return RHI_VK_SemaphoreArrayGetPointer(&_rhi_vk_state.semaphores, handle);
+}
+
+func RHI_Semaphore
+RHI_VK_CreateSemaphore() {
+  RHI_Semaphore result = 0;
+  
+  for (I32 semaphore_index = 1; semaphore_index < _rhi_vk_state.semaphores.length; semaphore_index += 1) {
+    RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore_index);
+    if (vk_semaphore->in_use) {
+      VkSemaphoreCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      };
+      vkCreateSemaphore(_rhi_vk_state.device.logical, &info, 0, &vk_semaphore->vk);
+      vk_semaphore->in_use = 1;
+      result = semaphore_index;
+      break;
+    }
+  }
+  
+  return result;
+}
+
+func void
+RHI_VK_DestroySemaphore(RHI_Semaphore semaphore) {
+  RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore);
+  vkDestroySemaphore(_rhi_vk_state.device.logical, vk_semaphore->vk, 0);
+  vk_semaphore->in_use = 0;
+}
+
+func void
+RHI_VK_WaitSemaphore(RHI_Semaphore semaphore, U64 value) {
+}
+
+// -------------------------------------------------------------------
 // -- Buffer ---------------------------------------------------------
 func VkBufferUsageFlags
 _VkFromBufferUsageFlags(RHI_BufferUsageFlags flags) {
@@ -250,7 +288,12 @@ RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
 }
 
 func void
-RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer) {
+RHI_VK_EndCommandBuffer(RHI_CommandBuffer command_buffer) {
+  // --AlNov: @TODO
+}
+
+func void
+RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignalInfo* wait_semaphores, I32 wait_semaphores_count, RHI_SemaphoreSignalInfo* signal_semaphores, I32 signal_semaphores_count) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
   RHI_VK_Texture* swapchain_texture = vk_command_buffer->current_swapchain_texture;
@@ -575,6 +618,11 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 
   vk_command_buffer->current_swapchain_texture = RHI_VK_TextureFromHandle(_rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target]);
   return _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target];
+}
+
+func void
+RHI_VK_Present(RHI_CommandBuffer command_buffer) {
+  // --AlNov: @TODO
 }
 
 func void
@@ -1595,6 +1643,12 @@ RHI_VK_DestroyTexture(RHI_Texture texture) {
   return 1;
 }
 
+func RHI_TextureDeviceId
+RHI_VK_GetTextureDeviceId(RHI_Texture texture) {
+  // --AlNov: @TODO
+  return 0;
+}
+
 func void
 RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture) {
   // --AlNov: @TODO Empty
@@ -1681,7 +1735,7 @@ RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture
 }
 
 func void
-RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, U64 size, RHI_Texture texture) {
+RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
   RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
 
@@ -1892,6 +1946,7 @@ RHI_VK_EndSingleCmd(VkCommandBuffer cmd) {
 func B32
 RHI_VK_Init(OS_Window* window) {
   _rhi_vk_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
+  _rhi_vk_state.semaphores = RHI_VK_SemaphoreArrayAllocate(_rhi_vk_state.arena, 128);
   _rhi_vk_state.buffers = RHI_VK_BufferArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.buffers.elements[0] = (RHI_VK_Buffer){0};
   _rhi_vk_state.render_passes = RHI_VK_RenderPassArrayAllocate(_rhi_vk_state.arena, 32);

@@ -3,8 +3,9 @@
 ## RHI
 ### Metal
 ### Vulkan
+-[ ] Remove function's prototypes from header
 -[ ] Add api for sync tools
--[ ] Add resource id for textures
+-[ ] Add api for Textures
 
 ## TopDown
 -[ ] Add SceneData to shaders (for now such data as camera_transform stored in data related to object)
