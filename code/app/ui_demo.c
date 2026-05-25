@@ -1,0 +1,249 @@
+#include "base/base_include.h"
+#include "os/os_include.h"
+#include "rhi/rhi_include.h"
+#include "ui/ui_include.h"
+
+#include "base/base_include.c"
+#include "os/os_include.c"
+#include "rhi/rhi_include.c"
+#include "ui/ui_include.c"
+
+static struct {
+  OS_Window*           window;
+  RHI_Buffer           gpu_buffer;
+  RHI_GraphicsPipeline rectangle_pipeline;
+
+  F32 dt;
+
+  Vec4F32 colors[4];
+  I32     current_color_index;
+  B32     color_animation;
+  F32     animation_duration;
+  F32     animation_time;
+} ui_demo;
+
+func B32
+Demo_Button(Str8 label, UI_Size width, UI_Size height) {
+  B32 result = 0;
+
+  UI_WidgetBlock({
+    .name = label,
+    .kind = UI_WidgetKind_Rectangle,
+    .flags = UI_WidgetFlag_DrawBackground|UI_WidgetFlag_Hover,
+    .layout = {
+      .width = width,
+      .height = height,
+    },
+    .rectangle = {
+      .color = UI_Hovered() ? MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f) : MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+    }
+  }) {
+    result = UI_Hovered() && OS_MousePressed(OS_MouseButton_Left);
+  }
+
+  return result;
+}
+
+func B32
+Demo_CheckBox(Str8 label, B32 value, UI_Size width, UI_Size height) {
+  B32 result = value;
+
+  UI_WidgetBlock({
+    .name = label,
+    .kind = UI_WidgetKind_Rectangle,
+    .flags = UI_WidgetFlag_DrawBackground|UI_WidgetFlag_Hover,
+    .layout = {
+      .width = width,
+      .height = height,
+    },
+    .rectangle = {
+      .color = value ? MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f) : MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
+    }
+  }) {
+    if (UI_Hovered() && OS_MousePressed(OS_MouseButton_Left)) {
+      result = !value;
+    }
+  }
+
+  return result;
+}
+
+func void
+Demo_BuildUI(OS_Window* window) {
+  Vec2F32 mouse_position = OS_MousePosition(window);
+  Vec2F32 mouse_scroll = MakeVec2F32(0.0f, 0.0f);
+
+  UI_BeginFrame(mouse_position, mouse_scroll); {
+    UI_WidgetBlock({
+      .name = Str8C("Root"),
+      .layout = {
+        .height = UI_PixelSize(window->size.h),
+        .width = UI_PixelSize(window->size.w),
+      }
+    }) {
+      UI_WidgetBlock({
+        .name = Str8C("Layout"),
+        .kind = UI_WidgetKind_Rectangle,
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = {
+          .height = UI_PercentSize(1.0f),
+          .width = UI_PercentSize(0.5f),
+        },
+        .rectangle = {
+          .color = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+        }
+      }) {
+        if (Demo_Button(Str8C("ChangeColor"), UI_PercentSize(1.0f), UI_PixelSize(40.0f))) {
+          ui_demo.current_color_index = (ui_demo.current_color_index + 1)%4;
+        }
+
+        ui_demo.color_animation = Demo_CheckBox(Str8C("Animation"), ui_demo.color_animation, UI_PercentSize(0.25f), UI_PixelSize(40.0f));
+      }
+    }
+  }
+  UI_EndFrame();
+}
+
+func void
+Demo_Render(RHI_CommandBuffer command_buffer) {
+  RHI_BeginCommandBuffer(command_buffer); {
+    F32 t = ui_demo.animation_time/ui_demo.animation_duration;
+    if (t > 1.0f) {
+      ui_demo.animation_time = 0.0f;
+    }
+    Vec4F32 clear_color = ui_demo.colors[ui_demo.current_color_index];
+    clear_color = LerpVec4F32(clear_color, MakeVec4F32(0.8f, 0.8f, 0.8f, 1.0f), t);
+
+    if (ui_demo.color_animation) {
+      ui_demo.animation_time += ui_demo.dt;
+    }
+    else {
+      ui_demo.animation_time = 0.0f;
+    }
+
+    RHI_ColorTarget color_target = {
+      .texture = RHI_AcquireSwapchainTexture(command_buffer),
+      .load_operation = RHI_AttachmentLoadOperation_Clear,
+      .store_operation = RHI_AttachmentStoreOperation_Store,
+      .clear_color = clear_color,
+    };
+    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0, 0, 0); {
+      UI_DrawCommandArray ui_draw_commands = ui_context.draw_commands;
+
+      for (I32 command_index = 0; command_index < ui_draw_commands.length; command_index += 1) {
+        UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_draw_commands, command_index);
+
+        switch (draw_command->kind) {
+          default: {
+            Assert(0 && "Unsupported UI draw command");
+          } break;
+
+          case UI_DrawCommandKind_Rectangle: {
+            RectF32 bound = draw_command->rectangle.bound;
+
+            struct {
+              Mat4F32 projection;
+              Vec4F32 position_size;
+              Vec4F32 color;
+            } data = {
+              .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
+              .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
+              .color = draw_command->rectangle.color,
+            };
+            U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
+
+            RHI_ShaderArgument arguments[] = {
+              {
+                .kind = RHI_ShaderArgumentKind_BufferAddress,
+                .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + data_offset,
+              }
+            };
+            RHI_BindGraphicsPipeline(command_buffer, ui_demo.rectangle_pipeline);
+            RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+            RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+          } break;
+        }
+      }
+    }
+    RHI_EndRenderPass(command_buffer, render_pass);
+  }
+  RHI_EndCommandBuffer(command_buffer);
+
+  RHI_SubmitCommandBuffer(command_buffer, 0, 0, 0, 0);
+  RHI_Present(command_buffer);
+}
+
+I32 main() {
+  Arena* global_arena = AllocateArena(Gigabytes(8), Kilobytes(64));
+  Arena* frame_arena = AllocateArena(Gigabytes(8), Kilobytes(64));
+  B32 finished = 0;
+
+  OS_Init(Megabytes(64));
+  ui_demo.window = OS_CreateWindow(Str8C("UI Demo"), MakeVec2U32(1280, 720));
+
+  RHI_Init(ui_demo.window);
+  RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
+  ui_demo.gpu_buffer = RHI_CreateBuffer(Str8C("UI_Demo_Buffer"), Megabytes(16), RHI_BufferUsageFlag_Storage, RHI_BufferPropertyFlag_HostVisible|RHI_BufferPropertyFlag_HostCoherent);
+  {
+    RHI_ShaderArgumentKind vertex_shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader vertex_shader = RHI_CreateShader(global_arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/rectangle.vs"),
+      .kind = RHI_ShaderKind_Vertex,
+      .arguments = vertex_shader_arguments,
+      .arguments_count = ArrayLength(vertex_shader_arguments),
+    });
+
+    RHI_ShaderArgumentKind fragment_shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader fragment_shader = RHI_CreateShader(global_arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/rectangle.fs"),
+      .kind = RHI_ShaderKind_Fragment,
+      .arguments = fragment_shader_arguments,
+      .arguments_count = ArrayLength(fragment_shader_arguments),
+    });
+
+    ui_demo.rectangle_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
+      .vertex_shader = &vertex_shader,
+      .fragment_shader = &fragment_shader,
+      .color_targets_count = 1,
+      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+        .format = RHI_GetSwapchainTextureFormat(),
+      }
+    });
+  }
+
+  UI_Init(global_arena, 1024);
+
+  ui_demo.colors[0] = MakeVec4F32(0.0f, 0.50f, 0.24f, 1.0f),
+  ui_demo.colors[1] = MakeVec4F32(0.08f, 0.25f, 0.12f, 1.0f),
+  ui_demo.colors[2] = MakeVec4F32(0.18f, 0.15f, 0.32f, 1.0f),
+  ui_demo.colors[3] = MakeVec4F32(0.48f, 0.65f, 0.21f, 1.0f),
+  ui_demo.current_color_index = 0;
+  ui_demo.color_animation = 0;
+  ui_demo.animation_duration = 2.0f;
+  ui_demo.animation_time = 2.0f;
+
+  OS_ShowWindow(ui_demo.window);
+
+  U64 start_ts = OS_GetTimeTicks();
+  while (!finished) {
+    OS_EventList events = OS_DispatchEvents(frame_arena, ui_demo.window);
+
+    if (OS_KeyPressed(OS_KEY_ESC)) {
+      finished = 1;
+    }
+
+    Demo_BuildUI(ui_demo.window);
+
+    Demo_Render(command_buffer);
+
+    U64 end_ts = OS_GetTimeTicks();
+    ui_demo.dt = (F32)(end_ts - start_ts)*0.001f;
+    start_ts = end_ts;
+  }
+
+  return 0;
+}
