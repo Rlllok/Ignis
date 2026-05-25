@@ -193,11 +193,25 @@ OS_DispatchEvents(Arena* arena, OS_Window* window) {
           case 124: {event.key = OS_KEY_ARROW_RIGHT;};break;
         }
       } break;
+
+      case NSEventTypeLeftMouseDown: {
+        event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+        event.pressed = 1;
+        event.mouse_button = OS_MouseButton_Left;
+      } break;
+
+      case NSEventTypeLeftMouseUp: {
+        event.type = OS_EVENT_TYPE_MOUSE_PRESS;
+        event.released = 1;
+        event.mouse_button = OS_MouseButton_Left;
+      } break;
     }
 
     if (event.type != 0) {
       if (event.type == OS_EVENT_TYPE_KEYBOARD) {
         OS_EventListPush(&_os_state.keyboard_event_list, event);
+      } else if (event.type == OS_EVENT_TYPE_MOUSE_PRESS) {
+        OS_EventListPush(&_os_state.mouse_event_list, event);
       }
     }
     [NSApp sendEvent: ns_event];
@@ -211,21 +225,36 @@ OS_DispatchEvents(Arena* arena, OS_Window* window) {
     key->time_down += key->is_down * 0.0f;
   }
 
-  for (OS_EventListNode *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
-	{
+  for (OS_EventListNode *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next) {
 
 		OS_Event* event = &event_node->data;
 		_os_state.keyboard.keys[event->key].pressed = event->pressed;
 		_os_state.keyboard.keys[event->key].released = !event->pressed;
-		if (event->pressed)
-		{
+		if (event->pressed) {
 			_os_state.keyboard.keys[event->key].is_down = 1;
 		}
-		if (event->released)
-		{
+		if (event->released) {
 			_os_state.keyboard.keys[event->key].is_down = 0;
 		}
 	}
+
+  for (I32 i = 0; i < OS_MouseButton_Count; i += 1) {
+    OS_MouseButtonState* button = _os_state.mouse.buttons + i;
+    button->pressed = 0;
+    button->released = 0;
+  }
+
+  for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next) {
+    OS_Event* event = &event_node->data;
+    _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
+    _os_state.mouse.buttons[event->mouse_button].released = event->released;
+    if (event->pressed) {
+      _os_state.mouse.buttons[event->mouse_button].is_down = 1;
+    }
+    if (event->released) {
+      _os_state.mouse.buttons[event->mouse_button].is_down = 0;
+    }
+  }
 
   return _os_state.event_list;
 }
