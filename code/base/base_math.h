@@ -213,6 +213,7 @@ func F32 MagnitudeVec4F32(Vec4F32 v);
 func Vec4F32 NormalizeVec4F32(Vec4F32 v);
 func Vec4F32 TransformVec4F32(Vec4F32 v, Mat4F32 m);
 func B32 EqualVec4F32(Vec4F32 a, Vec4F32 b);
+func Vec4F32 LerpVec4F32(Vec4F32 a, Vec4F32 b, F32 t);
 
 #define Vec2IFromVec2F32(v)  MakeVec2I32((I32)(v).x, (I32)(v).y)
 

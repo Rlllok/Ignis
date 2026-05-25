@@ -87,6 +87,13 @@ EqualVec4F32(Vec4F32 a, Vec4F32 b) {
   return result;
 }
 
+func Vec4F32
+LerpVec4F32(Vec4F32 a, Vec4F32 b, F32 t) {
+  Vec4F32 result = {0};
+  result = AddVec4F32(ScaleVec4F32(a, 1.0f - t), ScaleVec4F32(b, t));
+  return result;
+}
+
 func Mat3F32
 MakeMat3F32(F32 diagonal_value) {
   Mat3F32 result = {0};
