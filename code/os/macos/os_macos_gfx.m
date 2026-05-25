@@ -249,7 +249,7 @@ OS_MousePosition(OS_Window* window) {
    NSWindow* ns_window = (__bridge NSWindow*)macos_window->ns_window;
    NSPoint point = [ns_window mouseLocationOutsideOfEventStream];
 
-   return MakeVec2F32(point.x, point.y);
+   return MakeVec2F32(point.x, window->size.h - point.y);
 }
 func Vec2F32 OS_MouseScroll();
 
