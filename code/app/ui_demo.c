@@ -1,17 +1,19 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
 #include "rhi/rhi_include.h"
-#include "ui/ui_include.h"
+#include "ui_new/ui_include.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
-#include "ui/ui_include.c"
+#include "ui_new/ui_include.c"
 
 static struct {
   OS_Window*           window;
   RHI_Buffer           gpu_buffer;
   RHI_GraphicsPipeline rectangle_pipeline;
+
+  UI_Context* ui_context;
 
   F32 dt;
 
@@ -24,166 +26,19 @@ static struct {
   F32 slider_value;
 } ui_demo;
 
-func B32
-Demo_Button(Str8 label, UI_Size width, UI_Size height) {
-  B32 result = 0;
-
-  UI_WidgetBlock({
-    .name = label,
-    .kind = UI_WidgetKind_Rectangle,
-    .flags = UI_WidgetFlag_DrawBackground|UI_WidgetFlag_Hover,
-    .layout = {
-      .width = width,
-      .height = height,
-    },
-    .rectangle = {
-      .color = UI_Hovered() ? MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f) : MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
-    }
-  }) {
-    result = UI_Hovered() && OS_MousePressed(OS_MouseButton_Left);
-
-    RectF32 rectangle = UI_GetWidgetRectF32();
-  }
-
-  return result;
-}
-
-func B32
-Demo_CheckBox(Str8 label, B32 value, UI_Size width, UI_Size height) {
-  B32 result = value;
-
-  UI_WidgetBlock({
-    .name = label,
-    .kind = UI_WidgetKind_Rectangle,
-    .flags = UI_WidgetFlag_DrawBackground|UI_WidgetFlag_Hover,
-    .layout = {
-      .width = width,
-      .height = height,
-    },
-    .rectangle = {
-      .color = value ? MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f) : MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
-    },
-  }) {
-    if (UI_Hovered() && OS_MousePressed(OS_MouseButton_Left)) {
-      result = !value;
-    }
-  }
-
-  return result;
-}
-
-func F32
-Demo_Slider(Str8 label, F32 value, F32 min, F32 max, UI_Size width, UI_Size height) {
-  F32 result = min;
-
-  F32 t = value/max;
-
-  UI_WidgetBlock({
-    .name = label,
-    .kind = UI_WidgetKind_Rectangle,
-    .flags = UI_WidgetFlag_DrawBackground|UI_WidgetFlag_Hover,
-    .layout = {
-      .width = width,
-      .height = height,
-    },
-    .rectangle = {
-      .color = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
-    },
-  }) {
-    RectF32 rectangle = UI_GetWidgetRectF32();
-    Vec2F32 mouse_position = OS_MousePosition(ui_demo.window);
-
-    if (UI_Hovered() && OS_MouseDown(OS_MouseButton_Left)) {
-      t = Clamp(mouse_position.x, rectangle.x, rectangle.x + rectangle.w)/rectangle.w;
-    }
-
-    UI_WidgetBlock({
-      .name = label,
-      .kind = UI_WidgetKind_Rectangle,
-      .flags = UI_WidgetFlag_DrawBackground,
-      .layout = {
-        .width = UI_PercentSize(t),
-        .height = UI_PercentSize(1.0f),
-      },
-      .rectangle = {
-        .color = MakeVec4F32(1.0f, 0.8f, 0.8f, 1.0f),
-      },
-    }) {
-    }
-  }
-
-  result = t*max;
-
-  return result;
-}
-
 func void
 Demo_BuildUI(OS_Window* window) {
   Vec2F32 mouse_position = OS_MousePosition(window);
   Vec2F32 mouse_scroll = MakeVec2F32(0.0f, 0.0f);
 
-  UI_BeginFrame(mouse_position, mouse_scroll); {
+  UI_SelectContext(ui_demo.ui_context);
+  UI_BeginFrame(ui_demo.dt, OS_MousePosition(window), MakeVec2F32(0.0f, 0.0f)); {
     UI_WidgetBlock({
-      .name = Str8C("Root"),
-      .layout = {
-        .height = UI_PixelSize(window->size.h),
-        .width = UI_PixelSize(window->size.w),
-      }
+      .flags = 1,
     }) {
       UI_WidgetBlock({
-        .name = Str8C("Canvas"),
-        .layout = {
-          .height = UI_PercentSize(1.0f),
-          .width= UI_PercentSize(1.0f),
-          .direction = UI_LayoutDirection_LeftToRight,
-        }
+        .flags = 1,
       }) {
-        UI_WidgetBlock({
-          .name = Str8C("Layout"),
-          .kind = UI_WidgetKind_Rectangle,
-          .flags = UI_WidgetFlag_DrawBackground,
-          .layout = {
-            .height = UI_PercentSize(1.0f),
-            .width = UI_PercentSize(0.5f),
-          },
-          .rectangle = {
-            .color = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
-          }
-        }) {
-          if (Demo_Button(Str8C("ChangeColor"), UI_PercentSize(1.0f), UI_PixelSize(40.0f))) {
-            ui_demo.current_color_index = (ui_demo.current_color_index + 1)%4;
-          }
-          ui_demo.color_animation = Demo_CheckBox(Str8C("Animation"), ui_demo.color_animation, UI_PercentSize(0.25f), UI_PixelSize(40.0f));
-          ui_demo.slider_value = Demo_Slider(Str8C("Slider"), ui_demo.slider_value, 2.0f, 10.0, UI_PercentSize(1.0f), UI_PixelSize(40.0f));
-        }
-
-        F32 t = ui_demo.animation_time/ui_demo.animation_duration;
-        if (t > 1.0f) {
-          ui_demo.animation_time = 0.0f;
-        }
-        Vec4F32 clear_color = ui_demo.colors[ui_demo.current_color_index];
-        clear_color = LerpVec4F32(clear_color, MakeVec4F32(0.8f, 0.8f, 0.8f, 1.0f), t);
-
-        if (ui_demo.color_animation) {
-          ui_demo.animation_time += ui_demo.dt;
-        }
-        else {
-          ui_demo.animation_time = 0.0f;
-        }
-
-        UI_WidgetBlock({
-          .name = Str8C("RightSide"),
-          .kind = UI_WidgetKind_Rectangle,
-          .flags = UI_WidgetFlag_DrawBackground,
-          .layout = {
-            .height = UI_PercentSize(1.0f),
-            .width = UI_PercentSize(0.5f),
-          },
-          .rectangle = {
-            .color = clear_color,
-          }
-        }) {
-        }
       }
     }
   }
@@ -203,6 +58,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
       RHI_SetViewport(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
       RHI_SetScissor(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
 
+#if 0
       UI_DrawCommandArray ui_draw_commands = ui_context.draw_commands;
 
       for (I32 command_index = 0; command_index < ui_draw_commands.length; command_index += 1) {
@@ -239,6 +95,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
           } break;
         }
       }
+#endif
     }
     RHI_EndRenderPass(command_buffer, render_pass);
   }
@@ -290,7 +147,7 @@ I32 main() {
     });
   }
 
-  UI_Init(global_arena, 1024);
+  ui_demo.ui_context = UI_CreateContext();
 
   ui_demo.colors[0] = MakeVec4F32(0.0f, 0.50f, 0.24f, 1.0f),
   ui_demo.colors[1] = MakeVec4F32(0.08f, 0.25f, 0.12f, 1.0f),

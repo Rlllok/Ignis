@@ -1,5 +1,1 @@
-<<<<<<< Updated upstream
-target = "macos"
-=======
-target = "topdown"
->>>>>>> Stashed changes
+target = "ui_demo"
