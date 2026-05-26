@@ -6,6 +6,7 @@
 -[ ] Remove function's prototypes from header
 -[ ] Add api for sync tools
 -[ ] Add api for Textures
+-[ ] Update Render Pass to Dynamic Rendering
 
 ## TopDown
 -[ ] Add SceneData to shaders (for now such data as camera_transform stored in data related to object)
@@ -13,6 +14,8 @@
 -[ ] Collision. Bullet, Enemy, Player
  
 # BUGS
+### UI
+-[ ] UI layout requires addition "root" widget to draw correctly (layout build is working right)
 
 # Done
 ## RHI

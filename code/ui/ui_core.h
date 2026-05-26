@@ -173,7 +173,7 @@ struct UI_WidgetPersistantData {
   RectF32 rectangle;
 };
 UI_WidgetPersistantData UI_WidgetPersistantData_Nil = ZeroStruct();
-DefineArray(UI_WidgetPersistantData, UI_WidgetPersistantDataArray, UI_WidgetPersistantData_Nil);
+DefineArray(UI_WidgetPersistantData, UI_WidgetPersistantDataArray, UI_WidgetPersistantData_Nil)
 
 typedef U8 UI_DrawCommandKind;
 enum UI_DrawCommandKindEnum {

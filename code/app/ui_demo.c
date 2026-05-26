@@ -131,22 +131,59 @@ Demo_BuildUI(OS_Window* window) {
       }
     }) {
       UI_WidgetBlock({
-        .name = Str8C("Layout"),
-        .kind = UI_WidgetKind_Rectangle,
-        .flags = UI_WidgetFlag_DrawBackground,
+        .name = Str8C("Canvas"),
         .layout = {
           .height = UI_PercentSize(1.0f),
-          .width = UI_PercentSize(0.5f),
-        },
-        .rectangle = {
-          .color = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+          .width= UI_PercentSize(1.0f),
+          .direction = UI_LayoutDirection_LeftToRight,
         }
       }) {
-        if (Demo_Button(Str8C("ChangeColor"), UI_PercentSize(1.0f), UI_PixelSize(40.0f))) {
-          ui_demo.current_color_index = (ui_demo.current_color_index + 1)%4;
+        UI_WidgetBlock({
+          .name = Str8C("Layout"),
+          .kind = UI_WidgetKind_Rectangle,
+          .flags = UI_WidgetFlag_DrawBackground,
+          .layout = {
+            .height = UI_PercentSize(1.0f),
+            .width = UI_PercentSize(0.5f),
+          },
+          .rectangle = {
+            .color = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+          }
+        }) {
+          if (Demo_Button(Str8C("ChangeColor"), UI_PercentSize(1.0f), UI_PixelSize(40.0f))) {
+            ui_demo.current_color_index = (ui_demo.current_color_index + 1)%4;
+          }
+          ui_demo.color_animation = Demo_CheckBox(Str8C("Animation"), ui_demo.color_animation, UI_PercentSize(0.25f), UI_PixelSize(40.0f));
+          ui_demo.slider_value = Demo_Slider(Str8C("Slider"), ui_demo.slider_value, 2.0f, 10.0, UI_PercentSize(1.0f), UI_PixelSize(40.0f));
         }
-        ui_demo.color_animation = Demo_CheckBox(Str8C("Animation"), ui_demo.color_animation, UI_PercentSize(0.25f), UI_PixelSize(40.0f));
-        ui_demo.slider_value = Demo_Slider(Str8C("Slider"), ui_demo.slider_value, 2.0f, 10.0, UI_PercentSize(1.0f), UI_PixelSize(40.0f));
+
+        F32 t = ui_demo.animation_time/ui_demo.animation_duration;
+        if (t > 1.0f) {
+          ui_demo.animation_time = 0.0f;
+        }
+        Vec4F32 clear_color = ui_demo.colors[ui_demo.current_color_index];
+        clear_color = LerpVec4F32(clear_color, MakeVec4F32(0.8f, 0.8f, 0.8f, 1.0f), t);
+
+        if (ui_demo.color_animation) {
+          ui_demo.animation_time += ui_demo.dt;
+        }
+        else {
+          ui_demo.animation_time = 0.0f;
+        }
+
+        UI_WidgetBlock({
+          .name = Str8C("RightSide"),
+          .kind = UI_WidgetKind_Rectangle,
+          .flags = UI_WidgetFlag_DrawBackground,
+          .layout = {
+            .height = UI_PercentSize(1.0f),
+            .width = UI_PercentSize(0.5f),
+          },
+          .rectangle = {
+            .color = clear_color,
+          }
+        }) {
+        }
       }
     }
   }
@@ -156,27 +193,16 @@ Demo_BuildUI(OS_Window* window) {
 func void
 Demo_Render(RHI_CommandBuffer command_buffer) {
   RHI_BeginCommandBuffer(command_buffer); {
-    F32 t = ui_demo.animation_time/ui_demo.animation_duration;
-    if (t > 1.0f) {
-      ui_demo.animation_time = 0.0f;
-    }
-    Vec4F32 clear_color = ui_demo.colors[ui_demo.current_color_index];
-    clear_color = LerpVec4F32(clear_color, MakeVec4F32(0.8f, 0.8f, 0.8f, 1.0f), t);
-
-    if (ui_demo.color_animation) {
-      ui_demo.animation_time += ui_demo.dt;
-    }
-    else {
-      ui_demo.animation_time = 0.0f;
-    }
-
     RHI_ColorTarget color_target = {
       .texture = RHI_AcquireSwapchainTexture(command_buffer),
       .load_operation = RHI_AttachmentLoadOperation_Clear,
       .store_operation = RHI_AttachmentStoreOperation_Store,
-      .clear_color = clear_color,
+      .clear_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
     };
     RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0, 0, 0); {
+      RHI_SetViewport(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
+      RHI_SetScissor(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
+
       UI_DrawCommandArray ui_draw_commands = ui_context.draw_commands;
 
       for (I32 command_index = 0; command_index < ui_draw_commands.length; command_index += 1) {
@@ -232,7 +258,7 @@ I32 main() {
 
   RHI_Init(ui_demo.window);
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
-  ui_demo.gpu_buffer = RHI_CreateBuffer(Str8C("UI_Demo_Buffer"), Megabytes(16), RHI_BufferUsageFlag_Storage, RHI_BufferPropertyFlag_HostVisible|RHI_BufferPropertyFlag_HostCoherent);
+  ui_demo.gpu_buffer = RHI_CreateBuffer(Str8C("UI_Demo_Buffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostVisible|RHI_BufferPropertyFlag_HostCoherent);
   {
     RHI_ShaderArgumentKind vertex_shader_arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,

@@ -15,7 +15,7 @@ rem set clang_flags=-Wall -Wconversion %clang_turnoff_warnings% -pedantic -g -I.
 set include_flags=-I.\code\ -I.\code\third_party\include\
 set link_flags=-L.\code\third_party\lib\ -lwinmm.lib -luser32.lib -lvulkan\vulkan-1.lib -lglslang\GenericCodeGen.lib -lglslang\glslang.lib -lglslang\glslang-default-resource-limits.lib -lglslang\MachineIndependent.lib -lglslang\OSDependent.lib -lglslang\SPIRV.lib -lglslang\SPIRV-Tools.lib -lglslang\SPIRV-Tools-opt.lib -lglslang\SPIRV-tools-opt.lib -lglslang\SPVRemapper.lib
 set clang_flags=-DIGNIS_DEBUG -Wall %clang_turnoff_warnings% -fuse-ld=lld -pedantic -fms-runtime-lib=dll_dbg -g
-set build_flags=-DIGNIS_PLATFORM_WIN32
+set build_flags=-DIGNIS_PLATFORM_WIN32 -DIGNIS_VULKAN_DEBUG
 
 rem --- Build ---
 @echo.
@@ -30,6 +30,9 @@ if "%config%" == "1" %compiler% %build_flags% %clang_flags% %include_flags% %lin
 if "%ember%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\ember\ember.c -o build\ember.exe
 if "%string%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% .\code\app\string.c  -o build\string.exe
 if "%topdown%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\topdown\topdown.c  -o build\topdown.exe
+if "%triangle%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\triangle.c  -o build\triangle.exe
+if "%macos%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\macos.c  -o build\macos.exe
+if "%ui_demo%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\ui_demo.c  -o build\ui_demo.exe
 
 @echo.
 @echo **************************************************
