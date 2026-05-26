@@ -20,6 +20,8 @@ static struct {
   B32     color_animation;
   F32     animation_duration;
   F32     animation_time;
+
+  F32 slider_value;
 } ui_demo;
 
 func B32
@@ -39,6 +41,8 @@ Demo_Button(Str8 label, UI_Size width, UI_Size height) {
     }
   }) {
     result = UI_Hovered() && OS_MousePressed(OS_MouseButton_Left);
+
+    RectF32 rectangle = UI_GetWidgetRectF32();
   }
 
   return result;
@@ -58,12 +62,57 @@ Demo_CheckBox(Str8 label, B32 value, UI_Size width, UI_Size height) {
     },
     .rectangle = {
       .color = value ? MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f) : MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
-    }
+    },
   }) {
     if (UI_Hovered() && OS_MousePressed(OS_MouseButton_Left)) {
       result = !value;
     }
   }
+
+  return result;
+}
+
+func F32
+Demo_Slider(Str8 label, F32 value, F32 min, F32 max, UI_Size width, UI_Size height) {
+  F32 result = min;
+
+  F32 t = value/max;
+
+  UI_WidgetBlock({
+    .name = label,
+    .kind = UI_WidgetKind_Rectangle,
+    .flags = UI_WidgetFlag_DrawBackground|UI_WidgetFlag_Hover,
+    .layout = {
+      .width = width,
+      .height = height,
+    },
+    .rectangle = {
+      .color = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
+    },
+  }) {
+    RectF32 rectangle = UI_GetWidgetRectF32();
+    Vec2F32 mouse_position = OS_MousePosition(ui_demo.window);
+
+    if (UI_Hovered() && OS_MouseDown(OS_MouseButton_Left)) {
+      t = Clamp(mouse_position.x, rectangle.x, rectangle.x + rectangle.w)/rectangle.w;
+    }
+
+    UI_WidgetBlock({
+      .name = label,
+      .kind = UI_WidgetKind_Rectangle,
+      .flags = UI_WidgetFlag_DrawBackground,
+      .layout = {
+        .width = UI_PercentSize(t),
+        .height = UI_PercentSize(1.0f),
+      },
+      .rectangle = {
+        .color = MakeVec4F32(1.0f, 0.8f, 0.8f, 1.0f),
+      },
+    }) {
+    }
+  }
+
+  result = t*max;
 
   return result;
 }
@@ -96,8 +145,8 @@ Demo_BuildUI(OS_Window* window) {
         if (Demo_Button(Str8C("ChangeColor"), UI_PercentSize(1.0f), UI_PixelSize(40.0f))) {
           ui_demo.current_color_index = (ui_demo.current_color_index + 1)%4;
         }
-
         ui_demo.color_animation = Demo_CheckBox(Str8C("Animation"), ui_demo.color_animation, UI_PercentSize(0.25f), UI_PixelSize(40.0f));
+        ui_demo.slider_value = Demo_Slider(Str8C("Slider"), ui_demo.slider_value, 2.0f, 10.0, UI_PercentSize(1.0f), UI_PixelSize(40.0f));
       }
     }
   }
@@ -225,6 +274,8 @@ I32 main() {
   ui_demo.color_animation = 0;
   ui_demo.animation_duration = 2.0f;
   ui_demo.animation_time = 2.0f;
+
+  ui_demo.slider_value = 5.0f;
 
   OS_ShowWindow(ui_demo.window);
 
