@@ -38,6 +38,8 @@ UI_Init(Arena* arena, U32 max_elements_count)
   ui_context.visited_lookup.length = ui_context.visited_lookup.capacity;
 
   ui_context.scroll_offsets = UI_ScrollOffsetArrayAllocate(arena, 64);
+  ui_context.widget_datas = UI_WidgetPersistantDataArrayAllocate(arena, max_elements_count);
+  ui_context.widget_datas.length = ui_context.widget_datas.capacity;
 }
 
 // -------------------------------------------------------------------
@@ -114,15 +116,19 @@ UI_BeginFrame(Vec2F32 mouse_position, Vec2F32 mouse_scroll)
     UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
     UI_Widget* element = UI_WidgetArrayGetPointer(&ui_context.elements, element_id);
     
-    B32 item_is_hot = element->description.kind == UI_WidgetKind_Rectangle
+    B32 item_is_hot = element->description.kind == UI_WidgetKind_Rectangle && element
+      && ((element->description.flags & UI_WidgetFlag_Hover) == UI_WidgetFlag_Hover)
       && InsideRectF32(element->rect, ui_context.mouse_position)
       && InsideRectF32(UI_WidgetArrayGetPointer(&ui_context.elements, element->clip_element_id)->rect, ui_context.mouse_position);
 
-    if (item_is_hot)
+    if ((ui_context.hot_id == 0) && item_is_hot)
     {
       ui_context.hot_id = element_id;
       break;
     }
+
+    UI_WidgetPersistantData* persistant_data = UI_WidgetPersistantDataArrayGetPointer(&ui_context.widget_datas, element_id);
+    persistant_data->rectangle = element->rect;
   }
 
   for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
@@ -439,7 +445,9 @@ UI_IsClicked()
 func RectF32
 UI_GetWidgetRectF32()
 {
-  return UI_GetOpenedWidget()->rect;
+  UI_Widget* opened_element = UI_GetOpenedWidget();
+  UI_WidgetPersistantData* persistant_data = UI_WidgetPersistantDataArrayGetPointer(&ui_context.widget_datas, opened_element->id);
+  return persistant_data->rectangle;
 }
 
 func void

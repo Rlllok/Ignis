@@ -168,6 +168,13 @@ struct UI_Widget {
 UI_Widget UI_WidgetDefaultValue = {0};
 DefineArray(UI_Widget, UI_WidgetArray, UI_WidgetDefaultValue)
 
+typedef struct UI_WidgetPersistantData UI_WidgetPersistantData;
+struct UI_WidgetPersistantData {
+  RectF32 rectangle;
+};
+UI_WidgetPersistantData UI_WidgetPersistantData_Nil = ZeroStruct();
+DefineArray(UI_WidgetPersistantData, UI_WidgetPersistantDataArray, UI_WidgetPersistantData_Nil);
+
 typedef U8 UI_DrawCommandKind;
 enum UI_DrawCommandKindEnum {
   UI_DrawCommandKind_None,
@@ -212,6 +219,7 @@ struct UI_Context {
   Vec2F32              mouse_position;
   Vec2F32              mouse_scroll;
   UI_WidgetArray       elements;
+
   UI_IDArray           final_elements;
   UI_IDArray           open_elements_stack;
   UI_IDArray           clip_elements_stack;
@@ -220,6 +228,7 @@ struct UI_Context {
   UI_IDArray           children_formation_buffer;
   UI_IDArray           traversal_stack;
   B32Array             visited_lookup;
+  UI_WidgetPersistantDataArray widget_datas;
   UI_ScrollOffsetArray scroll_offsets;
   UI_DrawCommandArray  draw_commands;
 } ui_context; // -- AlNov. 12 December 2025: @TODO Multiple contexts?
