@@ -157,7 +157,24 @@ func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) { \
 	node->previous->next = node->next; \
 	return node->data; \
 }
- 
+
+// -------------------------------------------------------------------
+// -- Intrusive List -------------------------------------------------
+#define StackPush_Next(f, n, next) (((f) == 0) ? \
+  (((f) = (n)), ((n)->next = 0)) : \
+  (((n)->next = (f)), ((f) = (n))))
+
+#define StackPush(f, n) StackPush_Next(f, n, next)
+
+#define StackPop_Next(f, next) (((f) == 0) ? \
+  0 : \
+  ((f) = (f)->next))
+#define StackPop(f) StackPop_Next(f, next)
+
+#define DllPushBack(f, l, n) (((f) == 0) ? \
+  (((f) = (l) = (n)), ((n)->next = 0), ((n)->prev = 0)) : \
+  (((l)->next = (n)), ((n)->prev = (l)), ((l) = (n)), ((n)->next = 0)))
+
 // -------------------------------------------------------------------
 // -- Common type Array ----------------------------------------------
 B32 _b32_array_nil = 0;
