@@ -8,10 +8,12 @@ func void
 UI_OpenWidget() {
   // --AlNov: @TODO Widget should be added to main arena of the context and managed with free list
   UI_Widget* widget = PushArena(ui_current_context->frame_arena, sizeof(UI_Widget));
+  MemoryZeroStruct(widget);
   if (ui_current_context->opened_widget == 0) {
     DllPushBack_NextPrev(ui_current_context->root.first, ui_current_context->root.last, widget, root_next, root_prev);
   }
   else {
+    widget->parent = ui_current_context->opened_widget;
     DllPushBack(ui_current_context->opened_widget->first, ui_current_context->opened_widget->last, widget);
   }
   StackPush_Next(ui_current_context->opened_widget, widget, stack_next);
@@ -50,6 +52,10 @@ func UI_DrawCommand*
 UI_EndFrame() {
   UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_X);
   UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculateDependentSizes(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculateDependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculatePositions(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculatePositions(ui_current_context->root.first, UI_Axis_Y);
 
   UI_BuildDrawCommands(ui_current_context->root.first);
 
@@ -85,26 +91,49 @@ UI_SelectContext(UI_Context* context) {
 // -- Passes
 func void
 UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis) {
-  switch (root->info.sizes[axis].kind) {
+  switch (root->info.layout.sizes[axis].kind) {
     default: break;
     case UI_SizeKind_Pixel: {
-      root->bounding_box.size.values[axis] = root->info.sizes[axis].value;
+      root->bounding_box.size.values[axis] = root->info.layout.sizes[axis].value;
     } break;
+  }
+  
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculateIndependentSizes(child, axis);
+  }
+}
+
+func void
+UI_CalculateDependentSizes(UI_Widget* root, UI_Axis axis) {
+}
+
+func void 
+UI_CalculatePositions(UI_Widget* root, UI_Axis axis) {
+  if (root->info.layout.direction == axis) {
+    F32 offset = root->bounding_box.position.values[axis];
+    for (UI_Widget* child = root->first; child != 0; child = child->next) {
+      child->bounding_box.position.values[axis] = offset;
+      offset += (child->bounding_box.size.values[axis] + root->info.layout.child_gap);
+    }
+  }
+
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculatePositions(child, axis);
   }
 }
 
 func void
 UI_BuildDrawCommands(UI_Widget* root) {
-  if (root == 0) LogDebug("Root Nil\n");
+  if (root->info.flags & UI_WidgetFlag_DrawBackground) {
+    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Rectangle;
+    draw_command->rectangle.bounding_box = root->bounding_box;
+    draw_command->rectangle.background_color = root->info.style.background_color;
+    SllPushBack(ui_current_context->first_draw_command,  ui_current_context->last_draw_command, draw_command);
+  }
 
   for (UI_Widget* child = root->first; child != 0; child = child->next) {
     UI_BuildDrawCommands(child);
   }
 
-  if (root->info.flags & UI_WidgetFlag_DrawBackground) {
-    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
-    draw_command->kind = UI_DrawCommandKind_Rectangle;
-    draw_command->rectangle.bounding_box = root->bounding_box;
-    SllPushBack(ui_current_context->first_draw_command,  ui_current_context->last_draw_command, draw_command);
-  }
 }

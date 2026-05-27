@@ -37,28 +37,53 @@ Demo_BuildUI(OS_Window* window) {
     UI_WidgetBlock({
       .id = 1,
       .flags = UI_WidgetFlag_DrawBackground,
-      .width = UI_PixelSize(100.0f),
-      .height = UI_PixelSize(50.0f),
+      .layout = {
+        .width = UI_PixelSize(1280.0f),
+        .height = UI_PixelSize(720.0f),
+        .direction = UI_Axis_Y,
+        .child_gap = 150.0f,
+      },
+      .style = {
+        .background_color = MakeVec4F32(0.1f, 0.2f, 0.1f, 1.0f),
+      }
     }) {
       UI_WidgetBlock({
         .id = 2,
         .flags = UI_WidgetFlag_DrawBackground,
-        .width = UI_PixelSize(100.0f),
-        .height = UI_PixelSize(50.0f),
+        .layout = {
+          .width = UI_PixelSize(100.0f),
+          .height = UI_PixelSize(50.0f),
+          .direction = UI_Axis_Y,
+        },
+        .style = {
+          .background_color = MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
+        }
       }) {
         UI_WidgetBlock({
           .id = 4,
           .flags = UI_WidgetFlag_DrawBackground,
-          .width = UI_PixelSize(100.0f),
-          .height = UI_PixelSize(50.0f),
+          .layout = {
+            .width = UI_PixelSize(100.0f),
+            .height = UI_PixelSize(50.0f),
+            .direction = UI_Axis_Y,
+          },
+          .style = {
+            .background_color = MakeVec4F32(0.0f, 0.0f, 1.0f, 1.0f),
+          }
         }) {
         }
 
         UI_WidgetBlock({
           .id = 5,
           .flags = UI_WidgetFlag_DrawBackground,
-          .width = UI_PixelSize(100.0f),
-          .height = UI_PixelSize(50.0f),
+          .layout = {
+            .width = UI_PixelSize(100.0f),
+            .height = UI_PixelSize(50.0f),
+            .direction = UI_Axis_Y,
+          },
+          .style = {
+            .background_color = MakeVec4F32(1.0f, 1.0f, 0.0f, 1.0f),
+          }
         }) {
         }
       }
@@ -66,22 +91,40 @@ Demo_BuildUI(OS_Window* window) {
       UI_WidgetBlock({
         .id = 3,
         .flags = UI_WidgetFlag_DrawBackground,
-        .width = UI_PixelSize(100.0f),
-        .height = UI_PixelSize(50.0f),
+        .layout = {
+          .width = UI_PixelSize(100.0f),
+          .height = UI_PixelSize(50.0f),
+          .direction = UI_Axis_Y,
+        },
+        .style = {
+          .background_color = MakeVec4F32(1.0f, 0.0f, 1.0f, 1.0f),
+        }
       }) {
         UI_WidgetBlock({
           .id = 6,
           .flags = UI_WidgetFlag_DrawBackground,
-          .width = UI_PixelSize(100.0f),
-          .height = UI_PixelSize(50.0f),
+          .layout = {
+            .width = UI_PixelSize(100.0f),
+            .height = UI_PixelSize(50.0f),
+            .direction = UI_Axis_Y,
+          },
+          .style = {
+            .background_color = MakeVec4F32(0.0f, 1.0f, 1.0f, 1.0f),
+          }
         }) {
         }
 
         UI_WidgetBlock({
           .id = 7,
           .flags = UI_WidgetFlag_DrawBackground,
-          .width = UI_PixelSize(100.0f),
-          .height = UI_PixelSize(50.0f),
+          .layout = {
+            .width = UI_PixelSize(100.0f),
+            .height = UI_PixelSize(50.0f),
+            .direction = UI_Axis_Y,
+          },
+          .style = {
+            .background_color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+          }
         }) {
         }
       }
@@ -120,7 +163,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             } data = {
               .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
               .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
-              .color = MakeVec4F32(0.76f, 0.12f, 0.08f, 1.0f),
+              .color = draw_command->rectangle.background_color,
             };
             U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
 

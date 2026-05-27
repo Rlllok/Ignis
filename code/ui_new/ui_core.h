@@ -33,6 +33,20 @@ enum {
   UI_WidgetFlag_DrawBackground = (1<<1),
 } UI_WidgetFlagEnum;
 
+typedef struct UI_WidgetLayoutInfo UI_WidgetLayoutInfo;
+struct UI_WidgetLayoutInfo {
+  union {
+    UI_Size sizes[2];
+
+    struct {
+      UI_Size width;
+      UI_Size height;
+    };
+  };
+  UI_Axis direction;
+  F32     child_gap;
+};
+
 typedef struct UI_WidgetStyleInfo UI_WidgetStyleInfo;
 struct UI_WidgetStyleInfo {
   Vec4F32 background_color;
@@ -43,16 +57,9 @@ struct UI_WidgetInfo {
   I32 id; // --AlNov: @TODO Added to be able to test traversal
 
   UI_WidgetFlag flags;
-  union {
-    UI_Size sizes[2];
 
-    struct {
-      UI_Size width;
-      UI_Size height;
-    };
-  };
-
-  UI_WidgetStyleInfo style;
+  UI_WidgetLayoutInfo layout;
+  UI_WidgetStyleInfo  style;
 };
 
 typedef struct UI_Widget UI_Widget;
@@ -98,6 +105,7 @@ struct UI_DrawCommand {
   union {
     struct {
       RectF32 bounding_box;
+      Vec4F32 background_color;
     } rectangle;
   };
 };
@@ -137,5 +145,7 @@ func UI_DrawCommand* UI_EndFrame();
 
 // -- Passes
 func void UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_CalculateDependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_CalculatePositions(UI_Widget* root, UI_Axis axis);
 func void UI_BuildDrawCommands(UI_Widget* root);
 
