@@ -46,8 +46,11 @@ struct UI_WidgetLayoutInfo {
     };
   };
   UI_Axis direction;
+  Vec4F32 paddings;
   F32     child_gap;
 };
+
+#define UI_PaddingAll(v) MakeVec4F32(v, v, v, v)
 
 typedef struct UI_WidgetStyleInfo UI_WidgetStyleInfo;
 struct UI_WidgetStyleInfo {

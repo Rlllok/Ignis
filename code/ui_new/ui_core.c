@@ -109,18 +109,25 @@ UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
     switch (child->info.layout.sizes[axis].kind) {
       default: break;
       case UI_SizeKind_Percent: {
-        child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis] * child->info.layout.sizes[axis].value;
+        F32 padding_0 = root->info.layout.paddings.values[axis*2];
+        F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+        child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis]*child->info.layout.sizes[axis].value - padding_0 - padding_1;
       } break;
     }
+  }
+
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculateParentDependentSizes(child, axis);
   }
 }
 
 func void 
 UI_CalculatePositions(UI_Widget* root, UI_Axis axis) {
-  if (root->info.layout.direction == axis) {
-    F32 offset = root->bounding_box.position.values[axis];
-    for (UI_Widget* child = root->first; child != 0; child = child->next) {
-      child->bounding_box.position.values[axis] = offset;
+  F32 offset = root->bounding_box.position.values[axis];
+  F32 padding = root->info.layout.paddings.values[axis*2];
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    child->bounding_box.position.values[axis] = offset + padding;
+    if (root->info.layout.direction == axis) {
       offset += (child->bounding_box.size.values[axis] + root->info.layout.child_gap);
     }
   }
