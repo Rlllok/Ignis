@@ -42,6 +42,7 @@ typedef I32 B32;
 #define F32_MAX 3.40282347E+38f
 
 #define ZeroStruct() {0}
+#define MemoryZeroStruct(ptr) memset((ptr), 0, sizeof(*(ptr)))
 
 // -------------------------------------------------------------------
 // -- Memory Size ----------------------------------------------------
