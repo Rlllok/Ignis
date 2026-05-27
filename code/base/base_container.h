@@ -163,7 +163,6 @@ func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) { \
 #define StackPush_Next(f, n, next) (((f) == 0) ? \
   (((f) = (n)), ((n)->next = 0)) : \
   (((n)->next = (f)), ((f) = (n))))
-
 #define StackPush(f, n) StackPush_Next(f, n, next)
 
 #define StackPop_Next(f, next) (((f) == 0) ? \
@@ -171,9 +170,15 @@ func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) { \
   ((f) = (f)->next))
 #define StackPop(f) StackPop_Next(f, next)
 
-#define DllPushBack(f, l, n) (((f) == 0) ? \
+#define SllPushBack_Next(f, l, n, next) (((f) == 0) ? \
+  (((f) = (l) = (n)), ((n)->next = 0)) : \
+  (((l)->next = (n)), ((l) = (n)), ((n)->next = 0)))
+#define SllPushBack(f, l, n) SllPushBack_Next(f, l, n, next)
+
+#define DllPushBack_NextPrev(f, l, n, next, prev) (((f) == 0) ? \
   (((f) = (l) = (n)), ((n)->next = 0), ((n)->prev = 0)) : \
   (((l)->next = (n)), ((n)->prev = (l)), ((l) = (n)), ((n)->next = 0)))
+#define DllPushBack(f, l, n) DllPushBack_NextPrev(f, l, n, next, prev)
 
 // -------------------------------------------------------------------
 // -- Common type Array ----------------------------------------------
