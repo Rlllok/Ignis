@@ -19,6 +19,13 @@ struct UI_Size {
 
 #define UI_PixelSize(v) ((UI_Size){.kind = UI_SizeKind_Pixel, .value = v})
 
+typedef enum {
+  UI_Axis_Nil = -1,
+  UI_Axis_X,
+  UI_Axis_Y,
+  UI_Axis_Count
+} UI_Axis;
+
 typedef U32 UI_WidgetFlag;
 enum {
   UI_WidgetFlag_None = (1<<0),
@@ -33,11 +40,19 @@ struct UI_WidgetStyleInfo {
 
 typedef struct UI_WidgetInfo UI_WidgetInfo;
 struct UI_WidgetInfo {
-  UI_WidgetFlag flags;
-  UI_Size       width;
-  UI_Size       height;
+  I32 id; // --AlNov: @TODO Added to be able to test traversal
 
-  UI_WidgetStyleInfo style_info;
+  UI_WidgetFlag flags;
+  union {
+    UI_Size sizes[2];
+
+    struct {
+      UI_Size width;
+      UI_Size height;
+    };
+  };
+
+  UI_WidgetStyleInfo style;
 };
 
 typedef struct UI_Widget UI_Widget;
@@ -49,8 +64,12 @@ struct UI_Widget {
   UI_Widget* parent;
 
   UI_Widget* stack_next;
+  UI_Widget* root_next;
+  UI_Widget* root_prev;
 
   UI_WidgetInfo info;
+
+  RectF32 bounding_box;
 };
 
 func void UI_OpenWidget();
@@ -61,6 +80,27 @@ func void UI_CloseWidget();
 UI_DefineWidgetInfoStructWrapper()
 #define UI_WidgetInfoWrapper(...) ((UI_WidgetInfoWrapper){__VA_ARGS__}).package
 #define UI_WidgetBlock(...) DeferBlock((UI_OpenWidget(), UI_ConfigureWidget(UI_WidgetInfoWrapper(__VA_ARGS__))), UI_CloseWidget())
+
+// -------------------------------------------------------------------
+// -- Draw Command ---------------------------------------------------
+typedef U8 UI_DrawCommandKind;
+enum {
+  UI_DrawCommandKind_Nil,
+  UI_DrawCommandKind_Rectangle,
+  UI_DrawCommandKind_Count,
+} UI_DrawCommandKindEnum;
+
+typedef struct UI_DrawCommand UI_DrawCommand;
+struct UI_DrawCommand {
+  UI_DrawCommand* next;
+
+  UI_DrawCommandKind kind;
+  union {
+    struct {
+      RectF32 bounding_box;
+    } rectangle;
+  };
+};
 
 // -------------------------------------------------------------------
 // -- State ----------------------------------------------------------
@@ -74,12 +114,18 @@ typedef struct UI_Context UI_Context;
 struct UI_Context {
   Arena* arena;
 
+  Arena* frame_arena;
+
   UI_Root    root;
+  UI_Widget* canvas;
   UI_Widget* opened_widget;
 
   F32     dt;
   Vec2F32 mouse_position;
   Vec2F32 mouse_scroll;
+
+  UI_DrawCommand* first_draw_command;
+  UI_DrawCommand* last_draw_command;
 };
 
 func UI_Context* UI_CreateContext();
@@ -87,4 +133,9 @@ func void UI_DestroyContext(UI_Context* context);
 func void UI_SelectContext(UI_Context* context);
 
 func void UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll);
-func void UI_EndFrame();
+func UI_DrawCommand* UI_EndFrame();
+
+// -- Passes
+func void UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_BuildDrawCommands(UI_Widget* root);
+

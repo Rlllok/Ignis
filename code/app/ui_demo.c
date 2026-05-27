@@ -13,7 +13,8 @@ static struct {
   RHI_Buffer           gpu_buffer;
   RHI_GraphicsPipeline rectangle_pipeline;
 
-  UI_Context* ui_context;
+  UI_Context*     ui_context;
+  UI_DrawCommand* ui_draw_commands;
 
   F32 dt;
 
@@ -34,15 +35,59 @@ Demo_BuildUI(OS_Window* window) {
   UI_SelectContext(ui_demo.ui_context);
   UI_BeginFrame(ui_demo.dt, OS_MousePosition(window), MakeVec2F32(0.0f, 0.0f)); {
     UI_WidgetBlock({
-      .flags = 1,
+      .id = 1,
+      .flags = UI_WidgetFlag_DrawBackground,
+      .width = UI_PixelSize(100.0f),
+      .height = UI_PixelSize(50.0f),
     }) {
       UI_WidgetBlock({
-        .flags = 1,
+        .id = 2,
+        .flags = UI_WidgetFlag_DrawBackground,
+        .width = UI_PixelSize(100.0f),
+        .height = UI_PixelSize(50.0f),
       }) {
+        UI_WidgetBlock({
+          .id = 4,
+          .flags = UI_WidgetFlag_DrawBackground,
+          .width = UI_PixelSize(100.0f),
+          .height = UI_PixelSize(50.0f),
+        }) {
+        }
+
+        UI_WidgetBlock({
+          .id = 5,
+          .flags = UI_WidgetFlag_DrawBackground,
+          .width = UI_PixelSize(100.0f),
+          .height = UI_PixelSize(50.0f),
+        }) {
+        }
+      }
+
+      UI_WidgetBlock({
+        .id = 3,
+        .flags = UI_WidgetFlag_DrawBackground,
+        .width = UI_PixelSize(100.0f),
+        .height = UI_PixelSize(50.0f),
+      }) {
+        UI_WidgetBlock({
+          .id = 6,
+          .flags = UI_WidgetFlag_DrawBackground,
+          .width = UI_PixelSize(100.0f),
+          .height = UI_PixelSize(50.0f),
+        }) {
+        }
+
+        UI_WidgetBlock({
+          .id = 7,
+          .flags = UI_WidgetFlag_DrawBackground,
+          .width = UI_PixelSize(100.0f),
+          .height = UI_PixelSize(50.0f),
+        }) {
+        }
       }
     }
   }
-  UI_EndFrame();
+  ui_demo.ui_draw_commands = UI_EndFrame();
 }
 
 func void
@@ -52,17 +97,13 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
       .texture = RHI_AcquireSwapchainTexture(command_buffer),
       .load_operation = RHI_AttachmentLoadOperation_Clear,
       .store_operation = RHI_AttachmentStoreOperation_Store,
-      .clear_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
+      .clear_color = MakeVec4F32(0.1f, 0.2f, 0.1f, 1.0f),
     };
     RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0, 0, 0); {
       RHI_SetViewport(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
       RHI_SetScissor(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
 
-#if 0
-      UI_DrawCommandArray ui_draw_commands = ui_context.draw_commands;
-
-      for (I32 command_index = 0; command_index < ui_draw_commands.length; command_index += 1) {
-        UI_DrawCommand* draw_command = UI_DrawCommandArrayGetPointer(&ui_draw_commands, command_index);
+      for (UI_DrawCommand* draw_command = ui_demo.ui_draw_commands; draw_command != 0; draw_command = draw_command->next) {
 
         switch (draw_command->kind) {
           default: {
@@ -70,7 +111,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
           } break;
 
           case UI_DrawCommandKind_Rectangle: {
-            RectF32 bound = draw_command->rectangle.bound;
+            RectF32 bound = draw_command->rectangle.bounding_box;
 
             struct {
               Mat4F32 projection;
@@ -79,7 +120,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             } data = {
               .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
               .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
-              .color = draw_command->rectangle.color,
+              .color = MakeVec4F32(0.76f, 0.12f, 0.08f, 1.0f),
             };
             U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
 
@@ -95,7 +136,6 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
           } break;
         }
       }
-#endif
     }
     RHI_EndRenderPass(command_buffer, render_pass);
   }
