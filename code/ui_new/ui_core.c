@@ -52,8 +52,8 @@ func UI_DrawCommand*
 UI_EndFrame() {
   UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_X);
   UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_Y);
-  UI_CalculateDependentSizes(ui_current_context->root.first, UI_Axis_X);
-  UI_CalculateDependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculateParentDependentSizes(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculateParentDependentSizes(ui_current_context->root.first, UI_Axis_Y);
   UI_CalculatePositions(ui_current_context->root.first, UI_Axis_X);
   UI_CalculatePositions(ui_current_context->root.first, UI_Axis_Y);
 
@@ -104,7 +104,15 @@ UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis) {
 }
 
 func void
-UI_CalculateDependentSizes(UI_Widget* root, UI_Axis axis) {
+UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    switch (child->info.layout.sizes[axis].kind) {
+      default: break;
+      case UI_SizeKind_Percent: {
+        child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis] * child->info.layout.sizes[axis].value;
+      } break;
+    }
+  }
 }
 
 func void 

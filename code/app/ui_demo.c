@@ -41,7 +41,6 @@ Demo_BuildUI(OS_Window* window) {
         .width = UI_PixelSize(1280.0f),
         .height = UI_PixelSize(720.0f),
         .direction = UI_Axis_Y,
-        .child_gap = 150.0f,
       },
       .style = {
         .background_color = MakeVec4F32(0.1f, 0.2f, 0.1f, 1.0f),
@@ -51,8 +50,8 @@ Demo_BuildUI(OS_Window* window) {
         .id = 2,
         .flags = UI_WidgetFlag_DrawBackground,
         .layout = {
-          .width = UI_PixelSize(100.0f),
-          .height = UI_PixelSize(50.0f),
+          .width = UI_PercentSize(0.5f),
+          .height = UI_PercentSize(0.5f),
           .direction = UI_Axis_Y,
         },
         .style = {

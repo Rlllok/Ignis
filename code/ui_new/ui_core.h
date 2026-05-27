@@ -8,6 +8,7 @@ typedef U8 UI_SizeKind;
 enum {
   UI_SizeKind_Nil,
   UI_SizeKind_Pixel,
+  UI_SizeKind_Percent,
   UI_SizeKind_Count
 } UI_SizeKindEnum;
 
@@ -18,6 +19,7 @@ struct UI_Size {
 };
 
 #define UI_PixelSize(v) ((UI_Size){.kind = UI_SizeKind_Pixel, .value = v})
+#define UI_PercentSize(v) ((UI_Size){.kind = UI_SizeKind_Percent, .value = v})
 
 typedef enum {
   UI_Axis_Nil = -1,
@@ -145,7 +147,7 @@ func UI_DrawCommand* UI_EndFrame();
 
 // -- Passes
 func void UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis);
-func void UI_CalculateDependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis);
 func void UI_CalculatePositions(UI_Widget* root, UI_Axis axis);
 func void UI_BuildDrawCommands(UI_Widget* root);
 
