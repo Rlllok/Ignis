@@ -71,7 +71,7 @@ UI_DemoTopBar() {
 func void
 UI_DemoFileButton() {
   UI_WidgetBlock({
-    .label = Str8C("File"),
+    .label = Str8C("File Test"),
     .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
     .layout = {
       .width = UI_PercentSize(1.0f),
@@ -84,6 +84,7 @@ UI_DemoFileButton() {
     .text = {
       .font = &ui_demo.font,
       .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+      .alignment = UI_TextAlignment_Center,
     }
   }) {
   }
@@ -105,8 +106,61 @@ UI_DemoSizeBar() {
       .background_color = MakeVec4F32(0.14f, 0.12f, 0.16f, 1.0f),
     }
   }) {
-    for (I32 file_button_index = 0; file_button_index < 5; file_button_index += 1) {
-      UI_DemoFileButton();
+    UI_WidgetBlock({
+      .label = Str8C("Left Alignment"),
+      .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30.0f),
+        .direction = UI_Axis_Y,
+      },
+      .style = {
+        .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+      },
+      .text = {
+        .font = &ui_demo.font,
+        .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+        .alignment = UI_TextAlignment_Left,
+      }
+    }) {
+    }
+
+    UI_WidgetBlock({
+      .label = Str8C("Center Alignment"),
+      .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30.0f),
+        .direction = UI_Axis_Y,
+      },
+      .style = {
+        .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+      },
+      .text = {
+        .font = &ui_demo.font,
+        .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+        .alignment = UI_TextAlignment_Center,
+      }
+    }) {
+    }
+
+    UI_WidgetBlock({
+      .label = Str8C("Right Alignment"),
+      .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(30.0f),
+        .direction = UI_Axis_Y,
+      },
+      .style = {
+        .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+      },
+      .text = {
+        .font = &ui_demo.font,
+        .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+        .alignment = UI_TextAlignment_Right,
+      }
+    }) {
     }
   }
 }
@@ -195,7 +249,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
               F32 advance = glyph->advance;
 
               if (character == ' ') {
-                spacing += advance*scale;
+                spacing += font->glyphs[' ' - 32].width;
               }
 
               struct {
@@ -319,7 +373,7 @@ I32 main() {
 
   ui_demo.ui_context = UI_CreateContext();
 
-  ui_demo.font = AST_FontFromTTF(global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 24);
+  ui_demo.font = AST_FontFromTTF(global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 18);
   ui_demo.colors[0] = MakeVec4F32(0.0f, 0.50f, 0.24f, 1.0f),
   ui_demo.colors[1] = MakeVec4F32(0.08f, 0.25f, 0.12f, 1.0f),
   ui_demo.colors[2] = MakeVec4F32(0.18f, 0.15f, 0.32f, 1.0f),

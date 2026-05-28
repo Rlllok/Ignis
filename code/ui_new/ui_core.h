@@ -60,10 +60,19 @@ struct UI_WidgetStyleInfo {
   Vec4F32 background_color;
 };
 
+typedef U8 UI_TextAlignment;
+enum {
+  UI_TextAlignment_Left,
+  UI_TextAlignment_Right,
+  UI_TextAlignment_Center,
+  UI_TextAlignment_Count
+}  UI_TextAlignmentEnum;
+
 typedef struct UI_TextStyleInfo UI_TextStyleInfo;
 struct UI_TextStyleInfo {
-  AST_Font* font;
-  Vec4F32   color;
+  AST_Font*        font;
+  UI_TextAlignment alignment;
+  Vec4F32          color;
 };
 
 typedef struct UI_WidgetInfo UI_WidgetInfo;

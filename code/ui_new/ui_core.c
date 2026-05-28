@@ -176,8 +176,25 @@ UI_BuildDrawCommands(UI_Widget* root) {
     draw_command->kind = UI_DrawCommandKind_Text;
     draw_command->text.font = root->info.text.font;
     draw_command->text.str = root->info.label;
-    draw_command->text.position = root->bounding_box.position;
-    draw_command->text.position.y += root->bounding_box.size.y;
+    switch (root->info.text.alignment) {
+      default: break;
+      case UI_TextAlignment_Left: {
+        draw_command->text.position = root->bounding_box.position;
+        draw_command->text.position.y += root->bounding_box.size.y;
+      } break;
+      case UI_TextAlignment_Right: {
+        Vec2F32 text_size = AST_TextSize(root->info.label, root->info.text.font);
+        F32 x_right = root->bounding_box.position.x + root->bounding_box.size.x;
+        draw_command->text.position.x = x_right - text_size.x;
+        draw_command->text.position.y = root->bounding_box.position.y + root->bounding_box.size.y;
+      } break;
+      case UI_TextAlignment_Center: {
+        Vec2F32 text_size = AST_TextSize(root->info.label, root->info.text.font);
+        Vec2F32 root_center = AddVec2F32(root->bounding_box.position, ScaleVec2F32(root->bounding_box.size, 0.5f));
+        draw_command->text.position.x = root_center.x - text_size.x*0.5f;
+        draw_command->text.position.y = root->bounding_box.position.y + root->bounding_box.size.y;
+      };
+    }
     draw_command->text.size = 0; // --AlNov: @TODO Do nothing for now
     draw_command->text.color = root->info.text.color;
     SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
