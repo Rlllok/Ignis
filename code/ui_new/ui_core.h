@@ -61,7 +61,7 @@ struct UI_WidgetStyleInfo {
 
 typedef struct UI_WidgetInfo UI_WidgetInfo;
 struct UI_WidgetInfo {
-  I32 id; // --AlNov: @TODO Added to be able to test traversal
+  Str8 label;
 
   UI_WidgetFlag flags;
 
