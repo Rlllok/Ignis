@@ -28,6 +28,81 @@ static struct {
 } ui_demo;
 
 func void
+UI_DemoTopBarItem() {
+  UI_WidgetBlock({
+    .label = Str8C("TopBarItem"),
+    .flags = UI_WidgetFlag_DrawBackground,
+    .layout = {
+      .width = UI_PixelSize(50.0f),
+      .height = UI_PercentSize(1.0f),
+    },
+    .style = {
+      .background_color = MakeVec4F32(0.3f, 0.3f, 0.3f, 1.0f),
+    }
+  }) {
+  }
+}
+
+func void
+UI_DemoTopBar() {
+  UI_WidgetBlock({
+    .label = Str8C("TopBar"),
+    .flags = UI_WidgetFlag_DrawBackground,
+    .layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(25.0f),
+      .direction = UI_Axis_X,
+    },
+    .style = {
+      .background_color = MakeVec4F32(0.1f, 0.12f, 0.16f, 1.0f),
+    }
+  }) {
+    for (I32 topbar_item_index = 0; topbar_item_index < 3; topbar_item_index += 1) {
+      UI_DemoTopBarItem();
+    }
+  }
+}
+
+func void
+UI_DemoFileButton() {
+  UI_WidgetBlock({
+    .label = Str8C("File"),
+    .flags = UI_WidgetFlag_DrawBackground,
+    .layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(30.0f),
+      .direction = UI_Axis_Y,
+    },
+    .style = {
+      .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+    }
+  }) {
+  }
+}
+
+func void
+UI_DemoSizeBar() {
+  UI_WidgetBlock({
+    .label = Str8C("SideBar"),
+    .flags = UI_WidgetFlag_DrawBackground,
+    .layout = {
+      .width = UI_PercentSize(0.25f),
+      .height = UI_PercentSize(1.0f),
+      .direction = UI_Axis_Y,
+      .paddings = UI_PaddingAll(8.0f),
+      .child_gap = 5.0f,
+    },
+    .style = {
+      .background_color = MakeVec4F32(0.14f, 0.12f, 0.16f, 1.0f),
+    }
+  }) {
+    for (I32 file_button_index = 0; file_button_index < 5; file_button_index += 1) {
+      UI_DemoFileButton();
+    }
+  }
+}
+
+func void
 Demo_BuildUI(OS_Window* window) {
   Vec2F32 mouse_position = OS_MousePosition(window);
   Vec2F32 mouse_scroll = MakeVec2F32(0.0f, 0.0f);
@@ -35,100 +110,19 @@ Demo_BuildUI(OS_Window* window) {
   UI_SelectContext(ui_demo.ui_context);
   UI_BeginFrame(ui_demo.dt, OS_MousePosition(window), MakeVec2F32(0.0f, 0.0f)); {
     UI_WidgetBlock({
-      .id = 1,
+      .label = Str8C("MainCanvas"),
       .flags = UI_WidgetFlag_DrawBackground,
       .layout = {
-        .width = UI_PixelSize(1280.0f),
-        .height = UI_PixelSize(720.0f),
+        .width = UI_PixelSize(window->size.w),
+        .height = UI_PixelSize(window->size.h),
         .direction = UI_Axis_Y,
       },
       .style = {
-        .background_color = MakeVec4F32(0.1f, 0.2f, 0.1f, 1.0f),
+        .background_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
       }
     }) {
-      UI_WidgetBlock({
-        .id = 2,
-        .flags = UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PercentSize(0.5f),
-          .height = UI_FitSize(),
-          .direction = UI_Axis_Y,
-          .paddings = UI_PaddingAll(10.0f),
-          .child_gap = 60.0f,
-        },
-        .style = {
-          .background_color = MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
-        }
-      }) {
-        UI_WidgetBlock({
-          .id = 4,
-          .flags = UI_WidgetFlag_DrawBackground,
-          .layout = {
-            .width = UI_PercentSize(1.0f),
-            .height = UI_PixelSize(50.0f),
-            .direction = UI_Axis_Y,
-          },
-          .style = {
-            .background_color = MakeVec4F32(0.0f, 0.0f, 1.0f, 1.0f),
-          }
-        }) {
-        }
-
-        UI_WidgetBlock({
-          .id = 5,
-          .flags = UI_WidgetFlag_DrawBackground,
-          .layout = {
-            .width = UI_PercentSize(1.0f),
-            .height = UI_PixelSize(50.0f),
-            .direction = UI_Axis_Y,
-          },
-          .style = {
-            .background_color = MakeVec4F32(1.0f, 1.0f, 0.0f, 1.0f),
-          }
-        }) {
-        }
-      }
-
-      UI_WidgetBlock({
-        .id = 3,
-        .flags = UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PixelSize(100.0f),
-          .height = UI_PixelSize(50.0f),
-          .direction = UI_Axis_Y,
-        },
-        .style = {
-          .background_color = MakeVec4F32(1.0f, 0.0f, 1.0f, 1.0f),
-        }
-      }) {
-        UI_WidgetBlock({
-          .id = 6,
-          .flags = UI_WidgetFlag_DrawBackground,
-          .layout = {
-            .width = UI_PixelSize(100.0f),
-            .height = UI_PixelSize(50.0f),
-            .direction = UI_Axis_Y,
-          },
-          .style = {
-            .background_color = MakeVec4F32(0.0f, 1.0f, 1.0f, 1.0f),
-          }
-        }) {
-        }
-
-        UI_WidgetBlock({
-          .id = 7,
-          .flags = UI_WidgetFlag_DrawBackground,
-          .layout = {
-            .width = UI_PixelSize(100.0f),
-            .height = UI_PixelSize(50.0f),
-            .direction = UI_Axis_Y,
-          },
-          .style = {
-            .background_color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
-          }
-        }) {
-        }
-      }
+      UI_DemoTopBar();
+      UI_DemoSizeBar();
     }
   }
   ui_demo.ui_draw_commands = UI_EndFrame();
