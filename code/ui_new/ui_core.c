@@ -54,6 +54,8 @@ UI_EndFrame() {
   UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_Y);
   UI_CalculateParentDependentSizes(ui_current_context->root.first, UI_Axis_X);
   UI_CalculateParentDependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculateChildDependentSizes(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculateChildDependentSizes(ui_current_context->root.first, UI_Axis_Y);
   UI_CalculatePositions(ui_current_context->root.first, UI_Axis_X);
   UI_CalculatePositions(ui_current_context->root.first, UI_Axis_Y);
 
@@ -118,6 +120,26 @@ UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
 
   for (UI_Widget* child = root->first; child != 0; child = child->next) {
     UI_CalculateParentDependentSizes(child, axis);
+  }
+}
+
+func void
+UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis) {
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculateChildDependentSizes(child, axis);
+  }
+
+  switch (root->info.layout.sizes[axis].kind) {
+    default: break;
+    case UI_SizeKind_Fit: {
+      F32 padding_0 = root->info.layout.paddings.values[axis*2];
+      F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+      F32 child_gap = root->info.layout.child_gap;
+      root->bounding_box.size.values[axis] = padding_0 + padding_1 + child_gap;
+      for (UI_Widget* child = root->first; child != 0; child = child->next) {
+        root->bounding_box.size.values[axis] += child->bounding_box.size.values[axis];
+      }
+    } break;
   }
 }
 
