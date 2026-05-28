@@ -180,6 +180,13 @@ func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) { \
   (((l)->next = (n)), ((n)->prev = (l)), ((l) = (n)), ((n)->next = 0)))
 #define DllPushBack(f, l, n) DllPushBack_NextPrev(f, l, n, next, prev)
 
+#define DllRemove_NextPrev(f, l, n, next, prev) (((f) = (n)) ? \
+  ((f) = (f)->next) : \
+  ((l) = (n)) ? \
+  ((l) = (l)->prev) : \
+  (((n)->prev->next) = (n)->next, ((n)->next->prev = (n)->prev)))
+#define DllRemove(f, l, n) DllRemove_NextPrev(f, l, n, next, prev)
+
 // -------------------------------------------------------------------
 // -- Common type Array ----------------------------------------------
 B32 _b32_array_nil = 0;
