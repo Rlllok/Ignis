@@ -62,7 +62,7 @@ UI_DemoTopBar() {
       .background_color = MakeVec4F32(0.1f, 0.12f, 0.16f, 1.0f),
     }
   }) {
-    for (I32 topbar_item_index = 0; topbar_item_index < 3; topbar_item_index += 1) {
+    for (I32 topbar_item_index = 0; topbar_item_index < 4; topbar_item_index += 1) {
       UI_DemoTopBarItem();
     }
   }
@@ -72,14 +72,14 @@ func void
 UI_DemoFileButton() {
   UI_WidgetBlock({
     .label = Str8C("File Test"),
-    .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
+    .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
     .layout = {
       .width = UI_PercentSize(1.0f),
       .height = UI_PixelSize(30.0f),
       .direction = UI_Axis_Y,
     },
     .style = {
-      .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+      .background_color = UI_IsHot() ? MakeVec4F32(0.6f, 0.6f, 0.6f, 1.0f) : MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
     },
     .text = {
       .font = &ui_demo.font,
@@ -106,6 +106,8 @@ UI_DemoSizeBar() {
       .background_color = MakeVec4F32(0.14f, 0.12f, 0.16f, 1.0f),
     }
   }) {
+    UI_DemoFileButton();
+
     UI_WidgetBlock({
       .label = Str8C("Left Alignment"),
       .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
@@ -181,7 +183,7 @@ Demo_BuildUI(OS_Window* window) {
         .direction = UI_Axis_Y,
       },
       .style = {
-        .background_color = MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
+        .background_color = MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
       }
     }) {
       UI_DemoTopBar();

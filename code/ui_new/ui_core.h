@@ -1,9 +1,16 @@
 #pragma once
-
 #include "base/base_include.h"
 
 // -------------------------------------------------------------------
 // -- Widget ---------------------------------------------------------
+typedef struct UI_Key UI_Key;
+struct UI_Key {
+  U64 value;
+};
+
+func UI_Key UI_ZeroKey();
+func UI_Key UI_KeyFromStr8(Str8 str);
+
 typedef U8 UI_SizeKind;
 enum {
   UI_SizeKind_Nil,
@@ -34,8 +41,12 @@ typedef U32 UI_WidgetFlag;
 enum {
   UI_WidgetFlag_None = (1<<0),
 
-  UI_WidgetFlag_DrawBackground = (1<<1),
-  UI_WidgetFlag_DrawText       = (1<<2),
+  // Interaction
+  UI_WidgetFlag_MouseInteraction = (1<<1),
+
+  // Drawing
+  UI_WidgetFlag_DrawBackground = (1<<2),
+  UI_WidgetFlag_DrawText       = (1<<3),
 } UI_WidgetFlagEnum;
 
 typedef struct UI_WidgetLayoutInfo UI_WidgetLayoutInfo;
@@ -94,7 +105,14 @@ struct UI_Widget {
   UI_Widget* prev;
   UI_Widget* parent;
 
+  UI_Key key;
+  UI_Widget* hash_next;
+  UI_Widget* hash_prev;
+
+  U64 last_build_index;
+
   UI_Widget* stack_next;
+  UI_Widget* free_next;
   UI_Widget* root_next;
   UI_Widget* root_prev;
 
@@ -103,14 +121,15 @@ struct UI_Widget {
   RectF32 bounding_box;
 };
 
-func void UI_OpenWidget();
-func void UI_ConfigureWidget(UI_WidgetInfo info);
+func UI_Widget* UI_WidgetFromKey(UI_Key key);
+
+func void UI_OpenWidget(UI_WidgetInfo info);
 func void UI_CloseWidget();
 
 #define UI_DefineWidgetInfoStructWrapper() typedef struct {UI_WidgetInfo package;} UI_WidgetInfoWrapper;
 UI_DefineWidgetInfoStructWrapper()
 #define UI_WidgetInfoWrapper(...) ((UI_WidgetInfoWrapper){__VA_ARGS__}).package
-#define UI_WidgetBlock(...) DeferBlock((UI_OpenWidget(), UI_ConfigureWidget(UI_WidgetInfoWrapper(__VA_ARGS__))), UI_CloseWidget())
+#define UI_WidgetBlock(...) DeferBlock(UI_OpenWidget(UI_WidgetInfoWrapper(__VA_ARGS__)), UI_CloseWidget())
 
 // -------------------------------------------------------------------
 // -- Draw Command ---------------------------------------------------
@@ -144,6 +163,12 @@ struct UI_DrawCommand {
 
 // -------------------------------------------------------------------
 // -- State ----------------------------------------------------------
+typedef struct UI_HashSlot UI_HashSlot;
+struct UI_HashSlot {
+  UI_Widget* first;
+  UI_Widget* last;
+};
+
 typedef struct UI_Root UI_Root;
 struct UI_Root {
   UI_Widget* first;
@@ -156,6 +181,12 @@ struct UI_Context {
 
   Arena* frame_arena;
 
+  // Caching
+  U64          hash_table_length;
+  UI_HashSlot* hash_table;
+  U64          build_index;
+  UI_Widget*   free_widgets;
+
   UI_Root    root;
   UI_Widget* canvas;
   UI_Widget* opened_widget;
@@ -163,6 +194,8 @@ struct UI_Context {
   F32     dt;
   Vec2F32 mouse_position;
   Vec2F32 mouse_scroll;
+
+  UI_Widget* hot_widget;
 
   UI_DrawCommand* first_draw_command;
   UI_DrawCommand* last_draw_command;
@@ -180,5 +213,7 @@ func void UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis);
 func void UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis);
 func void UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis);
 func void UI_CalculatePositions(UI_Widget* root, UI_Axis axis);
-func void UI_BuildDrawCommands(UI_Widget* root);
+func void UI_FinalPass(UI_Widget* root);
 
+// -- Interaction
+func B32 UI_IsHot();
