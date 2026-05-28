@@ -169,6 +169,20 @@ UI_BuildDrawCommands(UI_Widget* root) {
     SllPushBack(ui_current_context->first_draw_command,  ui_current_context->last_draw_command, draw_command);
   }
 
+  if (root->info.flags & UI_WidgetFlag_DrawText) {
+    Assert(root->info.text.font != 0);
+
+    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Text;
+    draw_command->text.font = root->info.text.font;
+    draw_command->text.str = root->info.label;
+    draw_command->text.position = root->bounding_box.position;
+    draw_command->text.position.y += root->bounding_box.size.y;
+    draw_command->text.size = 0; // --AlNov: @TODO Do nothing for now
+    draw_command->text.color = root->info.text.color;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
+  }
+
   for (UI_Widget* child = root->first; child != 0; child = child->next) {
     UI_BuildDrawCommands(child);
   }

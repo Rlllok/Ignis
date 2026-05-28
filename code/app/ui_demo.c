@@ -1,28 +1,33 @@
 #include "base/base_include.h"
 #include "os/os_include.h"
 #include "rhi/rhi_include.h"
+#include "assets/font.h"
 #include "ui_new/ui_include.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
+#include "assets/font.c"
 #include "ui_new/ui_include.c"
 
 static struct {
   OS_Window*           window;
   RHI_Buffer           gpu_buffer;
+  RHI_Buffer           transfer_buffer;
   RHI_GraphicsPipeline rectangle_pipeline;
+  RHI_GraphicsPipeline text_pipeline;
 
   UI_Context*     ui_context;
   UI_DrawCommand* ui_draw_commands;
 
   F32 dt;
 
-  Vec4F32 colors[4];
-  I32     current_color_index;
-  B32     color_animation;
-  F32     animation_duration;
-  F32     animation_time;
+  AST_Font font;
+  Vec4F32  colors[4];
+  I32      current_color_index;
+  B32      color_animation;
+  F32      animation_duration;
+  F32      animation_time;
 
   F32 slider_value;
 } ui_demo;
@@ -67,7 +72,7 @@ func void
 UI_DemoFileButton() {
   UI_WidgetBlock({
     .label = Str8C("File"),
-    .flags = UI_WidgetFlag_DrawBackground,
+    .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
     .layout = {
       .width = UI_PercentSize(1.0f),
       .height = UI_PixelSize(30.0f),
@@ -75,6 +80,10 @@ UI_DemoFileButton() {
     },
     .style = {
       .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+    },
+    .text = {
+      .font = &ui_demo.font,
+      .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
     }
   }) {
   }
@@ -147,7 +156,6 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
           default: {
             Assert(0 && "Unsupported UI draw command");
           } break;
-
           case UI_DrawCommandKind_Rectangle: {
             RectF32 bound = draw_command->rectangle.bounding_box;
 
@@ -172,6 +180,50 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
             RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
           } break;
+          case UI_DrawCommandKind_Text: {
+            F32 spacing = 0;
+            for (I32 character_index = 0; character_index < draw_command->text.str.length; character_index += 1) {
+              U8 character = draw_command->text.str.data[character_index];
+              const AST_Font* font = draw_command->text.font;
+              const AST_FontGlyph* glyph = font->glyphs + (character - 32);
+              Vec2F32 position = draw_command->text.position;
+              Vec2F32 size = MakeVec2F32(glyph->width, glyph->height);
+              I32 x_offset = glyph->x_offset;
+              I32 y_offset = glyph->y_offset;
+              I32 ascent = font->ascent;
+              F32 scale = font->scale;
+              F32 advance = glyph->advance;
+
+              if (character == ' ') {
+                spacing += advance*scale;
+              }
+
+              struct {
+                Mat4F32 projection;
+                Vec4F32 position_size;
+                Vec4F32 color;
+                U64 texture_id;
+              } glyph_data = {
+                .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.y, 0.0f, -1.0f, 1.0f),
+                .position_size = MakeVec4F32(position.x + x_offset + spacing, position.y + y_offset, size.x, size.y),
+                .color = draw_command->text.color,
+                .texture_id = RHI_GetTextureDeviceId(glyph->texture),
+              };
+              U64 glyph_data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&glyph_data, sizeof(glyph_data));
+
+              RHI_ShaderArgument arguments[] = {
+                {
+                  .kind = RHI_ShaderArgumentKind_BufferAddress,
+                  .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + glyph_data_offset,
+                },
+              };
+              RHI_BindGraphicsPipeline(command_buffer, ui_demo.text_pipeline);
+              RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+              RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+
+              spacing += (F32)(advance)*scale;
+            }
+          } break;
         }
       }
     }
@@ -194,6 +246,7 @@ I32 main() {
   RHI_Init(ui_demo.window);
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
   ui_demo.gpu_buffer = RHI_CreateBuffer(Str8C("UI_Demo_Buffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostVisible|RHI_BufferPropertyFlag_HostCoherent);
+  ui_demo.transfer_buffer = RHI_CreateBuffer(Str8C("UI_Demo_TransferBuffer"), Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
   {
     RHI_ShaderArgumentKind vertex_shader_arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,
@@ -225,8 +278,48 @@ I32 main() {
     });
   }
 
+  // Text Pipeline
+  {
+    RHI_ShaderArgumentKind arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+
+    RHI_Shader vertex_shader = RHI_CreateShader(
+      global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/text.vs"),
+        .kind = RHI_ShaderKind_Vertex,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
+      }
+    );
+
+    RHI_Shader fragment_shader = RHI_CreateShader(
+      global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/text.fs"),
+        .kind = RHI_ShaderKind_Fragment,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
+      }
+    );
+
+    ui_demo.text_pipeline = RHI_CreateGraphicsPipeline(
+      &(RHI_GraphicsPipelineCreateInfo) {
+        .vertex_shader = &vertex_shader,
+        .fragment_shader = &fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+          .format = RHI_GetSwapchainTextureFormat(),
+          .blend_enable = 1,
+        },
+      }
+    );
+  }
+
   ui_demo.ui_context = UI_CreateContext();
 
+  ui_demo.font = AST_FontFromTTF(global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 24);
   ui_demo.colors[0] = MakeVec4F32(0.0f, 0.50f, 0.24f, 1.0f),
   ui_demo.colors[1] = MakeVec4F32(0.08f, 0.25f, 0.12f, 1.0f),
   ui_demo.colors[2] = MakeVec4F32(0.18f, 0.15f, 0.32f, 1.0f),
