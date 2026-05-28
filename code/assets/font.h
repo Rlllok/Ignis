@@ -20,3 +20,5 @@ struct AST_Font {
 };
 
 func AST_Font AST_FontFromTTF(Arena* arena, RHI_CommandBuffer command_buffer, RHI_Buffer transfer_buffer, Str8 file_path, U16 size);
+
+func Vec2F32 AST_TextSize(Str8 text, AST_Font* font);

@@ -76,3 +76,20 @@ AST_FontFromTTF(Arena* arena, RHI_CommandBuffer command_buffer, RHI_Buffer trans
 
   return result;
 }
+
+func Vec2F32
+AST_TextSize(Str8 text, AST_Font* font) {
+  Vec2F32 result = MakeVec2F32(0.0f, 0.0f);
+  for (I32 character_index = 0; character_index < text.length; character_index += 1) {
+    U8 character = text.data[character_index];
+    AST_FontGlyph* glyph = font->glyphs + (character - 32);
+    if (character == ' ') {
+      result.x += font->glyphs[' ' - 32].width + glyph->advance*font->scale;
+    }
+    result.x += glyph->width;
+    result.y = Max(result.y, glyph->height);
+  }
+  result.x += (F32)(font->glyphs[text.data[text.length - 1] - 32].advance)*font->scale;
+  // result.x /= 2.0f;
+  return result;
+}
