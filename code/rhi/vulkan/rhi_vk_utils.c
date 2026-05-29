@@ -152,6 +152,7 @@ RHI_VK_GetVkFormat(RHI_TextureFormat format) {
     case RHI_TextureFormat_R8G8B8A8_UNORM:      vk_format = VK_FORMAT_R8G8B8A8_UNORM; break;
     case RHI_TextureFormat_B8G8R8A8_UNORM:      vk_format = VK_FORMAT_B8G8R8A8_UNORM; break;
     case RHI_TextureFormat_R16G16B16A16_SFLOAT: vk_format = VK_FORMAT_R16G16B16A16_SFLOAT; break;
+    case RHI_TextureFormat_R8_UNORM:            vk_format = VK_FORMAT_R8_UNORM; break;
     case RHI_TextureFormat_D16_UNORM:           vk_format = VK_FORMAT_D16_UNORM; break;
     case RHI_TextureFormat_R16_UINT:            vk_format = VK_FORMAT_R16_UINT; break;
   }
@@ -170,6 +171,7 @@ RHI_VK_FormatFromVk(VkFormat format)
     case VK_FORMAT_R8G8B8A8_UNORM:      result = RHI_TextureFormat_R8G8B8A8_UNORM; break;
     case VK_FORMAT_B8G8R8A8_UNORM:      result = RHI_TextureFormat_B8G8R8A8_UNORM; break;
     case VK_FORMAT_R16G16B16A16_SFLOAT: result = RHI_TextureFormat_R16G16B16A16_SFLOAT;
+    case VK_FORMAT_R8_UNORM:            result = RHI_TextureFormat_R8_UNORM; break;
     case VK_FORMAT_D16_UNORM:           result = RHI_TextureFormat_D16_UNORM; break;
     case VK_FORMAT_R16_UINT:            result = RHI_TextureFormat_R16_UINT; break;
   }

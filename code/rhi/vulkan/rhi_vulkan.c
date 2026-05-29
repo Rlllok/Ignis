@@ -15,18 +15,30 @@ RHI_VK_SemaphoreFromHandle(RHI_Semaphore handle) {
 func RHI_Semaphore
 RHI_VK_CreateSemaphore() {
   RHI_Semaphore result = 0;
-  
+
+  // find free sempahore
   for (I32 semaphore_index = 1; semaphore_index < _rhi_vk_state.semaphores.length; semaphore_index += 1) {
     RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore_index);
-    if (vk_semaphore->in_use) {
-      VkSemaphoreCreateInfo info = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-      };
-      vkCreateSemaphore(_rhi_vk_state.device.logical, &info, 0, &vk_semaphore->vk);
+    if (!vk_semaphore->in_use) {
       vk_semaphore->in_use = 1;
       result = semaphore_index;
       break;
     }
+  }
+  // create new semaphore
+  if (result == 0) {
+    RHI_VK_Semaphore vk_semaphore = ZeroStruct();
+    vk_semaphore.in_use = 1;
+    VkSemaphoreTypeCreateInfo type_info = {
+      .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE_KHR,
+      .TIMELINESEMAPHORE = 0,
+    };
+    VkSemaphoreCreateInfo info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      .pNext = &type_info,
+    };
+    vkCreateSemaphore(_rhi_vk_state.device.logical, &info, 0, &vk_semaphore.vk);
+    result = RHI_VK_SemaphoreArrayAdd(&_rhi_vk_state.semaphores, vk_semaphore);
   }
   
   return result;
@@ -35,7 +47,6 @@ RHI_VK_CreateSemaphore() {
 func void
 RHI_VK_DestroySemaphore(RHI_Semaphore semaphore) {
   RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore);
-  vkDestroySemaphore(_rhi_vk_state.device.logical, vk_semaphore->vk, 0);
   vk_semaphore->in_use = 0;
 }
 
@@ -289,49 +300,41 @@ RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
 
 func void
 RHI_VK_EndCommandBuffer(RHI_CommandBuffer command_buffer) {
-  // --AlNov: @TODO
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  vkEndCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
 }
 
 func void
 RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignalInfo* wait_semaphores, I32 wait_semaphores_count, RHI_SemaphoreSignalInfo* signal_semaphores, I32 signal_semaphores_count) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  RHI_VK_Texture* swapchain_texture = vk_command_buffer->current_swapchain_texture;
-  if (swapchain_texture) {
-    RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], swapchain_texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-  }
-
-	vkEndCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
-
-	VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-
-	VkSubmitInfo submit_info = {
-		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = vk_command_buffer->acquire_semaphore + _rhi_vk_state.current_frame,
-		.pWaitDstStageMask = &wait_stage,
-		.commandBufferCount = 1,
-		.pCommandBuffers = vk_command_buffer->vk + _rhi_vk_state.current_frame,
-		.signalSemaphoreCount = 1,
-    .pSignalSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
-	};
-
-  VK_CHECK(vkQueueSubmit(_rhi_vk_state.device.graphics_queue, 1, &submit_info, vk_command_buffer->submit_fence[_rhi_vk_state.current_frame]));
-
-  if (swapchain_texture) {
-    VkPresentInfoKHR present_info = {
-      .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-      .waitSemaphoreCount = 1,
-      .pWaitSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
-      .swapchainCount = 1,
-      .pSwapchains = &_rhi_vk_state.swapchain.vk,
-      .pImageIndices = &_rhi_vk_state.current_target,
+  // --AlNov: @TODO Add pipeline stages
+  ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena); {
+    VkSemaphore* vk_wait_semaphores = PushArena(scratch.arena, wait_semaphores_count);
+    for (I32 semaphore_index = 0; semaphore_index < wait_semaphores_count; semaphore_index += 1) {
+      RHI_VK_Semaphore* semaphore = RHI_VK_SemaphoreFromHandle(wait_semaphores[semaphore_index].semaphore);
+      vk_wait_semaphores[semaphore_index] = semaphore->vk;
+    }
+    VkSemaphore* vk_signal_semaphores = PushArena(scratch.arena, signal_semaphores_count);
+    for (I32 semaphore_index = 0; semaphore_index < signal_semaphores_count; semaphore_index += 1) {
+      RHI_VK_Semaphore* semaphore = RHI_VK_SemaphoreFromHandle(signal_semaphores[semaphore_index].semaphore);
+      vk_signal_semaphores[semaphore_index] = semaphore->vk;
+    }
+    VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    VkSubmitInfo submit_info = {
+      .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+      .waitSemaphoreCount = wait_semaphores_count,
+      .pWaitSemaphores = vk_wait_semaphores,
+      .pWaitDstStageMask = &wait_stage,
+      .commandBufferCount = 1,
+      .pCommandBuffers = vk_command_buffer->vk + _rhi_vk_state.current_frame,
+      .signalSemaphoreCount = signal_semaphores_count,
+      .pSignalSemaphores = vk_signal_semaphores,
     };
 
-    vkQueuePresentKHR(_rhi_vk_state.device.graphics_queue, &present_info);
+    VK_CHECK(vkQueueSubmit(_rhi_vk_state.device.graphics_queue, 1, &submit_info, vk_command_buffer->submit_fence[_rhi_vk_state.current_frame]));
   }
-
-	_rhi_vk_state.current_frame = (_rhi_vk_state.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
+  EndScratchArena(scratch);
 }
 
 // -------------------------------------------------------------------
@@ -622,7 +625,20 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 
 func void
 RHI_VK_Present(RHI_CommandBuffer command_buffer) {
-  // --AlNov: @TODO
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_Texture* swapchain_texture = vk_command_buffer->current_swapchain_texture;
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], swapchain_texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+  VkPresentInfoKHR present_info = {
+    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+    .waitSemaphoreCount = 1,
+    .pWaitSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
+    .swapchainCount = 1,
+    .pSwapchains = &_rhi_vk_state.swapchain.vk,
+    .pImageIndices = &_rhi_vk_state.current_target,
+  };
+  vkQueuePresentKHR(_rhi_vk_state.device.graphics_queue, &present_info);
+  _rhi_vk_state.current_frame = (_rhi_vk_state.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
 }
 
 func void
@@ -1947,6 +1963,7 @@ func B32
 RHI_VK_Init(OS_Window* window) {
   _rhi_vk_state.arena = AllocateArena(Gigabytes(32), Kilobytes(64));
   _rhi_vk_state.semaphores = RHI_VK_SemaphoreArrayAllocate(_rhi_vk_state.arena, 128);
+  RHI_VK_SemaphoreArrayAdd(&_rhi_vk_state.semaphores, (RHI_VK_Semaphore)ZeroStruct()); // 0 is reserved as nil
   _rhi_vk_state.buffers = RHI_VK_BufferArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.buffers.elements[0] = (RHI_VK_Buffer){0};
   _rhi_vk_state.render_passes = RHI_VK_RenderPassArrayAllocate(_rhi_vk_state.arena, 32);
