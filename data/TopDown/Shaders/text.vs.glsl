@@ -40,5 +40,5 @@ void main() {
   vec4 scale = vec4(glyph_data.position_size.zw, 1.0f, 1.0f);
   vec4 vertex = vertecies[indecies[gl_VertexIndex]]*scale + offset;
   out_uv = uv[indecies[gl_VertexIndex]];
-  gl_Position = vertex;
+  gl_Position = glyph_data.projection*vertex;
 }
