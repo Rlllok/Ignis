@@ -22,6 +22,13 @@
 VkResult VK_CHECK_RESULT = VK_SUCCESS;
 #define VK_CHECK(expression) VK_CHECK_RESULT = expression; Assert((VK_CHECK_RESULT) == VK_SUCCESS)
 
+// -------------------------------------------------------------------
+// -- Function Loading -----------------------------------------------
+// --AlNov: @TODO Maybe remove vulkan.lin and load functions by hand
+PFN_vkWaitSemaphores Ignis_vkWaitSemaphores = 0;
+
+func void RHI_VK_LoadDeviceFunctions(VkDevice device);
+
 #include "rhi_vk_utils.h"
 
 // -------------------------------------------------------------------
@@ -29,7 +36,7 @@ VkResult VK_CHECK_RESULT = VK_SUCCESS;
 typedef struct RHI_VK_Semaphore RHI_VK_Semaphore;
 struct RHI_VK_Semaphore {
   VkSemaphore vk;
-  B32         in_use;
+  U64         value;
 };
 RHI_VK_Semaphore RHI_VK_SemaphoreNil = ZeroStruct();
 DefineArray(RHI_VK_Semaphore, RHI_VK_SemaphoreArray, RHI_VK_SemaphoreNil)
@@ -225,13 +232,14 @@ func RHI_TextureSampler     RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreate
 // -- Command Buffer -------------------------------------------------
 typedef struct RHI_VK_CommandBuffer RHI_VK_CommandBuffer;
 struct RHI_VK_CommandBuffer {
-	VkCommandBuffer          vk[RHI_FRAMES_IN_FLIGHT];
-	VkFence                  submit_fence[RHI_FRAMES_IN_FLIGHT];
-	VkSemaphore              acquire_semaphore[RHI_FRAMES_IN_FLIGHT];
-	RHI_VK_DescriptorPool    descriptor_pool[RHI_FRAMES_IN_FLIGHT];
+  VkCommandBuffer          vk[RHI_FRAMES_IN_FLIGHT];
+  VkFence                  submit_fence[RHI_FRAMES_IN_FLIGHT];
+  VkSemaphore              acquire_semaphore[RHI_FRAMES_IN_FLIGHT];
+  RHI_VK_DescriptorPool    descriptor_pool[RHI_FRAMES_IN_FLIGHT];
   RHI_VK_RenderPass*       active_render_pass;
-	RHI_VK_GraphicsPipeline* binded_graphics_pipeline;
+  RHI_VK_GraphicsPipeline* binded_graphics_pipeline;
   RHI_VK_Texture*          current_swapchain_texture;
+  B32                      to_present;
   VkViewport               current_viewport;
 };  
 RHI_VK_CommandBuffer RHI_VK_CommandBufferNil = {0};

@@ -6,6 +6,15 @@
 #include "base/base_core.h"
 
 // -------------------------------------------------------------------
+// -- Function Loading -----------------------------------------------
+
+func void
+RHI_VK_LoadDeviceFunctions(VkDevice device) {
+  Ignis_vkWaitSemaphores = (PFN_vkWaitSemaphores)vkGetDeviceProcAddr(device, "vkWaitSemaphores");
+  Assert(Ignis_vkWaitSemaphores != 0);
+}
+
+// -------------------------------------------------------------------
 // -- Synchronization ------------------------------------------------
 func RHI_VK_Semaphore*
 RHI_VK_SemaphoreFromHandle(RHI_Semaphore handle) {
@@ -19,19 +28,19 @@ RHI_VK_CreateSemaphore() {
   // find free sempahore
   for (I32 semaphore_index = 1; semaphore_index < _rhi_vk_state.semaphores.length; semaphore_index += 1) {
     RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore_index);
-    if (!vk_semaphore->in_use) {
-      vk_semaphore->in_use = 1;
+    if (vk_semaphore->vk == 0) {
       result = semaphore_index;
       break;
     }
   }
   // create new semaphore
+  // --AlNov: @TODO It is too complicated
   if (result == 0) {
     RHI_VK_Semaphore vk_semaphore = ZeroStruct();
-    vk_semaphore.in_use = 1;
     VkSemaphoreTypeCreateInfo type_info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR,
       .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE_KHR,
-      .TIMELINESEMAPHORE = 0,
+      .initialValue = 0,
     };
     VkSemaphoreCreateInfo info = {
       .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -40,18 +49,42 @@ RHI_VK_CreateSemaphore() {
     vkCreateSemaphore(_rhi_vk_state.device.logical, &info, 0, &vk_semaphore.vk);
     result = RHI_VK_SemaphoreArrayAdd(&_rhi_vk_state.semaphores, vk_semaphore);
   }
-  
+  else {
+    RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(result);
+    VkSemaphoreTypeCreateInfo type_info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR,
+      .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE_KHR,
+      .initialValue = 0,
+    };
+    VkSemaphoreCreateInfo info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+      .pNext = &type_info,
+    };
+    vkCreateSemaphore(_rhi_vk_state.device.logical, &info, 0, &vk_semaphore->vk);
+  }
   return result;
 }
 
 func void
 RHI_VK_DestroySemaphore(RHI_Semaphore semaphore) {
   RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore);
-  vk_semaphore->in_use = 0;
+  vkDestroySemaphore(_rhi_vk_state.device.logical, vk_semaphore->vk, 0);
+  MemoryZeroStruct(vk_semaphore);
 }
 
 func void
 RHI_VK_WaitSemaphore(RHI_Semaphore semaphore, U64 value) {
+  // --AlNov: @TODO Maybe it is better to batch WaitSemaphores
+  // (but for now there are no multiple semaphores waiting in the codebase)
+  RHI_VK_Semaphore* vk_semaphore = RHI_VK_SemaphoreFromHandle(semaphore);
+  
+  VkSemaphoreWaitInfoKHR wait_info = {
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO_KHR,
+    .semaphoreCount = 1,
+    .pSemaphores = &vk_semaphore->vk,
+    .pValues = &value,
+  };
+  VK_CHECK(Ignis_vkWaitSemaphores(_rhi_vk_state.device.logical, &wait_info, U64_MAX));
 }
 
 // -------------------------------------------------------------------
@@ -280,6 +313,7 @@ RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
   vk_command_buffer->active_render_pass = 0;
   vk_command_buffer->binded_graphics_pipeline = 0;
   vk_command_buffer->current_swapchain_texture = 0;
+  vk_command_buffer->to_present = 0;
   vk_command_buffer->current_viewport = (VkViewport)ZeroStruct();
 
   vkWaitForFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame, VK_TRUE, U64_MAX);
@@ -310,29 +344,62 @@ RHI_VK_SubmitCommandBuffer(RHI_CommandBuffer command_buffer, RHI_SemaphoreSignal
 
   // --AlNov: @TODO Add pipeline stages
   ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena); {
-    VkSemaphore* vk_wait_semaphores = PushArena(scratch.arena, wait_semaphores_count);
+    // wait semaphores (adds one binary semaphore in case we want to present swapchain image)
+    VkSemaphore* vk_wait_semaphores = PushArena(scratch.arena, sizeof(VkSemaphore)*(wait_semaphores_count + 1));
+    U64* vk_wait_semaphore_values = PushArena(scratch.arena, sizeof(U64)*(wait_semaphores_count + 1));
     for (I32 semaphore_index = 0; semaphore_index < wait_semaphores_count; semaphore_index += 1) {
       RHI_VK_Semaphore* semaphore = RHI_VK_SemaphoreFromHandle(wait_semaphores[semaphore_index].semaphore);
+      semaphore->value = wait_semaphores[semaphore_index].value;
       vk_wait_semaphores[semaphore_index] = semaphore->vk;
+      vk_wait_semaphore_values[semaphore_index] = semaphore->value;
     }
-    VkSemaphore* vk_signal_semaphores = PushArena(scratch.arena, signal_semaphores_count);
+    vk_wait_semaphores[wait_semaphores_count] = vk_command_buffer->acquire_semaphore[_rhi_vk_state.current_frame];
+    vk_wait_semaphore_values[wait_semaphores_count] = 0;
+    // signal semaphores (adds one binary semaphore in case we want to present swapchain image)
+    VkSemaphore* vk_signal_semaphores = PushArena(scratch.arena, sizeof(VkSemaphore)*(signal_semaphores_count + 1));
+    U64* vk_signal_semaphore_values = PushArena(scratch.arena, sizeof(U64)*(signal_semaphores_count + 1));
     for (I32 semaphore_index = 0; semaphore_index < signal_semaphores_count; semaphore_index += 1) {
       RHI_VK_Semaphore* semaphore = RHI_VK_SemaphoreFromHandle(signal_semaphores[semaphore_index].semaphore);
+      semaphore->value = signal_semaphores[semaphore_index].value;
       vk_signal_semaphores[semaphore_index] = semaphore->vk;
+      vk_signal_semaphore_values[semaphore_index] = semaphore->value;
     }
+    vk_signal_semaphores[signal_semaphores_count] = _rhi_vk_state.swapchain.render_finished_semaphores[_rhi_vk_state.current_target];
+    vk_signal_semaphore_values[signal_semaphores_count] = 0;
+
     VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    VkTimelineSemaphoreSubmitInfo timeline_semaphores_info = {
+      .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR,
+      .signalSemaphoreValueCount = signal_semaphores_count + vk_command_buffer->to_present,
+      .pSignalSemaphoreValues = vk_signal_semaphore_values,
+      .waitSemaphoreValueCount = wait_semaphores_count + vk_command_buffer->to_present,
+      .pWaitSemaphoreValues = vk_wait_semaphore_values,
+    };
     VkSubmitInfo submit_info = {
       .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-      .waitSemaphoreCount = wait_semaphores_count,
+      .waitSemaphoreCount = wait_semaphores_count + vk_command_buffer->to_present,
       .pWaitSemaphores = vk_wait_semaphores,
       .pWaitDstStageMask = &wait_stage,
       .commandBufferCount = 1,
       .pCommandBuffers = vk_command_buffer->vk + _rhi_vk_state.current_frame,
-      .signalSemaphoreCount = signal_semaphores_count,
+      .signalSemaphoreCount = signal_semaphores_count + vk_command_buffer->to_present,
       .pSignalSemaphores = vk_signal_semaphores,
+      .pNext = &timeline_semaphores_info,
     };
-
     VK_CHECK(vkQueueSubmit(_rhi_vk_state.device.graphics_queue, 1, &submit_info, vk_command_buffer->submit_fence[_rhi_vk_state.current_frame]));
+
+    if (vk_command_buffer->to_present) {
+      VkPresentInfoKHR present_info = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
+        .swapchainCount = 1,
+        .pSwapchains = &_rhi_vk_state.swapchain.vk,
+        .pImageIndices = &_rhi_vk_state.current_target,
+      };
+      vkQueuePresentKHR(_rhi_vk_state.device.graphics_queue, &present_info);
+      _rhi_vk_state.current_frame = (_rhi_vk_state.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
+    }
   }
   EndScratchArena(scratch);
 }
@@ -382,6 +449,7 @@ RHI_VK_CreateDevice() {
         .descriptorBindingVariableDescriptorCount = 1,
         .runtimeDescriptorArray = 1,
         .bufferDeviceAddress = 1,
+        .timelineSemaphore = 1,
       };
 
       VkPhysicalDeviceVulkan13Features vulkan13_features = {
@@ -417,6 +485,7 @@ RHI_VK_CreateDevice() {
       VK_CHECK(vkCreateDevice(*device, &device_info, 0, &_rhi_vk_state.device.logical))
 			if(_rhi_vk_state.device.logical) {
 				vkGetDeviceQueue(_rhi_vk_state.device.logical, _rhi_vk_state.device.graphics_queue_index, 0, &_rhi_vk_state.device.graphics_queue);
+        RHI_VK_LoadDeviceFunctions(_rhi_vk_state.device.logical);
 				break;
 				// @TODO Choose GPU by parameters
 			}
@@ -626,19 +695,9 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 func void
 RHI_VK_Present(RHI_CommandBuffer command_buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  vk_command_buffer->to_present = 1;
   RHI_VK_Texture* swapchain_texture = vk_command_buffer->current_swapchain_texture;
   RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], swapchain_texture, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-  VkPresentInfoKHR present_info = {
-    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-    .waitSemaphoreCount = 1,
-    .pWaitSemaphores = _rhi_vk_state.swapchain.render_finished_semaphores + _rhi_vk_state.current_target,
-    .swapchainCount = 1,
-    .pSwapchains = &_rhi_vk_state.swapchain.vk,
-    .pImageIndices = &_rhi_vk_state.current_target,
-  };
-  vkQueuePresentKHR(_rhi_vk_state.device.graphics_queue, &present_info);
-  _rhi_vk_state.current_frame = (_rhi_vk_state.current_frame + 1)%RHI_FRAMES_IN_FLIGHT;
 }
 
 func void
@@ -1975,7 +2034,7 @@ RHI_VK_Init(OS_Window* window) {
   _rhi_vk_state.command_buffers.elements[0] = (RHI_VK_CommandBuffer){0};
   _rhi_vk_state.samplers = RHI_VK_TextureSamplerArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.samplers.elements[0] = (RHI_VK_TextureSampler){0};
-  _rhi_vk_state.textures = RHI_VK_TextureArrayAllocate(_rhi_vk_state.arena, 32);
+  _rhi_vk_state.textures = RHI_VK_TextureArrayAllocate(_rhi_vk_state.arena, 512);
   _rhi_vk_state.textures.elements[0] = (RHI_VK_Texture){0};
   _rhi_vk_state.textures_free_list = RHI_VK_TextureFreeListAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.textures_free_list.elements[0] = 1;

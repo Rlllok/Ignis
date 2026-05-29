@@ -284,11 +284,11 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
       }
     }
     RHI_EndRenderPass(command_buffer, render_pass);
+    RHI_Present(command_buffer);
   }
   RHI_EndCommandBuffer(command_buffer);
 
   RHI_SubmitCommandBuffer(command_buffer, 0, 0, 0, 0);
-  RHI_Present(command_buffer);
 }
 
 I32 main() {
