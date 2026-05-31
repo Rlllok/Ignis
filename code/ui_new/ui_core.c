@@ -35,9 +35,9 @@ UI_WidgetFromStr8(Str8 str) {
 }
 
 func void
-UI_OpenWidget(UI_WidgetInfo info) {
+UI_OpenWidget(Str8 label) {
   // --AlNov: @TODO Widget should be added to main arena of the context and managed with free list
-  UI_Widget* widget = UI_WidgetFromStr8(info.label);
+  UI_Widget* widget = UI_WidgetFromStr8(label);
   if (widget == 0) {
     // create widget
     if (ui_current_context->free_widgets) {
@@ -47,11 +47,10 @@ UI_OpenWidget(UI_WidgetInfo info) {
     } else {
       widget = PushArena(ui_current_context->arena, sizeof(UI_Widget));
       MemoryZeroStruct(widget);
-      widget->info = info;
     }
     // add to hash table
     // --AlNov: @TODO Computing key again (UI_WidgetFromStr8() called before)
-    UI_Key key = UI_KeyFromStr8(info.label);
+    UI_Key key = UI_KeyFromStr8(label);
     widget->key = key;
     U64 slot_index = key.value%ui_current_context->hash_table_length;
     UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
@@ -67,6 +66,12 @@ UI_OpenWidget(UI_WidgetInfo info) {
   }
   widget->last_build_index = ui_current_context->build_index;
   StackPush_Next(ui_current_context->opened_widget, widget, stack_next);
+}
+
+func void
+UI_ConfigureWidget(UI_WidgetInfo info) {
+  UI_Widget* widget = ui_current_context->opened_widget;
+  widget->info = info;
 }
 
 func void
@@ -90,7 +95,7 @@ UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll) {
   ui_current_context->mouse_scroll = mouse_scroll;
 
   // Interaction reset
-  // ui_current_context->hot_widget = 0;
+   // ui_current_context->hot_widget = 0;
 
   // Drawing reset
   ui_current_context->first_draw_command = 0;
@@ -231,7 +236,7 @@ UI_CalculatePositions(UI_Widget* root, UI_Axis axis) {
 
 func void
 UI_FinalPass(UI_Widget* root) {
-// Interaction
+  // Interaction
   if (root->info.flags & UI_WidgetFlag_MouseInteraction) {
     B32 mouse_inside = InsideRectF32(root->bounding_box, ui_current_context->mouse_position);
     if (mouse_inside) {
@@ -239,7 +244,7 @@ UI_FinalPass(UI_Widget* root) {
     }
   }
 
-// Build draw commands
+  // Build draw commands
   if (root->info.flags & UI_WidgetFlag_DrawBackground) {
     UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
     draw_command->kind = UI_DrawCommandKind_Rectangle;
@@ -287,5 +292,9 @@ UI_FinalPass(UI_Widget* root) {
 // -- Interaction
 func B32
 UI_IsHot() {
-  return ui_current_context->opened_widget == ui_current_context->hot_widget;
+  B32 result = 0;
+  if (ui_current_context->hot_widget != 0) {
+    result = ui_current_context->opened_widget->key.value == ui_current_context->hot_widget->key.value;
+  }
+  return result;
 }

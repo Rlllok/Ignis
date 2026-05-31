@@ -118,18 +118,20 @@ struct UI_Widget {
 
   UI_WidgetInfo info;
 
+  B32     is_hot;
   RectF32 bounding_box;
 };
 
 func UI_Widget* UI_WidgetFromKey(UI_Key key);
 
-func void UI_OpenWidget(UI_WidgetInfo info);
+func void UI_OpenWidget(Str8 label);
+func void UI_ConfigureWidget(UI_WidgetInfo info);
 func void UI_CloseWidget();
 
 #define UI_DefineWidgetInfoStructWrapper() typedef struct {UI_WidgetInfo package;} UI_WidgetInfoWrapper;
 UI_DefineWidgetInfoStructWrapper()
 #define UI_WidgetInfoWrapper(...) ((UI_WidgetInfoWrapper){__VA_ARGS__}).package
-#define UI_WidgetBlock(...) DeferBlock(UI_OpenWidget(UI_WidgetInfoWrapper(__VA_ARGS__)), UI_CloseWidget())
+#define UI_WidgetBlock(label, ...) DeferBlock((UI_OpenWidget(label), UI_ConfigureWidget(UI_WidgetInfoWrapper(__VA_ARGS__))), UI_CloseWidget())
 
 // -------------------------------------------------------------------
 // -- Draw Command ---------------------------------------------------
