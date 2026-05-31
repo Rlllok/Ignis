@@ -10,7 +10,16 @@
 #include "assets/font.c"
 #include "ui_new/ui_include.c"
 
+typedef struct UI_DemoCategory UI_DemoCategory;
+struct UI_DemoCategory {
+  Str8 name;
+  void (*BuildUI)();
+};
+#define UI_DemoCategory_Capacity 32
+
 static struct {
+  Arena*               global_arena;
+  Arena*               frame_arena;
   OS_Window*           window;
   RHI_Buffer           gpu_buffer;
   RHI_Buffer           transfer_buffer;
@@ -22,89 +31,50 @@ static struct {
 
   F32 dt;
 
-  AST_Font font;
-  Vec4F32  colors[4];
-  I32      current_color_index;
-  B32      color_animation;
-  F32      animation_duration;
-  F32      animation_time;
+  struct {
+    AST_Font font;
+    Vec4F32  background_color;
+  } style;
 
-  F32 slider_value;
+  UI_DemoCategory categories[UI_DemoCategory_Capacity];
+  I32             categories_length;
+  I32             current_category_index;
 } ui_demo;
 
-func void
-UI_DemoTopBarItem() {
+func B32
+UI_DemoCategoryButton(Str8 label) {
+  B32 result = 0;
   UI_WidgetBlock(
-    Str8C("TopBarItem"),
+    label,
     {
-      .label = Str8C("TopBarItem"),
-      .flags = UI_WidgetFlag_DrawBackground,
-      .layout = {
-        .width = UI_PixelSize(50.0f),
-        .height = UI_PercentSize(1.0f),
-      },
-      .style = {
-        .background_color = MakeVec4F32(0.3f, 0.3f, 0.3f, 1.0f),
-      }
-    }
-  ) {
-  }
-}
-
-func void
-UI_DemoTopBar() {
-  UI_WidgetBlock(
-    Str8C("TopBar"),
-    {
-      .label = Str8C("TopBar"),
-      .flags = UI_WidgetFlag_DrawBackground,
-      .layout = {
-        .width = UI_PercentSize(1.0f),
-        .height = UI_PixelSize(25.0f),
-        .direction = UI_Axis_X,
-      },
-      .style = {
-        .background_color = MakeVec4F32(0.1f, 0.12f, 0.16f, 1.0f),
-      }
-    }
-  ) {
-    for (I32 topbar_item_index = 0; topbar_item_index < 4; topbar_item_index += 1) {
-      UI_DemoTopBarItem();
-    }
-  }
-}
-
-func void
-UI_DemoFileButton() {
-  UI_WidgetBlock(
-    Str8C("File Test"),
-    {
-      .label = Str8C("File Test"),
       .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
       .layout = {
         .width = UI_PercentSize(1.0f),
-        .height = UI_PixelSize(30.0f),
-        .direction = UI_Axis_Y,
+        .height = UI_PixelSize(40.0f),
       },
       .style = {
-        .background_color = UI_IsHot() ? MakeVec4F32(0.6f, 0.6f, 0.6f, 1.0f) : MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
+        .background_color = UI_IsHot() ? MakeVec4F32(0.3f, 0.25f, 0.05f, 1.0f) : MakeVec4F32(1.0f, 0.0, 0.0f, 1.0f),
       },
       .text = {
-        .font = &ui_demo.font,
-        .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+        .font = &ui_demo.style.font,
         .alignment = UI_TextAlignment_Center,
+        .color = MakeVec4F32(0.7f, 0.7f, 0.7f, 1.0f),
+        .str = label,
       }
     }
   ) {
+    if (UI_IsHot() && OS_MousePressed(OS_MouseButton_Left)) {
+      result = 1;
+    }
   }
+  return result;
 }
 
 func void
-UI_DemoSizeBar() {
+UI_DemoSideBar() {
   UI_WidgetBlock(
     Str8C("SideBar"),
     {
-      .label = Str8C("SideBar"),
       .flags = UI_WidgetFlag_DrawBackground,
       .layout = {
         .width = UI_PercentSize(0.25f),
@@ -114,74 +84,116 @@ UI_DemoSizeBar() {
         .child_gap = 5.0f,
       },
       .style = {
-        .background_color = MakeVec4F32(0.14f, 0.12f, 0.16f, 1.0f),
+        .background_color = ui_demo.style.background_color,
       }
     }
   ) {
-    UI_DemoFileButton();
+    for (I32 category_index = 0; category_index < ui_demo.categories_length; category_index += 1) {
+      if (UI_DemoCategoryButton(ui_demo.categories[category_index].name)) {
+        ui_demo.current_category_index = category_index;
+      }
+    }
+  }
+}
+
+func void
+UI_DemoCategoryLayoutDirectionX() {
+  UI_WidgetBlock(
+    Str8C("CategoryLayoutDirectionX"),
+    {
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PercentSize(1.0f),
+        .direction = UI_Axis_X,
+        .paddings = UI_PaddingAll(10.0f),
+        .child_gap = 5.0f,
+      }
+    }
+  ) {
+    UI_WidgetLayoutInfo layout_info = {
+      .width = UI_PixelSize(50.0f),
+      .height = UI_PercentSize(1.0f),
+    };
+    UI_WidgetStyleInfo style_info = {
+      .background_color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+    };
 
     UI_WidgetBlock(
-      Str8C("Left Alignment"),
+      Str8C("CategoryLayoutDirectionX_Child1"),
       {
-        .label = Str8C("Left Alignment"),
-        .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PixelSize(30.0f),
-          .direction = UI_Axis_Y,
-        },
-        .style = {
-          .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
-        },
-        .text = {
-          .font = &ui_demo.font,
-          .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
-          .alignment = UI_TextAlignment_Left,
-        }
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = layout_info,
+        .style = style_info,
       }
     ) {
     }
-
     UI_WidgetBlock(
-      Str8C("Center Alignment"),
+      Str8C("CategoryLayoutDirectionX_Child2"),
       {
-        .label = Str8C("Center Alignment"),
-        .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PixelSize(30.0f),
-          .direction = UI_Axis_Y,
-        },
-        .style = {
-          .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
-        },
-        .text = {
-          .font = &ui_demo.font,
-          .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
-          .alignment = UI_TextAlignment_Center,
-        }
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = layout_info,
+        .style = style_info,
       }
     ) {
     }
+    UI_WidgetBlock(
+      Str8C("CategoryLayoutDirectionX_Child3"),
+      {
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = layout_info,
+        .style = style_info,
+      }
+    ) {
+    }
+  }
+}
+
+func void
+UI_DemoCategoryLayoutDirectionY() {
+  UI_WidgetBlock(
+    Str8C("CategoryasdfasdfewqrY"),
+    {
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PercentSize(1.0f),
+        .direction = UI_Axis_Y,
+        .paddings = UI_PaddingAll(10.0f),
+        .child_gap = 5.0f,
+      }
+    }
+  ) {
+    UI_WidgetLayoutInfo layout_info = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(50.0f),
+    };
+    UI_WidgetStyleInfo style_info = {
+      .background_color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+    };
 
     UI_WidgetBlock(
-      Str8C("Right Alignment"),
+      Str8C("CategoryasdfasdfewqrY_Child1"),
       {
-        .label = Str8C("Right Alignment"),
-        .flags = UI_WidgetFlag_DrawText|UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PixelSize(30.0f),
-          .direction = UI_Axis_Y,
-        },
-        .style = {
-          .background_color = MakeVec4F32(0.2f, 0.22f, 0.26f, 1.0f),
-        },
-        .text = {
-          .font = &ui_demo.font,
-          .color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
-          .alignment = UI_TextAlignment_Right,
-        }
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = layout_info,
+        .style = style_info,
+      }
+    ) {
+    }
+    UI_WidgetBlock(
+      Str8C("CategoryasdfasdfewqrY_Child2"),
+      {
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = layout_info,
+        .style = style_info,
+      }
+    ) {
+    }
+    UI_WidgetBlock(
+      Str8C("CategoryasdfasdfewqrY_Child3"),
+      {
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = layout_info,
+        .style = style_info,
       }
     ) {
     }
@@ -198,20 +210,48 @@ Demo_BuildUI(OS_Window* window) {
     UI_WidgetBlock(
       Str8C("MainCanvas"),
       {
-        .label = Str8C("MainCanvas"),
         .flags = UI_WidgetFlag_DrawBackground,
         .layout = {
           .width = UI_PixelSize(window->size.w),
           .height = UI_PixelSize(window->size.h),
           .direction = UI_Axis_Y,
+          .paddings = UI_PaddingAll(15.0f),
         },
         .style = {
-          .background_color = MakeVec4F32(0.0f, 1.0f, 0.0f, 1.0f),
+          .background_color = MakeVec4F32(0.0f, 0.3f, 0.0f, 1.0f),
         }
       }
     ) {
-      UI_DemoTopBar();
-      UI_DemoSizeBar();
+      UI_WidgetBlock(
+        Str8C("Body"),
+        {
+          .flags = 0,
+          .layout = {
+            .width = UI_PercentSize(1.0f),
+            .height = UI_FillSize(),
+            .direction = UI_Axis_X,
+            .child_gap = 10.0f,
+          },
+        }
+      ) {
+        UI_DemoSideBar();
+        UI_WidgetBlock(
+          Str8C("DemoCategory"),
+          {
+            .flags = UI_WidgetFlag_DrawBackground,
+            .layout = {
+              .width = UI_FillSize(),
+              .height = UI_PercentSize(1.0f),
+            },
+            .style = {
+              .background_color = ui_demo.style.background_color,
+            }
+          }
+        ) {
+          Assert(ui_demo.categories[ui_demo.current_category_index].BuildUI != 0);
+          ui_demo.categories[ui_demo.current_category_index].BuildUI();
+        }
+      }
     }
   }
   ui_demo.ui_draw_commands = UI_EndFrame();
@@ -231,7 +271,6 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
       RHI_SetScissor(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
 
       for (UI_DrawCommand* draw_command = ui_demo.ui_draw_commands; draw_command != 0; draw_command = draw_command->next) {
-
         switch (draw_command->kind) {
           default: {
             Assert(0 && "Unsupported UI draw command");
@@ -316,8 +355,8 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
 }
 
 I32 main() {
-  Arena* global_arena = AllocateArena(Gigabytes(8), Kilobytes(64));
-  Arena* frame_arena = AllocateArena(Gigabytes(8), Kilobytes(64));
+  ui_demo.global_arena = AllocateArena(Gigabytes(8), Kilobytes(64));
+  ui_demo.frame_arena = AllocateArena(Gigabytes(8), Kilobytes(64));
   B32 finished = 0;
 
   OS_Init(Megabytes(64));
@@ -331,7 +370,7 @@ I32 main() {
     RHI_ShaderArgumentKind vertex_shader_arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,
     };
-    RHI_Shader vertex_shader = RHI_CreateShader(global_arena, &(RHI_ShaderCreateInfo) {
+    RHI_Shader vertex_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
       .file_name = Str8C("./data/shaders/draw/rectangle.vs"),
       .kind = RHI_ShaderKind_Vertex,
       .arguments = vertex_shader_arguments,
@@ -341,7 +380,7 @@ I32 main() {
     RHI_ShaderArgumentKind fragment_shader_arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,
     };
-    RHI_Shader fragment_shader = RHI_CreateShader(global_arena, &(RHI_ShaderCreateInfo) {
+    RHI_Shader fragment_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
       .file_name = Str8C("./data/shaders/draw/rectangle.fs"),
       .kind = RHI_ShaderKind_Fragment,
       .arguments = fragment_shader_arguments,
@@ -365,7 +404,7 @@ I32 main() {
     };
 
     RHI_Shader vertex_shader = RHI_CreateShader(
-      global_arena,
+      ui_demo.global_arena,
       &(RHI_ShaderCreateInfo) {
         .file_name = Str8C("./data/TopDown/Shaders/text.vs"),
         .kind = RHI_ShaderKind_Vertex,
@@ -375,7 +414,7 @@ I32 main() {
     );
 
     RHI_Shader fragment_shader = RHI_CreateShader(
-      global_arena,
+      ui_demo.global_arena,
       &(RHI_ShaderCreateInfo) {
         .file_name = Str8C("./data/TopDown/Shaders/text.fs"),
         .kind = RHI_ShaderKind_Fragment,
@@ -397,25 +436,29 @@ I32 main() {
     );
   }
 
+  // setting up demo style
+  ui_demo.style.font = AST_FontFromTTF(ui_demo.global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 24);
+  ui_demo.style.background_color = MakeVec4F32(0.1f, 0.12f, 0.16f, 1.0f);
+
+  // setting up demo categoies
+  ui_demo.categories[0] = (UI_DemoCategory){
+    .name = Str8C("Layout Direction X"),
+    .BuildUI = UI_DemoCategoryLayoutDirectionX,
+  };
+  ui_demo.categories[1] = (UI_DemoCategory){
+    .name = Str8C("Direction Y"),
+    .BuildUI = UI_DemoCategoryLayoutDirectionY,
+  };
+  ui_demo.categories_length = 2;
+  ui_demo.current_category_index = 0;
+
   ui_demo.ui_context = UI_CreateContext();
-
-  ui_demo.font = AST_FontFromTTF(global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 18);
-  ui_demo.colors[0] = MakeVec4F32(0.0f, 0.50f, 0.24f, 1.0f),
-  ui_demo.colors[1] = MakeVec4F32(0.08f, 0.25f, 0.12f, 1.0f),
-  ui_demo.colors[2] = MakeVec4F32(0.18f, 0.15f, 0.32f, 1.0f),
-  ui_demo.colors[3] = MakeVec4F32(0.48f, 0.65f, 0.21f, 1.0f),
-  ui_demo.current_color_index = 0;
-  ui_demo.color_animation = 0;
-  ui_demo.animation_duration = 2.0f;
-  ui_demo.animation_time = 2.0f;
-
-  ui_demo.slider_value = 5.0f;
 
   OS_ShowWindow(ui_demo.window);
 
   U64 start_ts = OS_GetTimeTicks();
   while (!finished) {
-    OS_EventList events = OS_DispatchEvents(frame_arena, ui_demo.window);
+    OS_EventList events = OS_DispatchEvents(ui_demo.frame_arena, ui_demo.window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) {
       finished = 1;
