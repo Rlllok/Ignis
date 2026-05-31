@@ -118,7 +118,6 @@ struct UI_Widget {
 
   UI_WidgetInfo info;
 
-  B32     is_hot;
   RectF32 bounding_box;
 };
 
@@ -197,7 +196,9 @@ struct UI_Context {
   Vec2F32 mouse_position;
   Vec2F32 mouse_scroll;
 
-  UI_Widget* hot_widget;
+  UI_Key hot_key;
+  UI_Key next_hot_key;
+  UI_Key active_key;
 
   UI_DrawCommand* first_draw_command;
   UI_DrawCommand* last_draw_command;

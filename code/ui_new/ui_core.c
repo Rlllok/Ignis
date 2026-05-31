@@ -95,7 +95,8 @@ UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll) {
   ui_current_context->mouse_scroll = mouse_scroll;
 
   // Interaction reset
-   // ui_current_context->hot_widget = 0;
+  ui_current_context->next_hot_key = ui_current_context->hot_key;
+  ui_current_context->hot_key = UI_ZeroKey();
 
   // Drawing reset
   ui_current_context->first_draw_command = 0;
@@ -240,7 +241,7 @@ UI_FinalPass(UI_Widget* root) {
   if (root->info.flags & UI_WidgetFlag_MouseInteraction) {
     B32 mouse_inside = InsideRectF32(root->bounding_box, ui_current_context->mouse_position);
     if (mouse_inside) {
-      ui_current_context->hot_widget = root;
+      ui_current_context->hot_key = root->key;
     }
   }
 
@@ -293,8 +294,6 @@ UI_FinalPass(UI_Widget* root) {
 func B32
 UI_IsHot() {
   B32 result = 0;
-  if (ui_current_context->hot_widget != 0) {
-    result = ui_current_context->opened_widget->key.value == ui_current_context->hot_widget->key.value;
-  }
+  result = ui_current_context->opened_widget->key.value == ui_current_context->next_hot_key.value;
   return result;
 }
