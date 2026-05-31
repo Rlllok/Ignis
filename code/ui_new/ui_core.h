@@ -17,6 +17,7 @@ enum {
   UI_SizeKind_Pixel,
   UI_SizeKind_Percent,
   UI_SizeKind_Fit,
+  UI_SizeKind_Fill,
   UI_SizeKind_Count
 } UI_SizeKindEnum;
 
@@ -26,9 +27,10 @@ struct UI_Size {
   F32         value;
 };
 
-#define UI_PixelSize(v) ((UI_Size){.kind = UI_SizeKind_Pixel, .value = v})
+#define UI_PixelSize(v)   ((UI_Size){.kind = UI_SizeKind_Pixel,   .value = v})
 #define UI_PercentSize(v) ((UI_Size){.kind = UI_SizeKind_Percent, .value = v})
-#define UI_FitSize() ((UI_Size){.kind = UI_SizeKind_Fit})
+#define UI_FitSize()      ((UI_Size){.kind = UI_SizeKind_Fit})
+#define UI_FillSize()     ((UI_Size){.kind = UI_SizeKind_Fill})
 
 typedef enum {
   UI_Axis_Nil = -1,
@@ -77,19 +79,19 @@ enum {
   UI_TextAlignment_Right,
   UI_TextAlignment_Center,
   UI_TextAlignment_Count
-}  UI_TextAlignmentEnum;
+} UI_TextAlignmentEnum;
 
 typedef struct UI_TextStyleInfo UI_TextStyleInfo;
 struct UI_TextStyleInfo {
   AST_Font*        font;
   UI_TextAlignment alignment;
   Vec4F32          color;
+
+  Str8 str; // --AlNov: @TODO Move it to separate struct (Maybe text should be another kind of widget)
 };
 
 typedef struct UI_WidgetInfo UI_WidgetInfo;
 struct UI_WidgetInfo {
-  Str8 label;
-
   UI_WidgetFlag flags;
 
   UI_WidgetLayoutInfo layout;
@@ -105,7 +107,8 @@ struct UI_Widget {
   UI_Widget* prev;
   UI_Widget* parent;
 
-  UI_Key key;
+  UI_Key     key;
+  Str8       label; // --AlNov: @TODO Using lable to handle collision in hash table. Maybe there are another way
   UI_Widget* hash_next;
   UI_Widget* hash_prev;
 
@@ -119,6 +122,8 @@ struct UI_Widget {
   UI_WidgetInfo info;
 
   RectF32 bounding_box;
+  Vec2F32 empty_size;
+  I32     growable_children_count[UI_Axis_Count];
 };
 
 func UI_Widget* UI_WidgetFromKey(UI_Key key);

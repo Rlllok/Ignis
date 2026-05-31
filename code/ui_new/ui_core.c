@@ -24,8 +24,9 @@ UI_WidgetFromStr8(Str8 str) {
   UI_Widget* result = 0;
   
   U64 slot_index = UI_KeyFromStr8(str).value%ui_current_context->hash_table_length;
-  for (UI_Widget* widget = ui_current_context->hash_table[slot_index].first; widget != 0; widget = widget->hash_next) {
-    if (Str8Equal(str, widget->info.label)) {
+  UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
+  for (UI_Widget* widget = slot->first; widget != 0; widget = widget->hash_next) {
+    if (Str8Equal(str, widget->label)) {
       result = widget;
       break;
     }
@@ -52,6 +53,7 @@ UI_OpenWidget(Str8 label) {
     // --AlNov: @TODO Computing key again (UI_WidgetFromStr8() called before)
     UI_Key key = UI_KeyFromStr8(label);
     widget->key = key;
+    widget->label = label;
     U64 slot_index = key.value%ui_current_context->hash_table_length;
     UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
     DllPushBack_NextPrev(slot->first, slot->last, widget, hash_next, hash_prev);
@@ -72,6 +74,8 @@ func void
 UI_ConfigureWidget(UI_WidgetInfo info) {
   UI_Widget* widget = ui_current_context->opened_widget;
   widget->info = info;
+  widget->growable_children_count[UI_Axis_X] = 0;
+  widget->growable_children_count[UI_Axis_Y] = 0;
 }
 
 func void
@@ -86,9 +90,6 @@ UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll) {
   ResetArena(ui_current_context->frame_arena);
 
   ui_current_context->build_index += 1;
-
-  // ui_current_context->root.first = 0;
-  // ui_current_context->root.last = 0;
 
   ui_current_context->dt = dt;
   ui_current_context->mouse_position = mouse_position;
@@ -173,6 +174,16 @@ UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis) {
     default: break;
     case UI_SizeKind_Pixel: {
       root->bounding_box.size.values[axis] = root->info.layout.sizes[axis].value;
+      F32 child_gap = root->info.layout.child_gap;
+      F32 padding_0 = root->info.layout.paddings.values[axis*2];
+      F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+      root->empty_size.values[axis] = root->bounding_box.size.values[axis] - padding_0 - padding_1 - child_gap;
+      if (root->parent) {
+        root->parent->empty_size.values[axis] -= root->bounding_box.size.values[axis];
+      }
+    } break;
+    case UI_SizeKind_Fill: {
+      root->parent->growable_children_count[axis] += 1;
     } break;
   }
   
@@ -187,9 +198,12 @@ UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
     switch (child->info.layout.sizes[axis].kind) {
       default: break;
       case UI_SizeKind_Percent: {
+        F32 child_gap = root->info.layout.child_gap;
         F32 padding_0 = root->info.layout.paddings.values[axis*2];
         F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
         child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis]*child->info.layout.sizes[axis].value - padding_0 - padding_1;
+        child->empty_size.values[axis] = child->bounding_box.size.values[axis];
+        child->parent->empty_size.values[axis] -= (child->bounding_box.size.values[axis] + child_gap);
       } break;
     }
   }
@@ -215,6 +229,10 @@ UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis) {
       for (UI_Widget* child = root->first; child != 0; child = child->next) {
         root->bounding_box.size.values[axis] += child->bounding_box.size.values[axis];
       }
+    } break;
+    case UI_SizeKind_Fill: {
+      UI_Widget* parent = root->parent;
+      root->bounding_box.size.values[axis] = (parent->empty_size.values[axis] - parent->info.layout.child_gap*(parent->growable_children_count[axis] - 1))/parent->growable_children_count[axis];
     } break;
   }
 }
@@ -260,7 +278,7 @@ UI_FinalPass(UI_Widget* root) {
     UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
     draw_command->kind = UI_DrawCommandKind_Text;
     draw_command->text.font = root->info.text.font;
-    draw_command->text.str = root->info.label;
+    draw_command->text.str = root->info.text.str;
     switch (root->info.text.alignment) {
       default: break;
       case UI_TextAlignment_Left: {
@@ -268,13 +286,13 @@ UI_FinalPass(UI_Widget* root) {
         draw_command->text.position.y += root->bounding_box.size.y;
       } break;
       case UI_TextAlignment_Right: {
-        Vec2F32 text_size = AST_TextSize(root->info.label, root->info.text.font);
+        Vec2F32 text_size = AST_TextSize(root->info.text.str, root->info.text.font);
         F32 x_right = root->bounding_box.position.x + root->bounding_box.size.x;
         draw_command->text.position.x = x_right - text_size.x;
         draw_command->text.position.y = root->bounding_box.position.y + root->bounding_box.size.y;
       } break;
       case UI_TextAlignment_Center: {
-        Vec2F32 text_size = AST_TextSize(root->info.label, root->info.text.font);
+        Vec2F32 text_size = AST_TextSize(root->info.text.str, root->info.text.font);
         Vec2F32 root_center = AddVec2F32(root->bounding_box.position, ScaleVec2F32(root->bounding_box.size, 0.5f));
         draw_command->text.position.x = root_center.x - text_size.x*0.5f;
         draw_command->text.position.y = root->bounding_box.position.y + root->bounding_box.size.y;
