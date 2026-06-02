@@ -37,14 +37,13 @@ UI_WidgetFromStr8(Str8 str) {
 
 func void
 UI_OpenWidget(Str8 label) {
-  // --AlNov: @TODO Widget should be added to main arena of the context and managed with free list
   UI_Widget* widget = UI_WidgetFromStr8(label);
   if (widget == 0) {
     // create widget
     if (ui_current_context->free_widgets) {
       widget = ui_current_context->free_widgets;
-      MemoryZeroStruct(widget);
       StackPop_Next(ui_current_context->free_widgets, free_next);
+      MemoryZeroStruct(widget);
     } else {
       widget = PushArena(ui_current_context->arena, sizeof(UI_Widget));
       MemoryZeroStruct(widget);
@@ -109,9 +108,10 @@ UI_EndFrame() {
   // remove untoched widgets
   for (U64 slot_index = 0; slot_index < ui_current_context->hash_table_length; slot_index += 1) {
     UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
-    for (UI_Widget* widget = slot->first; widget != 0; widget = widget->next) {
+    UI_Widget* widget = slot->first;
+    while (widget != 0) {
+      UI_Widget* next = widget->hash_next;
       if (widget->last_build_index < ui_current_context->build_index) {
-        MemoryZeroStruct(widget);
         if (widget->parent == 0) {
           // --AlNov: @TODO It is better to change UI_Root concept to UI_Widget
           DllRemove_NextPrev(ui_current_context->root.first, ui_current_context->root.last, widget, root_next, root_prev);
@@ -123,6 +123,7 @@ UI_EndFrame() {
         // add to free list
         StackPush_Next(ui_current_context->free_widgets, widget, free_next);
       }
+      widget = next;
     }
   }
 

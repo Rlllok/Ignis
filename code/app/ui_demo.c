@@ -215,7 +215,7 @@ Demo_BuildUI(OS_Window* window) {
           .width = UI_PixelSize(window->size.w),
           .height = UI_PixelSize(window->size.h),
           .direction = UI_Axis_Y,
-          .paddings = UI_PaddingAll(15.0f),
+          .paddings = UI_PaddingAll(150.0f),
         },
         .style = {
           .background_color = MakeVec4F32(0.0f, 0.3f, 0.0f, 1.0f),
@@ -225,7 +225,7 @@ Demo_BuildUI(OS_Window* window) {
       UI_WidgetBlock(
         Str8C("Body"),
         {
-          .flags = 0,
+          .flags = UI_WidgetFlag_DrawBackground,
           .layout = {
             .width = UI_PercentSize(1.0f),
             .height = UI_FillSize(),
@@ -248,8 +248,8 @@ Demo_BuildUI(OS_Window* window) {
             }
           }
         ) {
-          Assert(ui_demo.categories[ui_demo.current_category_index].BuildUI != 0);
-          ui_demo.categories[ui_demo.current_category_index].BuildUI();
+            Assert(ui_demo.categories[ui_demo.current_category_index].BuildUI != 0);
+            ui_demo.categories[ui_demo.current_category_index].BuildUI();
         }
       }
     }
@@ -446,11 +446,11 @@ I32 main() {
     .BuildUI = UI_DemoCategoryLayoutDirectionX,
   };
   ui_demo.categories[1] = (UI_DemoCategory){
-    .name = Str8C("Direction Y"),
+    .name = Str8C("Test Y"),
     .BuildUI = UI_DemoCategoryLayoutDirectionY,
   };
   ui_demo.categories_length = 2;
-  ui_demo.current_category_index = 0;
+  ui_demo.current_category_index = 1;
 
   ui_demo.ui_context = UI_CreateContext();
 
