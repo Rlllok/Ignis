@@ -180,11 +180,11 @@ func type_name list_name##RemoveItem(list_name* list, list_name##Node* node) { \
   (((l)->next = (n)), ((n)->prev = (l)), ((l) = (n)), ((n)->next = 0)))
 #define DllPushBack(f, l, n) DllPushBack_NextPrev(f, l, n, next, prev)
 
-#define DllRemove_NextPrev(f, l, n, next, prev) (((f) = (n)) ? \
-  ((f) = (f)->next) : \
-  ((l) = (n)) ? \
-  ((l) = (l)->prev) : \
-  (((n)->prev->next) = (n)->next, ((n)->next->prev = (n)->prev)))
+#define DllRemove_NextPrev(f, l, n, next, prev) (((f) == (n)) ? \
+  ((f) = (f)->next, ((f) == 0 ? ((l) = 0) : ((f)->prev = 0))) : \
+  ((l) == (n)) ? \
+  ((l) = (l)->prev, ((l) == 0 ? ((f) = 0) : ((l)->next = 0))) : \
+  (((n)->next == 0 ? (0) : ((n)->next->prev = (n)->prev))), ((n)->prev == 0 ? (0) : ((n)->prev->next = (n)->next)))
 #define DllRemove(f, l, n) DllRemove_NextPrev(f, l, n, next, prev)
 
 // -------------------------------------------------------------------
