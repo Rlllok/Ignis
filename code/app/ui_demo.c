@@ -446,7 +446,7 @@ I32 main() {
     .BuildUI = UI_DemoCategoryLayoutDirectionX,
   };
   ui_demo.categories[1] = (UI_DemoCategory){
-    .name = Str8C("Test Y"),
+    .name = Str8C("Layout Direcition Y"),
     .BuildUI = UI_DemoCategoryLayoutDirectionY,
   };
   ui_demo.categories_length = 2;

@@ -6,10 +6,12 @@
 typedef struct UI_Key UI_Key;
 struct UI_Key {
   U64 value;
+  Str8 label; // --AlNov: @TODO Using lable to handle collision in hash table. Maybe there are another way
 };
 
 func UI_Key UI_ZeroKey();
 func UI_Key UI_KeyFromStr8(Str8 str);
+func B32 UI_KeyEqual(UI_Key a, UI_Key b);
 
 typedef U8 UI_SizeKind;
 enum {
@@ -108,7 +110,6 @@ struct UI_Widget {
   UI_Widget* parent;
 
   UI_Key     key;
-  Str8       label; // --AlNov: @TODO Using lable to handle collision in hash table. Maybe there are another way
   UI_Widget* hash_next;
   UI_Widget* hash_prev;
 

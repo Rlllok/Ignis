@@ -16,6 +16,13 @@ UI_KeyFromStr8(Str8 str) {
   // --AlNov: @TODO stupid
   UI_Key result = UI_ZeroKey();
   result.value = (str.length*3 + str.data[0]*11 + str.data[str.length - 1])/37;
+  result.label = str;
+  return result;
+}
+
+func B32
+UI_KeyEqual(UI_Key a, UI_Key b) {
+  B32 result = (a.value == b.value) && Str8Equal(a.label, b.label);
   return result;
 }
 
@@ -26,7 +33,7 @@ UI_WidgetFromStr8(Str8 str) {
   U64 slot_index = UI_KeyFromStr8(str).value%ui_current_context->hash_table_length;
   UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
   for (UI_Widget* widget = slot->first; widget != 0; widget = widget->hash_next) {
-    if (Str8Equal(str, widget->label)) {
+    if (Str8Equal(str, widget->key.label)) {
       result = widget;
       break;
     }
@@ -52,7 +59,6 @@ UI_OpenWidget(Str8 label) {
     // --AlNov: @TODO Computing key again (UI_WidgetFromStr8() called before)
     UI_Key key = UI_KeyFromStr8(label);
     widget->key = key;
-    widget->label = label;
     U64 slot_index = key.value%ui_current_context->hash_table_length;
     UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
     DllPushBack_NextPrev(slot->first, slot->last, widget, hash_next, hash_prev);
@@ -312,7 +318,6 @@ UI_FinalPass(UI_Widget* root) {
 // -- Interaction
 func B32
 UI_IsHot() {
-  B32 result = 0;
-  result = ui_current_context->opened_widget->key.value == ui_current_context->next_hot_key.value;
+  B32 result = UI_KeyEqual(ui_current_context->opened_widget->key, ui_current_context->next_hot_key);
   return result;
 }
