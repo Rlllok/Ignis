@@ -72,6 +72,7 @@ struct UI_WidgetLayoutInfo {
 
 typedef struct UI_WidgetStyleInfo UI_WidgetStyleInfo;
 struct UI_WidgetStyleInfo {
+  Vec4F32 radius;
   Vec4F32 background_color;
 };
 
@@ -156,6 +157,7 @@ struct UI_DrawCommand {
   union {
     struct {
       RectF32 bounding_box;
+      Vec4F32 radius;
       Vec4F32 background_color;
     } rectangle;
     struct {

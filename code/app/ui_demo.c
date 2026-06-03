@@ -58,6 +58,7 @@ UI_DemoCategoryButton(Str8 label, B32 active) {
         .height = UI_PixelSize(40.0f),
       },
       .style = {
+        .radius = MakeVec4F32(0.0f, 0.0f, 15.0f, 15.0f),
         .background_color = background_color,
       },
       .text = {
@@ -85,7 +86,7 @@ UI_DemoSideBar() {
         .width = UI_PercentSize(0.25f),
         .height = UI_PercentSize(1.0f),
         .direction = UI_Axis_Y,
-        .paddings = MakeVec4F32(30.0f, 30.0f, 20.0f, 20.0f),
+        .paddings = MakeVec4F32(0.0f, 30.0f, 20.0f, 20.0f),
         .child_gap = 10.0f,
       },
       .style = {
@@ -110,7 +111,6 @@ UI_DemoCategoryLayoutDirectionX() {
         .width = UI_PercentSize(1.0f),
         .height = UI_PercentSize(1.0f),
         .direction = UI_Axis_X,
-        .paddings = UI_PaddingAll(30.0f),
         .child_gap = 15.0f,
       }
     }
@@ -162,7 +162,6 @@ UI_DemoCategoryLayoutDirectionY() {
         .width = UI_PercentSize(1.0f),
         .height = UI_PercentSize(1.0f),
         .direction = UI_Axis_Y,
-        .paddings = UI_PaddingAll(30.0f),
         .child_gap = 15.0f,
       }
     }
@@ -246,7 +245,7 @@ Demo_BuildUI(OS_Window* window) {
             .layout = {
               .width = UI_FillSize(),
               .height = UI_PercentSize(1.0f),
-              .paddings = UI_PaddingAll(0.0f),
+              .paddings = MakeVec4F32(0.0f, 30.0f, 20.0f, 20.0f),
             },
             .style = {
               .background_color = ui_demo.style.background_color,
@@ -286,10 +285,12 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             struct {
               Mat4F32 projection;
               Vec4F32 position_size;
+              Vec4F32 radius;
               Vec4F32 color;
             } data = {
               .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
               .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
+              .radius = draw_command->rectangle.radius, 
               .color = draw_command->rectangle.background_color,
             };
             U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
@@ -398,6 +399,7 @@ I32 main() {
       .color_targets_count = 1,
       .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
         .format = RHI_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
       }
     });
   }
@@ -446,7 +448,7 @@ I32 main() {
   ui_demo.style.color = RGBAFromHex(0xe0e0e0ff);
   ui_demo.style.accent_color = RGBAFromHex(0xc0fe04ff);
   ui_demo.style.background_color = RGBAFromHex(0x1b1b1bff);
-  ui_demo.style.background_color_dim = RGBAFromHex(0x292929ff);
+  ui_demo.style.background_color_dim = RGBAFromHex(0x333333ff);
 
   // setting up demo categoies
   ui_demo.categories[0] = (UI_DemoCategory){

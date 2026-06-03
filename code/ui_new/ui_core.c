@@ -279,6 +279,7 @@ UI_FinalPass(UI_Widget* root) {
     UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
     draw_command->kind = UI_DrawCommandKind_Rectangle;
     draw_command->rectangle.bounding_box = root->bounding_box;
+    draw_command->rectangle.radius = root->info.style.radius;
     draw_command->rectangle.background_color = root->info.style.background_color;
     SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
   }

@@ -111,6 +111,7 @@ typedef struct UI_RectangleDescription UI_RectangleDescription;
 struct UI_RectangleDescription {
   Vec4F32         color;
   Vec4F32         border_color;
+  Vec4F32         radius;
   UI_BorderRadius radius;
 };
 
