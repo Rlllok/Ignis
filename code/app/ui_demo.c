@@ -33,7 +33,10 @@ static struct {
 
   struct {
     AST_Font font;
+    Vec4F32  color;
+    Vec4F32  accent_color;
     Vec4F32  background_color;
+    Vec4F32  background_color_dim;
   } style;
 
   UI_DemoCategory categories[UI_DemoCategory_Capacity];
@@ -42,8 +45,10 @@ static struct {
 } ui_demo;
 
 func B32
-UI_DemoCategoryButton(Str8 label) {
+UI_DemoCategoryButton(Str8 label, B32 active) {
   B32 result = 0;
+  Vec4F32 color = active ? ui_demo.style.background_color : ui_demo.style.color;
+  Vec4F32 background_color = active ? ui_demo.style.accent_color : ui_demo.style.background_color_dim;
   UI_WidgetBlock(
     label,
     {
@@ -53,12 +58,12 @@ UI_DemoCategoryButton(Str8 label) {
         .height = UI_PixelSize(40.0f),
       },
       .style = {
-        .background_color = UI_IsHot() ? MakeVec4F32(0.3f, 0.25f, 0.05f, 1.0f) : MakeVec4F32(1.0f, 0.0, 0.0f, 1.0f),
+        .background_color = background_color,
       },
       .text = {
         .font = &ui_demo.style.font,
         .alignment = UI_TextAlignment_Center,
-        .color = MakeVec4F32(0.7f, 0.7f, 0.7f, 1.0f),
+        .color = (!active && UI_IsHot()) ? ui_demo.style.accent_color : color,
         .str = label,
       }
     }
@@ -80,8 +85,8 @@ UI_DemoSideBar() {
         .width = UI_PercentSize(0.25f),
         .height = UI_PercentSize(1.0f),
         .direction = UI_Axis_Y,
-        .paddings = UI_PaddingAll(8.0f),
-        .child_gap = 5.0f,
+        .paddings = MakeVec4F32(30.0f, 30.0f, 20.0f, 20.0f),
+        .child_gap = 10.0f,
       },
       .style = {
         .background_color = ui_demo.style.background_color,
@@ -89,7 +94,7 @@ UI_DemoSideBar() {
     }
   ) {
     for (I32 category_index = 0; category_index < ui_demo.categories_length; category_index += 1) {
-      if (UI_DemoCategoryButton(ui_demo.categories[category_index].name)) {
+      if (UI_DemoCategoryButton(ui_demo.categories[category_index].name, ui_demo.current_category_index == category_index)) {
         ui_demo.current_category_index = category_index;
       }
     }
@@ -111,11 +116,11 @@ UI_DemoCategoryLayoutDirectionX() {
     }
   ) {
     UI_WidgetLayoutInfo layout_info = {
-      .width = UI_PixelSize(50.0f),
+      .width = UI_FillSize(),
       .height = UI_PercentSize(1.0f),
     };
     UI_WidgetStyleInfo style_info = {
-      .background_color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+      .background_color = ui_demo.style.background_color_dim,
     };
 
     UI_WidgetBlock(
@@ -151,7 +156,7 @@ UI_DemoCategoryLayoutDirectionX() {
 func void
 UI_DemoCategoryLayoutDirectionY() {
   UI_WidgetBlock(
-    Str8C("CategoryasdfasdfewqrY"),
+    Str8C("CategoryLayoutDirectionY"),
     {
       .layout = {
         .width = UI_PercentSize(1.0f),
@@ -164,14 +169,14 @@ UI_DemoCategoryLayoutDirectionY() {
   ) {
     UI_WidgetLayoutInfo layout_info = {
       .width = UI_PercentSize(1.0f),
-      .height = UI_PixelSize(50.0f),
+      .height = UI_FillSize(),
     };
     UI_WidgetStyleInfo style_info = {
-      .background_color = MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+      .background_color = ui_demo.style.background_color_dim,
     };
 
     UI_WidgetBlock(
-      Str8C("CategoryasdfasdfewqrY_Child1"),
+      Str8C("CategoryLayoutDirection_Child1"),
       {
         .flags = UI_WidgetFlag_DrawBackground,
         .layout = layout_info,
@@ -180,7 +185,7 @@ UI_DemoCategoryLayoutDirectionY() {
     ) {
     }
     UI_WidgetBlock(
-      Str8C("CategoryasdfasdfewqrY_Child2"),
+      Str8C("CategoryLayoutDirection_Child2"),
       {
         .flags = UI_WidgetFlag_DrawBackground,
         .layout = layout_info,
@@ -189,7 +194,7 @@ UI_DemoCategoryLayoutDirectionY() {
     ) {
     }
     UI_WidgetBlock(
-      Str8C("CategoryasdfasdfewqrY_Child3"),
+      Str8C("CategoryLayoutDirection_Child3"),
       {
         .flags = UI_WidgetFlag_DrawBackground,
         .layout = layout_info,
@@ -215,7 +220,6 @@ Demo_BuildUI(OS_Window* window) {
           .width = UI_PixelSize(window->size.w),
           .height = UI_PixelSize(window->size.h),
           .direction = UI_Axis_Y,
-          .paddings = UI_PaddingAll(150.0f),
         },
         .style = {
           .background_color = MakeVec4F32(0.0f, 0.3f, 0.0f, 1.0f),
@@ -242,6 +246,7 @@ Demo_BuildUI(OS_Window* window) {
             .layout = {
               .width = UI_FillSize(),
               .height = UI_PercentSize(1.0f),
+              .paddings = UI_PaddingAll(25.0f),
             },
             .style = {
               .background_color = ui_demo.style.background_color,
@@ -438,7 +443,10 @@ I32 main() {
 
   // setting up demo style
   ui_demo.style.font = AST_FontFromTTF(ui_demo.global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 24);
-  ui_demo.style.background_color = MakeVec4F32(0.1f, 0.12f, 0.16f, 1.0f);
+  ui_demo.style.color = RGBAFromHex(0xe0e0e0ff);
+  ui_demo.style.accent_color = RGBAFromHex(0xc0fe04ff);
+  ui_demo.style.background_color = RGBAFromHex(0x1b1b1bff);
+  ui_demo.style.background_color_dim = RGBAFromHex(0x292929ff);
 
   // setting up demo categoies
   ui_demo.categories[0] = (UI_DemoCategory){
