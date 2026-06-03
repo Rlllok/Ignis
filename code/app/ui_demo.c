@@ -49,6 +49,7 @@ UI_DemoCategoryButton(Str8 label, B32 active) {
   B32 result = 0;
   Vec4F32 color = active ? ui_demo.style.background_color : ui_demo.style.color;
   Vec4F32 background_color = active ? ui_demo.style.accent_color : ui_demo.style.background_color_dim;
+  Vec4F32 border_color = active ? ui_demo.style.accent_color : ui_demo.style.background_color_dim;
   UI_WidgetBlock(
     label,
     {
@@ -60,6 +61,8 @@ UI_DemoCategoryButton(Str8 label, B32 active) {
       .style = {
         .radius = MakeVec4F32(0.0f, 0.0f, 15.0f, 15.0f),
         .background_color = background_color,
+        .border_width = 2.0f,
+        .border_color = UI_IsHot() ? ui_demo.style.accent_color : border_color,
       },
       .text = {
         .font = &ui_demo.style.font,
@@ -287,11 +290,15 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
               Vec4F32 position_size;
               Vec4F32 radius;
               Vec4F32 color;
+              Vec4F32 border_color;
+              F32     border_width;
             } data = {
               .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
               .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
               .radius = draw_command->rectangle.radius, 
               .color = draw_command->rectangle.background_color,
+              .border_color = draw_command->rectangle.border_color,
+              .border_width = draw_command->rectangle.border_width,
             };
             U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
 

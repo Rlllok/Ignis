@@ -5,6 +5,8 @@ struct RectangleData {
   float4   position_size;
   float4   radius;
   float4   color;
+  float4   border_color;
+  float    border_width;
 };
 
 struct VertexOutput {
@@ -28,14 +30,12 @@ fragment float4 FragmentMain(
 ) {
   RectangleData rectangle = rectangle_data[0];
 
-  float2 uv = (input.local_xy - input.half_size)/(input.half_size*2.0f);
-  float2 uv_size = input.half_size/max(input.half_size.x, input.half_size.y);
-  
   float d = SDF_Rectangle(input.local_xy - input.half_size, input.half_size, input.radius);
   float aa = fwidth(d);
-  float t = 1.0f - smoothstep(-aa, aa, d);
+  float t = 1.0f - smoothstep(0, aa, d);
   
   float4 color = rectangle.color;
+  color = mix(color, rectangle.border_color, 1.0f - smoothstep(rectangle.border_width - aa, rectangle.border_width, abs(d)));
   color.a *= t;
-  return rectangle.color*t;
+  return color;
 }

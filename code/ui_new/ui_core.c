@@ -280,7 +280,9 @@ UI_FinalPass(UI_Widget* root) {
     draw_command->kind = UI_DrawCommandKind_Rectangle;
     draw_command->rectangle.bounding_box = root->bounding_box;
     draw_command->rectangle.radius = root->info.style.radius;
+    draw_command->rectangle.border_width = root->info.style.border_width;
     draw_command->rectangle.background_color = root->info.style.background_color;
+    draw_command->rectangle.border_color = root->info.style.border_color.a > 0.0f ? root->info.style.border_color : root->info.style.background_color;
     SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
   }
 

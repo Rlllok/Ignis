@@ -17,6 +17,8 @@ struct RectangleData {
   float4   position_size;
   float4   radius;
   float4   color;
+  float4   border_color;
+  float    border_width;
 };
 
 struct VertexOutput {

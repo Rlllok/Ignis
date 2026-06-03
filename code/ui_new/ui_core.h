@@ -74,6 +74,8 @@ typedef struct UI_WidgetStyleInfo UI_WidgetStyleInfo;
 struct UI_WidgetStyleInfo {
   Vec4F32 radius;
   Vec4F32 background_color;
+  F32     border_width;
+  Vec4F32 border_color;
 };
 
 typedef U8 UI_TextAlignment;
@@ -158,7 +160,9 @@ struct UI_DrawCommand {
     struct {
       RectF32 bounding_box;
       Vec4F32 radius;
+      F32     border_width;
       Vec4F32 background_color;
+      Vec4F32 border_color;
     } rectangle;
     struct {
       AST_Font* font;
