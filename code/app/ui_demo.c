@@ -61,7 +61,7 @@ UI_DemoCategoryButton(Str8 label, B32 active) {
       .style = {
         .radius = MakeVec4F32(0.0f, 0.0f, 15.0f, 15.0f),
         .background_color = background_color,
-        .border_width = 2.0f,
+        .border_width = 1.0f,
         .border_color = UI_IsHot() ? ui_demo.style.accent_color : border_color,
       },
       .text = {

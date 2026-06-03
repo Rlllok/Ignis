@@ -35,7 +35,7 @@ fragment float4 FragmentMain(
   float t = 1.0f - smoothstep(0, aa, d);
   
   float4 color = rectangle.color;
-  color = mix(color, rectangle.border_color, 1.0f - smoothstep(rectangle.border_width - aa, rectangle.border_width, abs(d)));
+  color = mix(color, rectangle.border_color, 1.0f - smoothstep(rectangle.border_width - aa, rectangle.border_width + aa, abs(d)));
   color.a *= t;
   return color;
 }
