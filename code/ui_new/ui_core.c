@@ -205,12 +205,20 @@ UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
     switch (child->info.layout.sizes[axis].kind) {
       default: break;
       case UI_SizeKind_Percent: {
+        B32 right_direction = root->info.layout.direction == axis;
+        F32 child_gap = child->prev ? root->info.layout.child_gap*(F32)(right_direction) : 0;
+        F32 padding_0 = root->info.layout.paddings.values[axis*2];
+        F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+        child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis]*child->info.layout.sizes[axis].value - padding_0 - padding_1 - child_gap;
+        child->empty_size.values[axis] = child->bounding_box.size.values[axis];
+        root->empty_size.values[axis] -= child->bounding_box.size.values[axis];
+      } break;
+      case UI_SizeKind_Fill: {
         F32 child_gap = root->info.layout.child_gap;
         F32 padding_0 = root->info.layout.paddings.values[axis*2];
         F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
-        child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis]*child->info.layout.sizes[axis].value - padding_0 - padding_1;
+        child->bounding_box.size.values[axis] = (root->empty_size.values[axis] - padding_0 - padding_1 - child_gap*Max(0, root->growable_children_count[axis] - 1))/root->growable_children_count[axis];
         child->empty_size.values[axis] = child->bounding_box.size.values[axis];
-        child->parent->empty_size.values[axis] -= (child->bounding_box.size.values[axis] + child_gap);
       } break;
     }
   }
@@ -236,10 +244,6 @@ UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis) {
       for (UI_Widget* child = root->first; child != 0; child = child->next) {
         root->bounding_box.size.values[axis] += child->bounding_box.size.values[axis];
       }
-    } break;
-    case UI_SizeKind_Fill: {
-      UI_Widget* parent = root->parent;
-      root->bounding_box.size.values[axis] = (parent->empty_size.values[axis] - parent->info.layout.child_gap*(parent->growable_children_count[axis] - 1))/parent->growable_children_count[axis];
     } break;
   }
 }

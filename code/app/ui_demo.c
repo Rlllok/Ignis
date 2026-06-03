@@ -110,8 +110,8 @@ UI_DemoCategoryLayoutDirectionX() {
         .width = UI_PercentSize(1.0f),
         .height = UI_PercentSize(1.0f),
         .direction = UI_Axis_X,
-        .paddings = UI_PaddingAll(10.0f),
-        .child_gap = 5.0f,
+        .paddings = UI_PaddingAll(30.0f),
+        .child_gap = 15.0f,
       }
     }
   ) {
@@ -162,8 +162,8 @@ UI_DemoCategoryLayoutDirectionY() {
         .width = UI_PercentSize(1.0f),
         .height = UI_PercentSize(1.0f),
         .direction = UI_Axis_Y,
-        .paddings = UI_PaddingAll(10.0f),
-        .child_gap = 5.0f,
+        .paddings = UI_PaddingAll(30.0f),
+        .child_gap = 15.0f,
       }
     }
   ) {
@@ -234,7 +234,7 @@ Demo_BuildUI(OS_Window* window) {
             .width = UI_PercentSize(1.0f),
             .height = UI_FillSize(),
             .direction = UI_Axis_X,
-            .child_gap = 10.0f,
+            .child_gap = 0.0f,
           },
         }
       ) {
@@ -246,7 +246,7 @@ Demo_BuildUI(OS_Window* window) {
             .layout = {
               .width = UI_FillSize(),
               .height = UI_PercentSize(1.0f),
-              .paddings = UI_PaddingAll(25.0f),
+              .paddings = UI_PaddingAll(0.0f),
             },
             .style = {
               .background_color = ui_demo.style.background_color,
