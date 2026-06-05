@@ -19,5 +19,5 @@ layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 color_attachment;
 
 void main() {
-  color_attachment = vec4(uv, 0.0f, 1.0);
+  color_attachment = vec4(glyph_data.color, 1.0);
 }
