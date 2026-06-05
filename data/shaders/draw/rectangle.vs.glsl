@@ -34,7 +34,7 @@ layout(location = 2)      out vec2 out_local_xy;
 
 void main() {
   vec4 offset = vec4(rectangle_data.position_size.xy, 0.0f, 0.0f);
-  float antialising_padding = 0.0f;
+  float antialising_padding = 5.0f;
   vec4 scale = vec4(rectangle_data.position_size.zw + vec2(antialising_padding), 0.0f, 1.0f);
   vec4 vertex = vertecies[indecies[gl_VertexIndex]]*scale + offset;
 
