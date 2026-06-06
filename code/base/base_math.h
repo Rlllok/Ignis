@@ -15,6 +15,9 @@
 #define Min(a, b) (((a) < (b)) ? (a) : (b))
 #define Max(a, b) (((a) > (b)) ? (a) : (b))
 #define Clamp(v, low, high) Max(Min(v, high), low)
+#define FloorF32(v) floorf(v)
+#define CeilF32(v) ceilf(v)
+#define RoundF32(v) roundf(v)
 #define RadiansFromDegrees(d) (d*PI/180.0f)
 
 // -------------------------------------------------------------------
