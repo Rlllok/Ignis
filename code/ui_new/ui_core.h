@@ -229,5 +229,12 @@ func void UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis);
 func void UI_CalculatePositions(UI_Widget* root, UI_Axis axis);
 func void UI_FinalPass(UI_Widget* root);
 
+// -- Context/Widget Information
+func Vec2F32 UI_GetMousePosition();
+func RectF32 UI_GetBoundingBox();
+  
 // -- Interaction
-func B32 UI_IsHot();
+func B32  UI_IsHot();
+func void UI_SetActive();
+func void UI_UnsetActive();
+func B32  UI_IsActive();

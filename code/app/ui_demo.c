@@ -208,6 +208,76 @@ UI_DemoCategoryLayoutDirectionY() {
 }
 
 func void
+UI_DemoCategoryWidgets() {
+
+  UI_WidgetBlock(
+    Str8C("CategoryWidgets"),
+    {
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PercentSize(1.0f),
+        .direction = UI_Axis_Y,
+        .child_gap = 10.0f,
+      },
+    }
+  ) {
+    UI_WidgetLayoutInfo button_layout = {
+      .width = UI_PixelSize(100.0f),
+      .height = UI_PixelSize(40.0f),
+    };
+    UI_WidgetStyleInfo button_style = {
+      .radius = MakeVec4F32(3.0f, 3.0f, 3.0f, 3.0f),
+      .background_color = ui_demo.style.background_color_dim,
+    };
+    Str8 label = Str8C("ButtonTest");
+    UI_TextStyleInfo button_text = {
+      .font = &ui_demo.style.font,
+      .color = ui_demo.style.color,
+      .str = label,
+    };
+    UI_Button(label, button_text, button_layout, button_style);
+
+    UI_WidgetBlock(
+      Str8C("RadioButtons"),
+      {
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_FitSize(),
+          .child_gap = 5.0f,
+        }
+      }
+    ) {
+      UI_WidgetLayoutInfo radio_button_layout = {
+        .width = UI_PixelSize(40.0f),
+        .height = UI_PixelSize(40.0f),
+        .paddings = UI_PaddingAll(7.0f),
+      };
+      local_persist I32 radio_button_value = 2;
+      UI_RadioButton(Str8C("RadioButton_0"), &radio_button_value, 0, button_text, radio_button_layout, button_style);
+      UI_RadioButton(Str8C("RadioButton_1"), &radio_button_value, 1, button_text, radio_button_layout, button_style);
+      UI_RadioButton(Str8C("RadioButton_2"), &radio_button_value, 2, button_text, radio_button_layout, button_style);
+      UI_RadioButton(Str8C("RadioButton_3"), &radio_button_value, 3, button_text, radio_button_layout, button_style);
+    }
+
+    UI_WidgetLayoutInfo slider_layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(40.0f),
+      .paddings = UI_PaddingAll(5.0f),
+    };
+    local_persist F32 slider_f32_value = 0.0f;
+    UI_TextStyleInfo slider_f32_text = button_text;
+    slider_f32_text.str = FormatStr8(ui_demo.frame_arena, "%f", slider_f32_value);
+    slider_f32_text.alignment = UI_TextAlignment_Center;
+    UI_SliderF32(Str8C("SliderF32"), &slider_f32_value, -50.0f, 50.0f, slider_f32_text, slider_layout, button_style);
+    local_persist I32 slider_i32_value = 0;
+    UI_TextStyleInfo slider_i32_text = button_text;
+    slider_i32_text.str = FormatStr8(ui_demo.frame_arena, "%i", slider_i32_value);
+    slider_i32_text.alignment = UI_TextAlignment_Center;
+    UI_SliderI32(Str8C("SliderI32"), &slider_i32_value, -5, 5, slider_i32_text, slider_layout, button_style);
+  }
+}
+
+func void
 Demo_BuildUI(OS_Window* window) {
   Vec2F32 mouse_position = OS_MousePosition(window);
   Vec2F32 mouse_scroll = MakeVec2F32(0.0f, 0.0f);
@@ -466,7 +536,11 @@ I32 main() {
     .name = Str8C("Layout Direcition Y"),
     .BuildUI = UI_DemoCategoryLayoutDirectionY,
   };
-  ui_demo.categories_length = 2;
+  ui_demo.categories[2] = (UI_DemoCategory){
+    .name = Str8C("Widgets"),
+    .BuildUI = UI_DemoCategoryWidgets,
+  };
+  ui_demo.categories_length = 3;
   ui_demo.current_category_index = 1;
 
   ui_demo.ui_context = UI_CreateContext();
@@ -488,6 +562,8 @@ I32 main() {
     U64 end_ts = OS_GetTimeTicks();
     ui_demo.dt = (F32)(end_ts - start_ts)*0.001f;
     start_ts = end_ts;
+
+    ResetArena(ui_demo.frame_arena);
   }
 
   return 0;

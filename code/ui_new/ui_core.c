@@ -330,9 +330,37 @@ UI_FinalPass(UI_Widget* root) {
   }
 }
 
+// -- Context/Widget Information
+func Vec2F32
+UI_GetMousePosition() {
+  return ui_current_context->mouse_position;
+}
+
+func RectF32
+UI_GetBoundingBox() {
+  return ui_current_context->opened_widget->bounding_box;
+}
+
 // -- Interaction
 func B32
 UI_IsHot() {
   B32 result = UI_KeyEqual(ui_current_context->opened_widget->key, ui_current_context->next_hot_key);
   return result;
+}
+
+func void
+UI_SetActive() {
+  if (UI_KeyEqual(ui_current_context->active_key, UI_ZeroKey())) {
+    ui_current_context->active_key = ui_current_context->opened_widget->key;
+  }
+}
+
+func void
+UI_UnsetActive() {
+  ui_current_context->active_key = UI_ZeroKey();
+}
+
+func B32
+UI_IsActive() {
+  return UI_KeyEqual(ui_current_context->opened_widget->key, ui_current_context->active_key);
 }
