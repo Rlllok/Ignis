@@ -12,28 +12,34 @@ UI_ZeroKey() {
 }
 
 func UI_Key
-UI_KeyFromStr8(Str8 str) {
-  // --AlNov: @TODO stupid
-  UI_Key result = UI_ZeroKey();
-  result.value = (str.length*3 + str.data[0]*11 + str.data[str.length - 1])/37;
-  result.label = str;
+UI_KeyFromStr8(Str8 str, UI_Key seed) {
+  // --AlNov: FNV-1a Hash Function
+  UI_Key result = {
+    .value = (seed.value != 0) ? seed.value : 14695981039346656037ULL,
+  };
+  for (I32 i = 0; i < str.length; i += 1) {
+    result.value ^= str.data[i];
+    result.value *= 1099511628211ULL;
+  }
   return result;
 }
 
 func B32
 UI_KeyEqual(UI_Key a, UI_Key b) {
-  B32 result = (a.value == b.value) && Str8Equal(a.label, b.label);
-  return result;
+  return a.value == b.value;
 }
 
 func UI_Widget*
 UI_WidgetFromStr8(Str8 str) {
   UI_Widget* result = 0;
   
-  U64 slot_index = UI_KeyFromStr8(str).value%ui_current_context->hash_table_length;
+  UI_Widget* parent = ui_current_context->opened_widget;
+  UI_Key seed = parent ? parent->key : UI_ZeroKey();
+  UI_Key key = UI_KeyFromStr8(str, seed);
+  U64 slot_index = key.value%ui_current_context->hash_table_length;
   UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
   for (UI_Widget* widget = slot->first; widget != 0; widget = widget->hash_next) {
-    if (Str8Equal(str, widget->key.label)) {
+    if (UI_KeyEqual(widget->key, key)) {
       result = widget;
       break;
     }
@@ -57,7 +63,9 @@ UI_OpenWidget(Str8 label) {
     }
     // add to hash table
     // --AlNov: @TODO Computing key again (UI_WidgetFromStr8() called before)
-    UI_Key key = UI_KeyFromStr8(label);
+    UI_Widget* parent = ui_current_context->opened_widget;
+    UI_Key seed = parent ? parent->key : UI_ZeroKey();
+    UI_Key key = UI_KeyFromStr8(label, seed);
     widget->key = key;
     U64 slot_index = key.value%ui_current_context->hash_table_length;
     UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
