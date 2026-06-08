@@ -25,6 +25,8 @@ static struct {
   RHI_Buffer           transfer_buffer;
   RHI_GraphicsPipeline rectangle_pipeline;
   RHI_GraphicsPipeline text_pipeline;
+  RHI_ResourceTable    resource_table;
+  RHI_TextureSampler   default_sampler;
 
   UI_Context*     ui_context;
   UI_DrawCommand* ui_draw_commands;
@@ -38,6 +40,10 @@ static struct {
     Vec4F32  background_color;
     Vec4F32  background_color_dim;
   } style;
+
+  // --AlNov: @TODO For testing 
+  RHI_TextureDeviceId glyph_texture_device_ids[96];
+  RHI_SamplerDeviceId test_sampler_id;
 
   UI_DemoCategory categories[UI_DemoCategory_Capacity];
   I32             categories_length;
@@ -379,11 +385,14 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
               }
             };
             RHI_BindGraphicsPipeline(command_buffer, ui_demo.rectangle_pipeline);
+            RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
             RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
             RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
           } break;
           case UI_DrawCommandKind_Text: {
             F32 spacing = 0;
+            RHI_BindGraphicsPipeline(command_buffer, ui_demo.text_pipeline);
+            RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
             for (I32 character_index = 0; character_index < draw_command->text.str.length; character_index += 1) {
               U8 character = draw_command->text.str.data[character_index];
               const AST_Font* font = draw_command->text.font;
@@ -404,12 +413,12 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
                 Mat4F32 projection;
                 Vec4F32 position_size;
                 Vec4F32 color;
-                U64 texture_id;
+                U32 texture_id;
               } glyph_data = {
                 .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.y, 0.0f, -1.0f, 1.0f),
                 .position_size = MakeVec4F32(position.x + x_offset + spacing, position.y + y_offset, size.x, size.y),
                 .color = draw_command->text.color,
-                .texture_id = RHI_GetTextureDeviceId(glyph->texture),
+                .texture_id = ui_demo.glyph_texture_device_ids[character - 32],
               };
               U64 glyph_data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&glyph_data, sizeof(glyph_data));
 
@@ -419,7 +428,6 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
                   .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + glyph_data_offset,
                 },
               };
-              RHI_BindGraphicsPipeline(command_buffer, ui_demo.text_pipeline);
               RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
               RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 
@@ -520,12 +528,29 @@ I32 main() {
     );
   }
 
+  ui_demo.resource_table = RHI_CreateResourceTable(ui_demo.global_arena, 256, 1);
+  ui_demo.default_sampler = RHI_CreateTextureSampler(
+    &(RHI_TextureSamplerCreateInfo){
+      .mag_filter = RHI_FilterKind_Linear,
+      .min_filter = RHI_FilterKind_Linear,
+      .address_mode_u = RHI_SamplerAddressMode_Repeat,
+      .address_mode_v = RHI_SamplerAddressMode_Repeat,
+      .address_mode_w = RHI_SamplerAddressMode_Repeat,
+      .mipmap_mode = RHI_SamplerMipmapMode_Linear,
+    }
+  );
+  ui_demo.test_sampler_id = RHI_ResourceTableAddSampler(ui_demo.resource_table, ui_demo.default_sampler);
+
   // setting up demo style
   ui_demo.style.font = AST_FontFromTTF(ui_demo.global_arena, command_buffer, ui_demo.transfer_buffer, Str8C("data/fonts/RobotoMono-Regular.ttf"), 24);
   ui_demo.style.color = RGBAFromHex(0xe0e0e0ff);
   ui_demo.style.accent_color = RGBAFromHex(0xc0fe04ff);
   ui_demo.style.background_color = RGBAFromHex(0x1b1b1bff);
   ui_demo.style.background_color_dim = RGBAFromHex(0x333333ff);
+
+  for (I32 glyph_index = 0; glyph_index < ArrayLength(ui_demo.glyph_texture_device_ids); glyph_index += 1) {
+    ui_demo.glyph_texture_device_ids[glyph_index] = RHI_ResourceTableAddTexture(ui_demo.resource_table, ui_demo.style.font.glyphs[glyph_index].texture);
+  }
 
   // setting up demo categoies
   ui_demo.categories[0] = (UI_DemoCategory){

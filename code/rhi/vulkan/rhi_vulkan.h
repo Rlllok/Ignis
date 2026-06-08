@@ -229,6 +229,18 @@ func RHI_VK_TextureSampler* RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler s
 func RHI_TextureSampler     RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info);
 
 // -------------------------------------------------------------------
+// -- Resource Table -------------------------------------------------
+typedef struct RHI_VK_ResourceTable RHI_VK_ResourceTable;
+struct RHI_VK_ResourceTable {
+  RHI_ResourceTableHeader header;
+  VkDescriptorPool        descriptor_pool;
+  VkDescriptorSet         descriptor_set;
+};
+
+func RHI_ResourceTable RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
+func void              RHI_DestroyResourceTable(RHI_ResourceTable* table);
+
+// -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
 typedef struct RHI_VK_CommandBuffer RHI_VK_CommandBuffer;
 struct RHI_VK_CommandBuffer {
@@ -270,6 +282,8 @@ struct RHI_VK_State {
   RHI_VK_TextureSamplerArray   samplers;
   RHI_VK_TextureArray          textures;
   RHI_VK_TextureFreeList       textures_free_list;
+  VkDescriptorSetLayout        resource_table_descriptor_set_layout;
+  RHI_VK_ResourceTable         resource_table; // --AlNov: @TODO Only one table for now
   U32                          current_frame;
   U32                          current_target;
 

@@ -25,8 +25,8 @@ const uint indecies[] = {
 layout(buffer_reference) readonly buffer GlyphDataBuffer {
   mat4x4 projection;
   vec4   position_size;
-  vec3   color;
-  int    texture_index;// --AlNov: @TODO Texture
+  vec4   color;
+  uint   texture_index;// --AlNov: @TODO Texture
 };
 
 layout(push_constant, std430) uniform args {

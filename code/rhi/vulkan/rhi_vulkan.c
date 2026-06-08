@@ -445,8 +445,11 @@ RHI_VK_CreateDevice() {
       VkPhysicalDeviceVulkan12Features vulkan12_features = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .descriptorIndexing = 1,
-        .shaderSampledImageArrayNonUniformIndexing = 1,
         .descriptorBindingVariableDescriptorCount = 1,
+        .descriptorBindingSampledImageUpdateAfterBind = 1,
+        .descriptorBindingPartiallyBound = 1,
+        .descriptorBindingUpdateUnusedWhilePending = 1,
+        .shaderSampledImageArrayNonUniformIndexing = 1,
         .runtimeDescriptorArray = 1,
         .bufferDeviceAddress = 1,
         .timelineSemaphore = 1,
@@ -987,6 +990,8 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   }
   VkPipelineLayoutCreateInfo layout_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts = &_rhi_vk_state.resource_table_descriptor_set_layout,
     .pushConstantRangeCount = push_constants_count,
     .pPushConstantRanges = push_constant_ranges,
   };
@@ -1979,6 +1984,122 @@ RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
 }
 
 // -------------------------------------------------------------------
+// -- Resource Table -------------------------------------------------
+
+func RHI_ResourceTable
+RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count) {
+  RHI_VK_ResourceTable result = ZeroStruct();
+  result.header.textures = (RHI_Texture*)PushArena(arena, sizeof(RHI_Texture)*max_textures_count);
+  result.header.textures_capacity = max_textures_count;
+  result.header.samplers = (RHI_TextureSampler*)PushArena(arena, sizeof(RHI_TextureSampler)*max_samplers_count);
+  result.header.samplers_capacity = max_samplers_count;
+
+  // Create descriptor pool
+  // --AlNov: @TODO Pool could be global
+  VkDescriptorPoolSize pool_sizes[] = {
+    {
+      .type = VK_DESCRIPTOR_TYPE_SAMPLER,
+      .descriptorCount = RHI_MAX_SAMPLERS_COUNT,
+    },
+    {
+      .type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+      .descriptorCount = RHI_MAX_TEXTURES_COUNT,
+    },
+  };
+  VkDescriptorPoolCreateInfo pool_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT|VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+    .maxSets = max_textures_count + max_samplers_count,
+    .poolSizeCount = ArrayLength(pool_sizes),
+    .pPoolSizes = pool_sizes,
+  };
+  VK_CHECK(vkCreateDescriptorPool(_rhi_vk_state.device.logical, &pool_info, 0, &result.descriptor_pool));
+
+  // Create descriptor sets
+  VkDescriptorSetAllocateInfo descriptors_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = result.descriptor_pool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &_rhi_vk_state.resource_table_descriptor_set_layout,
+  };
+  VK_CHECK(vkAllocateDescriptorSets(_rhi_vk_state.device.logical, &descriptors_info, &result.descriptor_set));
+
+  _rhi_vk_state.resource_table = result;
+  return 0;
+}
+
+func void
+RHI_VK_DestroyResourceTable(RHI_ResourceTable* table) {
+}
+
+func RHI_TextureDeviceId
+RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture) {
+  RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
+  U32 free_slot = vk_table->header.textures_count;
+  vk_table->header.textures[free_slot] = texture;
+
+  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
+  VkDescriptorImageInfo image_info = {
+    .imageView = vk_texture->view,
+    .imageLayout = vk_texture->layout,
+  };
+  VkWriteDescriptorSet write_info = {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = vk_table->descriptor_set,
+    .dstBinding = 1,
+    .dstArrayElement = free_slot,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+    .pImageInfo = &image_info,
+  };
+  vkUpdateDescriptorSets(_rhi_vk_state.device.logical, 1, &write_info, 0, 0);
+
+  vk_table->header.textures_count += 1;
+  return free_slot;
+}
+
+func RHI_SamplerDeviceId
+RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler) {
+  RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
+  U32 free_slot = vk_table->header.samplers_count;
+  vk_table->header.samplers[free_slot] = sampler;
+
+  RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler);
+  VkDescriptorImageInfo image_info = {
+    .sampler = vk_sampler->vk,
+  };
+  VkWriteDescriptorSet write_info = {
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = vk_table->descriptor_set,
+    .dstBinding = 0,
+    .dstArrayElement = free_slot,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+    .pImageInfo = &image_info,
+  };
+  vkUpdateDescriptorSets(_rhi_vk_state.device.logical, 1, &write_info, 0, 0);
+
+  vk_table->header.samplers_count += 1;
+  return free_slot;
+}
+
+func void
+RHI_VK_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable table) {
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
+  vkCmdBindDescriptorSets(
+    vk_command_buffer->vk[_rhi_vk_state.current_frame],
+    VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vk_command_buffer->binded_graphics_pipeline->layout,
+    0,
+    1, 
+    &vk_table->descriptor_set,
+    0,
+    0
+  );
+}
+
+// -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
 func VkCommandBuffer
 RHI_VK_BeginSingleCmd(void) {
@@ -2095,6 +2216,42 @@ RHI_VK_Init(OS_Window* window) {
     .queueFamilyIndex = _rhi_vk_state.device.graphics_queue_index
   };
   VK_CHECK(vkCreateCommandPool(_rhi_vk_state.device.logical, &command_pool_info, 0, &_rhi_vk_state.command_pool));
+
+  // Create descriptor set layout for resource table
+  VkDescriptorBindingFlags flags = VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+    | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT
+    | VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+  VkDescriptorBindingFlags binding_flags[] = {
+    flags,
+    flags,
+  };
+  VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+    .bindingCount = ArrayLength(binding_flags),
+    .pBindingFlags = binding_flags,
+  };
+  VkDescriptorSetLayoutBinding bindings[] = {
+    {
+      .binding = 0, // Binding slot for samplers
+      .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+      .descriptorCount = RHI_MAX_SAMPLERS_COUNT,
+      .stageFlags = VK_SHADER_STAGE_ALL,
+    },
+    {
+      .binding = 1, // Binding slot for sampled textures
+      .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+      .descriptorCount = RHI_MAX_TEXTURES_COUNT,
+      .stageFlags = VK_SHADER_STAGE_ALL,
+    },
+  };
+  VkDescriptorSetLayoutCreateInfo descriptor_set_layout_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .pNext = &binding_flags_info,
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
+    .bindingCount = ArrayLength(bindings),
+    .pBindings = bindings,
+  };
+  VK_CHECK(vkCreateDescriptorSetLayout(_rhi_vk_state.device.logical, &descriptor_set_layout_info, 0, &_rhi_vk_state.resource_table_descriptor_set_layout));
 
   LogInfo("Rendered is initialized\n");
 	return 0;

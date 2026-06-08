@@ -232,6 +232,33 @@ RHI_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline 
 }
 
 // -------------------------------------------------------------------
+// -- Resource Table -------------------------------------------------
+
+func RHI_ResourceTable
+RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count) {
+  return _r_state.device.CreateResourceTable(arena, max_textures_count, max_samplers_count);
+}
+
+func void RHI_DestroyResourceTable(RHI_ResourceTable* table) {
+  _r_state.device.DestroyResourceTable(table);
+}
+
+func RHI_TextureDeviceId
+RHI_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture) {
+  return _r_state.device.ResourceTableAddTexture(table, texture);
+}
+
+func RHI_SamplerDeviceId
+RHI_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler) {
+  return _r_state.device.ResourceTableAddSampler(table, sampler);
+}
+
+func void
+RHI_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable table) {
+  _r_state.device.BindResourceTable(command_buffer, table);
+}
+
+// -------------------------------------------------------------------
 // -- Draw -----------------------------------------------------------
 func void
 RHI_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
