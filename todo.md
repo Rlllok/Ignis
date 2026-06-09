@@ -3,6 +3,7 @@
 ## RHI
 ### Metal
 -[ ] Return "swapchain" image size to use in as viewport size
+-[ ] Use ResourceTable?
 ### Vulkan
 -[ ] Return "swapchain" image size to use in as viewport size
 -[ ] Remove function's prototypes from header
