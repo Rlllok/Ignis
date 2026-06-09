@@ -204,6 +204,7 @@ struct UI_Context {
   UI_Widget* opened_widget;
 
   F32     dt;
+  Vec2F32 previous_mouse_position;
   Vec2F32 mouse_position;
   Vec2F32 mouse_scroll;
 
@@ -231,6 +232,7 @@ func void UI_FinalPass(UI_Widget* root);
 
 // -- Context/Widget Information
 func Vec2F32 UI_GetMousePosition();
+func Vec2F32 UI_GetMousePositionDelta();
 func RectF32 UI_GetBoundingBox();
   
 // -- Interaction

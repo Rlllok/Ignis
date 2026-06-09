@@ -105,6 +105,7 @@ UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll) {
   ui_current_context->build_index += 1;
 
   ui_current_context->dt = dt;
+  ui_current_context->previous_mouse_position = ui_current_context->mouse_position;
   ui_current_context->mouse_position = mouse_position;
   ui_current_context->mouse_scroll = mouse_scroll;
 
@@ -186,16 +187,14 @@ UI_SelectContext(UI_Context* context) {
 func void
 UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis) {
   switch (root->info.layout.sizes[axis].kind) {
-    default: break;
+    default: {
+      root->empty_size.values[axis] = 0;
+    }break;
     case UI_SizeKind_Pixel: {
       root->bounding_box.size.values[axis] = root->info.layout.sizes[axis].value;
-      F32 child_gap = root->info.layout.child_gap;
       F32 padding_0 = root->info.layout.paddings.values[axis*2];
       F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
-      root->empty_size.values[axis] = root->bounding_box.size.values[axis] - padding_0 - padding_1 - child_gap;
-      if (root->parent) {
-        root->parent->empty_size.values[axis] -= root->bounding_box.size.values[axis];
-      }
+      root->empty_size.values[axis] = root->bounding_box.size.values[axis] - padding_0 - padding_1;
     } break;
     case UI_SizeKind_Fill: {
       root->parent->growable_children_count[axis] += 1;
@@ -204,6 +203,11 @@ UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis) {
   
   for (UI_Widget* child = root->first; child != 0; child = child->next) {
     UI_CalculateIndependentSizes(child, axis);
+    if (child->info.layout.sizes[axis].kind == UI_SizeKind_Pixel) {
+      B32 right_direction = root->info.layout.direction == axis;
+      F32 child_gap = child->prev ? root->info.layout.child_gap*(F32)(right_direction) : 0;
+      root->empty_size.values[axis] -= (child->bounding_box.size.values[axis] + child_gap);
+    }
   }
 }
 
@@ -218,7 +222,7 @@ UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
         F32 padding_0 = root->info.layout.paddings.values[axis*2];
         F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
         child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis]*child->info.layout.sizes[axis].value - padding_0 - padding_1 - child_gap;
-        child->empty_size.values[axis] = child->bounding_box.size.values[axis];
+        child->empty_size.values[axis] += child->bounding_box.size.values[axis];
         root->empty_size.values[axis] -= child->bounding_box.size.values[axis];
       } break;
       case UI_SizeKind_Fill: {
@@ -334,6 +338,11 @@ UI_FinalPass(UI_Widget* root) {
 func Vec2F32
 UI_GetMousePosition() {
   return ui_current_context->mouse_position;
+}
+
+func Vec2F32
+UI_GetMousePositionDelta() {
+  return SubVec2F32(ui_current_context->mouse_position, ui_current_context->previous_mouse_position);
 }
 
 func RectF32
