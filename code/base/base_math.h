@@ -314,3 +314,6 @@ func Mat4F32 Mat4F32FromTransform(Transform t);
 // -- Color ----------------------------------------------------------
 #define RGBFromHex(hex) ScaleVec3F32(MakeVec3F32(((hex>>16)&0xFF), ((hex>>8)&0xFF), ((hex)&0xFF)), 1.0f/255.0f)
 #define RGBAFromHex(hex) ScaleVec4F32(MakeVec4F32(((hex>>24)&0xFF), ((hex>>16)&0xFF), ((hex>>8)&0xFF), ((hex)&0xFF)), 1.0f/255.0f)
+
+func Vec3F32 RGBFromHSV(Vec3F32 hsv);
+func Vec3F32 HSVFromRGB(Vec3F32 rgb);
