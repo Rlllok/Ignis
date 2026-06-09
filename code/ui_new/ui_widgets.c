@@ -239,3 +239,91 @@ UI_DragRGB(Str8 label, Vec3F32* value, UI_TextStyleInfo text, UI_WidgetLayoutInf
       }
   }
 }
+
+func void
+UI_ColorPicker(Str8 label, Vec4F32* color, UI_TextStyleInfo text, UI_WidgetLayoutInfo layout, UI_WidgetStyleInfo style) {
+  layout.direction = UI_Axis_Y;
+  UI_WidgetBlock(
+    label,
+    {
+      .flags = UI_WidgetFlag_DrawBackground,
+      .layout = layout,
+      .style = style,
+    }
+  ) {
+    Vec3F32 hsv = HSVFromRGB(MakeVec3F32(color->r, color->g, color->b));
+    UI_CustomWidgetInfo* value_saturation_info = (UI_CustomWidgetInfo*)PushArena(ui_current_context->frame_arena, sizeof(UI_CustomWidgetInfo));
+    value_saturation_info->kind = UI_CustomWidgetKind_ValueSaturation;
+    value_saturation_info->value_saturation.hsv = hsv;
+    UI_WidgetBlock(
+      ConcatStr8(ui_current_context->frame_arena, label, Str8C("_ColorWheel")),
+      {
+        .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_DrawCustom,
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_PercentSize(0.5f),
+        },
+        .custom = value_saturation_info,
+      }
+    ) {
+      if (UI_IsHot() && OS_MousePressed(OS_MouseButton_Left)) {
+        UI_SetActive();
+      }
+
+      if (UI_IsActive()) {
+        Vec2F32 mouse_position = UI_GetMousePosition();
+        RectF32 bounding_box = UI_GetBoundingBox();
+        hsv.y = Clamp(mouse_position.x - bounding_box.x, 0.0f, bounding_box.w)/bounding_box.w;
+        hsv.z = 1.0f - Clamp(mouse_position.y - bounding_box.y, 0.0f, bounding_box.h)/bounding_box.h;
+        if (OS_MouseReleased(OS_MouseButton_Left)) {
+          UI_UnsetActive();
+        }
+      }
+    }
+    UI_WidgetBlock(
+      ConcatStr8(ui_current_context->frame_arena, label, Str8C("_HueSlider")),
+      {
+        .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_DrawBackground,
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_PixelSize(20.0f),
+        },
+        .style = {
+          .background_color = MakeVec4F32(hsv.x, 0.0f, 0.0f, 1.0f),
+        }
+      }
+    ) {
+      if (UI_IsHot() && OS_MousePressed(OS_MouseButton_Left)) {
+        UI_SetActive();
+      }
+
+      if (UI_IsActive()) {
+        Vec2F32 mouse_position = UI_GetMousePosition();
+        RectF32 bounding_box = UI_GetBoundingBox();
+        F32 local_mouse_x = Clamp(mouse_position.x - bounding_box.x, 0, bounding_box.w);
+        hsv.x = local_mouse_x/bounding_box.w;
+        if (OS_MouseReleased(OS_MouseButton_Left)) {
+          UI_UnsetActive();
+        }
+      }
+    }
+
+    UI_WidgetBlock(
+      ConcatStr8(ui_current_context->frame_arena, label, Str8C("_ResultColor")),
+      {
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_PixelSize(20.0f),
+        },
+        .style = {
+          .background_color = MakeVec4F32(color->r, color->g, color->b, 1.0f),
+        },
+      }
+    ) {
+    }
+
+    Vec3F32 rgb = RGBFromHSV(hsv);
+    *color = MakeVec4F32(rgb.r, rgb.g, rgb.b, 1.0f);
+  } 
+}

@@ -298,6 +298,14 @@ UI_FinalPass(UI_Widget* root) {
     SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
   }
 
+  if (root->info.flags & UI_WidgetFlag_DrawCustom) {
+    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Custom;
+    draw_command->custom.bounding_box = root->bounding_box;
+    draw_command->custom.data = root->info.custom;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
+  }
+
   if (root->info.flags & UI_WidgetFlag_DrawText) {
     Assert(root->info.text.font != 0);
 

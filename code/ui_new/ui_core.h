@@ -50,6 +50,7 @@ enum {
   // Drawing
   UI_WidgetFlag_DrawBackground = (1<<2),
   UI_WidgetFlag_DrawText       = (1<<3),
+  UI_WidgetFlag_DrawCustom     = (1<<4),
 } UI_WidgetFlagEnum;
 
 typedef struct UI_WidgetLayoutInfo UI_WidgetLayoutInfo;
@@ -101,6 +102,7 @@ struct UI_WidgetInfo {
   UI_WidgetLayoutInfo layout;
   UI_WidgetStyleInfo  style;
   UI_TextStyleInfo    text;
+  void*               custom;
 };
 
 typedef struct UI_Widget UI_Widget;
@@ -147,6 +149,7 @@ enum {
   UI_DrawCommandKind_Nil,
   UI_DrawCommandKind_Rectangle,
   UI_DrawCommandKind_Text,
+  UI_DrawCommandKind_Custom,
   UI_DrawCommandKind_Count,
 } UI_DrawCommandKindEnum;
 
@@ -170,6 +173,10 @@ struct UI_DrawCommand {
       F32       size;
       Vec4F32   color;
     } text;
+    struct {
+      RectF32 bounding_box;
+      void* data;
+    } custom;
   };
 };
 
