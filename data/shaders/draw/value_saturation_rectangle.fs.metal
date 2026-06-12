@@ -12,6 +12,11 @@ struct VertexOutput {
   float2 local_xy;
 };
 
+float SDF_Rectangle(float2 position, float2 half_size) {
+  float2 d = abs(position) - half_size;
+  return length(max(d, 0.0f)) + min(max(d.x, d.y), 0.0f);
+}
+
 float SDF_Circle(float2 position, float2 center, float radius) {
   return length(position - center) - radius;
 }
@@ -34,7 +39,11 @@ fragment float4 FragmentMain(
   RectangleData rectangle = rectangle_data[0];
 
   float2 uv = input.local_xy/(input.half_size*2.0f);
-  float4 color = float4(RGBFromHSV(rectangle.hsv.x, uv.x, (1.0f - uv.y)), 1.0f);
+  float4 color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+  float value_saturation_zone = SDF_Rectangle(input.local_xy - input.half_size, input.half_size);
+  value_saturation_zone = 1.0f - smoothstep(0.0f, fwidth(value_saturation_zone), value_saturation_zone);
+  color = mix(color, float4(RGBFromHSV(rectangle.hsv.x, uv.x, (1.0f - uv.y)), 1.0f), value_saturation_zone);
 
   float2 center = float2(rectangle.hsv.y, 1.0f - rectangle.hsv.z)*input.half_size*2.0f;
   float circle = SDF_Circle(input.local_xy, center, 5.0f);

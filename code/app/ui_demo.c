@@ -317,7 +317,8 @@ UI_DemoCategoryWidgets() {
       UI_WidgetLayoutInfo color_picker_layout = {
         .width = UI_PercentSize(0.5f),
         .height = UI_PixelSize(200.0f),
-        .child_gap = 5.0f,
+        .paddings = UI_PaddingAll(5.0f),
+        .child_gap = 10.0f,
       };
       local_persist Vec4F32 color_picker_value = {0.2f, 0.1f, 0.2f, 0.5f};
       UI_ColorPicker(Str8C("ColorPicker"), &color_picker_value, default_text, color_picker_layout, default_style);

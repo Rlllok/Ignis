@@ -32,7 +32,7 @@ vertex VertexOutput VertexMain(
 
   RectangleData rectangle = rectangle_data[0];
 
-  float antialising_padding = 50.0f;
+  float antialising_padding = 5.0f;
   float4 vertex_position = vertecies[indecies[vertex_index]]*float4(rectangle.position_size.z + antialising_padding, rectangle.position_size.w + antialising_padding, 0.0f, 1.0f) + float4(rectangle.position_size.x, rectangle.position_size.y, 0.0f, 0.0f);
 
   output.position = rectangle.projection*vertex_position;
