@@ -13,6 +13,9 @@ struct UI_CustomWidgetInfo {
   UI_CustomWidgetKind kind;
   union {
     struct {
+      F32 value;
+    } hue;
+    struct {
       Vec3F32 hsv;
     } value_saturation;
   };

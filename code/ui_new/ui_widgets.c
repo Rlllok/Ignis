@@ -280,17 +280,18 @@ UI_ColorPicker(Str8 label, Vec4F32* color, UI_TextStyleInfo text, UI_WidgetLayou
         }
       }
     }
+    UI_CustomWidgetInfo* hue_info = (UI_CustomWidgetInfo*)PushArena(ui_current_context->frame_arena, sizeof(UI_CustomWidgetInfo));
+    hue_info->kind = UI_CustomWidgetKind_Hue;
+    hue_info->hue.value = hsv.x;
     UI_WidgetBlock(
       ConcatStr8(ui_current_context->frame_arena, label, Str8C("_HueSlider")),
       {
-        .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_DrawBackground,
+        .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_DrawCustom,
         .layout = {
           .width = UI_PercentSize(1.0f),
           .height = UI_PixelSize(20.0f),
         },
-        .style = {
-          .background_color = MakeVec4F32(hsv.x, 0.0f, 0.0f, 1.0f),
-        }
+        .custom = hue_info,
       }
     ) {
       if (UI_IsHot() && OS_MousePressed(OS_MouseButton_Left)) {

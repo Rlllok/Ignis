@@ -493,7 +493,8 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
       Assert(1);
     }
     id<MTLFunction> fragment_function = [fragment_library newFunctionWithName:@"FragmentMain"];
-    Assert(fragment_function != nil);
+    Assert(fragment_function != nil
+           );
     Assert(error == nil);
 
     {
