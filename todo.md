@@ -6,7 +6,6 @@
 ### Vulkan
 -[ ] Return "swapchain" image size to use in as viewport size
 -[ ] Remove function's prototypes from header
--[ ] Add api for Textures
 -[ ] Update Render Pass to Dynamic Rendering
 
 ## TopDown
@@ -24,6 +23,7 @@
 -[x] (23.05.2026) Add api for sync tools
 -[x] (23.05.2026) Add resource id for textures
 ### Vulkan
+-[x] (08.06.2026) Add api for Textures
 -[x] (~30.06.2026) Add api for sync tools
 
 ## TopDown
