@@ -523,3 +523,43 @@ Mat4F32FromTransform(Transform t) {
   result = MulMat4F32(MakeTransposeMat4F32(t.translation), result);
   return result;
 }
+
+// -------------------------------------------------------------------
+// -- Color ----------------------------------------------------------
+
+func Vec3F32
+RGBFromHSV(Vec3F32 hsv) {
+  Vec3F32 result = MakeVec3F32(0.0f, 0.0f, 0.0f);
+  F32 k = fmodf(5.0f + hsv.x*6.0f, 6.0f);
+  result.r = hsv.z - hsv.z*hsv.y*Max(0.0f, Min(Min(k, 4.0f - k), 1.0f));
+  k = fmodf(3.0f + hsv.x*6.0f, 6.0f);
+  result.g = hsv.z - hsv.z*hsv.y*Max(0.0f, Min(Min(k, 4.0f - k), 1.0f));
+  k = fmodf(1.0f + hsv.x*6.0f, 6.0f);
+  result.b = hsv.z - hsv.z*hsv.y*Max(0.0f, Min(Min(k, 4.0f - k), 1.0f));
+  return result;
+}
+
+func Vec3F32
+HSVFromRGB(Vec3F32 rgb) {
+  Vec3F32 result = MakeVec3F32(0.0f, 0.0f, 0.0f);
+  F32 max = Max(Max(rgb.r, rgb.g), rgb.b);
+  F32 min = Min(Min(rgb.r, rgb.g), rgb.b);
+  F32 delta = max - min;
+  result.z = max; // value
+  result.y = (max == 0) ? 0.0f : delta/max; // saturation
+  // hue
+  if (delta < 0.000001f) {
+    result.x = 0.0f;
+  } else if (max == rgb.r) {
+    result.x = (rgb.g - rgb.b)/delta;
+    if (result.x < 0.0f) {
+      result.x += 6.0f;
+    }
+    result.x *= 0.16666667f;
+  } else if (max == rgb.g) {
+    result.x = ((rgb.b - rgb.r)/delta + 2.0f)*0.16666667f;
+  } else if (max ==rgb.b) {
+    result.x = ((rgb.r - rgb.g)/delta + 4.0f)*0.16666667f;
+  }
+  return result;
+}

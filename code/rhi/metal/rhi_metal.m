@@ -603,6 +603,33 @@ RHI_Metal_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPip
 }
 
 // -------------------------------------------------------------------
+// -- Resource Table -------------------------------------------------
+
+func RHI_ResourceTable
+RHI_Metal_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count) {
+  return 0;
+}
+
+func void
+RHI_Metal_DestroyResourceTable(RHI_ResourceTable* table) {
+}
+
+func RHI_TextureDeviceId
+RHI_Metal_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture) {
+  RHI_Metal_Texture* mtl_texture = RHI_Metal_TextureFromHandle(texture);
+  return mtl_texture->mtl.gpuResourceID._impl;
+}
+
+func RHI_SamplerDeviceId
+RHI_Metal_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler) {
+  return 0;
+}
+
+func void
+RHI_Metal_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable table) {
+}
+
+// -------------------------------------------------------------------
 // -- Set States And Draw --------------------------------------------
 func void
 RHI_Metal_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {

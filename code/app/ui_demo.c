@@ -24,6 +24,8 @@ static struct {
   RHI_Buffer           gpu_buffer;
   RHI_Buffer           transfer_buffer;
   RHI_GraphicsPipeline rectangle_pipeline;
+  RHI_GraphicsPipeline value_saturation_pipeline;
+  RHI_GraphicsPipeline hue_pipeline;
   RHI_GraphicsPipeline text_pipeline;
   RHI_ResourceTable    resource_table;
   RHI_TextureSampler   default_sampler;
@@ -215,7 +217,6 @@ UI_DemoCategoryLayoutDirectionY() {
 
 func void
 UI_DemoCategoryWidgets() {
-
   UI_WidgetBlock(
     Str8C("CategoryWidgets"),
     {
@@ -227,42 +228,48 @@ UI_DemoCategoryWidgets() {
       },
     }
   ) {
-    UI_WidgetLayoutInfo button_layout = {
-      .width = UI_PixelSize(100.0f),
-      .height = UI_PixelSize(40.0f),
-    };
-    UI_WidgetStyleInfo button_style = {
+    UI_WidgetStyleInfo default_style = {
       .radius = MakeVec4F32(3.0f, 3.0f, 3.0f, 3.0f),
       .background_color = ui_demo.style.background_color_dim,
     };
-    Str8 label = Str8C("ButtonTest");
-    UI_TextStyleInfo button_text = {
+    UI_TextStyleInfo default_text = {
       .font = &ui_demo.style.font,
       .color = ui_demo.style.color,
-      .str = label,
+      .alignment = UI_TextAlignment_Center,
+      .str = Str8C("DefaultText"),
     };
-    UI_Button(label, button_text, button_layout, button_style);
 
-    UI_WidgetBlock(
-      Str8C("RadioButtons"),
-      {
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_FitSize(),
-          .child_gap = 5.0f,
-        }
-      }
-    ) {
-      UI_WidgetLayoutInfo radio_button_layout = {
-        .width = UI_PixelSize(40.0f),
+    // Buttons
+    {
+      UI_WidgetLayoutInfo button_layout = {
+        .width = UI_PixelSize(100.0f),
         .height = UI_PixelSize(40.0f),
-        .paddings = UI_PaddingAll(7.0f),
       };
-      local_persist I32 radio_button_value = 2;
-      UI_RadioButton(Str8C("RadioButton_0"), &radio_button_value, 0, button_text, radio_button_layout, button_style);
-      UI_RadioButton(Str8C("RadioButton_1"), &radio_button_value, 1, button_text, radio_button_layout, button_style);
-      UI_RadioButton(Str8C("RadioButton_2"), &radio_button_value, 2, button_text, radio_button_layout, button_style);
-      UI_RadioButton(Str8C("RadioButton_3"), &radio_button_value, 3, button_text, radio_button_layout, button_style);
+      UI_TextStyleInfo button_text = default_text;
+      button_text.str = Str8C("Button");
+      UI_Button(Str8C("Button"), button_text, button_layout, default_style);
+
+      UI_WidgetBlock(
+        Str8C("RadioButtons"),
+        {
+          .layout = {
+            .width = UI_PercentSize(1.0f),
+            .height = UI_FitSize(),
+            .child_gap = 5.0f,
+          }
+        }
+      ) {
+        UI_WidgetLayoutInfo radio_button_layout = {
+          .width = UI_PixelSize(40.0f),
+          .height = UI_PixelSize(40.0f),
+          .paddings = UI_PaddingAll(7.0f),
+        };
+        local_persist I32 radio_button_value = 2;
+        UI_RadioButton(Str8C("RadioButton_0"), &radio_button_value, 0, button_text, radio_button_layout, default_style);
+        UI_RadioButton(Str8C("RadioButton_1"), &radio_button_value, 1, button_text, radio_button_layout, default_style);
+        UI_RadioButton(Str8C("RadioButton_2"), &radio_button_value, 2, button_text, radio_button_layout, default_style);
+        UI_RadioButton(Str8C("RadioButton_3"), &radio_button_value, 3, button_text, radio_button_layout, default_style);
+      }
     }
 
     UI_WidgetLayoutInfo slider_layout = {
@@ -271,15 +278,51 @@ UI_DemoCategoryWidgets() {
       .paddings = UI_PaddingAll(5.0f),
     };
     local_persist F32 slider_f32_value = 0.0f;
-    UI_TextStyleInfo slider_f32_text = button_text;
+    UI_TextStyleInfo slider_f32_text = default_text;
     slider_f32_text.str = FormatStr8(ui_demo.frame_arena, "%f", slider_f32_value);
     slider_f32_text.alignment = UI_TextAlignment_Center;
-    UI_SliderF32(Str8C("SliderF32"), &slider_f32_value, -50.0f, 50.0f, slider_f32_text, slider_layout, button_style);
+    UI_SliderF32(Str8C("SliderF32"), &slider_f32_value, -50.0f, 50.0f, slider_f32_text, slider_layout, default_style);
     local_persist I32 slider_i32_value = 0;
-    UI_TextStyleInfo slider_i32_text = button_text;
+    UI_TextStyleInfo slider_i32_text = default_text;
     slider_i32_text.str = FormatStr8(ui_demo.frame_arena, "%i", slider_i32_value);
     slider_i32_text.alignment = UI_TextAlignment_Center;
-    UI_SliderI32(Str8C("SliderI32"), &slider_i32_value, -5, 5, slider_i32_text, slider_layout, button_style);
+    UI_SliderI32(Str8C("SliderI32"), &slider_i32_value, -5, 5, slider_i32_text, slider_layout, default_style);
+
+    // Drag
+    {
+      UI_WidgetLayoutInfo drag_layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(40.0f),
+      };
+      UI_TextStyleInfo drag_text = default_text;
+      local_persist I32 drag_i32_value = 25;
+      drag_text.str = FormatStr8(ui_demo.frame_arena, "%i", drag_i32_value);
+      UI_DragI32(Str8C("DragI32"), &drag_i32_value, 1, -100, 100, drag_text, drag_layout, default_style);
+      local_persist F32 drag_f32_value = 1.0f;
+      drag_text.str = FormatStr8(ui_demo.frame_arena, "%f", drag_f32_value);
+      UI_DragF32(Str8C("DragF32"), &drag_f32_value, 0.01f, -5.0f, 5.0f, drag_text, drag_layout, default_style);
+    }
+
+    // Color
+    {
+      UI_WidgetLayoutInfo rgb_drag_layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PixelSize(40.0f),
+        .child_gap = 55.0f,
+      };
+      UI_TextStyleInfo rgb_drag_text = default_text;
+      local_persist Vec3F32 rgb_drag_value = {1.0f, 0.0f, 0.0f};
+      UI_DragRGB(Str8C("RGB"), &rgb_drag_value, rgb_drag_text, rgb_drag_layout, default_style);
+
+      UI_WidgetLayoutInfo color_picker_layout = {
+        .width = UI_PercentSize(0.5f),
+        .height = UI_PixelSize(200.0f),
+        .paddings = UI_PaddingAll(5.0f),
+        .child_gap = 10.0f,
+      };
+      local_persist Vec4F32 color_picker_value = {0.2f, 0.1f, 0.2f, 0.5f};
+      UI_ColorPicker(Str8C("ColorPicker"), &color_picker_value, default_text, color_picker_layout, default_style);
+    }
   }
 }
 
@@ -297,43 +340,30 @@ Demo_BuildUI(OS_Window* window) {
         .layout = {
           .width = UI_PixelSize(window->size.w),
           .height = UI_PixelSize(window->size.h),
-          .direction = UI_Axis_Y,
+          .direction = UI_Axis_X,
         },
         .style = {
           .background_color = MakeVec4F32(0.0f, 0.3f, 0.0f, 1.0f),
         }
       }
     ) {
+      UI_DemoSideBar();
       UI_WidgetBlock(
-        Str8C("Body"),
+        Str8C("DemoCategory"),
         {
           .flags = UI_WidgetFlag_DrawBackground,
           .layout = {
-            .width = UI_PercentSize(1.0f),
-            .height = UI_FillSize(),
-            .direction = UI_Axis_X,
-            .child_gap = 0.0f,
+            .width = UI_FillSize(),
+            .height = UI_PercentSize(1.0f),
+            .paddings = MakeVec4F32(0.0f, 30.0f, 20.0f, 20.0f),
           },
+          .style = {
+            .background_color = ui_demo.style.background_color,
+          }
         }
       ) {
-        UI_DemoSideBar();
-        UI_WidgetBlock(
-          Str8C("DemoCategory"),
-          {
-            .flags = UI_WidgetFlag_DrawBackground,
-            .layout = {
-              .width = UI_FillSize(),
-              .height = UI_PercentSize(1.0f),
-              .paddings = MakeVec4F32(0.0f, 30.0f, 20.0f, 20.0f),
-            },
-            .style = {
-              .background_color = ui_demo.style.background_color,
-            }
-          }
-        ) {
-            Assert(ui_demo.categories[ui_demo.current_category_index].BuildUI != 0);
-            ui_demo.categories[ui_demo.current_category_index].BuildUI();
-        }
+          Assert(ui_demo.categories[ui_demo.current_category_index].BuildUI != 0);
+          ui_demo.categories[ui_demo.current_category_index].BuildUI();
       }
     }
   }
@@ -434,6 +464,59 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
               spacing += (F32)(advance)*scale;
             }
           } break;
+          case UI_DrawCommandKind_Custom: {
+            RectF32 bound = draw_command->custom.bounding_box;
+            UI_CustomWidgetInfo* custom_info = (UI_CustomWidgetInfo*)draw_command->custom.data;
+
+            switch (custom_info->kind) {
+              default: break;
+              case UI_CustomWidgetKind_Hue: {
+                struct {
+                  Mat4F32 projection;
+                  Vec4F32 position_size;
+                  F32     hue;
+                } data = {
+                  .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
+                  .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
+                  .hue = custom_info->hue.value,
+                };
+                U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
+                RHI_ShaderArgument arguments[] = {
+                  {
+                    .kind = RHI_ShaderArgumentKind_BufferAddress,
+                    .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + data_offset,
+                  }
+                };
+                RHI_BindGraphicsPipeline(command_buffer, ui_demo.hue_pipeline);
+                RHI_BindResourceTable(command_buffer, ui_demo.hue_pipeline);
+                RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+                RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+              } break;
+              case UI_CustomWidgetKind_ValueSaturation: {
+                struct {
+                  Mat4F32 projection;
+                  Vec4F32 position_size;
+                  Vec3F32 hsv; F32 hsv_padding;
+                } data = {
+                  .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
+                  .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
+                  .hsv = custom_info->value_saturation.hsv,
+                };
+                U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
+
+                RHI_ShaderArgument arguments[] = {
+                  {
+                    .kind = RHI_ShaderArgumentKind_BufferAddress,
+                    .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + data_offset,
+                  }
+                };
+                RHI_BindGraphicsPipeline(command_buffer, ui_demo.value_saturation_pipeline);
+                RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
+                RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+                RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+              } break;
+            }
+          } break;
         }
       }
     }
@@ -479,6 +562,70 @@ I32 main() {
     });
 
     ui_demo.rectangle_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
+      .vertex_shader = &vertex_shader,
+      .fragment_shader = &fragment_shader,
+      .color_targets_count = 1,
+      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+        .format = RHI_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
+      }
+    });
+  }
+  // Value/Saturation rectangle pipeline
+  {
+    RHI_ShaderArgumentKind vertex_shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader vertex_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/value_saturation_rectangle.vs"),
+      .kind = RHI_ShaderKind_Vertex,
+      .arguments = vertex_shader_arguments,
+      .arguments_count = ArrayLength(vertex_shader_arguments),
+    });
+
+    RHI_ShaderArgumentKind fragment_shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader fragment_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/value_saturation_rectangle.fs"),
+      .kind = RHI_ShaderKind_Fragment,
+      .arguments = fragment_shader_arguments,
+      .arguments_count = ArrayLength(fragment_shader_arguments),
+    });
+
+    ui_demo.value_saturation_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
+      .vertex_shader = &vertex_shader,
+      .fragment_shader = &fragment_shader,
+      .color_targets_count = 1,
+      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+        .format = RHI_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
+      }
+    });
+  }
+  // Hue rectangle pipeline
+  {
+    RHI_ShaderArgumentKind vertex_shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader vertex_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/hue_rectangle.vs"),
+      .kind = RHI_ShaderKind_Vertex,
+      .arguments = vertex_shader_arguments,
+      .arguments_count = ArrayLength(vertex_shader_arguments),
+    });
+
+    RHI_ShaderArgumentKind fragment_shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader fragment_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/hue_rectangle.fs"),
+      .kind = RHI_ShaderKind_Fragment,
+      .arguments = fragment_shader_arguments,
+      .arguments_count = ArrayLength(fragment_shader_arguments),
+    });
+
+    ui_demo.hue_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
       .vertex_shader = &vertex_shader,
       .fragment_shader = &fragment_shader,
       .color_targets_count = 1,
