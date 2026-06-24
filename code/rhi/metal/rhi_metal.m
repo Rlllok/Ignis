@@ -650,7 +650,14 @@ RHI_Metal_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
 
 func void
 RHI_Metal_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor) {
-  // --AlNov: @TODO
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  MTLScissorRect mtl_scissor = {
+    .height = scissor.h,
+    .width = scissor.w,
+    .x = scissor.x,
+    .y = scissor.y,
+  };
+  [mtl_command_buffer->render_encoder setScissorRect:mtl_scissor];
 }
 
 func void

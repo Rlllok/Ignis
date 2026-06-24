@@ -47,10 +47,12 @@ enum {
   // Interaction
   UI_WidgetFlag_MouseInteraction = (1<<1),
 
+  UI_WidgetFlag_Scroll = (1<<2),
+
   // Drawing
-  UI_WidgetFlag_DrawBackground = (1<<2),
-  UI_WidgetFlag_DrawText       = (1<<3),
-  UI_WidgetFlag_DrawCustom     = (1<<4),
+  UI_WidgetFlag_DrawBackground = (1<<3),
+  UI_WidgetFlag_DrawText       = (1<<4),
+  UI_WidgetFlag_DrawCustom     = (1<<5),
 } UI_WidgetFlagEnum;
 
 typedef struct UI_WidgetLayoutInfo UI_WidgetLayoutInfo;
@@ -128,6 +130,7 @@ struct UI_Widget {
 
   RectF32 bounding_box;
   Vec2F32 empty_size;
+  Vec2F32 scroll_offset;
   I32     growable_children_count[UI_Axis_Count];
 };
 
@@ -150,6 +153,7 @@ enum {
   UI_DrawCommandKind_Rectangle,
   UI_DrawCommandKind_Text,
   UI_DrawCommandKind_Custom,
+  UI_DrawCommandKind_Scissor,
   UI_DrawCommandKind_Count,
 } UI_DrawCommandKindEnum;
 
@@ -177,6 +181,9 @@ struct UI_DrawCommand {
       RectF32 bounding_box;
       void* data;
     } custom;
+    struct {
+      RectF32 bounding_box;
+    } scissor;
   };
 };
 

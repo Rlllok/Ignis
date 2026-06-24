@@ -327,12 +327,50 @@ UI_DemoCategoryWidgets() {
 }
 
 func void
+UI_DemoCategoryScroll() {
+  UI_WidgetBlock(
+    Str8C("DemoCategoryScroll"),
+    {
+      .flags = UI_WidgetFlag_MouseInteraction|UI_WidgetFlag_Scroll,
+      .layout = {
+        .width = UI_PercentSize(1.0f),
+        .height = UI_PercentSize(1.0f),
+        .direction = UI_Axis_Y,
+        .child_gap = 5.0f,
+        .paddings = UI_PaddingAll(0.0f),
+      }
+    }
+  ) {
+    for (I32 i = 0; i < 40; i += 1) {
+      ScratchArena scratch = BeginScratchArena(ui_demo.frame_arena); {
+        Str8 element_label = FormatStr8(scratch.arena, "CategoryScrollElement %i", i);
+        UI_WidgetBlock(
+          element_label,
+          {
+            .flags = UI_WidgetFlag_DrawBackground,
+            .layout = {
+              .width = UI_PercentSize(1.0f),
+              .height = UI_PixelSize(20.0f),
+            },
+            .style = {
+              .background_color = ui_demo.style.background_color_dim,
+            },
+          }
+        ) {
+        }
+      }
+      EndScratchArena(scratch);
+    }
+  }
+}
+
+func void
 Demo_BuildUI(OS_Window* window) {
   Vec2F32 mouse_position = OS_MousePosition(window);
   Vec2F32 mouse_scroll = MakeVec2F32(0.0f, 0.0f);
 
   UI_SelectContext(ui_demo.ui_context);
-  UI_BeginFrame(ui_demo.dt, OS_MousePosition(window), MakeVec2F32(0.0f, 0.0f)); {
+  UI_BeginFrame(ui_demo.dt, OS_MousePosition(window), OS_MouseScroll()); {
     UI_WidgetBlock(
       Str8C("MainCanvas"),
       {
@@ -516,6 +554,15 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
                 RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
               } break;
             }
+          } break;
+          case UI_DrawCommandKind_Scissor: {
+            RectI32 scissor = {
+              .x = draw_command->scissor.bounding_box.x,
+              .y = draw_command->scissor.bounding_box.y,
+              .w = draw_command->scissor.bounding_box.w,
+              .h = draw_command->scissor.bounding_box.h,
+            };
+            RHI_SetScissor(command_buffer, scissor);
           } break;
         }
       }
@@ -712,8 +759,12 @@ I32 main() {
     .name = Str8C("Widgets"),
     .BuildUI = UI_DemoCategoryWidgets,
   };
-  ui_demo.categories_length = 3;
-  ui_demo.current_category_index = 1;
+  ui_demo.categories[3] = (UI_DemoCategory){
+    .name = Str8C("Scroll"),
+    .BuildUI = UI_DemoCategoryScroll,
+  };
+  ui_demo.categories_length = 4;
+  ui_demo.current_category_index = 3;
 
   ui_demo.ui_context = UI_CreateContext();
 

@@ -94,6 +94,7 @@ OS_DispatchEvents(Arena* arena, OS_Window* window) {
   _os_state.event_list = OS_EventListCreate(arena);
   _os_state.keyboard_event_list = OS_EventListCreate(arena);
   _os_state.mouse_event_list = OS_EventListCreate(arena);
+  _os_state.mouse.scroll = MakeVec2F32(0.0f, 0.0f);
 
   NSEvent* ns_event = nil;
   do {
@@ -205,6 +206,15 @@ OS_DispatchEvents(Arena* arena, OS_Window* window) {
         event.released = 1;
         event.mouse_button = OS_MouseButton_Left;
       } break;
+
+      case NSEventTypeScrollWheel: {
+        if ([ns_event hasPreciseScrollingDeltas]) {
+          _os_state.mouse.scroll = MakeVec2F32([ns_event scrollingDeltaX], [ns_event scrollingDeltaY]);
+        }
+        else {
+          _os_state.mouse.scroll = MakeVec2F32([ns_event deltaX], [ns_event deltaY]);
+        }
+      } break;
     }
 
     if (event.type != 0) {
@@ -280,5 +290,8 @@ OS_MousePosition(OS_Window* window) {
 
    return MakeVec2F32(point.x, window->size.h - point.y);
 }
-func Vec2F32 OS_MouseScroll();
 
+func Vec2F32
+OS_MouseScroll() {
+  return _os_state.mouse.scroll;
+}

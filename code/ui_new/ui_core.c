@@ -264,8 +264,16 @@ func void
 UI_CalculatePositions(UI_Widget* root, UI_Axis axis) {
   F32 offset = root->bounding_box.position.values[axis];
   F32 padding = root->info.layout.paddings.values[axis*2];
+
+  if ((root->info.flags & UI_WidgetFlag_Scroll) && UI_KeyEqual(root->key, ui_current_context->next_hot_key)) {
+    UI_Axis direction = root->info.layout.direction;
+    root->scroll_offset.values[direction] += ui_current_context->mouse_scroll.values[direction];
+    root->scroll_offset.values[direction] = Clamp(root->scroll_offset.values[direction], root->empty_size.values[direction], 0.0f);
+  }
+
+  F32 scroll_offset = root->scroll_offset.values[axis];
   for (UI_Widget* child = root->first; child != 0; child = child->next) {
-    child->bounding_box.position.values[axis] = offset + padding;
+    child->bounding_box.position.values[axis] = offset + padding + scroll_offset;
     if (root->info.layout.direction == axis) {
       offset += (child->bounding_box.size.values[axis] + root->info.layout.child_gap);
     }
@@ -284,6 +292,13 @@ UI_FinalPass(UI_Widget* root) {
     if (mouse_inside) {
       ui_current_context->hot_key = root->key;
     }
+  }
+
+  if (root->info.flags & UI_WidgetFlag_Scroll) {
+    UI_DrawCommand* draw_command = (UI_DrawCommand*)PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Scissor;
+    draw_command->scissor.bounding_box = root->bounding_box;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
   }
 
   // Build draw commands
