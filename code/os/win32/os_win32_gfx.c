@@ -93,6 +93,7 @@ OS_DispatchEvents(Arena* arena, OS_Window* window)
   _os_state.event_list = OS_EventListCreate(arena);
 	_os_state.keyboard_event_list = OS_EventListCreate(arena);
   _os_state.mouse_event_list = OS_EventListCreate(arena);
+  _os_state.mouse.scroll = MakeVec2F32(0.0f, 0.0f);
 
   MSG message;
   while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
@@ -338,6 +339,12 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
     case WM_MOUSEMOVE:
     {
       
+    } break;
+    case WM_MOUSEWHEEL: {
+      _os_state.mouse.scroll.y = GET_WHEEL_DELTA_WPARAM(w_param)/WHEEL_DELTA;
+    } break;
+    case WM_MOUSEHWHEEL: {
+      _os_state.mouse.scroll.x = GET_WHEEL_DELTA_WPARAM(w_param)/WHEEL_DELTA;
     } break;
     case WM_LBUTTONUP:
     {
