@@ -1,285 +1,256 @@
 #pragma once
-
 #include "base/base_include.h"
-#include "rhi/rhi_include.h"
-
-typedef I32 UI_ID;
-#define UI_ID_Nil -1
-UI_ID _ui_id_nil = UI_ID_Nil;
-DefineArray(UI_ID, UI_IDArray, _ui_id_nil)
 
 // -------------------------------------------------------------------
-// -- UI Font --------------------------------------------------------
-// -- AlNov. 12 December 2025: @TODO
-// UI Layer should not depend on Render Layer. tIt should just build Layout and DrawCommands.
-// (Remove usage for RHI_Texture from there)
-typedef struct FontBitmap FontBitmap;
-struct FontBitmap {
-  RHI_Texture bitmap;
-  Vec2U32     bitmap_size; // --AlNov: @TODO Should be in texture
-  Vec2U32     glyph_size;
-  U32         glyphs_per_row;
+// -- Widget ---------------------------------------------------------
+typedef struct UI_Key UI_Key;
+struct UI_Key {
+  U64 value;
 };
 
-typedef struct TextVertex TextVertex;
-struct TextVertex {
-  Vec2F32 position;
-  Vec2F32 uv;
-};
+func UI_Key UI_ZeroKey();
+func UI_Key UI_KeyFromStr8(Str8 str, UI_Key seed);
+func B32 UI_KeyEqual(UI_Key a, UI_Key b);
 
-func Vec2F32 GetTextSize(FontBitmap font, Str8 text, U32 font_size);
-
-typedef U8 UI_PositionType;
-enum UI_PositionTypeEnum {
-  UI_Position
-} UI_PositionTypeEnum;
-
-typedef U8 UI_LayoutDirection;
-enum UI_LayoutDirectionEnum {
-  UI_LayoutDirection_TopToBottom,
-  UI_LayoutDirection_LeftToRight,
-} UI_LayoutDirectionEnum;
-
-typedef U8 UI_SizeType;
-enum UI_SizeKindEnum {
-  UI_SizeKind_FitChildren,
-  UI_SizeKind_Percent,
+typedef U8 UI_SizeKind;
+enum {
+  UI_SizeKind_Nil,
   UI_SizeKind_Pixel,
+  UI_SizeKind_Percent,
+  UI_SizeKind_Fit,
+  UI_SizeKind_Fill,
+  UI_SizeKind_Count
 } UI_SizeKindEnum;
 
 typedef struct UI_Size UI_Size;
 struct UI_Size {
-  UI_SizeType kind;
+  UI_SizeKind kind;
   F32         value;
 };
 
-#define UI_FitChildrenSize()     ((UI_Size){.kind = UI_SizeKind_FitChildren, .value = 0.0f})
-#define UI_PercentSize(percent)  ((UI_Size){.kind = UI_SizeKind_Percent,     .value = percent})
-#define UI_PixelSize(coordinate) ((UI_Size){.kind = UI_SizeKind_Pixel,       .value = coordinate})
+#define UI_PixelSize(v)   ((UI_Size){.kind = UI_SizeKind_Pixel,   .value = v})
+#define UI_PercentSize(v) ((UI_Size){.kind = UI_SizeKind_Percent, .value = v})
+#define UI_FitSize()      ((UI_Size){.kind = UI_SizeKind_Fit})
+#define UI_FillSize()     ((UI_Size){.kind = UI_SizeKind_Fill})
 
-typedef struct UI_BorderRadius UI_BorderRadius;
-struct UI_BorderRadius {
-  union {
-    Vec4F32 values;
-    struct {
-      F32 top_left;
-      F32 top_right;
-      F32 bottom_left;
-      F32 bottom_right;
-    };
-  };
-};
+typedef enum {
+  UI_Axis_Nil = -1,
+  UI_Axis_X,
+  UI_Axis_Y,
+  UI_Axis_Count
+} UI_Axis;
 
-typedef struct UI_Padding UI_Padding;
-struct UI_Padding {
-  union {
-    Vec4F32 v;
-    struct {
-      F32 top;
-      F32 right;
-      F32 bottom;
-      F32 left;
-    };
-  };
-};
+typedef U32 UI_WidgetFlag;
+enum {
+  UI_WidgetFlag_None = (1<<0),
 
-#define UI_EqualPadding(value) {value, value, value, value}
+  // Interaction
+  UI_WidgetFlag_MouseInteraction = (1<<1),
 
-typedef U16 UI_WidgetFlags;
-enum UI_WidgetFlagEnum {
-  // Interaction Flags
-  UI_WidgetFlag_Hover = 1 << 0,
-  UI_WidgetFlag_Clickable = 1 << 1,
+  UI_WidgetFlag_Scroll = (1<<2),
 
-  // Draw Flags
-  UI_WidgetFlag_DrawBackground = 1 << 2,
-  UI_WidgetFlag_DrawLabel = 1 << 3,
+  // Drawing
+  UI_WidgetFlag_DrawBackground = (1<<3),
+  UI_WidgetFlag_DrawText       = (1<<4),
+  UI_WidgetFlag_DrawCustom     = (1<<5),
 } UI_WidgetFlagEnum;
 
-typedef struct UI_LayoutDescription UI_LayoutDescription;
-struct UI_LayoutDescription {
-  UI_Size            width;
-  UI_Size            height;
-  UI_Padding         padding;
-  I32                child_gap;
-  UI_LayoutDirection direction;
-  B32                clip;
-  Vec2I32            scroll_offset;
-};
-
-typedef struct UI_RectangleDescription UI_RectangleDescription;
-struct UI_RectangleDescription {
-  Vec4F32         color;
-  Vec4F32         border_color;
-  Vec4F32         radius;
-  UI_BorderRadius radius;
-};
-
-typedef struct UI_TextDescription UI_TextDescription;
-struct UI_TextDescription {
-  Str8       str;
-  FontBitmap font;
-  Vec4F32    color;
-  U32        font_size;
-};
-
-typedef U16 UI_WidgetKind;
-enum UI_WidgetKindEnum {
-  UI_WidgetKind_Rectangle,
-  UI_WidgetKind_Text
-} UI_WidgetKindEnum;
-
-typedef struct UI_WidgetDescription UI_WidgetDescription;
-struct UI_WidgetDescription {
-  Str8                 name;
-  UI_WidgetKind        kind;
-  UI_WidgetFlags       flags;
-  UI_LayoutDescription layout;
+typedef struct UI_WidgetLayoutInfo UI_WidgetLayoutInfo;
+struct UI_WidgetLayoutInfo {
   union {
-    UI_RectangleDescription rectangle;
-    UI_TextDescription      text;
+    UI_Size sizes[2];
+
+    struct {
+      UI_Size width;
+      UI_Size height;
+    };
   };
+  UI_Axis direction;
+  Vec4F32 paddings;
+  F32     child_gap;
 };
 
-typedef struct UI_ScrollOffset UI_ScrollOffset;
-struct UI_ScrollOffset {
-  UI_ID   element_id;
-  Vec2I32 offset;
+#define UI_PaddingAll(v) MakeVec4F32(v, v, v, v)
+
+typedef struct UI_WidgetStyleInfo UI_WidgetStyleInfo;
+struct UI_WidgetStyleInfo {
+  Vec4F32 radius;
+  Vec4F32 background_color;
+  F32     border_width;
+  Vec4F32 border_color;
 };
-UI_ScrollOffset _scroll_offset_nil = {0};
-DefineArray(UI_ScrollOffset, UI_ScrollOffsetArray, _scroll_offset_nil)
+
+typedef U8 UI_TextAlignment;
+enum {
+  UI_TextAlignment_Left,
+  UI_TextAlignment_Right,
+  UI_TextAlignment_Center,
+  UI_TextAlignment_Count
+} UI_TextAlignmentEnum;
+
+typedef struct UI_TextStyleInfo UI_TextStyleInfo;
+struct UI_TextStyleInfo {
+  AST_Font*        font;
+  UI_TextAlignment alignment;
+  Vec4F32          color;
+
+  Str8 str; // --AlNov: @TODO Move it to separate struct (Maybe text should be another kind of widget)
+};
+
+typedef struct UI_WidgetInfo UI_WidgetInfo;
+struct UI_WidgetInfo {
+  UI_WidgetFlag flags;
+
+  UI_WidgetLayoutInfo layout;
+  UI_WidgetStyleInfo  style;
+  UI_TextStyleInfo    text;
+  void*               custom;
+};
 
 typedef struct UI_Widget UI_Widget;
 struct UI_Widget {
-  UI_ID id;
-  UI_WidgetDescription description;
+  UI_Widget* first;
+  UI_Widget* last;
+  UI_Widget* next;
+  UI_Widget* prev;
+  UI_Widget* parent;
 
-  // --AlNov 23 December 2025: @TEST
-  UI_ID   clip_element_id;
+  UI_Key     key;
+  UI_Widget* hash_next;
+  UI_Widget* hash_prev;
 
-  struct {
-    UI_ID* ids;
-    I32    length;
-  } children_array_slice;
+  U64 last_build_index;
 
-  RectF32 rect;
-  Vec2F32 child_position_offset;
+  UI_Widget* stack_next;
+  UI_Widget* free_next;
+  UI_Widget* root_next;
+  UI_Widget* root_prev;
+
+  UI_WidgetInfo info;
+
+  RectF32 bounding_box;
+  Vec2F32 empty_size;
+  Vec2F32 scroll_offset;
+  I32     growable_children_count[UI_Axis_Count];
 };
 
-UI_Widget UI_WidgetDefaultValue = {0};
-DefineArray(UI_Widget, UI_WidgetArray, UI_WidgetDefaultValue)
+func UI_Widget* UI_WidgetFromKey(UI_Key key);
 
-typedef struct UI_WidgetPersistantData UI_WidgetPersistantData;
-struct UI_WidgetPersistantData {
-  RectF32 rectangle;
-};
-UI_WidgetPersistantData UI_WidgetPersistantData_Nil = ZeroStruct();
-DefineArray(UI_WidgetPersistantData, UI_WidgetPersistantDataArray, UI_WidgetPersistantData_Nil)
+func void UI_OpenWidget(Str8 label);
+func void UI_ConfigureWidget(UI_WidgetInfo info);
+func void UI_CloseWidget();
 
+#define UI_DefineWidgetInfoStructWrapper() typedef struct {UI_WidgetInfo package;} UI_WidgetInfoWrapper;
+UI_DefineWidgetInfoStructWrapper()
+#define UI_WidgetInfoWrapper(...) ((UI_WidgetInfoWrapper){__VA_ARGS__}).package
+#define UI_WidgetBlock(label, ...) DeferBlock((UI_OpenWidget(label), UI_ConfigureWidget(UI_WidgetInfoWrapper(__VA_ARGS__))), UI_CloseWidget())
+
+// -------------------------------------------------------------------
+// -- Draw Command ---------------------------------------------------
 typedef U8 UI_DrawCommandKind;
-enum UI_DrawCommandKindEnum {
-  UI_DrawCommandKind_None,
+enum {
+  UI_DrawCommandKind_Nil,
   UI_DrawCommandKind_Rectangle,
   UI_DrawCommandKind_Text,
-  UI_DrawCommandKind_ScissorBegin,
-  UI_DrawCommandKind_ScissorEnd,
+  UI_DrawCommandKind_Custom,
+  UI_DrawCommandKind_Scissor,
   UI_DrawCommandKind_Count,
 } UI_DrawCommandKindEnum;
 
 typedef struct UI_DrawCommand UI_DrawCommand;
 struct UI_DrawCommand {
+  UI_DrawCommand* next;
+
   UI_DrawCommandKind kind;
   union {
     struct {
-      RectF32 bound;
-      Vec4F32 color;
-      Vec4F32 border_color;
+      RectF32 bounding_box;
       Vec4F32 radius;
+      F32     border_width;
+      Vec4F32 background_color;
+      Vec4F32 border_color;
     } rectangle;
-
     struct {
-      Str8       content;
-      FontBitmap font;
-      F32        font_size;
-      Vec4F32    color;
-      Vec2F32    position;
+      AST_Font* font;
+      Str8      str;
+      Vec2F32   position;
+      F32       size;
+      Vec4F32   color;
     } text;
-
     struct {
-      RectF32 bound;
+      RectF32 bounding_box;
+      void* data;
+    } custom;
+    struct {
+      RectF32 bounding_box;
     } scissor;
   };
 };
-UI_DrawCommand UI_DrawCommandDefaultValue = {0};
-DefineArray(UI_DrawCommand, UI_DrawCommandArray, UI_DrawCommandDefaultValue)
+
+// -------------------------------------------------------------------
+// -- State ----------------------------------------------------------
+typedef struct UI_HashSlot UI_HashSlot;
+struct UI_HashSlot {
+  UI_Widget* first;
+  UI_Widget* last;
+};
+
+typedef struct UI_Root UI_Root;
+struct UI_Root {
+  UI_Widget* first;
+  UI_Widget* last;
+};
 
 typedef struct UI_Context UI_Context;
 struct UI_Context {
-  UI_ID                hot_id;
-  UI_ID                active_id;
-  Vec2F32              mouse_position;
-  Vec2F32              mouse_scroll;
-  UI_WidgetArray       elements;
+  Arena* arena;
 
-  UI_IDArray           final_elements;
-  UI_IDArray           open_elements_stack;
-  UI_IDArray           clip_elements_stack;
-  UI_IDArray           branches;
-  UI_IDArray           children;
-  UI_IDArray           children_formation_buffer;
-  UI_IDArray           traversal_stack;
-  B32Array             visited_lookup;
-  UI_WidgetPersistantDataArray widget_datas;
-  UI_ScrollOffsetArray scroll_offsets;
-  UI_DrawCommandArray  draw_commands;
-} ui_context; // -- AlNov. 12 December 2025: @TODO Multiple contexts?
+  Arena* frame_arena;
 
-func void UI_Init(Arena* arena, U32 max_elements_count);
+  // Caching
+  U64          hash_table_length;
+  UI_HashSlot* hash_table;
+  U64          build_index;
+  UI_Widget*   free_widgets;
 
-// -------------------------------------------------------------------
-// -- UI Context Mutation --------------------------------------------
-func void UI_CalculateSizes(B32 is_width);
-func void UI_CalculatePositions();
+  UI_Root    root;
+  UI_Widget* canvas;
+  UI_Widget* opened_widget;
 
-func void UI_BeginFrame(Vec2F32 mouse_position, Vec2F32 mouse_scroll);
-func void UI_EndFrame();
+  F32     dt;
+  Vec2F32 previous_mouse_position;
+  Vec2F32 mouse_position;
+  Vec2F32 mouse_scroll;
 
-// -------------------------------------------------------------------
-// -- UI Widgets ----------------------------------------------------
-func UI_Widget* UI_GetOpenedWidget();
+  UI_Key hot_key;
+  UI_Key next_hot_key;
+  UI_Key active_key;
 
-func UI_ID   UI_GetID() {return UI_GetOpenedWidget()->id;}
-func RectF32 UI_GetRectangle(UI_ID id) {return UI_WidgetArrayGet(&ui_context.elements, id).rect;}
+  UI_DrawCommand* first_draw_command;
+  UI_DrawCommand* last_draw_command;
+};
 
-func Vec2I32 UI_GetScrollOffset();
+func UI_Context* UI_CreateContext();
+func void UI_DestroyContext(UI_Context* context);
+func void UI_SelectContext(UI_Context* context);
 
-// --AlNov 20 December 2025:
-// Separate Open and Configure to be able to use UI_Hovered, UI_GetRectangle, etc in UI_WidgetBlock.
-func void UI_OpenWidget();
-func void UI_ConfigureWidget(UI_WidgetDescription description);
-func void UI_CloseWidget();
+func void UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll);
+func UI_DrawCommand* UI_EndFrame();
 
-// --AlNov 16 December 2025:
-// Macroses below solve next problem - warning: C99 forbids casting nonscalar type 'UI_WidgetDescription'
-// With wrapper it is possilbe to use api with inline structure definition (1) and predefined structure (2).
-// (1) - UI_OpenWidget(.layout.width = UI_FixedSize(100)) {}
-// (2) - UI_WidgetDescription default_element = {.layout.width = UI_FixedSize(100)};
-//       UI_OpenWidget(default_element) {}
-#define UI_DefineWidgetDescriptionStructWrapper() typedef struct {UI_WidgetDescription package;} UI_WidgetDescriptionWrapper;
-UI_DefineWidgetDescriptionStructWrapper()
-#define UI_WidgetDescriptionWrapper(...) ((UI_WidgetDescriptionWrapper){__VA_ARGS__}).package
-#define UI_WidgetBlock(...) DeferBlock((UI_OpenWidget(), UI_ConfigureWidget(UI_WidgetDescriptionWrapper(__VA_ARGS__))), UI_CloseWidget())
+// -- Passes
+func void UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis);
+func void UI_CalculatePositions(UI_Widget* root, UI_Axis axis);
+func void UI_FinalPass(UI_Widget* root);
 
-// --AlNov 20 December 2025:
-// Interaction with UI is delayed by 1 frame.
-// While we adding Widgets we don't know the final configuration of layout.
-// The layout is in the final state after UI_EndFrame() is called.
-func B32     UI_Hovered();
-func B32     UI_Clicked();
-func RectF32 UI_GetWidgetRectF32();
-
-func UI_Widget* UI_Layout(UI_WidgetArray* array, Str8 label);
-func void       UI_Text(Str8 label, UI_TextDescription text);
-func void       UI_NumberInput(UI_WidgetArray* array, Str8 label, F32* value);
-func B32        UI_Button(UI_WidgetArray* array, Str8 label);
-func F32        UI_SliderF32(UI_WidgetArray* array, Str8 label, F32 min, F32 max, F32* value);
+// -- Context/Widget Information
+func Vec2F32 UI_GetMousePosition();
+func Vec2F32 UI_GetMousePositionDelta();
+func RectF32 UI_GetBoundingBox();
+  
+// -- Interaction
+func B32  UI_IsHot();
+func void UI_SetActive();
+func void UI_UnsetActive();
+func B32  UI_IsActive();

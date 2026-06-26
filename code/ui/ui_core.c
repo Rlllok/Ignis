@@ -1,316 +1,46 @@
 #include "ui_core.h"
 
+global_variable UI_Context* ui_current_context = 0;
+
 // -------------------------------------------------------------------
-// -- UI Font --------------------------------------------------------
-func Vec2F32
-GetTextSize(FontBitmap font, Str8 text, U32 font_size)
-{
-  // --AlNov: @TODO Font spacing is hardcoded and not correct (Bitmap Grid size is 30px, but glyphs is smaller)
-  Vec2F32 result = MakeVec2F32(font_size*0.5f, font_size);
+// -- Widget ---------------------------------------------------------
 
-  for (I32 i = 0; i < text.length; i += 1)
-  {
-    if (text.data[i] == '\n')
-    {
-      result.y += font_size*0.7f;
-      continue;
-    }
-    result.x += font_size*0.5f;
-  }
-
+func UI_Key
+UI_ZeroKey() {
+  UI_Key result = ZeroStruct();
   return result;
 }
 
-func void
-UI_Init(Arena* arena, U32 max_elements_count)
-{
-  ui_context.elements = UI_WidgetArrayAllocate(arena, max_elements_count);
-  ui_context.final_elements = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.open_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.clip_elements_stack = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.branches = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.children = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.children_formation_buffer = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.draw_commands = UI_DrawCommandArrayAllocate(arena, max_elements_count);
-
-  ui_context.traversal_stack = UI_IDArrayAllocate(arena, max_elements_count);
-  ui_context.visited_lookup = B32ArrayAllocate(arena, max_elements_count);
-  ui_context.visited_lookup.length = ui_context.visited_lookup.capacity;
-
-  ui_context.scroll_offsets = UI_ScrollOffsetArrayAllocate(arena, 64);
-  ui_context.widget_datas = UI_WidgetPersistantDataArrayAllocate(arena, max_elements_count);
-  ui_context.widget_datas.length = ui_context.widget_datas.capacity;
+func UI_Key
+UI_KeyFromStr8(Str8 str, UI_Key seed) {
+  // --AlNov: FNV-1a Hash Function
+  UI_Key result = {
+    .value = (seed.value != 0) ? seed.value : 14695981039346656037ULL,
+  };
+  for (I32 i = 0; i < str.length; i += 1) {
+    result.value ^= str.data[i];
+    result.value *= 1099511628211ULL;
+  }
+  return result;
 }
 
-// -------------------------------------------------------------------
-// -- UI Context Mutation --------------------------------------------
-func void
-UI_CalculateSizes(B32 is_width)
-{
-  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
-  {
-    UI_Widget* branch = UI_WidgetArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
-
-    for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
-    {
-      UI_ID child_id = branch->children_array_slice.ids[child_offset];
-      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
-
-      UI_Size child_size = (is_width) ? child_element->description.layout.width : child_element->description.layout.height;
-      F32* child_size_value = (is_width) ? &child_element->rect.size.x : &child_element->rect.size.y;
-
-      if (child_size.kind == UI_SizeKind_Percent)
-      {
-        F32 parent_size_value = (is_width) ? branch->rect.size.x : branch->rect.size.y;
-        F32 parent_padding_value_0 = (is_width) ? branch->description.layout.padding.left : branch->description.layout.padding.top;
-        F32 parent_padding_value_1 = (is_width) ? branch->description.layout.padding.left : branch->description.layout.padding.bottom;
-        *child_size_value = (parent_size_value*child_size.value) - parent_padding_value_0 - parent_padding_value_1;
-      }
-    }
-  }
+func B32
+UI_KeyEqual(UI_Key a, UI_Key b) {
+  return a.value == b.value;
 }
 
-func void
-UI_CalculatePositions()
-{
-  for (I32 branch_index = 0; branch_index < ui_context.branches.length; branch_index += 1)
-  // for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
-  {
-    UI_Widget* branch = UI_WidgetArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
-    for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
-    {
-      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
-
-      child_element->rect.position = branch->rect.position;
-
-      child_element->rect.x += branch->description.layout.padding.left;
-      child_element->rect.y += branch->description.layout.padding.top;
-
-      switch (branch->description.layout.direction)
-      {
-        case UI_LayoutDirection_TopToBottom:
-        {
-          child_element->rect.y = branch->rect.y + branch->child_position_offset.y;
-          branch->child_position_offset.y += child_element->rect.h + branch->description.layout.child_gap;
-        } break;
-
-        case UI_LayoutDirection_LeftToRight:
-        {
-          child_element->rect.x = branch->rect.position.x + branch->child_position_offset.x;
-          branch->child_position_offset.x += child_element->rect.w + branch->description.layout.child_gap;
-        } break;
-      }
-    }
-  }
-}
-
-func void
-UI_BeginFrame(Vec2F32 mouse_position, Vec2F32 mouse_scroll)
-{
-  ui_context.mouse_position = mouse_position;
-  ui_context.mouse_scroll = mouse_scroll;
-  ui_context.hot_id = 0;
-
-  for (I32 i = 0; i < ui_context.children.length; i += 1)
-  {
-    UI_ID element_id = UI_IDArrayGet(&ui_context.children, i);
-    UI_Widget* element = UI_WidgetArrayGetPointer(&ui_context.elements, element_id);
-    
-    B32 item_is_hot = element->description.kind == UI_WidgetKind_Rectangle && element
-      && ((element->description.flags & UI_WidgetFlag_Hover) == UI_WidgetFlag_Hover)
-      && InsideRectF32(element->rect, ui_context.mouse_position)
-      && InsideRectF32(UI_WidgetArrayGetPointer(&ui_context.elements, element->clip_element_id)->rect, ui_context.mouse_position);
-
-    if ((ui_context.hot_id == 0) && item_is_hot)
-    {
-      ui_context.hot_id = element_id;
-      break;
-    }
-
-    UI_WidgetPersistantData* persistant_data = UI_WidgetPersistantDataArrayGetPointer(&ui_context.widget_datas, element_id);
-    persistant_data->rectangle = element->rect;
-  }
-
-  for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
-  {
-    UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
-    UI_Widget* element = UI_WidgetArrayGetPointer(&ui_context.elements, scroll_offset->element_id);
-    
-    scroll_offset->offset = AddVec2I32(scroll_offset->offset, Vec2IFromVec2F32(mouse_scroll));
-    scroll_offset->offset.y = Max(Min(0, element->rect.h - element->child_position_offset.y), Min(0, scroll_offset->offset.y));
-  }
-
-  UI_WidgetArrayReset(&ui_context.elements);
-  UI_IDArrayReset(&ui_context.final_elements);
-  UI_IDArrayReset(&ui_context.open_elements_stack);
-  UI_IDArrayReset(&ui_context.clip_elements_stack);
-  UI_IDArrayReset(&ui_context.branches);
-  UI_IDArrayReset(&ui_context.children);
-  UI_IDArrayReset(&ui_context.children_formation_buffer);
-  UI_DrawCommandArrayReset(&ui_context.draw_commands);
-
-  UI_IDArrayReset(&ui_context.traversal_stack);
-  // --AlNov 24 December 2025: @TODO @NOTE
-  // This is table that contains visited flag per every element_id.
-  // It means that length should be equal capacity. And we should reset values inside.
-  // The problem - I don't like usage code. I spent 20 minutes debuging why elements always visited.
-  // I forgot that ArrayResetDefault(..) sets length to 0.
-  B32ArrayResetDefault(&ui_context.visited_lookup);
-  ui_context.visited_lookup.length = ui_context.visited_lookup.capacity;
-}
-
-func void UI_EndFrame()
-{
-  UI_CalculateSizes(0);
-  UI_CalculateSizes(1);
-
-  #if 0
-  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
-  {
-    UI_Widget branch = UI_WidgetArrayGet(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
-
-    LOG_DEBUG("\tWidgetName: %s. WidgetID: %d. Children Count: %d\n", CFromStr8(branch.description.name), branch.id, branch.children_array_slice.length);
-    for (I32 i = 0; i < branch.children_array_slice.length; i += 1)
-    {
-      UI_ID child_id = branch.children_array_slice.ids[i];
-      UI_Widget child = UI_WidgetArrayGet(&ui_context.elements, child_id);
-      LOG_DEBUG("\t\tChildName: %s, ChildID:  %d\n", CFromStr8(child.description.name), child_id);
-    }
-  }
-  #endif
-
-  for (I32 branch_index = ui_context.branches.length - 1; branch_index >= 0; branch_index -= 1)
-  {
-    UI_Widget* branch = UI_WidgetArrayGetPointer(&ui_context.elements, UI_IDArrayGet(&ui_context.branches, branch_index));
-
-    for (I32 child_offset = 0; child_offset < branch->children_array_slice.length; child_offset += 1)
-    {
-      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, branch->children_array_slice.ids[child_offset]);
-
-      child_element->rect.position = branch->rect.position;
-
-      child_element->rect.x += branch->description.layout.padding.left;
-      child_element->rect.y += branch->description.layout.padding.top;
-
-      for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
-      {
-        UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
-        if (scroll_offset->element_id == branch->id)
-        {
-          I32 offset = scroll_offset->offset.y;
-          child_element->rect.y += offset;
-        }
-      }
-
-      switch (branch->description.layout.direction)
-      {
-        case UI_LayoutDirection_TopToBottom:
-        {
-          child_element->rect.y += branch->child_position_offset.y;
-          branch->child_position_offset.y += child_element->rect.h + branch->description.layout.child_gap;
-        } break;
-
-        case UI_LayoutDirection_LeftToRight:
-        {
-          child_element->rect.x += branch->child_position_offset.x;
-          branch->child_position_offset.x += child_element->rect.w + branch->description.layout.child_gap;
-        } break;
-      }
-    }
-  }
-
-  if (ui_context.children.length != 0)
-  {
-    UI_IDArrayAdd(&ui_context.traversal_stack, UI_IDArrayGet(&ui_context.children, ui_context.children.length - 1));
-  
-    while (ui_context.traversal_stack.length)
-    {
-      UI_ID current_id = UI_IDArrayGet(&ui_context.traversal_stack, ui_context.traversal_stack.length - 1);
-      UI_Widget* current_element = UI_WidgetArrayGetPointer(&ui_context.elements, current_id);
-
-      if (!ui_context.visited_lookup.elements[current_id])
-      {
-        ui_context.visited_lookup.elements[current_id] = 1;
-
-        if (current_element->description.flags & UI_WidgetFlag_DrawBackground)
-        {
-          UI_DrawCommandArrayAdd(
-            &ui_context.draw_commands,
-            (UI_DrawCommand){
-              .kind = UI_DrawCommandKind_Rectangle,
-              .rectangle = {
-                .bound = current_element->rect,
-                .color = current_element->description.rectangle.color,
-                .border_color = (current_element->description.rectangle.border_color.a == 0) ? current_element->description.rectangle.color : current_element->description.rectangle.border_color,
-                .radius = current_element->description.rectangle.radius.values,
-              }
-            }
-          );
-        }
-        if (current_element->description.flags & UI_WidgetFlag_DrawLabel)
-        {
-          UI_DrawCommandArrayAdd(
-            &ui_context.draw_commands,
-            (UI_DrawCommand){
-              .kind = UI_DrawCommandKind_Text,
-              .text = {
-                .content = current_element->description.text.str,
-                .font = current_element->description.text.font,
-                .font_size = current_element->description.text.font_size,
-                .color = current_element->description.text.color,
-                .position = current_element->rect.position,
-              }
-            }
-          );
-        }
-        if (current_element->description.layout.clip)
-        {
-          UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
-            .kind = UI_DrawCommandKind_ScissorBegin,
-            .scissor = current_element->rect,
-          });
-        }
-
-        for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
-        {
-          UI_IDArrayAdd(&ui_context.traversal_stack, current_element->children_array_slice.ids[i]);
-        }
-      }
-      else
-      {
-        if (current_element->description.layout.clip)
-        {
-          UI_DrawCommandArrayAdd(&ui_context.draw_commands, (UI_DrawCommand){
-            .kind = UI_DrawCommandKind_ScissorEnd,
-          });
-        }
-        UI_IDArrayPop(&ui_context.traversal_stack);
-      }
-    }
-  }
-}
-
-// -------------------------------------------------------------------
-// -- UI Default Widgets --------------------------------------------
 func UI_Widget*
-UI_GetOpenedWidget()
-{
-  UI_ID opened_element_id = UI_IDArrayGet(&ui_context.open_elements_stack, ui_context.open_elements_stack.length - 1);
-  return UI_WidgetArrayGetPointer(&ui_context.elements, opened_element_id);
-}
-
-func Vec2I32
-UI_GetScrollOffset()
-{
-  Vec2I32 result = {0};
+UI_WidgetFromStr8(Str8 str) {
+  UI_Widget* result = 0;
   
-  UI_Widget* element = UI_GetOpenedWidget();
-  for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
-  {
-    UI_ScrollOffset* scroll_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
-    if (scroll_offset->element_id == element->id)
-    {
-      result = scroll_offset->offset;
+  UI_Widget* parent = ui_current_context->opened_widget;
+  UI_Key seed = parent ? parent->key : UI_ZeroKey();
+  UI_Key key = UI_KeyFromStr8(str, seed);
+  U64 slot_index = key.value%ui_current_context->hash_table_length;
+  UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
+  for (UI_Widget* widget = slot->first; widget != 0; widget = widget->hash_next) {
+    if (UI_KeyEqual(widget->key, key)) {
+      result = widget;
       break;
     }
   }
@@ -319,322 +49,350 @@ UI_GetScrollOffset()
 }
 
 func void
-UI_OpenWidget()
-{
-  UI_Widget element = {.id = ui_context.elements.length};
+UI_OpenWidget(Str8 label) {
+  UI_Widget* widget = UI_WidgetFromStr8(label);
+  if (widget == 0) {
+    // create widget
+    if (ui_current_context->free_widgets) {
+      widget = ui_current_context->free_widgets;
+      StackPop_Next(ui_current_context->free_widgets, free_next);
+      MemoryZeroStruct(widget);
+    } else {
+      widget = PushArena(ui_current_context->arena, sizeof(UI_Widget));
+      MemoryZeroStruct(widget);
+    }
+    // add to hash table
+    // --AlNov: @TODO Computing key again (UI_WidgetFromStr8() called before)
+    UI_Widget* parent = ui_current_context->opened_widget;
+    UI_Key seed = parent ? parent->key : UI_ZeroKey();
+    UI_Key key = UI_KeyFromStr8(label, seed);
+    widget->key = key;
+    U64 slot_index = key.value%ui_current_context->hash_table_length;
+    UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
+    DllPushBack_NextPrev(slot->first, slot->last, widget, hash_next, hash_prev);
 
-  UI_WidgetArrayAdd(&ui_context.elements, element);
-  UI_IDArrayAdd(&ui_context.open_elements_stack, element.id);
+    if (ui_current_context->opened_widget == 0) {
+      DllPushBack_NextPrev(ui_current_context->root.first, ui_current_context->root.last, widget, root_next, root_prev);
+    }
+    else {
+      widget->parent = ui_current_context->opened_widget;
+      DllPushBack(ui_current_context->opened_widget->first, ui_current_context->opened_widget->last, widget);
+    }
+  }
+  widget->last_build_index = ui_current_context->build_index;
+  StackPush_Next(ui_current_context->opened_widget, widget, stack_next);
 }
 
 func void
-UI_ConfigureWidget(UI_WidgetDescription description)
-{
-  UI_Widget* element = UI_GetOpenedWidget();
-  element->description = description;
+UI_ConfigureWidget(UI_WidgetInfo info) {
+  UI_Widget* widget = ui_current_context->opened_widget;
+  widget->info = info;
+  widget->growable_children_count[UI_Axis_X] = 0;
+  widget->growable_children_count[UI_Axis_Y] = 0;
+}
 
-  if (ui_context.clip_elements_stack.length > 0)
-  {
-    UI_ID clip_element_id = UI_IDArrayGet(&ui_context.clip_elements_stack, ui_context.clip_elements_stack.length - 1);
-    element->clip_element_id = clip_element_id;
-  }
+func void
+UI_CloseWidget() {
+  StackPop_Next(ui_current_context->opened_widget, stack_next);
+}
 
-  if (element->description.layout.width.kind == UI_SizeKind_Pixel)
-  {
-    element->rect.size.x = element->description.layout.width.value;
-  }
-  if (element->description.layout.height.kind == UI_SizeKind_Pixel)
-  {
-    element->rect.size.y = element->description.layout.height.value;
-  }
+func void
+UI_BeginFrame(F32 dt, Vec2F32 mouse_position, Vec2F32 mouse_scroll) {
+  Assert(ui_current_context != 0);
 
-  if (element->description.layout.clip)
-  {
-    UI_ScrollOffset* scroll_offset = 0;
-    for (I32 i = 0; i < ui_context.scroll_offsets.length; i += 1)
-    {
-      UI_ScrollOffset* found_offset = UI_ScrollOffsetArrayGetPointer(&ui_context.scroll_offsets, i);
-      if (found_offset->element_id == element->id)
-      {
-        scroll_offset = found_offset;
-        break;
+  ResetArena(ui_current_context->frame_arena);
+
+  ui_current_context->build_index += 1;
+
+  ui_current_context->dt = dt;
+  ui_current_context->previous_mouse_position = ui_current_context->mouse_position;
+  ui_current_context->mouse_position = mouse_position;
+  ui_current_context->mouse_scroll = mouse_scroll;
+
+  // Interaction reset
+  ui_current_context->next_hot_key = ui_current_context->hot_key;
+  ui_current_context->hot_key = UI_ZeroKey();
+
+  // Drawing reset
+  ui_current_context->first_draw_command = 0;
+  ui_current_context->last_draw_command = 0;
+}
+
+func UI_DrawCommand*
+UI_EndFrame() {
+  // remove untoched widgets
+  for (U64 slot_index = 0; slot_index < ui_current_context->hash_table_length; slot_index += 1) {
+    UI_HashSlot* slot = ui_current_context->hash_table + slot_index;
+    UI_Widget* widget = slot->first;
+    while (widget != 0) {
+      UI_Widget* next = widget->hash_next;
+      if (widget->last_build_index < ui_current_context->build_index) {
+        if (widget->parent == 0) {
+          // --AlNov: @TODO It is better to change UI_Root concept to UI_Widget
+          DllRemove_NextPrev(ui_current_context->root.first, ui_current_context->root.last, widget, root_next, root_prev);
+        } else {
+          DllRemove(widget->parent->first, widget->parent->last, widget);
+        }
+        // remove from hash table
+        DllRemove_NextPrev(slot->first, slot->last, widget, hash_next, hash_prev);
+        // add to free list
+        StackPush_Next(ui_current_context->free_widgets, widget, free_next);
       }
+      widget = next;
     }
-
-    if (!scroll_offset)
-    {
-      UI_ScrollOffsetArrayAdd(&ui_context.scroll_offsets, (UI_ScrollOffset){.element_id = element->id});
-    }
-
-    UI_IDArrayAdd(&ui_context.clip_elements_stack, element->id);
   }
+
+  UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculateIndependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculateParentDependentSizes(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculateParentDependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculateChildDependentSizes(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculateChildDependentSizes(ui_current_context->root.first, UI_Axis_Y);
+  UI_CalculatePositions(ui_current_context->root.first, UI_Axis_X);
+  UI_CalculatePositions(ui_current_context->root.first, UI_Axis_Y);
+
+  UI_FinalPass(ui_current_context->root.first);
+
+  return ui_current_context->first_draw_command;
 }
 
-func void UI_CloseWidget()
-{
-  UI_Widget* current_element = UI_GetOpenedWidget();
+// -------------------------------------------------------------------
+// -- State ----------------------------------------------------------
 
-  current_element->children_array_slice.ids = ui_context.children.elements + ui_context.children.length;
-  for (I32 i = 0; i < current_element->children_array_slice.length; i += 1)
-  {
-    I32 buffer_offset = ui_context.children_formation_buffer.length - current_element->children_array_slice.length + i;
-    UI_ID child_id = UI_IDArrayGet(&ui_context.children_formation_buffer, buffer_offset);
-    UI_IDArrayAdd(&ui_context.children, child_id);
+// --AlNov: @TODO Doesn't work with threads
+func UI_Context*
+UI_CreateContext() {
+  Arena* arena = AllocateArena(Gigabytes(16), Kilobytes(4));
+  UI_Context* context = (UI_Context*)PushArena(arena, sizeof(UI_Context));
+  context->arena = arena;
+  context->frame_arena = AllocateArena(Gigabytes(8), Kilobytes(4));
+  context->hash_table_length = 2048;
+  context->hash_table = PushArena(context->arena, sizeof(UI_HashSlot)*context->hash_table_length);
 
-    if (current_element->description.layout.height.kind == UI_SizeKind_FitChildren)
-    {
-      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
-      current_element->rect.size.y += child_element->rect.size.y;
-    }
-    if (current_element->description.layout.width.kind == UI_SizeKind_FitChildren)
-    {
-      UI_Widget* child_element = UI_WidgetArrayGetPointer(&ui_context.elements, child_id);
-      current_element->rect.size.x += child_element->rect.size.x;
-    }
-  }
-  ui_context.children_formation_buffer.length -= current_element->children_array_slice.length;
-
-  if (current_element->children_array_slice.length)
-  {
-    UI_IDArrayAdd(&ui_context.branches, current_element->id);
-  }
-
-  if (ui_context.open_elements_stack.length > 0)
-  {
-    UI_IDArrayPop(&ui_context.open_elements_stack);
-    UI_Widget* parent_element = UI_GetOpenedWidget();
-    UI_IDArrayAdd(&ui_context.children_formation_buffer, current_element->id);
-    parent_element->children_array_slice.length += 1;
-  }
-
-  if (current_element->description.layout.clip && ui_context.clip_elements_stack.length > 0)
-  {
-    UI_IDArrayPop(&ui_context.clip_elements_stack);
-  }
+  return context;
 }
 
-func B32
-UI_Hovered()
-{
-  UI_Widget* element = UI_GetOpenedWidget();
-  return ui_context.hot_id == element->id;
+func void
+UI_DestroyContext(UI_Context* context) {
+  FreeArena(context->arena);
+  FreeArena(context->frame_arena);
 }
 
-func B32
-UI_IsClicked()
-{
-  B32 result = 0;
-  UI_Widget* current_element = UI_WidgetArrayGetPointer(&ui_context.elements, ui_context.elements.length - 1);
+func void
+UI_SelectContext(UI_Context* context) {
+  ui_current_context = context;
+}
+
+// -- Passes
+func void
+UI_CalculateIndependentSizes(UI_Widget* root, UI_Axis axis) {
+  switch (root->info.layout.sizes[axis].kind) {
+    default: {
+      root->empty_size.values[axis] = 0;
+    }break;
+    case UI_SizeKind_Pixel: {
+      root->bounding_box.size.values[axis] = root->info.layout.sizes[axis].value;
+      F32 padding_0 = root->info.layout.paddings.values[axis*2];
+      F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+      root->empty_size.values[axis] = root->bounding_box.size.values[axis] - padding_0 - padding_1;
+    } break;
+    case UI_SizeKind_Fill: {
+      root->parent->growable_children_count[axis] += 1;
+    } break;
+  }
   
-  if (ui_context.active_id == current_element->id)
-  {
-    if ((ui_context.hot_id == current_element->id) && OS_MouseReleased(OS_MouseButton_Left))
-    {
-      ui_context.active_id = 0;
-      result = 1;
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculateIndependentSizes(child, axis);
+    if (child->info.layout.sizes[axis].kind == UI_SizeKind_Pixel) {
+      B32 right_direction = root->info.layout.direction == axis;
+      F32 child_gap = child->prev ? root->info.layout.child_gap*(F32)(right_direction) : 0;
+      root->empty_size.values[axis] -= (child->bounding_box.size.values[axis] + child_gap);
     }
   }
-  else if (ui_context.hot_id == current_element->id)
-  {
-    if (OS_MousePressed(OS_MouseButton_Left)) ui_context.active_id = current_element->id;
+}
+
+func void
+UI_CalculateParentDependentSizes(UI_Widget* root, UI_Axis axis) {
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    switch (child->info.layout.sizes[axis].kind) {
+      default: break;
+      case UI_SizeKind_Percent: {
+        B32 right_direction = root->info.layout.direction == axis;
+        F32 child_gap = child->prev ? root->info.layout.child_gap*(F32)(right_direction) : 0;
+        F32 padding_0 = root->info.layout.paddings.values[axis*2];
+        F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+        child->bounding_box.size.values[axis] = root->bounding_box.size.values[axis]*child->info.layout.sizes[axis].value - padding_0 - padding_1 - child_gap;
+        child->empty_size.values[axis] += child->bounding_box.size.values[axis];
+        root->empty_size.values[axis] -= child->bounding_box.size.values[axis];
+      } break;
+      case UI_SizeKind_Fill: {
+        F32 child_gap = root->info.layout.child_gap;
+        F32 padding_0 = root->info.layout.paddings.values[axis*2];
+        F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+        child->bounding_box.size.values[axis] = (root->empty_size.values[axis] - padding_0 - padding_1 - child_gap*Max(0, root->growable_children_count[axis] - 1))/root->growable_children_count[axis];
+        child->empty_size.values[axis] = child->bounding_box.size.values[axis];
+      } break;
+    }
   }
 
-  return result;
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculateParentDependentSizes(child, axis);
+  }
+}
+
+func void
+UI_CalculateChildDependentSizes(UI_Widget* root, UI_Axis axis) {
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculateChildDependentSizes(child, axis);
+  }
+
+  switch (root->info.layout.sizes[axis].kind) {
+    default: break;
+    case UI_SizeKind_Fit: {
+      F32 padding_0 = root->info.layout.paddings.values[axis*2];
+      F32 padding_1 = root->info.layout.paddings.values[axis*2 + 1];
+      F32 child_gap = root->info.layout.child_gap;
+      root->bounding_box.size.values[axis] = padding_0 + padding_1 + child_gap;
+      for (UI_Widget* child = root->first; child != 0; child = child->next) {
+        root->bounding_box.size.values[axis] += child->bounding_box.size.values[axis];
+      }
+    } break;
+  }
+}
+
+func void 
+UI_CalculatePositions(UI_Widget* root, UI_Axis axis) {
+  F32 offset = root->bounding_box.position.values[axis];
+  F32 padding = root->info.layout.paddings.values[axis*2];
+
+  if ((root->info.flags & UI_WidgetFlag_Scroll) && UI_KeyEqual(root->key, ui_current_context->next_hot_key)) {
+    UI_Axis direction = root->info.layout.direction;
+    root->scroll_offset.values[direction] += ui_current_context->mouse_scroll.values[direction];
+    root->scroll_offset.values[direction] = Clamp(root->scroll_offset.values[direction], root->empty_size.values[direction], 0.0f);
+  }
+
+  F32 scroll_offset = root->scroll_offset.values[axis];
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    child->bounding_box.position.values[axis] = offset + padding + scroll_offset;
+    if (root->info.layout.direction == axis) {
+      offset += (child->bounding_box.size.values[axis] + root->info.layout.child_gap);
+    }
+  }
+
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_CalculatePositions(child, axis);
+  }
+}
+
+func void
+UI_FinalPass(UI_Widget* root) {
+  // Interaction
+  if (root->info.flags & UI_WidgetFlag_MouseInteraction) {
+    B32 mouse_inside = InsideRectF32(root->bounding_box, ui_current_context->mouse_position);
+    if (mouse_inside) {
+      ui_current_context->hot_key = root->key;
+    }
+  }
+
+  if (root->info.flags & UI_WidgetFlag_Scroll) {
+    UI_DrawCommand* draw_command = (UI_DrawCommand*)PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Scissor;
+    draw_command->scissor.bounding_box = root->bounding_box;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
+  }
+
+  // Build draw commands
+  if (root->info.flags & UI_WidgetFlag_DrawBackground) {
+    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Rectangle;
+    draw_command->rectangle.bounding_box = root->bounding_box;
+    draw_command->rectangle.radius = root->info.style.radius;
+    draw_command->rectangle.border_width = root->info.style.border_width;
+    draw_command->rectangle.background_color = root->info.style.background_color;
+    draw_command->rectangle.border_color = root->info.style.border_color.a > 0.0f ? root->info.style.border_color : root->info.style.background_color;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
+  }
+
+  if (root->info.flags & UI_WidgetFlag_DrawCustom) {
+    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Custom;
+    draw_command->custom.bounding_box = root->bounding_box;
+    draw_command->custom.data = root->info.custom;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
+  }
+
+  if (root->info.flags & UI_WidgetFlag_DrawText) {
+    Assert(root->info.text.font != 0);
+
+    UI_DrawCommand* draw_command = PushArena(ui_current_context->frame_arena, sizeof(UI_DrawCommand));
+    draw_command->kind = UI_DrawCommandKind_Text;
+    draw_command->text.font = root->info.text.font;
+    draw_command->text.str = root->info.text.str;
+    switch (root->info.text.alignment) {
+      default: break;
+      case UI_TextAlignment_Left: {
+        draw_command->text.position = root->bounding_box.position;
+        draw_command->text.position.y += root->bounding_box.size.y;
+      } break;
+      case UI_TextAlignment_Right: {
+        Vec2F32 text_size = AST_TextSize(root->info.text.str, root->info.text.font);
+        F32 x_right = root->bounding_box.position.x + root->bounding_box.size.x;
+        draw_command->text.position.x = x_right - text_size.x;
+        draw_command->text.position.y = root->bounding_box.position.y + root->bounding_box.size.y;
+      } break;
+      case UI_TextAlignment_Center: {
+        Vec2F32 text_size = AST_TextSize(root->info.text.str, root->info.text.font);
+        Vec2F32 root_center = AddVec2F32(root->bounding_box.position, ScaleVec2F32(root->bounding_box.size, 0.5f));
+        draw_command->text.position.x = root_center.x - text_size.x*0.5f;
+        draw_command->text.position.y = root->bounding_box.position.y + root->bounding_box.size.y;
+      };
+    }
+    draw_command->text.size = 0; // --AlNov: @TODO Do nothing for now
+    draw_command->text.color = root->info.text.color;
+    SllPushBack(ui_current_context->first_draw_command, ui_current_context->last_draw_command, draw_command);
+  }
+
+  for (UI_Widget* child = root->first; child != 0; child = child->next) {
+    UI_FinalPass(child);
+  }
+}
+
+// -- Context/Widget Information
+func Vec2F32
+UI_GetMousePosition() {
+  return ui_current_context->mouse_position;
+}
+
+func Vec2F32
+UI_GetMousePositionDelta() {
+  return SubVec2F32(ui_current_context->mouse_position, ui_current_context->previous_mouse_position);
 }
 
 func RectF32
-UI_GetWidgetRectF32()
-{
-  UI_Widget* opened_element = UI_GetOpenedWidget();
-  UI_WidgetPersistantData* persistant_data = UI_WidgetPersistantDataArrayGetPointer(&ui_context.widget_datas, opened_element->id);
-  return persistant_data->rectangle;
+UI_GetBoundingBox() {
+  return ui_current_context->opened_widget->bounding_box;
 }
 
-func void
-UI_Text(Str8 text, UI_TextDescription text_description)
-{
-  // --AlNov 14 December 2025: @TODO
-  // Roundtrip to set what text to draw. I am sure that there is a better way.
-  UI_TextDescription with_str = text_description;
-  with_str.str = text;
-
-  Vec2F32 text_dimension = GetTextSize(text_description.font, text, text_description.font_size);
-
-  UI_WidgetBlock({
-    .name = text,
-    .kind = UI_WidgetKind_Text,
-    .flags = UI_WidgetFlag_DrawLabel,
-    .text = with_str,
-    .layout = {
-      .width = UI_PixelSize(text_dimension.x),
-      .height = UI_PixelSize(text_dimension.y),
-    }
-  });
-}
-
-#if 0
-func UI_Widget*
-UI_Layout(UI_WidgetArray* array, Str8 label)
-{
-  UI_Widget* layout = UI_BuildWidget(
-    array,
-    (UI_WidgetDescription){
-      .flags = UI_WidgetFlag_DrawBackground,
-    }
-  );
-  return layout;
-}
-
-func void
-UI_NumberInput(UI_WidgetArray* array, Str8 label, F32* value)
-{
-  F32 result = *value;
-
-  UI_Widget* input = UI_BuildWidget(
-    array,
-    (UI_WidgetDescription){
-      .flags = UI_WidgetFlag_Hover | UI_WidgetFlag_DrawLabel | UI_WidgetFlag_DrawBackground,
-    }
-  );
-
-  if (ui_context.active_id == input->id)
-  {
-    if (OS_IsKeyPressed(OS_KEY_0))
-    {
-      result = result*10;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_1))
-    {
-      result = result*10 + 1;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_2))
-    {
-      result = result*10 + 2;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_3))
-    {
-      result = result*10 + 3;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_4))
-    {
-      result = result*10 + 4;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_5))
-    {
-      result = result*10 + 5;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_6))
-    {
-      result = result*10 + 6;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_7))
-    {
-      result = result*10 + 7;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_8))
-    {
-      result = result*10 + 8;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_9))
-    {
-      result = result*10 + 9;
-    }
-    else if (OS_IsKeyPressed(OS_KEY_BACKSPACE))
-    {
-      result = (F32)((I32)(result/10));
-    }
-    else if (OS_IsKeyPressed(OS_KEY_RETURN))
-    {
-      ui_context.active_id = 0;
-    }
-  }
-  else if (ui_context.hot_id == input->id)
-  {
-    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = input->id;
-  }
-
-  *value = result;
-}
-
+// -- Interaction
 func B32
-UI_Button(UI_WidgetArray* array, Str8 label)
-{
-  B32 result = 0;
-
-  UI_Widget* button = UI_BuildWidget(
-    array,
-    (UI_WidgetDescription){
-      .flags = UI_WidgetFlag_Hover | UI_WidgetFlag_DrawLabel | UI_WidgetFlag_DrawBackground,
-      .rectangle.radius = {.top_right = 10.0f, .bottom_right = 10.0f},
-    }
-  );
-
-  if (ui_context.active_id == button->id)
-  {
-    if ((ui_context.hot_id == button->id) && OS_IsMouseReleased(OS_MouseButton_Left))
-    {
-      ui_context.active_id = 0;
-      result = 1;
-    }
-  }
-  else if (ui_context.hot_id == button->id)
-  {
-    if (OS_IsMousePressed(OS_MouseButton_Left)) ui_context.active_id = button->id;
-  }
-
+UI_IsHot() {
+  B32 result = UI_KeyEqual(ui_current_context->opened_widget->key, ui_current_context->next_hot_key);
   return result;
 }
 
-func F32
-UI_SliderF32(UI_WidgetArray* array, Str8 label, F32 min, F32 max, F32* value)
-{
-  UI_Widget* slider = UI_BuildWidget(
-    array,
-    (UI_WidgetDescription){
-      .flags = UI_WidgetFlag_Hover|
-        UI_WidgetFlag_DrawLabel|
-        UI_WidgetFlag_DrawBackground,
-    }
-  );
-
-  F32 slider_value = (*value - min)/(max-min);
-
-  UI_DrawCommandArrayAdd(
-    &ui_context.draw_commands,
-    (UI_DrawCommand){
-      .type = UI_DrawCommandType_Rectangle,
-      .rectangle = {
-        .color = MakeVec4(0.4f, 0.4f, 0.4f, 0.5f),
-        .bound = {
-          .position = slider->rect.position,
-          .size.x = slider->rect.size.x*slider_value,
-          .size.y = slider->rect.size.y,
-        },
-      },
-    }
-  );
-
-  if (ui_context.active_id == slider->id)
-  {
-    if (OS_IsMouseDown(OS_MouseButton_Left))
-    {
-      F32 slider_value = (ui_context.mouse_position.x - slider->rect.position.x)/slider->rect.size.x;
-      slider_value = Clamp(slider_value, 0.0f, 1.0f);
-      *value = min*(1.0f - slider_value) + max*slider_value;
-    }
-    else
-    {
-      ui_context.active_id = 0;
-    }
+func void
+UI_SetActive() {
+  if (UI_KeyEqual(ui_current_context->active_key, UI_ZeroKey())) {
+    ui_current_context->active_key = ui_current_context->opened_widget->key;
   }
-  else if (ui_context.hot_id == slider->id)
-  {
-    if (OS_IsMousePressed(OS_MouseButton_Left))
-    {
-      ui_context.active_id = slider->id;
-    }
-  }
-
-  return 0.0f;
 }
-#endif
+
+func void
+UI_UnsetActive() {
+  ui_current_context->active_key = UI_ZeroKey();
+}
+
+func B32
+UI_IsActive() {
+  return UI_KeyEqual(ui_current_context->opened_widget->key, ui_current_context->active_key);
+}
