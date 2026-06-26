@@ -2,13 +2,15 @@
 #include "os/os_include.h"
 #include "rhi/rhi_include.h"
 #include "assets/font.h"
-#include "ui_new/ui_include.h"
+#include "ui/ui_include.h"
+#include "draw/draw.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
 #include "assets/font.c"
-#include "ui_new/ui_include.c"
+#include "ui/ui_include.c"
+#include "draw/draw.c"
 
 typedef struct UI_DemoCategory UI_DemoCategory;
 struct UI_DemoCategory {
@@ -23,7 +25,6 @@ static struct {
   OS_Window*           window;
   RHI_Buffer           gpu_buffer;
   RHI_Buffer           transfer_buffer;
-  RHI_GraphicsPipeline rectangle_pipeline;
   RHI_GraphicsPipeline value_saturation_pipeline;
   RHI_GraphicsPipeline hue_pipeline;
   RHI_GraphicsPipeline text_pipeline;
@@ -366,9 +367,6 @@ UI_DemoCategoryScroll() {
 
 func void
 Demo_BuildUI(OS_Window* window) {
-  Vec2F32 mouse_position = OS_MousePosition(window);
-  Vec2F32 mouse_scroll = MakeVec2F32(0.0f, 0.0f);
-
   UI_SelectContext(ui_demo.ui_context);
   UI_BeginFrame(ui_demo.dt, OS_MousePosition(window), OS_MouseScroll()); {
     UI_WidgetBlock(
@@ -427,35 +425,15 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             Assert(0 && "Unsupported UI draw command");
           } break;
           case UI_DrawCommandKind_Rectangle: {
-            RectF32 bound = draw_command->rectangle.bounding_box;
-
-            struct {
-              Mat4F32 projection;
-              Vec4F32 position_size;
-              Vec4F32 radius;
-              Vec4F32 color;
-              Vec4F32 border_color;
-              F32     border_width;
-            } data = {
-              .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
-              .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
-              .radius = draw_command->rectangle.radius, 
-              .color = draw_command->rectangle.background_color,
-              .border_color = draw_command->rectangle.border_color,
-              .border_width = draw_command->rectangle.border_width,
-            };
-            U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
-
-            RHI_ShaderArgument arguments[] = {
-              {
-                .kind = RHI_ShaderArgumentKind_BufferAddress,
-                .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + data_offset,
-              }
-            };
-            RHI_BindGraphicsPipeline(command_buffer, ui_demo.rectangle_pipeline);
-            RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
-            RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
-            RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+            D_DrawRectWithBorder(
+              command_buffer,
+              ui_demo.gpu_buffer,
+              draw_command->rectangle.bounding_box,
+              draw_command->rectangle.radius,
+              draw_command->rectangle.background_color,
+              draw_command->rectangle.border_width,
+              draw_command->rectangle.border_color
+            );
           } break;
           case UI_DrawCommandKind_Text: {
             F32 spacing = 0;
@@ -587,37 +565,6 @@ I32 main() {
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
   ui_demo.gpu_buffer = RHI_CreateBuffer(Str8C("UI_Demo_Buffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostVisible|RHI_BufferPropertyFlag_HostCoherent);
   ui_demo.transfer_buffer = RHI_CreateBuffer(Str8C("UI_Demo_TransferBuffer"), Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
-  {
-    RHI_ShaderArgumentKind vertex_shader_arguments[] = {
-      RHI_ShaderArgumentKind_BufferAddress,
-    };
-    RHI_Shader vertex_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/draw/rectangle.vs"),
-      .kind = RHI_ShaderKind_Vertex,
-      .arguments = vertex_shader_arguments,
-      .arguments_count = ArrayLength(vertex_shader_arguments),
-    });
-
-    RHI_ShaderArgumentKind fragment_shader_arguments[] = {
-      RHI_ShaderArgumentKind_BufferAddress,
-    };
-    RHI_Shader fragment_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/draw/rectangle.fs"),
-      .kind = RHI_ShaderKind_Fragment,
-      .arguments = fragment_shader_arguments,
-      .arguments_count = ArrayLength(fragment_shader_arguments),
-    });
-
-    ui_demo.rectangle_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
-      .vertex_shader = &vertex_shader,
-      .fragment_shader = &fragment_shader,
-      .color_targets_count = 1,
-      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
-        .format = RHI_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      }
-    });
-  }
   // Value/Saturation rectangle pipeline
   {
     RHI_ShaderArgumentKind vertex_shader_arguments[] = {
@@ -721,6 +668,8 @@ I32 main() {
       }
     );
   }
+
+  D_Init(Kilobytes(64));
 
   ui_demo.resource_table = RHI_CreateResourceTable(ui_demo.global_arena, 256, 1);
   ui_demo.default_sampler = RHI_CreateTextureSampler(

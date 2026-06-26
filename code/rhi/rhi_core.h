@@ -437,7 +437,9 @@ func void                RHI_BindResourceTable(RHI_CommandBuffer command_buffer,
 // -------------------------------------------------------------------
 // -- Set States And Draw --------------------------------------------
 func void RHI_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport);
+func RectI32 RHI_GetViewport(RHI_CommandBuffer command_buffer);
 func void RHI_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor);
+func RectI32 RHI_GetScissor(RHI_CommandBuffer command_buffer);
 func void RHI_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 func void RHI_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
 
@@ -508,7 +510,9 @@ struct RHI_Device {
 
 	// State and Draw
 	void (*SetViewport)(RHI_CommandBuffer command_buffer, RectI32 viewport);
+  RectI32 (*GetViewport)(RHI_CommandBuffer command_buffer);
 	void (*SetScissor)(RHI_CommandBuffer command_buffer, RectI32 scissor);
+  RectI32(*GetScissor)(RHI_CommandBuffer command_buffer);
 	void (*DrawPrimitives)(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance);
 	void (*DrawIndexedPrimitives)(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance);
   void (*PresentTexture)(RHI_CommandBuffer command_buffer, RHI_Texture texture);
@@ -556,7 +560,9 @@ struct RHI_Device {
 	AssignDeviceFunction(api_name, CreateGraphicsPipeline) \
 	AssignDeviceFunction(api_name, BindGraphicsPipeline) \
 	AssignDeviceFunction(api_name, SetViewport) \
+	AssignDeviceFunction(api_name, GetViewport) \
 	AssignDeviceFunction(api_name, SetScissor) \
+	AssignDeviceFunction(api_name, GetScissor) \
 	AssignDeviceFunction(api_name, DrawPrimitives) \
 	AssignDeviceFunction(api_name, DrawIndexedPrimitives) \
   AssignDeviceFunction(api_name, PresentTexture) \

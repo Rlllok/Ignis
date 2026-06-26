@@ -265,6 +265,16 @@ RHI_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
 	_r_state.device.SetViewport(command_buffer, viewport);
 }
 
+func RectI32
+RHI_GetViewport(RHI_CommandBuffer command_buffer) {
+  return _r_state.device.GetViewport(command_buffer);
+}
+
+func RectI32
+RHI_GetScissor(RHI_CommandBuffer command_buffer) {
+  return _r_state.device.GetScissor(command_buffer);
+}
+
 func void
 RHI_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor) {
 	_r_state.device.SetScissor(command_buffer, scissor);

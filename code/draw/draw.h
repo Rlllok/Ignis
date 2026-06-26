@@ -4,15 +4,18 @@
 
 struct D_State {
   Arena* arena;
-  // -- 2D
-  RHI_GraphicsPipeline square_pipeline;
-  RHI_GraphicsPipeline font_pipeline;
-  // -- 3D
+
+  RHI_ResourceTable rhi_resource_table;
+
+  // -- 2D Pipelines
+  RHI_GraphicsPipeline rectangle_pipeline;
+  RHI_GraphicsPipeline text_pipeline;
+  // -- 3D Pipelines
   RHI_GraphicsPipeline line_3d_pipeline;
 } _d_state;
 
 func void D_Init(U64 arena_size);
 func void D_PreparePipelines();
 
-func void D_DrawRect(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectI32 viewport, RectF32 rect, Vec4F32 border_radius, Vec4F32 color, Vec4F32 border_color);
-// func void D_DrawText(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RHI_TextureSampler sampler, RectI32 viewport, FontBitmap font, Str8 text, U32 font_size, Vec2F32 position, Vec4F32 color);
+func void D_DrawRectWithBorder(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, Vec4F32 radius, Vec4F32 color, F32 border_width, Vec4F32 border_color);
+#define D_DrawRect(command_buffer, buffer, rect, radius) D_DrawRectWithBorder(command_buffer, buffer, rect, radius, color, 0.0f, color)

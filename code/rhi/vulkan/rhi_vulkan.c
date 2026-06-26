@@ -1559,7 +1559,7 @@ RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
 
 	VkViewport vk_viewport = {
 		.x = viewport.x,
-		.y = viewport.h,
+		.y = viewport.y + viewport.h,
 		.width = viewport.w,
 		.height = -viewport.h,
     .minDepth = 0.0f,
@@ -1567,6 +1567,24 @@ RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
 	};
 	vkCmdSetViewport(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_viewport);
   vk_command_buffer->current_viewport = vk_viewport;
+}
+
+func RectI32
+RHI_VK_GetViewport(RHI_CommandBuffer command_buffer) {
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RectI32 result = ZeroStruct();
+  result.x = vk_command_buffer->current_viewport.x;
+  result.y = vk_command_buffer->current_viewport.y + vk_command_buffer->current_viewport.height; // vk_command_buffer->current_viewport.y;
+  result.w = vk_command_buffer->current_viewport.width;
+  result.h = -vk_command_buffer->current_viewport.height;
+  return result;
+}
+
+func RectI32
+RHI_VK_GetScissor(RHI_CommandBuffer command_buffer) {
+  // --AlNov: @TODO
+  RectI32 result = ZeroStruct();
+  return result;
 }
 
 func void
