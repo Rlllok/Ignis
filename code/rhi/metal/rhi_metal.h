@@ -70,6 +70,7 @@ struct RHI_Metal_CommandBuffer {
   RHI_Metal_GraphicsPipeline* current_graphics_pipeline;
 
   I32               current_frame;
+  MTLViewport       current_viewport;
   RHI_Metal_Buffer* current_index_buffer;
   U64               index_buffer_offset;
   RHI_IndexSize     index_size;

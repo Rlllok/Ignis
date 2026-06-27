@@ -646,6 +646,25 @@ RHI_Metal_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
     .zfar = 10.0f,
   };
   [mtl_command_buffer->render_encoder setViewport:mtl_viewport];
+  mtl_command_buffer->current_viewport = mtl_viewport;
+}
+
+func RectI32
+RHI_Metal_GetViewport(RHI_CommandBuffer command_buffer) {
+  RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
+  RectI32 result = ZeroStruct();
+  result.x = mtl_command_buffer->current_viewport.originX;
+  result.y = mtl_command_buffer->current_viewport.originY;
+  result.w = mtl_command_buffer->current_viewport.width;
+  result.h = mtl_command_buffer->current_viewport.height;
+  return result;
+}
+
+func RectI32
+RHI_Metal_GetScissor(RHI_CommandBuffer command_buffer) {
+  RectI32 result = ZeroStruct();
+  // --AlNov: @TODO
+  return result;
 }
 
 func void
