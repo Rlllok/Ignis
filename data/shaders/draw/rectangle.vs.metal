@@ -16,7 +16,10 @@ struct RectangleData {
   float4x4 projection;
   float4   position_size;
   float4   radius;
-  float4   color;
+  float4   top_left_color;
+  float4   top_right_color;
+  float4   bottom_right_color;
+  float4   bottom_left_color;
   float4   border_color;
   float    border_width;
 };

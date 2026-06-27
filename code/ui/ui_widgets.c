@@ -251,10 +251,26 @@ UI_ColorPicker(Str8 label, Vec4F32* color, UI_TextStyleInfo text, UI_WidgetLayou
       .style = style,
     }
   ) {
+    UI_WidgetBlock(
+      ConcatStr8(ui_current_context->frame_arena, label, Str8C("_ResultColor")),
+      {
+        .flags = UI_WidgetFlag_DrawBackground,
+        .layout = {
+          .width = UI_PercentSize(1.0f),
+          .height = UI_PixelSize(20.0f),
+        },
+        .style = {
+          .background_color = MakeVec4F32(color->r, color->g, color->b, 1.0f),
+        },
+      }
+    ) {
+    }
+
     Vec3F32 hsv = HSVFromRGB(MakeVec3F32(color->r, color->g, color->b));
     UI_CustomWidgetInfo* value_saturation_info = (UI_CustomWidgetInfo*)PushArena(ui_current_context->frame_arena, sizeof(UI_CustomWidgetInfo));
     value_saturation_info->kind = UI_CustomWidgetKind_ValueSaturation;
     value_saturation_info->value_saturation.hsv = hsv;
+    value_saturation_info->value_saturation.hsv.x = 1.0f - hsv.x; // --AlNov: @TODO I cannot understand why I have to inverse hue for value_saturation box
     UI_WidgetBlock(
       ConcatStr8(ui_current_context->frame_arena, label, Str8C("_ColorWheel")),
       {
@@ -275,6 +291,8 @@ UI_ColorPicker(Str8 label, Vec4F32* color, UI_TextStyleInfo text, UI_WidgetLayou
         RectF32 bounding_box = UI_GetBoundingBox();
         hsv.y = Clamp(mouse_position.x - bounding_box.x, 0.0f, bounding_box.w)/bounding_box.w;
         hsv.z = 1.0f - Clamp(mouse_position.y - bounding_box.y, 0.0f, bounding_box.h)/bounding_box.h;
+        Vec3F32 rgb = RGBFromHSV(hsv);
+        *color = MakeVec4F32(rgb.r, rgb.g, rgb.b, 1.0f);
         if (OS_MouseReleased(OS_MouseButton_Left)) {
           UI_UnsetActive();
         }
@@ -303,28 +321,12 @@ UI_ColorPicker(Str8 label, Vec4F32* color, UI_TextStyleInfo text, UI_WidgetLayou
         RectF32 bounding_box = UI_GetBoundingBox();
         F32 local_mouse_x = Clamp(mouse_position.x - bounding_box.x, 0, bounding_box.w);
         hsv.x = local_mouse_x/bounding_box.w;
+        Vec3F32 rgb = RGBFromHSV(hsv);
+        *color = MakeVec4F32(rgb.r, rgb.g, rgb.b, 1.0f);
         if (OS_MouseReleased(OS_MouseButton_Left)) {
           UI_UnsetActive();
         }
       }
     }
-
-    UI_WidgetBlock(
-      ConcatStr8(ui_current_context->frame_arena, label, Str8C("_ResultColor")),
-      {
-        .flags = UI_WidgetFlag_DrawBackground,
-        .layout = {
-          .width = UI_PercentSize(1.0f),
-          .height = UI_PixelSize(20.0f),
-        },
-        .style = {
-          .background_color = MakeVec4F32(color->r, color->g, color->b, 1.0f),
-        },
-      }
-    ) {
-    }
-
-    Vec3F32 rgb = RGBFromHSV(hsv);
-    *color = MakeVec4F32(rgb.r, rgb.g, rgb.b, 1.0f);
   } 
 }

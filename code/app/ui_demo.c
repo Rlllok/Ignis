@@ -25,8 +25,6 @@ static struct {
   OS_Window*           window;
   RHI_Buffer           gpu_buffer;
   RHI_Buffer           transfer_buffer;
-  RHI_GraphicsPipeline value_saturation_pipeline;
-  RHI_GraphicsPipeline hue_pipeline;
   RHI_GraphicsPipeline text_pipeline;
   RHI_ResourceTable    resource_table;
   RHI_TextureSampler   default_sampler;
@@ -321,7 +319,7 @@ UI_DemoCategoryWidgets() {
         .paddings = UI_PaddingAll(5.0f),
         .child_gap = 10.0f,
       };
-      local_persist Vec4F32 color_picker_value = {0.2f, 0.1f, 0.2f, 0.5f};
+      local_persist Vec4F32 color_picker_value = {1.0f, 1.0f, 0.0f, 1.0f};
       UI_ColorPicker(Str8C("ColorPicker"), &color_picker_value, default_text, color_picker_layout, default_style);
     }
   }
@@ -487,6 +485,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             switch (custom_info->kind) {
               default: break;
               case UI_CustomWidgetKind_Hue: {
+              #if 0
                 struct {
                   Mat4F32 projection;
                   Vec4F32 position_size;
@@ -507,29 +506,51 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
                 RHI_BindResourceTable(command_buffer, ui_demo.hue_pipeline);
                 RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
                 RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+              #endif
+                F32 x_offset = bound.w/6;
+                RectF32 segment_bound = {
+                  .x = bound.x,
+                  .y = bound.y,
+                  .w = x_offset,
+                  .h = bound.h,
+                };
+                Vec4F32 red = MakeVec4F32(1.0f, 0.0f, 0.0, 1.0f);
+                Vec4F32 yellow = MakeVec4F32(1.0f, 1.0f, 0.0, 1.0f);
+                Vec4F32 green = MakeVec4F32(0.0f, 1.0f, 0.0, 1.0f);
+                Vec4F32 cyan = MakeVec4F32(0.0f, 1.0f, 1.0, 1.0f);
+                Vec4F32 blue = MakeVec4F32(0.0f, 0.0f, 1.0, 1.0f);
+                Vec4F32 purple = MakeVec4F32(1.0f, 0.0f, 1.0, 1.0f);
+                D_DrawRectGradient(command_buffer, ui_demo.gpu_buffer, segment_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), red, yellow, yellow, red);
+                segment_bound.x += x_offset;
+                D_DrawRectGradient(command_buffer, ui_demo.gpu_buffer, segment_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), yellow, green, green, yellow);
+                segment_bound.x += x_offset;
+                D_DrawRectGradient(command_buffer, ui_demo.gpu_buffer, segment_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), green, cyan, cyan, green);
+                segment_bound.x += x_offset;
+                D_DrawRectGradient(command_buffer, ui_demo.gpu_buffer, segment_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), cyan, blue, blue, cyan);
+                segment_bound.x += x_offset;
+                D_DrawRectGradient(command_buffer, ui_demo.gpu_buffer, segment_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), blue, purple, purple, blue);
+                segment_bound.x += x_offset;
+                D_DrawRectGradient(command_buffer, ui_demo.gpu_buffer, segment_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), purple, red, red, purple);
+                RectF32 pointer_bound = {
+                  .x = bound.x + bound.w*custom_info->hue.value,
+                  .y = bound.y - 4.0f,
+                  .w = 8.0f,
+                  .h = bound.h + 8.0f,
+                };
+                D_DrawRectWithBorder(command_buffer, ui_demo.gpu_buffer, pointer_bound, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), MakeVec4F32(1.0f, 1.0f, 1.0f, 0.5f), 1.0f, MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f));
               } break;
               case UI_CustomWidgetKind_ValueSaturation: {
-                struct {
-                  Mat4F32 projection;
-                  Vec4F32 position_size;
-                  Vec3F32 hsv; F32 hsv_padding;
-                } data = {
-                  .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
-                  .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
-                  .hsv = custom_info->value_saturation.hsv,
-                };
-                U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
-
-                RHI_ShaderArgument arguments[] = {
-                  {
-                    .kind = RHI_ShaderArgumentKind_BufferAddress,
-                    .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + data_offset,
-                  }
-                };
-                RHI_BindGraphicsPipeline(command_buffer, ui_demo.value_saturation_pipeline);
-                RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
-                RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
-                RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+                Vec3F32 rgb = RGBFromHSV(MakeVec3F32(custom_info->value_saturation.hsv.x, 1.0f, 1.0f));
+                D_DrawRectGradient(
+                  command_buffer,
+                  ui_demo.gpu_buffer,
+                  bound,
+                  MakeVec4F32(2.0f, 2.0f, 2.0f, 2.0f),
+                  MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f),
+                  MakeVec4F32(rgb.r, rgb.b, rgb.g, 1.0f),
+                  MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f),
+                  MakeVec4F32(0.0f, 0.0f, 0.0f, 1.0f)
+                );
               } break;
             }
           } break;
@@ -565,70 +586,6 @@ I32 main() {
   RHI_CommandBuffer command_buffer = RHI_GetCommandBuffer();
   ui_demo.gpu_buffer = RHI_CreateBuffer(Str8C("UI_Demo_Buffer"), Megabytes(16), RHI_BufferUsageFlag_Storage|RHI_BufferUsageFlag_Address, RHI_BufferPropertyFlag_HostVisible|RHI_BufferPropertyFlag_HostCoherent);
   ui_demo.transfer_buffer = RHI_CreateBuffer(Str8C("UI_Demo_TransferBuffer"), Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent);
-  // Value/Saturation rectangle pipeline
-  {
-    RHI_ShaderArgumentKind vertex_shader_arguments[] = {
-      RHI_ShaderArgumentKind_BufferAddress,
-    };
-    RHI_Shader vertex_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/draw/value_saturation_rectangle.vs"),
-      .kind = RHI_ShaderKind_Vertex,
-      .arguments = vertex_shader_arguments,
-      .arguments_count = ArrayLength(vertex_shader_arguments),
-    });
-
-    RHI_ShaderArgumentKind fragment_shader_arguments[] = {
-      RHI_ShaderArgumentKind_BufferAddress,
-    };
-    RHI_Shader fragment_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/draw/value_saturation_rectangle.fs"),
-      .kind = RHI_ShaderKind_Fragment,
-      .arguments = fragment_shader_arguments,
-      .arguments_count = ArrayLength(fragment_shader_arguments),
-    });
-
-    ui_demo.value_saturation_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
-      .vertex_shader = &vertex_shader,
-      .fragment_shader = &fragment_shader,
-      .color_targets_count = 1,
-      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
-        .format = RHI_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      }
-    });
-  }
-  // Hue rectangle pipeline
-  {
-    RHI_ShaderArgumentKind vertex_shader_arguments[] = {
-      RHI_ShaderArgumentKind_BufferAddress,
-    };
-    RHI_Shader vertex_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/draw/hue_rectangle.vs"),
-      .kind = RHI_ShaderKind_Vertex,
-      .arguments = vertex_shader_arguments,
-      .arguments_count = ArrayLength(vertex_shader_arguments),
-    });
-
-    RHI_ShaderArgumentKind fragment_shader_arguments[] = {
-      RHI_ShaderArgumentKind_BufferAddress,
-    };
-    RHI_Shader fragment_shader = RHI_CreateShader(ui_demo.global_arena, &(RHI_ShaderCreateInfo) {
-      .file_name = Str8C("./data/shaders/draw/hue_rectangle.fs"),
-      .kind = RHI_ShaderKind_Fragment,
-      .arguments = fragment_shader_arguments,
-      .arguments_count = ArrayLength(fragment_shader_arguments),
-    });
-
-    ui_demo.hue_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
-      .vertex_shader = &vertex_shader,
-      .fragment_shader = &fragment_shader,
-      .color_targets_count = 1,
-      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
-        .format = RHI_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
-      }
-    });
-  }
 
   // Text Pipeline
   {

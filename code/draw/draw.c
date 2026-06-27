@@ -52,21 +52,27 @@ D_PreparePipelines() {
 }
 
 func void
-D_DrawRectWithBorder(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, Vec4F32 radius, Vec4F32 color, F32 border_width, Vec4F32 border_color) {
+D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, Vec4F32 radius, Vec4F32 top_left_color, Vec4F32 top_right_color, Vec4F32 bottom_right_color, Vec4F32 bottom_left_color, F32 border_width, Vec4F32 border_color) {
   RectI32 viewport = RHI_GetViewport(command_buffer);
 
   struct {
     Mat4F32 projection;
     Vec4F32 position_size;
     Vec4F32 radius;
-    Vec4F32 color;
+    Vec4F32 top_left_color;
+    Vec4F32 top_right_color;
+    Vec4F32 bottom_right_color;
+    Vec4F32 bottom_left_color;
     Vec4F32 border_color;
     F32     border_width;
   } data = {
     .projection = MakeOrthographicMat4F32(0.0f, viewport.w, viewport.h, 0.0f, -1.0f, 1.0f),
     .position_size = MakeVec4F32(rect.x, rect.y, rect.w, rect.h),
     .radius = radius,
-    .color = color,
+    .top_left_color = top_left_color,
+    .top_right_color = top_right_color,
+    .bottom_right_color = bottom_right_color,
+    .bottom_left_color = bottom_left_color,
     .border_color = border_color,
     .border_width = border_width,
   };
