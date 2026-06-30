@@ -28,8 +28,8 @@ float HexagonGrid(float2 uv) {
 struct GridData {
   float4x4 transform;
   float4x4 camera_transform;
-  float3   background_color;
-  float3   grid_color;
+  float4   background_color;
+  float4   grid_color;
 };
 
 fragment float4 FragmentMain(
@@ -43,8 +43,8 @@ fragment float4 FragmentMain(
   float grid_border = 0.8f*smoothstep(-0.02, 0.0f, grid_cell - 0.5f + line_width);
   float grid_center = 0.3f*smoothstep(0.3f + 0.02f, 0.3f, grid_cell);
 
-  float3 grid = grid_data->background_color;
+  float4 grid = grid_data->background_color;
   grid = mix(grid, grid_data->grid_color, grid_border);
   grid = mix(grid, grid_data->grid_color, grid_center);
-  return float4(grid, 1.0f);
+  return grid;
 }

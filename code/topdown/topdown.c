@@ -40,7 +40,7 @@ func TopDown_Font TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size);
 
 typedef struct TopDown_Material TopDown_Material;
 struct TopDown_Material {
-  Vec3F32 color; F32 padding0;
+  Vec3F32 color;
 };
 
 typedef struct TopDown_BoundingBox TopDown_BoundingBox;
@@ -122,6 +122,7 @@ DefineArray(TopDown_Entity, TopDown_EntityArray, TopDown_Entity_Nil)
 func void TopDown_UpdateEntities();
 func void TopDown_DrawEntities();
 
+func void TopDown_DrawPillars();
 func void TopDown_DrawHexGrid();
 
 func void TopDown_DrawDebugCollision();
@@ -178,6 +179,7 @@ struct TopDown_Context {
   RHI_GraphicsPipeline entity_pipeline;
   RHI_GraphicsPipeline text_pipeline;
   RHI_GraphicsPipeline hex_grid_pipeline;
+  RHI_GraphicsPipeline pillars_pipeline;
   RHI_GraphicsPipeline bounding_box_pipeline;
 
   // State
@@ -413,10 +415,51 @@ I32 main() {
         .color_targets_count = 1,
         .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
           .format = RHI_GetSwapchainTextureFormat(),
+          .blend_enable = 1,
         },
         .depth_stencil_state = (RHI_PipelineDepthStencilState) {
           .depth_test_enable = 1,
           .depth_write_enable = 1,
+          .depth_compare_operation = RHI_CompareOperation_Greater,
+          .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
+        },
+      }
+    );
+  }
+  // Backgorund Pillars Pipeline
+  {
+    RHI_ShaderArgumentKind arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader vertex_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/pillars.vs"),
+        .kind = RHI_ShaderKind_Vertex,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
+      }
+    );
+    RHI_Shader fragment_shader = RHI_CreateShader(
+      topdown_context.global_arena,
+      &(RHI_ShaderCreateInfo) {
+        .file_name = Str8C("./data/TopDown/Shaders/pillars.fs"),
+        .kind = RHI_ShaderKind_Fragment,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
+      }
+    );
+    topdown_context.pillars_pipeline = RHI_CreateGraphicsPipeline(
+      &(RHI_GraphicsPipelineCreateInfo) {
+        .vertex_shader = &vertex_shader,
+        .fragment_shader = &fragment_shader,
+        .color_targets_count = 1,
+        .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+          .format = RHI_GetSwapchainTextureFormat(),
+        },
+        .depth_stencil_state = (RHI_PipelineDepthStencilState) {
+          .depth_test_enable = 1,
+          .depth_write_enable = 0,
           .depth_compare_operation = RHI_CompareOperation_Greater,
           .depth_target_format = RHI_GetTextureFormat(topdown_context.depth_texture),
         },
@@ -512,7 +555,7 @@ I32 main() {
         .texture = swapchain_texture,
         .load_operation = RHI_AttachmentLoadOperation_Clear,
         .store_operation = RHI_AttachmentStoreOperation_Store,
-        .clear_color = RGBAFromHex(0xffffffff),
+        .clear_color = RGBAFromHex(0x00000000),
       };
 
     RHI_DepthStencilTarget depth_target = {
@@ -543,7 +586,8 @@ I32 main() {
         RHI_SetViewport(topdown_context.command_buffer, rect);
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
-        TopDown_DrawHexGrid();
+        TopDown_DrawPillars();
+        // TopDown_DrawHexGrid();
         TopDown_DrawEntities();
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
@@ -586,7 +630,7 @@ I32 main() {
         .store_operation = RHI_AttachmentStoreOperation_Store,
       };
       RHI_RenderPass* text_render_pass = RHI_BeginRenderPass(topdown_context.command_buffer, 1, &text_color_targets, 0, text_render_pass_resources, ArrayLength(text_render_pass_resources)); {
-        TopDown_DrawText(Str8C("Testing Font Rendering"), 0, 20, MakeVec3F32(1.0f, 0.1f, 0.0f));
+        // TopDown_DrawText(Str8C("Testing Font Rendering"), 0, 20, MakeVec3F32(1.0f, 0.1f, 0.0f));
       }
       RHI_EndRenderPass(topdown_context.command_buffer, text_render_pass);
     RHI_EndCommandBuffer(topdown_context.command_buffer);
@@ -625,6 +669,7 @@ TopDown_LoadAndPrepareMesh(Arena* arena, Str8 path) {
 func TopDown_Font
 TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size) {
   TopDown_Font result = ZeroStruct();
+  #if 0
   ScratchArena scratch = BeginScratchArena(arena); {
     AST_Font ast_font = AST_FontFromTTF(scratch.arena, Str8C("data/fonts/RobotoMono-Regular.ttf"), size);
     result.ascent = ast_font.ascent;
@@ -668,6 +713,7 @@ TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size) {
   }
   EndScratchArena(scratch);
 
+  #endif
   return result;
 }
 
@@ -811,6 +857,7 @@ TopDown_UpdateEntities() {
           t = (distance - min_distance)/(max_distance - min_distance);
         }
         Vec3F32 cursor_offset = ScaleVec3F32(NormalizeVec3F32(player_to_cursor), max_camera_player_offset*t);
+        cursor_offset = MakeVec3F32(0.0f, 0.0f, 0.0f);
 
         F32 camera_height = 25.0f;
         Vec3F32 camera_offset = AddVec3F32(MakeVec3F32(0.0f, camera_height, camera_height/5.67128f), cursor_offset);
@@ -856,13 +903,13 @@ TopDown_DrawHexGrid() {
   struct {
     Mat4F32 transform;
     Mat4F32 camera_transform;
-    Vec3F32 background_color; F32 padding0;
-    Vec3F32 grid_color; F32 padding1;
+    Vec4F32 background_color;
+    Vec4F32 grid_color;
   } grid_data = {
     .transform = Mat4F32FromTransform(floor_transform),
     .camera_transform = camera->camera.matrix,
-    .background_color = MakeVec3F32(0.02f, 0.11f, 0.01f),
-    .grid_color = MakeVec3F32(0.98f, 0.75f, 0.34f),
+    .background_color = RGBAFromHex(0x24b8d677),
+    .grid_color = RGBAFromHex(0xe4e5e4aa),
   };
   U64 grid_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&grid_data, sizeof(grid_data));
 
@@ -884,6 +931,44 @@ TopDown_DrawHexGrid() {
   // In vulkan stages shares push_constants. So there was a problem (as vertex arguments and fragment arguments was binded separatly) of data
   // overwriting. Solved by binding to both stages and repeting push_constants in both shadres
   // (this is why it coult be better to use one shader file for both stages)
+  RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+  RHI_DrawPrimitives(topdown_context.command_buffer, 6, 1, 0, 0);
+}
+
+func void
+TopDown_DrawPillars() {
+  TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
+  TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
+  Transform transform = {
+    .translation = SubVec3F32(camera->actor.transform.translation, MakeVec3F32(0.0f, 5.0f, 0.0f)),
+    .rotation = IdentityQuaternion(),
+    .scale = MakeVec3F32(100.0f, 0.0f, 100.0),
+  };
+
+  RectI32 viewport = RHI_GetViewport(topdown_context.command_buffer);
+
+  struct {
+    Vec3F32 player_position; F32 padding0;
+    Vec3F32 camera_position; F32 padding1;
+    Mat4F32 camera_inverse;
+    Vec4F32 color;
+    Vec2F32 resolution;
+  } pillars_data = {
+    .player_position = player->actor.transform.translation,
+    .camera_position = camera->camera.transform.translation,
+    .camera_inverse = camera->camera.inverse,
+    .color = RGBAFromHex(0x24b8d6ff),
+    .resolution = MakeVec2F32(viewport.size.x, viewport.size.y),
+  };
+  U64 pillars_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&pillars_data, sizeof(pillars_data));
+  
+  RHI_ShaderArgument arguments[] = {
+    {
+      .kind = RHI_ShaderArgumentKind_BufferAddress,
+      .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + pillars_data_offset,
+    }
+  };
+  RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.pillars_pipeline);
   RHI_BindShaderArguments(topdown_context.command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
   RHI_DrawPrimitives(topdown_context.command_buffer, 6, 1, 0, 0);
 }
