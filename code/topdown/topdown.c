@@ -40,7 +40,7 @@ func TopDown_Font TopDown_LoadFontFromTTF(Arena* arena, Str8 path, U16 size);
 
 typedef struct TopDown_Material TopDown_Material;
 struct TopDown_Material {
-  Vec3F32 color;
+  Vec3F32 color; F32 padding0;
 };
 
 typedef struct TopDown_BoundingBox TopDown_BoundingBox;
@@ -468,7 +468,8 @@ I32 main() {
   }
 
   // Bounding Box Pipline
-  {
+  #if 0
+  { 
     RHI_ShaderArgumentKind arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,
     };
@@ -505,6 +506,7 @@ I32 main() {
       }
     );
   }
+  #endif
 
   OS_ShowWindow(topdown_context.window);
 
@@ -586,8 +588,8 @@ I32 main() {
         RHI_SetViewport(topdown_context.command_buffer, rect);
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
-        TopDown_DrawPillars();
-        // TopDown_DrawHexGrid();
+        // TopDown_DrawPillars();
+        TopDown_DrawHexGrid();
         TopDown_DrawEntities();
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
@@ -633,9 +635,9 @@ I32 main() {
         // TopDown_DrawText(Str8C("Testing Font Rendering"), 0, 20, MakeVec3F32(1.0f, 0.1f, 0.0f));
       }
       RHI_EndRenderPass(topdown_context.command_buffer, text_render_pass);
+      RHI_Present(topdown_context.command_buffer);
     RHI_EndCommandBuffer(topdown_context.command_buffer);
     RHI_SubmitCommandBuffer(topdown_context.command_buffer, 0, 0, 0, 0);
-    RHI_Present(topdown_context.command_buffer);
 
     U64 end_ts = OS_GetTimeTicks();
     U64 dt_ms = end_ts - start_ts;

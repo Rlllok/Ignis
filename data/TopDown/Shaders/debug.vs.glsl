@@ -5,5 +5,5 @@ layout(set = 1, binding = 0) uniform InstanceData {
 };
 
 void main() {
-  gl_Position = transform*vec4(position, 1.0f);
+  gl_Position = transform*vec4(1.0f);
 };
