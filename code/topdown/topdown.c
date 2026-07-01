@@ -267,7 +267,8 @@ I32 main() {
   
   // Entity Pipeline
   {
-    RHI_ShaderArgumentKind vs_arguments[] = {
+    RHI_ShaderArgumentKind arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
       RHI_ShaderArgumentKind_BufferAddress,
     };
     RHI_Shader vertex_shader = RHI_CreateShader(
@@ -275,8 +276,8 @@ I32 main() {
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/TopDown/Shaders/topdown.vs"),
         .kind = RHI_ShaderKind_Vertex,
-        .arguments = vs_arguments,
-        .arguments_count = ArrayLength(vs_arguments),
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
       }
     );
     RHI_Shader fragment_shader = RHI_CreateShader(
@@ -284,6 +285,8 @@ I32 main() {
       &(RHI_ShaderCreateInfo){
         .file_name = Str8C("./data/TopDown/Shaders/topdown.fs"),
         .kind = RHI_ShaderKind_Fragment,
+        .arguments = arguments,
+        .arguments_count = ArrayLength(arguments),
       }
     );
 
@@ -804,7 +807,7 @@ TopDown_UpdateEntities() {
       default: {} break;
 
       case TopDown_EntityFlag_Player: {
-        if (OS_KeyPressed(OS_KEY_SPACE)) {
+        if (OS_MousePressed(OS_MouseButton_Left)) {
           TopDown_ActivateBullet(topdown_context.player_id);
         }
 
@@ -981,8 +984,21 @@ TopDown_DrawEntities() {
 
   RHI_BindGraphicsPipeline(topdown_context.command_buffer, topdown_context.entity_pipeline);
 
+  struct {
+    Vec3F32 light_direction; F32 padding0;
+    Vec3F32 light_color; F32 padding1;
+  } scene_data = {
+    .light_direction = NormalizeVec3F32(MakeVec3F32(0.0f, -1.0f, 1.0f)),
+    .light_color = RGBFromHex(0xff0000),
+  };
+  U64 scene_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&scene_data, sizeof(scene_data));
+
   TopDown_DrawCommand* first_draw_command = TopDown_DrawCommandArrayGetPointer(&topdown_context.draw_commands, 0);
   RHI_ShaderArgument arguments[] = {
+    {
+      .kind = RHI_ShaderArgumentKind_BufferAddress,
+      .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + scene_data_offset,
+    },
     {
       .kind = RHI_ShaderArgumentKind_BufferAddress,
       .address = RHI_BufferDeviceAddress(topdown_context.object_buffer) + first_draw_command->object_buffer_offset,

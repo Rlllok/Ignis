@@ -10,6 +10,15 @@ layout(location = 3) in vec2  uv;
 layout(location = 4) in ivec4 joint_ids;
 layout(location = 5) in vec4  joint_weights;
 
+struct SceneData {
+  vec3 light_direction;
+  vec3 light_color;
+};
+
+layout(buffer_reference, std430) readonly buffer SceneDataBuffer {
+  SceneData data;
+};
+
 struct Material {
   vec3 color;
 };
@@ -25,6 +34,7 @@ layout(buffer_reference, std430) readonly buffer ObjectDataBuffer {
 };
 
 layout(push_constant, std430) uniform args {
+  SceneDataBuffer  scene_data;
   ObjectDataBuffer objects_data;
 };
 
@@ -38,7 +48,8 @@ void main() {
   vec4 world_position = current_object.transform*vec4(position, 1.0f);
 
   out_position = vec3(world_position);
-  out_normal = normal;
+  // --AlNov: @TODO Normal Matrix should be calculated once on the CPU as inverse is costly operation
+  out_normal = transpose(inverse(mat3(current_object.transform)))*normal;
   out_color = current_object.material.color;
   gl_Position = current_object.camera_transform*world_position;
 }
