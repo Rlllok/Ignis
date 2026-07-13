@@ -19,10 +19,10 @@ layout(buffer_reference, std430) readonly buffer RectangleDataBuffer {
   mat4x4 projection;
   vec4   position_size;
   vec4   radius;
-  float4 top_left_color;
-  float4 top_right_color;
-  float4 bottom_right_color;
-  float4 bottom_left_color;
+  vec4   top_left_color;
+  vec4   top_right_color;
+  vec4   bottom_right_color;
+  vec4   bottom_left_color;
   vec4   border_color;
   float  border_width;
 };

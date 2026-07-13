@@ -294,6 +294,7 @@ union RectF32 {
   Vec2F32 value[2];
 };
 
+func RectF32 MakeRectF32(F32 x, F32 y, F32 w, F32 h);
 func B32 InsideRectF32(RectF32 rect, Vec2F32 v);
 
 // -------------------------------------------------------------------

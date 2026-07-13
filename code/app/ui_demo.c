@@ -3,6 +3,7 @@
 #include "rhi/rhi_include.h"
 #include "assets/font.h"
 #include "ui/ui_include.h"
+#include "ui/ui_widgets.h"
 #include "draw/draw.h"
 
 #include "base/base_include.c"
@@ -10,6 +11,7 @@
 #include "rhi/rhi_include.c"
 #include "assets/font.c"
 #include "ui/ui_include.c"
+#include "ui/ui_widgets.c"
 #include "draw/draw.c"
 
 typedef struct UI_DemoCategory UI_DemoCategory;

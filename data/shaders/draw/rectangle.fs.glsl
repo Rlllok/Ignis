@@ -7,7 +7,10 @@ layout(buffer_reference, std430) readonly buffer RectangleDataBuffer {
   mat4x4 projection;
   vec4   position_size;
   vec4   radius;
-  vec4   color;
+  vec4   top_left_color;
+  vec4   top_right_color;
+  vec4   bottom_right_color;
+  vec4   bottom_left_color;
   vec4   border_color;
   float  border_width;
 };
@@ -35,7 +38,11 @@ void main() {
   float aa = fwidth(d);
   float t = 1.0f - smoothstep(0, aa, d);
   
-  vec4 color = rectangle_data.color;
+  vec2 uv = local_xy/(half_size*2.0f);
+
+  vec4 top_color = mix(rectangle_data.top_left_color, rectangle_data.top_right_color, uv.x);
+  vec4 bottom_color = mix(rectangle_data.bottom_left_color, rectangle_data.bottom_right_color, uv.x);
+  vec4 color = mix(top_color, bottom_color, uv.y);
   color = mix(color, rectangle_data.border_color, 1.0f - smoothstep(rectangle_data.border_width - aa, rectangle_data.border_width + aa, abs(d)));
   color.a *= t;
 
