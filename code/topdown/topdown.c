@@ -42,6 +42,7 @@ struct TopDown_BoundingBox {
 };
 
 func TopDown_BoundingBox TopDown_BoundingBoxFromMesh(AST_StaticMesh* mesh);
+func B32                 TopDown_BoundingBoxAABBCollision(TopDown_BoundingBox box_a, TopDown_BoundingBox box_b);
 
 typedef U32 TopDown_EntityFlag;
 enum {
@@ -82,6 +83,7 @@ struct TopDown_Entity {
   struct {
     B32                 active;
     TopDown_BoundingBox bounding_box;
+    B32                 collided;
   } collision;
 
   struct {
@@ -182,7 +184,10 @@ struct TopDown_Context {
 
   // State
   B32 finished;
-  B32 debug;
+  struct {
+    B32 show_menu;
+    B32 show_collision;
+  } debug;
   F32 dt;
 
   // UI
@@ -477,7 +482,6 @@ I32 main() {
   }
 
   // Bounding Box Pipline
-  #if 0
   { 
     RHI_ShaderArgumentKind arguments[] = {
       RHI_ShaderArgumentKind_BufferAddress,
@@ -515,7 +519,6 @@ I32 main() {
       }
     );
   }
-  #endif
 
   D_Init(Kilobytes(16));
 
@@ -568,7 +571,7 @@ I32 main() {
     }
 
     if (OS_KeyPressed(OS_KEY_F1)) {
-      topdown_context.debug = !topdown_context.debug;
+      topdown_context.debug.show_menu = !topdown_context.debug.show_menu;
     }
 
     TopDown_UI();
@@ -618,8 +621,12 @@ I32 main() {
         RHI_SetScissor(topdown_context.command_buffer, rect);
 
         // TopDown_DrawPillars();
-        // TopDown_DrawHexGrid();
+        TopDown_DrawHexGrid();
         TopDown_DrawEntities();
+
+        if (topdown_context.debug.show_collision) {
+          TopDown_DrawDebugCollision();
+        }
 
       RHI_EndRenderPass(topdown_context.command_buffer, render_pass);
 
@@ -657,6 +664,7 @@ I32 main() {
       OS_Sleep(time_to_sleep);
     }
   }
+  ResetArena(topdown_context.frame_arena);
 
   return 0;
 }
@@ -693,6 +701,14 @@ TopDown_BoundingBoxFromMesh(AST_StaticMesh* mesh) {
   }
 
   return result;
+}
+
+func B32
+TopDown_BoundingBoxAABBCollision(TopDown_BoundingBox box_a, TopDown_BoundingBox box_b) {
+  B32 x = (box_a.min.x <= box_b.max.x) && (box_a.max.x >= box_b.min.x);
+  B32 y = (box_a.min.y <= box_b.max.y) && (box_a.max.y >= box_b.min.y);
+  B32 z = (box_a.min.z <= box_b.max.z) && (box_a.max.z >= box_b.min.z);
+  return x && y && z;
 }
 
 func Vec3F32
@@ -755,7 +771,7 @@ func void
 TopDown_UpdateEntities() {
   for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
     TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
-    
+
     switch (entity->kind_flags) {
       default: {} break;
 
@@ -844,6 +860,24 @@ TopDown_UpdateEntities() {
           entity->collision.active = entity->bullet.active;
         }
       } break;
+    }
+
+    if (entity->kind_flags & TopDown_EntityFlag_Collision) {
+      if (entity->collision.active) {
+        entity->collision.collided = 0;
+        for (I32 collision_entity_index = entity_index + 1; collision_entity_index < topdown_context.entities.length; collision_entity_index += 1) {
+          TopDown_Entity* collision_entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, collision_entity_index);
+          if (collision_entity->kind_flags & TopDown_EntityFlag_Collision) {
+            TopDown_BoundingBox box_a = entity->collision.bounding_box;
+            box_a.min = AddVec3F32(box_a.min, entity->actor.transform.translation);
+            box_a.max = AddVec3F32(box_a.max, entity->actor.transform.translation);
+            TopDown_BoundingBox box_b = collision_entity->collision.bounding_box;
+            box_b.min = AddVec3F32(box_b.min, collision_entity->actor.transform.translation);
+            box_b.max = AddVec3F32(box_b.max, collision_entity->actor.transform.translation);
+            entity->collision.collided = entity->collision.collided || TopDown_BoundingBoxAABBCollision(box_a, box_b);
+          }
+        }
+      }
     }
   }
 }
@@ -980,7 +1014,7 @@ TopDown_DrawDebugCollision() {
 
       Transform bounding_box_transform = {
         .translation = entity->actor.transform.translation,
-        .rotation = entity->actor.transform.rotation,
+        .rotation = IdentityQuaternion(),
         .scale = SubVec3F32(bounding_box.max, bounding_box.min),
       };
 
@@ -991,7 +1025,7 @@ TopDown_DrawDebugCollision() {
       } bounding_box_data = {
         .transform = Mat4F32FromTransform(bounding_box_transform),
         .camera_transform = camera->camera.matrix,
-        .rgba = MakeVec4F32(0.14f, 0.87f, 0.09f, 0.2f),
+        .rgba = entity->collision.collided ? MakeVec4F32(1.0f, 0.0f, 0.0f, 0.2f) : MakeVec4F32(0.14f, 0.87f, 0.09f, 0.2f),
       };
       U64 bounding_box_data_offset = RHI_PushBuffer(topdown_context.object_buffer, (U8*)&bounding_box_data, sizeof(bounding_box_data));
 
@@ -1006,42 +1040,6 @@ TopDown_DrawDebugCollision() {
       RHI_DrawPrimitives(topdown_context.command_buffer, 36, 1, 0, 0);
     }
   }
-
-#if 0 
-  for (I32 entity_index = 1; entity_index < topdown_context.entities.length; entity_index += 1) {
-    TopDown_Entity* entity = TopDown_EntityArrayGetPointer(&topdown_context.entities, entity_index);
-    TopDown_Entity* camera = TopDown_GetEntity(topdown_context.camera_id);
-
-    B32 to_draw = (entity->kind_flags & TopDown_EntityFlag_Collision) && entity->collision.active;
-    if (to_draw) {
-      for (AST_GeometryListNode* geometry_node = topdown_context.bounding_box_mesh.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
-        AST_Geometry* geometry = &geometry_node->data;
-
-        TopDown_BoundingBox bounding_box = entity->collision.bounding_box;
-
-        Transform bounding_box_transform = {
-          .translation = entity->actor.transform.translation,
-          .rotation = entity->actor.transform.rotation,
-          .scale = MulVec3F32(entity->actor.transform.scale, SubVec3F32(bounding_box.max, bounding_box.min)),
-        };
-        
-        struct {
-          Mat4F32 transform;
-        } instance_vs_data = {
-          .transform = MulMat4F32(camera->camera.matrix, Mat4F32FromTransform(bounding_box_transform)),
-        };
-
-        U64 instance_vs_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)&instance_vs_data, sizeof(instance_vs_data));
-        U64 vertex_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->vertecies, geometry->vertecies_count*sizeof(AST_Vertex));
-        U64 index_data_offset = RHI_PushBuffer(topdown_context.frame_buffer, (U8*)geometry->index_data, geometry->index_size*geometry->index_count);
-
-        RHI_BindVertexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, vertex_data_offset);
-        RHI_BindIndexBuffer(topdown_context.command_buffer, topdown_context.frame_buffer, index_data_offset, RHI_IndexSize_U16);
-        RHI_DrawIndexedPrimitives(topdown_context.command_buffer, geometry->index_count, 1, 0, 0, 0);
-      }
-    }
-  }
-#endif
 }
 
 func void
@@ -1067,18 +1065,33 @@ TopDown_DebugUI() {
       }
     }
   ) {
-    if (TopDown_DebugUICategory(Str8C("Player"))) {
-      TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
-      UI_WidgetLayoutInfo player_speed_layout = {
-        .width = UI_PercentSize(1.0f),
-        .height = UI_PixelSize(20.0f),
-      };
-      UI_TextStyleInfo player_speed_text = {
-        .font = &topdown_context.font,
-        .color = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
-      };
-      player_speed_text.str = FormatStr8(topdown_context.frame_arena, "Speed: %f", player->movable.speed);
-      UI_DragF32(Str8C("TopDown_PlayerSpeed"), &player->movable.speed, 0.01f, 0.1f, 100.0f, player_speed_text, player_speed_layout, default_style);
+    TopDown_Entity* player = TopDown_GetEntity(topdown_context.player_id);
+    UI_WidgetLayoutInfo player_speed_layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(20.0f),
+    };
+    UI_TextStyleInfo player_speed_text = {
+      .font = &topdown_context.font,
+      .color = MakeVec4F32(1.0f, 0.0f, 0.0f, 1.0f),
+    };
+    player_speed_text.str = FormatStr8(topdown_context.frame_arena, "Speed: %f", player->movable.speed);
+    UI_DragF32(Str8C("TopDown_PlayerSpeed"), &player->movable.speed, 0.01f, 0.1f, 100.0f, player_speed_text, player_speed_layout, default_style);
+
+    UI_TextStyleInfo text = {
+      .font = &topdown_context.font,
+      .color = RGBAFromHex(0xff0000ff),
+      .alignment = UI_TextAlignment_Center,
+      .str = topdown_context.debug.show_collision ? Str8C("Hide Collision") : Str8C("Show Collision"),
+    };
+    UI_WidgetLayoutInfo layout = {
+      .width = UI_PercentSize(1.0f),
+      .height = UI_PixelSize(30.0f),
+    };
+    UI_WidgetStyleInfo style = {
+      .background_color = RGBAFromHex(0x333333ff),
+    };
+    if (UI_Button(Str8C("ShowCollision"), text, layout, style)) {
+      topdown_context.debug.show_collision = !topdown_context.debug.show_collision;
     }
   }
 }
@@ -1120,7 +1133,7 @@ func void TopDown_UI() {
         },
       }
     ) {
-      if (topdown_context.debug == 1) {
+      if (topdown_context.debug.show_menu) {
         TopDown_DebugUI();
       }
     }
