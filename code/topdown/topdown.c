@@ -183,6 +183,7 @@ struct TopDown_Context {
   RHI_GraphicsPipeline bounding_box_pipeline;
 
   // State
+  B32 paused;
   B32 finished;
   struct {
     B32 show_menu;
@@ -566,18 +567,20 @@ I32 main() {
     OS_EventList events = OS_DispatchEvents(topdown_context.frame_arena, topdown_context.window);
     topdown_context.cursor_position = OS_MousePosition(topdown_context.window);
 
+    TopDown_UI();
+
     if (OS_KeyPressed(OS_KEY_ESC)) {
       topdown_context.finished = 1;
     }
 
     if (OS_KeyPressed(OS_KEY_F1)) {
       topdown_context.debug.show_menu = !topdown_context.debug.show_menu;
+      topdown_context.paused = !topdown_context.paused;
     }
-
-    TopDown_UI();
-
     // Update World
-    TopDown_UpdateEntities();
+    if (!topdown_context.paused) {
+      TopDown_UpdateEntities();
+    }
 
     // Draw World
     TopDown_PrepareDrawCommands();
