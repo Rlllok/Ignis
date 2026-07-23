@@ -3,6 +3,15 @@ using namespace metal;
 struct VertexShaderInput {
   float3 position [[attribute(0)]];
   float3 normal   [[attribute(1)]];
+  float3 tangent  [[attribute(2)]];
+  float2 uv       [[attribute(3)]];
+  int4   joint_ids [[attribute(4)]];
+  float4 jount_weights [[attribute(5)]];
+};
+
+struct SceneData {
+  float3 light_direction;
+  float3 light_color;
 };
 
 struct Material {
@@ -24,9 +33,9 @@ struct VertexOut {
 
 vertex VertexOut VertexMain(
   VertexShaderInput vertex_data [[stage_in]],
-  uint vid [[vertex_id]],
   uint instance_index [[instance_id]],
-  constant ObjectData* object_datas [[buffer(1)]]
+  constant SceneData* scene_data [[buffer(1)]],
+  constant ObjectData* object_datas [[buffer(2)]]
 ) {
   VertexOut out = {0};
 
