@@ -486,14 +486,23 @@ QuaternionLookAt(Vec3F32 source, Vec3F32 target) {
   F32 half_angle = acosf(DotVec3F32(forward, direction))*0.5f;
   Vec3F32 imaginary = ScaleVec3F32(axis, sinf(half_angle));
 #else
-  Vec3F32 direction = NormalizeVec3F32(SubVec3F32(source, target));
+  Vec3F32 direction = NormalizeVec3F32(SubVec3F32(target, source));
   Vec3F32 forward = MakeVec3F32(0.0f, 0.0f, 1.0f);
-  Vec3F32 axis = NormalizeVec3F32(CrossVec3F32(forward, direction));
-  F32 half_angle = acosf(DotVec3F32(direction, forward))*0.5f;
-  Vec3F32 imaginary = ScaleVec3F32(axis, sinf(half_angle));
+  F32 dot = DotVec3F32(forward, direction);
+  if (dot > 0.9999f) {
+    result = IdentityQuaternion();
+  }
+  else if (dot < -0.9999f) {
+    Vec3F32 up = MakeVec3F32(0.0f, 1.0f, 0.0f);
+    result = MakeQuaternion(up.x, up.y, up.z, 0.0f);
+  }
+  else {
+    Vec3F32 axis = NormalizeVec3F32(CrossVec3F32(forward, direction));
+    F32 half_angle = acosf(dot)*0.5f;
+    Vec3F32 imaginary = ScaleVec3F32(axis, sinf(half_angle));
+    result = MakeQuaternion(imaginary.x, imaginary.y, imaginary.z, cosf(half_angle));
+  }
 #endif
-
-  result = MakeQuaternion(imaginary.x, imaginary.y, imaginary.z, cosf(half_angle));
 
   return result;
 }
