@@ -16,6 +16,9 @@ struct OS_MacOS {
   void* ns_app;
 } _os_macos_state;
 
+@interface OS_MacOS_WindowDelegate : NSObject<NSWindowDelegate>
+@end
+
 @interface OS_MacOS_View : NSView
 @property (nonatomic, strong, readwrite) CAMetalLayer* metal_layer;
 - (CAMetalLayer*)MetalLayer;
@@ -24,6 +27,6 @@ struct OS_MacOS {
 typedef struct OS_MacOS_Window OS_MacOS_Window;
 struct OS_MacOS_Window {
   OS_Window header;
-  void* ns_window;
-  void* ns_view;
+  void*     ns_window;
+  void*     ns_view;
 };

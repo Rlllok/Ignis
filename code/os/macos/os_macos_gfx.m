@@ -12,6 +12,21 @@ OS_Init(U64 arena_size) {
   [ns_app finishLaunching];
 }
 
+@implementation OS_MacOS_WindowDelegate
+- (void)windowWillClose:(NSNotification*) notification {
+  OS_Event event = {
+    .type = OS_EVENT_TYPE_EXIT,
+  };
+  // -AlNov 23.07.2026: @TODO Event list created in DispatchEvent. So we could not be sure it available here
+  // But it is working for now
+  OS_EventListPush(&_os_state.event_list, event);
+}
+
+- (void)windowDidClose:(NSNotification*) notification {
+  LogDebug("Macos WindowDidClose\n");
+}
+@end
+
 @implementation OS_MacOS_View
 + (Class)layerClass {
   return NSClassFromString(@"CAMetalLayer");
@@ -61,6 +76,9 @@ OS_CreateWindow(Str8 title, Vec2U32 size) {
   window->ns_window = (__bridge void*)ns_window;
 
   [ns_window setTitle:@(CFromStr8(title))];
+
+  OS_MacOS_WindowDelegate* ns_delegate = [[OS_MacOS_WindowDelegate alloc] init];
+  ns_window.delegate = ns_delegate;
 
   OS_MacOS_View* view = [[OS_MacOS_View alloc] initWithFrame:NSMakeRect(0, 0, size.w, size.h)];
   window->ns_view = (__bridge void*)view;
