@@ -33,6 +33,7 @@ if "%topdown%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %l
 if "%triangle%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\triangle.c  -o build\triangle.exe
 if "%macos%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\macos.c  -o build\macos.exe
 if "%ui_demo%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\ui_demo.c  -o build\ui_demo.exe
+if "%rolling_ball%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\rolling_ball\main.c -o build\rolling_ball.exe
 
 @echo.
 @echo **************************************************

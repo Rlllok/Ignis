@@ -77,8 +77,9 @@ I32 main() {
   };
   RB_Init(&options);
 
-  Vec3F32 camera_position = MakeVec3F32(0.0f, 5.0f, 0.0f);
+  Vec3F32 camera_position = MakeVec3F32(0.0f, 1.0f, 10.0f);
   Quaternion camera_rotation = QuaternionLookAt(camera_position, MakeVec3F32(0.0f, 0.0f, 0.0f));
+  // camera_rotation = IdentityQuaternion();
   RB_InitCamera(camera_position, camera_rotation, 80.0f);
 
   while (!rb_context.finished) {
@@ -297,6 +298,7 @@ RB_Render(F32 dt) {
         .h = rb_context.window->size.y,
       };
       RHI_SetViewport(rb_context.rhi_command_buffer, viewport);
+      RHI_SetScissor(rb_context.rhi_command_buffer, viewport);
 
       RHI_BindGraphicsPipeline(rb_context.rhi_command_buffer, rb_context.rhi_default_pipeline);
       struct {
