@@ -10,6 +10,15 @@
 #include "assets/animation.h"
 #include "assets/mesh.c"
 
+/*
+@TODO List:
+  - Plane tilting
+  - Sphere-Plane collision
+  
+  Done:
+  + Gravity (28.07.2026)
+*/
+
 typedef struct RB_StaticMesh RB_StaticMesh;
 struct RB_StaticMesh {
   AST_StaticMesh mesh;
@@ -36,6 +45,27 @@ struct RB_Camera {
 func void RB_InitCamera(Vec3F32 position, Quaternion rotation, F32 fov);
 func void RB_UpdateCamera(F32 dt);
 
+typedef struct RB_PhysicsComponent RB_PhysicsComponent;
+struct RB_PhysicsComponent {
+  RB_PhysicsComponent* prev;
+  RB_PhysicsComponent* next;
+  
+  Vec3F32 position;
+};
+
+typedef struct RB_PhysicsWorld RB_PhysicsWorld;
+struct RB_PhysicsWorld {
+  Vec3F32 gravity;
+  RB_PhysicsComponent* components_first;
+  RB_PhysicsComponent* components_last;
+  RB_PhysicsComponent* components_free;
+};
+
+func RB_PhysicsComponent* RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, Vec3F32 position);
+func void RB_PhysicsRemoveComponent(RB_PhysicsWorld* world, RB_PhysicsComponent* component);
+
+func void RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt);
+
 typedef struct RB_Options RB_Options;
 struct RB_Options {
   Vec2U32 resolution;
@@ -57,7 +87,12 @@ struct RB_Context {
   RB_StaticMesh sphere_mesh;
 
   RB_Camera camera;
-
+  
+  RB_PhysicsWorld physics_world;
+  struct {
+    RB_PhysicsComponent* physics_component;
+  } player;
+  
   B32 finished;
 
   F32 dt;
@@ -66,8 +101,6 @@ struct RB_Context {
 func void RB_Init(RB_Options* options);
 func void RB_HandleOSEvents(OS_EventList events);
 func void RB_HandleGlobalInput();
-
-func void RB_UpdatePhysics(F32 dt);
 
 func void RB_Render(F32 dt);
 
@@ -79,17 +112,22 @@ I32 main() {
 
   Vec3F32 camera_position = MakeVec3F32(0.0f, 1.0f, 10.0f);
   Quaternion camera_rotation = QuaternionLookAt(camera_position, MakeVec3F32(0.0f, 0.0f, 0.0f));
-  // camera_rotation = IdentityQuaternion();
   RB_InitCamera(camera_position, camera_rotation, 80.0f);
 
+  U64 start_ts = OS_GetTimeTicks();
   while (!rb_context.finished) {
     RB_HandleOSEvents(OS_DispatchEvents(rb_context.frame_arena, rb_context.window));
 
     RB_HandleGlobalInput();
 
-    RB_UpdatePhysics(rb_context.dt);
+    RB_UpdatePhysics(&rb_context.physics_world, rb_context.dt);
     RB_UpdateCamera(rb_context.dt);
     RB_Render(rb_context.dt);
+    
+    U64 end_ts = OS_GetTimeTicks();
+    U64 dt_ms = end_ts - start_ts;
+    rb_context.dt = (F32)(dt_ms)*0.001f;
+    start_ts = end_ts;
   }
   ResetArena(rb_context.frame_arena);
 
@@ -128,6 +166,29 @@ RB_UpdateCamera(F32 dt) {
   Mat4F32 projection_matrix = MakePerspectiveMat4F32(rb_context.camera.fov/2.0f, (F32)rb_context.window->size.x/(F32)rb_context.window->size.y, 1.0f, 100.0f);
   rb_context.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
   rb_context.camera.inverse = InverseMat4F32(rb_context.camera.matrix);
+}
+
+func RB_PhysicsComponent*
+RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, Vec3F32 position) {
+  RB_PhysicsComponent* result = (RB_PhysicsComponent*)PushArena(arena, sizeof(RB_PhysicsComponent));
+  result->position = position;
+  DllPushBack(world->components_first, world->components_last, result);
+  return result;
+}
+
+func void
+RB_PhysicsRemoveComponent(RB_PhysicsWorld* world, RB_PhysicsComponent* position) {
+  DllRemove(world->components_first, world->components_last, position);
+  StackPush(world->components_free, position);
+}
+
+func void
+RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt) {
+  for (RB_PhysicsComponent* component = world->components_first; component != 0; component = component->next) {
+    if (component->position.y > 0.0f) {
+      component->position = AddVec3F32(component->position, ScaleVec3F32(world->gravity, dt));
+    }
+  }
 }
 
 func void
@@ -236,7 +297,11 @@ RB_Init(RB_Options* options) {
   rb_context.default_material = (RB_Material) {
     .color = RGBFromHex(0xff0000),
   };
-  rb_context.sphere_mesh = RB_LoadStaticMesh(rb_context.global_arena, Str8C("data/TopDown/Models/TopDown_Triangle.gltf"));
+  rb_context.sphere_mesh = RB_LoadStaticMesh(rb_context.global_arena, Str8C("data/RollingBall/Models/PlayerBall.gltf"));
+
+  // Initializing Game
+  rb_context.physics_world.gravity = MakeVec3F32(0.0f, -9.8f, 0.0f);
+  rb_context.player.physics_component = RB_PhysicsAddComponent(rb_context.global_arena, &rb_context.physics_world, MakeVec3F32(0.0f, 10.0f, 0.0f));
 }
 
 func void
@@ -256,10 +321,6 @@ RB_HandleOSEvents(OS_EventList events) {
 
 func void
 RB_HandleGlobalInput() {
-}
-
-func void
-RB_UpdatePhysics(F32 dt) {
 }
 
 func void
@@ -312,12 +373,17 @@ RB_Render(F32 dt) {
       I32 geometry_index = 0;
       for (AST_GeometryListNode* geometry_node = rb_context.sphere_mesh.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
         AST_Geometry* geometry = &geometry_node->data;
+        Transform player_transform = {
+          .translation = rb_context.player.physics_component->position,
+          .rotation = IdentityQuaternion(),
+          .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+        };
         struct {
           Mat4F32     transform;
           Mat4F32     camera_transform;
           RB_Material material;
         } object_data = {
-          .transform = Mat4F32FromTransform(IdentityTransform()),
+          .transform = Mat4F32FromTransform(player_transform),
           .camera_transform = rb_context.camera.matrix,
           .material = rb_context.default_material,
         };
