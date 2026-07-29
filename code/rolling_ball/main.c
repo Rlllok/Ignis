@@ -88,6 +88,7 @@ struct RB_Context {
 
   RB_Material   default_material;
   RB_StaticMesh sphere_mesh;
+  RB_StaticMesh plane_mesh;
 
   RB_Camera camera;
   
@@ -164,6 +165,9 @@ RB_InitCamera(Vec3F32 position, Quaternion rotation, F32 fov) {
 
 func void
 RB_UpdateCamera(F32 dt) {
+  Vec3F32 camera_offset = MakeVec3F32(0.0f, 1.0f, 10.0f); 
+  rb_context.camera.transform.translation = AddVec3F32(camera_offset, rb_context.player.physics_component->position);
+
   Vec3F32 camera_front = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, -1.0f), rb_context.camera.transform.rotation);
   Mat4F32 view_matrix = MakeLookAtMat4F32(rb_context.camera.transform.translation, AddVec3F32(rb_context.camera.transform.translation, camera_front), MakeVec3F32(0.0f, 1.0f, 0.0f));
   Mat4F32 projection_matrix = MakePerspectiveMat4F32(rb_context.camera.fov/2.0f, (F32)rb_context.window->size.x/(F32)rb_context.window->size.y, 1.0f, 100.0f);
@@ -312,6 +316,7 @@ RB_Init(RB_Options* options) {
     .color = RGBFromHex(0xff0000),
   };
   rb_context.sphere_mesh = RB_LoadStaticMesh(rb_context.global_arena, Str8C("data/RollingBall/Models/PlayerBall.gltf"));
+  rb_context.plane_mesh = RB_LoadStaticMesh(rb_context.global_arena, Str8C("data/primitives/plane.gltf"));
 
   // Initializing Game
   rb_context.physics_world.gravity = MakeVec3F32(0.0f, -9.8f, 0.0f);
@@ -415,6 +420,41 @@ RB_Render(F32 dt) {
         RHI_BindShaderArguments(rb_context.rhi_command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
         RHI_BindIndexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.sphere_mesh.indecies_offset[geometry_index], RHI_IndexSize_U16);
         RHI_BindVertexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.sphere_mesh.vertex_offset[geometry_index]);
+        RHI_DrawIndexedPrimitives(rb_context.rhi_command_buffer, geometry->index_count, 1, 0, 0, 0);
+        geometry_index += 1;
+      }
+      
+      geometry_index = 0;
+      for (AST_GeometryListNode* geometry_node = rb_context.plane_mesh.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+        AST_Geometry* geometry = &geometry_node->data;
+        Transform plane_transform = {
+          .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
+          .rotation = IdentityQuaternion(),
+          .scale = MakeVec3F32(10.0f, 1.0f, 10.0f),
+        };
+        struct {
+          Mat4F32     transform;
+          Mat4F32     camera_transform;
+          RB_Material material;
+        } object_data = {
+          .transform = Mat4F32FromTransform(plane_transform),
+          .camera_transform = rb_context.camera.matrix,
+          .material = rb_context.default_material,
+        };
+        U64 object_data_offset = RHI_PushBuffer(rb_context.rhi_draw_data_buffer, (U8*)&object_data, sizeof(object_data));
+        RHI_ShaderArgument arguments[] = {
+          {
+            .kind = RHI_ShaderArgumentKind_BufferAddress,
+            .address = RHI_BufferDeviceAddress(rb_context.rhi_draw_data_buffer) + scene_data_offset,
+          },
+          {
+            .kind = RHI_ShaderArgumentKind_BufferAddress,
+            .address = RHI_BufferDeviceAddress(rb_context.rhi_draw_data_buffer) + object_data_offset,
+          }
+        };
+        RHI_BindShaderArguments(rb_context.rhi_command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+        RHI_BindIndexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.plane_mesh.indecies_offset[geometry_index], RHI_IndexSize_U16);
+        RHI_BindVertexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.plane_mesh.vertex_offset[geometry_index]);
         RHI_DrawIndexedPrimitives(rb_context.rhi_command_buffer, geometry->index_count, 1, 0, 0, 0);
         geometry_index += 1;
       }
