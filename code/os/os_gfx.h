@@ -157,6 +157,8 @@ typedef enum OS_EventTypeEnum
 
     OS_EVENT_TYPE_EXIT,
     OS_EVENT_TYPE_RESIZE,
+    OS_EVENT_TYPE_FOCUS,
+    OS_EVENT_TYPE_UNFOCUS,
     OS_EVENT_TYPE_MOUSE_MOVE,
     OS_EVENT_TYPE_MOUSE_RELEASE,
     OS_EVENT_TYPE_MOUSE_PRESS,
@@ -202,6 +204,7 @@ func void OS_ShowWindow(OS_Window* window);
 
 func void OS_LockCursor(OS_Window* window);
 func void OS_UnlockCursor(OS_Window* window);
+func void OS_ShowCursor(B32 to_show);
 
 func OS_EventList OS_DispatchEvents(Arena* arena, OS_Window* window);
 
@@ -211,6 +214,7 @@ func U64 OS_GetTimeTicks(void);
 func void OS_Sleep(U64 ms);
 
 func Vec2F32 OS_MousePosition(OS_Window* window);
+func void    OS_SetMousePosition(OS_Window* window, Vec2F32 position);
 func Vec2F32 OS_MouseScroll();
 
 func void OS_ChangeKeyState(OS_KeyCode key_code, OS_KeyState state)

@@ -60,6 +60,24 @@ OS_ShowWindow(OS_Window* window)
 }
 
 func void
+OS_LockCursor(OS_Window* window) {
+  OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
+
+  RECT rect;
+  GetWindowRect(win32_window->handle, &rect);
+  ClipCursor(&rect);
+}
+
+func void
+OS_UnlockCursor(OS_Window* window) {
+}
+
+func void
+OS_ShowCursor(B32 to_show) {
+  ShowCursor(0);
+}
+
+func void
 OS_WIN32_ToggleFullscreen(HWND window_handle)
 {
   DWORD style = GetWindowLong(window_handle, GWL_STYLE);
@@ -191,6 +209,15 @@ OS_MousePosition(OS_Window* window)
   return MakeVec2F32((F32)mouse_point.x, (F32)mouse_point.y);
 }
 
+func void
+OS_SetMousePosition(OS_Window* window, Vec2F32 position) {
+  OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
+  
+  POINT point = {(I32)position.x, (I32)position.y};
+  ClientToScreen(win32_window->handle, &point);
+  SetCursorPos(point.x, point.y);
+}
+
 func Vec2F32
 OS_MouseScroll()
 {
@@ -227,6 +254,15 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
       event.type = OS_EVENT_TYPE_RESIZE;
       event.window_size.w = LOWORD(l_param);
       event.window_size.h = HIWORD(l_param);
+    } break;
+    
+    case WM_SETFOCUS: {
+      if (_os_state.event_list.arena == 0) break;
+      event.type = OS_EVENT_TYPE_FOCUS;
+    } break;
+    
+    case WM_KILLFOCUS: {
+      event.type = OS_EVENT_TYPE_UNFOCUS;
     } break;
 
     case WM_CLOSE:
