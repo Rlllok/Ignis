@@ -50,18 +50,21 @@ struct RB_PhysicsComponent {
   RB_PhysicsComponent* prev;
   RB_PhysicsComponent* next;
   
+  F32     mass;
   Vec3F32 position;
+  Vec3F32 velocity;
 };
 
 typedef struct RB_PhysicsWorld RB_PhysicsWorld;
 struct RB_PhysicsWorld {
   Vec3F32 gravity;
+  F32     drag_coefficient;
   RB_PhysicsComponent* components_first;
   RB_PhysicsComponent* components_last;
   RB_PhysicsComponent* components_free;
 };
 
-func RB_PhysicsComponent* RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, Vec3F32 position);
+func RB_PhysicsComponent* RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position);
 func void RB_PhysicsRemoveComponent(RB_PhysicsWorld* world, RB_PhysicsComponent* component);
 
 func void RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt);
@@ -110,7 +113,7 @@ I32 main() {
   };
   RB_Init(&options);
 
-  Vec3F32 camera_position = MakeVec3F32(0.0f, 1.0f, 10.0f);
+  Vec3F32 camera_position = MakeVec3F32(0.0f, 3.0f, 30.0f);
   Quaternion camera_rotation = QuaternionLookAt(camera_position, MakeVec3F32(0.0f, 0.0f, 0.0f));
   RB_InitCamera(camera_position, camera_rotation, 80.0f);
 
@@ -169,8 +172,9 @@ RB_UpdateCamera(F32 dt) {
 }
 
 func RB_PhysicsComponent*
-RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, Vec3F32 position) {
+RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position) {
   RB_PhysicsComponent* result = (RB_PhysicsComponent*)PushArena(arena, sizeof(RB_PhysicsComponent));
+  result->mass = mass;
   result->position = position;
   DllPushBack(world->components_first, world->components_last, result);
   return result;
@@ -185,8 +189,18 @@ RB_PhysicsRemoveComponent(RB_PhysicsWorld* world, RB_PhysicsComponent* position)
 func void
 RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt) {
   for (RB_PhysicsComponent* component = world->components_first; component != 0; component = component->next) {
-    if (component->position.y > 0.0f) {
-      component->position = AddVec3F32(component->position, ScaleVec3F32(world->gravity, dt));
+    // Basic Euler's method
+    Vec3F32 gravity_force = ScaleVec3F32(world->gravity, component->mass);
+    Vec3F32 total_force = MakeVec3F32(0.0f, 0.0f, 0.0f);
+    total_force = AddVec3F32(total_force, gravity_force);
+    Vec3F32 acceleration = ScaleVec3F32(total_force, 1/component->mass);
+    Vec3F32 new_velocity = AddVec3F32(component->velocity, ScaleVec3F32(acceleration, dt));
+    Vec3F32 new_position = AddVec3F32(component->position, ScaleVec3F32(new_velocity, dt));
+    component->velocity = new_velocity;
+    component->position = new_position;
+    if (component->position.y < 0.0f) {
+      component->position.y = 0.0f;
+      component->velocity = ScaleVec3F32(component->velocity, -1.0f);
     }
   }
 }
@@ -301,7 +315,7 @@ RB_Init(RB_Options* options) {
 
   // Initializing Game
   rb_context.physics_world.gravity = MakeVec3F32(0.0f, -9.8f, 0.0f);
-  rb_context.player.physics_component = RB_PhysicsAddComponent(rb_context.global_arena, &rb_context.physics_world, MakeVec3F32(0.0f, 10.0f, 0.0f));
+  rb_context.player.physics_component = RB_PhysicsAddComponent(rb_context.global_arena, &rb_context.physics_world, 1.0f, MakeVec3F32(0.0f, 10.0f, 0.0f));
 }
 
 func void
@@ -366,7 +380,7 @@ RB_Render(F32 dt) {
         Vec3F32 light_direction; F32 light_direction_padding;
         Vec3F32 light_color; F32 light_color_padding;
       } scene_data = {
-        .light_direction = NormalizeVec3F32(MakeVec3F32(0.0f, -1.0f, 1.0f)),
+        .light_direction = NormalizeVec3F32(MakeVec3F32(1.0f, -1.0f, -1.0f)),
         .light_color = RGBFromHex(0xff0000),
       };
       U64 scene_data_offset = RHI_PushBuffer(rb_context.rhi_draw_data_buffer, (U8*)&scene_data, sizeof(scene_data));
