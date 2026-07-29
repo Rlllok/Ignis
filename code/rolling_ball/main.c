@@ -79,6 +79,10 @@ struct RB_Context {
   Arena*     global_arena;
   Arena*     frame_arena;
   OS_Window* window;
+  B32        unfocused;
+  
+  Vec2F32 mouse_position;
+  Vec2F32 prev_mouse_position;
 
   RHI_CommandBuffer    rhi_command_buffer;
   RHI_Buffer           rhi_geometry_buffer;
@@ -165,10 +169,15 @@ RB_InitCamera(Vec3F32 position, Quaternion rotation, F32 fov) {
 
 func void
 RB_UpdateCamera(F32 dt) {
-  Vec3F32 camera_offset = MakeVec3F32(0.0f, 1.0f, 10.0f); 
-  rb_context.camera.transform.translation = AddVec3F32(camera_offset, rb_context.player.physics_component->position);
+  Vec2F32 mouse_position_delta = SubVec2F32(rb_context.mouse_position, rb_context.prev_mouse_position);
+  Quaternion camera_rotation_delta = QuaternionFromEuler(0.0f, 0.1f*mouse_position_delta.x*dt, 0.0f);
+  rb_context.camera.transform.rotation = MulQuaternion(rb_context.camera.transform.rotation, camera_rotation_delta);
 
   Vec3F32 camera_front = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, -1.0f), rb_context.camera.transform.rotation);
+  Vec3F32 camera_offset = AddVec3F32(ScaleVec3F32(camera_front, -30.0f), MakeVec3F32(0.0f, 1.0f, 0.0));
+  
+  rb_context.camera.transform.translation = AddVec3F32(camera_offset, rb_context.player.physics_component->position);
+  
   Mat4F32 view_matrix = MakeLookAtMat4F32(rb_context.camera.transform.translation, AddVec3F32(rb_context.camera.transform.translation, camera_front), MakeVec3F32(0.0f, 1.0f, 0.0f));
   Mat4F32 projection_matrix = MakePerspectiveMat4F32(rb_context.camera.fov/2.0f, (F32)rb_context.window->size.x/(F32)rb_context.window->size.y, 1.0f, 100.0f);
   rb_context.camera.matrix = MulMat4F32(projection_matrix, view_matrix);
@@ -334,12 +343,31 @@ RB_HandleOSEvents(OS_EventList events) {
       case OS_EVENT_TYPE_EXIT: {
         rb_context.finished = 1;
       } break;
+      case OS_EVENT_TYPE_FOCUS: {
+        LogDebug("Window Focus\n");
+        rb_context.unfocused = 0;
+        OS_ShowCursor(0);
+        OS_LockCursor(rb_context.window);
+      } break;
+      case OS_EVENT_TYPE_UNFOCUS: {
+        LogDebug("Window Unfocus\n");
+        rb_context.unfocused = 1;
+      } break;
     }
   }
 }
 
 func void
 RB_HandleGlobalInput() {
+  rb_context.prev_mouse_position = rb_context.mouse_position;
+  rb_context.mouse_position = OS_MousePosition(rb_context.window);
+  if (!rb_context.unfocused) {
+    OS_SetMousePosition(rb_context.window, MakeVec2F32(rb_context.window->size.w/2, rb_context.window->size.h/2));
+  }
+  
+  if (OS_KeyPressed(OS_KEY_ESC)) {
+    rb_context.finished = 1;
+  }
 }
 
 func void
