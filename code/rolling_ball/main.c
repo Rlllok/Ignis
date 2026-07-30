@@ -12,11 +12,11 @@
 
 /*
 @TODO List:
-  - Plane tilting
   - Sphere-Plane collision
   
   Done:
   + Gravity (28.07.2026)
+  + Plane tilting (30.07.2026)
 */
 
 typedef struct RB_StaticMesh RB_StaticMesh;
@@ -100,7 +100,11 @@ struct RB_Context {
   struct {
     RB_PhysicsComponent* physics_component;
   } player;
-  
+
+  struct {
+    Transform transform;
+  } plane;
+
   B32 finished;
 
   F32 dt;
@@ -330,6 +334,7 @@ RB_Init(RB_Options* options) {
   // Initializing Game
   rb_context.physics_world.gravity = MakeVec3F32(0.0f, -9.8f, 0.0f);
   rb_context.player.physics_component = RB_PhysicsAddComponent(rb_context.global_arena, &rb_context.physics_world, 1.0f, MakeVec3F32(0.0f, 10.0f, 0.0f));
+  rb_context.plane.transform = (Transform){.translation = MakeVec3F32(0.0f, 0.0f, 0.0f), .rotation = IdentityQuaternion(), .scale = MakeVec3F32(10.0f, 0.0f, 10.0f)};
 }
 
 func void
@@ -368,6 +373,27 @@ RB_HandleGlobalInput() {
   if (OS_KeyPressed(OS_KEY_ESC)) {
     rb_context.finished = 1;
   }
+
+  F32 max_angle = 10.0f;
+  F32 pitch_weight = 0.0f;
+  Quaternion max_pitch = QuaternionFromEuler(RadiansFromDegrees(max_angle), 0.0f, 0.0f);
+  F32 roll_weight = 0.0f;
+  Quaternion max_roll = QuaternionFromEuler(0.0f, 0.0f, RadiansFromDegrees(max_angle));
+  if (OS_KeyDown(OS_KEY_W)) {
+    pitch_weight += -1.0f;
+  } 
+  if (OS_KeyDown(OS_KEY_S)) {
+    pitch_weight += 1.0f;
+  }
+  if (OS_KeyDown(OS_KEY_D)) {
+    roll_weight += -1.0f;
+  } 
+  if (OS_KeyDown(OS_KEY_A)) {
+    roll_weight += 1.0f;
+  }
+  Quaternion pitch = SlerpQuaternion(IdentityQuaternion(), max_pitch, pitch_weight);
+  Quaternion roll = SlerpQuaternion(IdentityQuaternion(), max_roll, roll_weight);
+  rb_context.plane.transform.rotation = MulQuaternion(pitch, roll);
 }
 
 func void
@@ -455,17 +481,12 @@ RB_Render(F32 dt) {
       geometry_index = 0;
       for (AST_GeometryListNode* geometry_node = rb_context.plane_mesh.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
         AST_Geometry* geometry = &geometry_node->data;
-        Transform plane_transform = {
-          .translation = MakeVec3F32(0.0f, 0.0f, 0.0f),
-          .rotation = IdentityQuaternion(),
-          .scale = MakeVec3F32(10.0f, 1.0f, 10.0f),
-        };
         struct {
           Mat4F32     transform;
           Mat4F32     camera_transform;
           RB_Material material;
         } object_data = {
-          .transform = Mat4F32FromTransform(plane_transform),
+          .transform = Mat4F32FromTransform(rb_context.plane.transform),
           .camera_transform = rb_context.camera.matrix,
           .material = rb_context.default_material,
         };
