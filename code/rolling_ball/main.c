@@ -45,28 +45,69 @@ struct RB_Camera {
 func void RB_InitCamera(Vec3F32 position, Quaternion rotation, F32 fov);
 func void RB_UpdateCamera(F32 dt);
 
+typedef U8 RB_PhysicsComponentKind;
+typedef enum RB_PhysicsComponentKindEnum {
+  RB_PhysicsComponentKind_Particle,
+  RB_PhysicsComponentKind_Plane,
+  RB_PhysicsComponentKind_Sphere,
+  RB_PhysicsComponentKind_Count,
+} RB_PhysicsComponentKindEnum;
+
 typedef struct RB_PhysicsComponent RB_PhysicsComponent;
 struct RB_PhysicsComponent {
   RB_PhysicsComponent* prev;
   RB_PhysicsComponent* next;
   
-  F32     mass;
-  Vec3F32 position;
-  Vec3F32 velocity;
+  F32       mass;
+  Transform transform;
+  Vec3F32   velocity;
+  B32       is_static;
+  
+  RB_PhysicsComponentKind kind;
+  struct {
+  } particle;
+  struct {
+    Vec2F32 size;
+  } plane;
+  struct {
+    F32 radius;
+  } sphere;
+};
+
+typedef struct RB_PhysicsCollision RB_PhysicsCollision;
+struct RB_PhysicsCollision {
+  RB_PhysicsComponent* a;
+  RB_PhysicsComponent* b;
+  Vec3F32              penetration;
+
+  RB_PhysicsCollision* next;
+  RB_PhysicsCollision* prev;
 };
 
 typedef struct RB_PhysicsWorld RB_PhysicsWorld;
 struct RB_PhysicsWorld {
+  Arena* tick_arena;
+
   Vec3F32 gravity;
   F32     drag_coefficient;
+
   RB_PhysicsComponent* components_first;
   RB_PhysicsComponent* components_last;
   RB_PhysicsComponent* components_free;
+
+  RB_PhysicsCollision* collisions_first;
+  RB_PhysicsCollision* collisions_last;
 };
 
-func RB_PhysicsComponent* RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position);
+func RB_PhysicsComponent* RB_PhysicsAddPartice(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position);
+func RB_PhysicsComponent* RB_PhysicsAddPlane(Arena* arena, RB_PhysicsWorld* world, F32 mass, Transform transform);
+func RB_PhysicsComponent* RB_PhysicsAddSphere(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position, F32 radius);
+
 func void RB_PhysicsRemoveComponent(RB_PhysicsWorld* world, RB_PhysicsComponent* component);
 
+func void RB_CheckCollisionPlaneSphere(RB_PhysicsWorld* world, RB_PhysicsComponent* a, RB_PhysicsComponent* b);
+func void RB_CheckCollisions(RB_PhysicsWorld* world);
+func void RB_SolveCollisions(RB_PhysicsWorld* world);
 func void RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt);
 
 typedef struct RB_Options RB_Options;
@@ -102,7 +143,7 @@ struct RB_Context {
   } player;
 
   struct {
-    Transform transform;
+    RB_PhysicsComponent* physics_component;
   } plane;
 
   B32 finished;
@@ -180,7 +221,7 @@ RB_UpdateCamera(F32 dt) {
   Vec3F32 camera_front = RotateVec3F32(MakeVec3F32(0.0f, 0.0f, -1.0f), rb_context.camera.transform.rotation);
   Vec3F32 camera_offset = AddVec3F32(ScaleVec3F32(camera_front, -30.0f), MakeVec3F32(0.0f, 1.0f, 0.0));
   
-  rb_context.camera.transform.translation = AddVec3F32(camera_offset, rb_context.player.physics_component->position);
+  rb_context.camera.transform.translation = AddVec3F32(camera_offset, rb_context.player.physics_component->transform.translation);
   
   Mat4F32 view_matrix = MakeLookAtMat4F32(rb_context.camera.transform.translation, AddVec3F32(rb_context.camera.transform.translation, camera_front), MakeVec3F32(0.0f, 1.0f, 0.0f));
   Mat4F32 projection_matrix = MakePerspectiveMat4F32(rb_context.camera.fov/2.0f, (F32)rb_context.window->size.x/(F32)rb_context.window->size.y, 1.0f, 100.0f);
@@ -188,11 +229,38 @@ RB_UpdateCamera(F32 dt) {
   rb_context.camera.inverse = InverseMat4F32(rb_context.camera.matrix);
 }
 
-func RB_PhysicsComponent*
-RB_PhysicsAddComponent(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position) {
+func RB_PhysicsComponent* RB_PhysicsAddPartice(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position) {
   RB_PhysicsComponent* result = (RB_PhysicsComponent*)PushArena(arena, sizeof(RB_PhysicsComponent));
   result->mass = mass;
-  result->position = position;
+  result->transform = (Transform) {
+    .translation = position,
+    .rotation = IdentityQuaternion(),
+    .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+  };
+  result->kind = RB_PhysicsComponentKind_Particle;
+  DllPushBack(world->components_first, world->components_last, result);
+  return result;
+}
+
+func RB_PhysicsComponent* RB_PhysicsAddPlane(Arena* arena, RB_PhysicsWorld* world, F32 mass, Transform transform) {
+  RB_PhysicsComponent* result = (RB_PhysicsComponent*)PushArena(arena, sizeof(RB_PhysicsComponent));
+  result->mass = mass;
+  result->transform = transform;
+  result->kind = RB_PhysicsComponentKind_Plane;
+  DllPushBack(world->components_first, world->components_last, result);
+  return result;
+}
+
+func RB_PhysicsComponent* RB_PhysicsAddSphere(Arena* arena, RB_PhysicsWorld* world, F32 mass, Vec3F32 position, F32 radius) {
+  RB_PhysicsComponent* result = (RB_PhysicsComponent*)PushArena(arena, sizeof(RB_PhysicsComponent));
+  result->mass = mass;
+  result->transform = (Transform) {
+    .translation = position,
+    .rotation = IdentityQuaternion(),
+    .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+  };
+  result->kind = RB_PhysicsComponentKind_Sphere;
+  result->sphere.radius = radius;
   DllPushBack(world->components_first, world->components_last, result);
   return result;
 }
@@ -204,20 +272,63 @@ RB_PhysicsRemoveComponent(RB_PhysicsWorld* world, RB_PhysicsComponent* position)
 }
 
 func void
+RB_CheckCollisionPlaneSphere(RB_PhysicsWorld* world, RB_PhysicsComponent* a, RB_PhysicsComponent* b) {
+  Vec3F32 plane_normal = RotateVec3F32(MakeVec3F32(0.0f, 1.0f, 0.0f), a->transform.rotation);
+  Vec3F32 plane_to_sphere = SubVec3F32(b->transform.translation, a->transform.translation);
+  Vec3F32 sphere_projected = SubVec3F32(b->transform.translation, ScaleVec3F32(plane_normal, DotVec3F32(plane_to_sphere, plane_normal)));
+  F32 distance = MagnitudeVec3F32(SubVec3F32(b->transform.translation, sphere_projected));
+  if (distance - b->sphere.radius < 0.0f) {
+    RB_PhysicsCollision* collision = (RB_PhysicsCollision*)PushArena(world->tick_arena, sizeof(RB_PhysicsCollision));
+    collision->a = a;
+    collision->b = b;
+    collision->penetration = ScaleVec3F32(plane_normal, b->sphere.radius - distance);
+    DllPushBack(world->collisions_first, world->collisions_last, collision);
+  }
+}
+
+func void
+RB_CheckCollisions(RB_PhysicsWorld* world) {
+  for (RB_PhysicsComponent* a = world->components_first; a != 0; a = a->next) {
+    for (RB_PhysicsComponent* b = a->next; b != 0; b = b->next) {
+      if (a->kind == RB_PhysicsComponentKind_Plane && b->kind == RB_PhysicsComponentKind_Sphere) {
+        RB_CheckCollisionPlaneSphere(world, a, b);
+      }
+      else if (a->kind == RB_PhysicsComponentKind_Sphere && b->kind == RB_PhysicsComponentKind_Plane) {
+        RB_CheckCollisionPlaneSphere(world, b, a);
+      }
+    }
+  }
+}
+
+func void
+RB_SolveCollisions(RB_PhysicsWorld* world) {
+  for (RB_PhysicsCollision* collision = world->collisions_first; collision != 0; collision = collision->next) {
+    collision->b->transform.translation = AddVec3F32(collision->b->transform.translation, collision->penetration);
+    collision->b->velocity = ScaleVec3F32(NormalizeVec3F32(collision->penetration), MagnitudeVec3F32(collision->b->velocity));
+  }
+  world->collisions_first = 0;
+  world->collisions_last = 0;
+  ResetArena(world->tick_arena);
+}
+
+func void
 RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt) {
-  for (RB_PhysicsComponent* component = world->components_first; component != 0; component = component->next) {
-    // Basic Euler's method
-    Vec3F32 gravity_force = ScaleVec3F32(world->gravity, component->mass);
-    Vec3F32 total_force = MakeVec3F32(0.0f, 0.0f, 0.0f);
-    total_force = AddVec3F32(total_force, gravity_force);
-    Vec3F32 acceleration = ScaleVec3F32(total_force, 1/component->mass);
-    Vec3F32 new_velocity = AddVec3F32(component->velocity, ScaleVec3F32(acceleration, dt));
-    Vec3F32 new_position = AddVec3F32(component->position, ScaleVec3F32(new_velocity, dt));
-    component->velocity = new_velocity;
-    component->position = new_position;
-    if (component->position.y < 0.0f) {
-      component->position.y = 0.0f;
-      component->velocity = ScaleVec3F32(component->velocity, -1.0f);
+  for (I32 i = 0; i < 1; i += 1) {
+    RB_CheckCollisions(world);
+    RB_SolveCollisions(world);
+
+    for (RB_PhysicsComponent* component = world->components_first; component != 0; component = component->next) {
+      if (!component->is_static) {
+        // Basic Euler's method
+        Vec3F32 gravity_force = ScaleVec3F32(world->gravity, component->mass);
+        Vec3F32 total_force = MakeVec3F32(0.0f, 0.0f, 0.0f);
+        total_force = AddVec3F32(total_force, gravity_force);
+        Vec3F32 acceleration = ScaleVec3F32(total_force, 1/component->mass);
+        Vec3F32 new_velocity = AddVec3F32(component->velocity, ScaleVec3F32(acceleration, dt));
+        Vec3F32 new_position = AddVec3F32(component->transform.translation, ScaleVec3F32(new_velocity, dt));
+        component->velocity = new_velocity;
+        component->transform.translation = new_position;
+      }
     }
   }
 }
@@ -332,9 +443,11 @@ RB_Init(RB_Options* options) {
   rb_context.plane_mesh = RB_LoadStaticMesh(rb_context.global_arena, Str8C("data/primitives/plane.gltf"));
 
   // Initializing Game
+  rb_context.physics_world.tick_arena = AllocateArena(Gigabytes(2), Kilobytes(4));
   rb_context.physics_world.gravity = MakeVec3F32(0.0f, -9.8f, 0.0f);
-  rb_context.player.physics_component = RB_PhysicsAddComponent(rb_context.global_arena, &rb_context.physics_world, 1.0f, MakeVec3F32(0.0f, 10.0f, 0.0f));
-  rb_context.plane.transform = (Transform){.translation = MakeVec3F32(0.0f, 0.0f, 0.0f), .rotation = IdentityQuaternion(), .scale = MakeVec3F32(10.0f, 0.0f, 10.0f)};
+  rb_context.player.physics_component = RB_PhysicsAddSphere(rb_context.global_arena, &rb_context.physics_world, 1.0f, MakeVec3F32(0.0f, 10.0f, 0.0f), 1.0f);
+  rb_context.plane.physics_component = RB_PhysicsAddPlane(rb_context.global_arena, &rb_context.physics_world, 1.0f, (Transform){MakeVec3F32(0.0f, 0.0f, 0.0f), IdentityQuaternion(), MakeVec3F32(10.0f, 0.0f, 10.0f)});
+  rb_context.plane.physics_component->is_static = 1;
 }
 
 func void
@@ -393,7 +506,7 @@ RB_HandleGlobalInput() {
   }
   Quaternion pitch = SlerpQuaternion(IdentityQuaternion(), max_pitch, pitch_weight);
   Quaternion roll = SlerpQuaternion(IdentityQuaternion(), max_roll, roll_weight);
-  rb_context.plane.transform.rotation = MulQuaternion(pitch, roll);
+  rb_context.plane.physics_component->transform.rotation = MulQuaternion(pitch, roll);
 }
 
 func void
@@ -447,7 +560,7 @@ RB_Render(F32 dt) {
       for (AST_GeometryListNode* geometry_node = rb_context.sphere_mesh.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
         AST_Geometry* geometry = &geometry_node->data;
         Transform player_transform = {
-          .translation = rb_context.player.physics_component->position,
+          .translation = rb_context.player.physics_component->transform.translation,
           .rotation = IdentityQuaternion(),
           .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
         };
@@ -486,7 +599,7 @@ RB_Render(F32 dt) {
           Mat4F32     camera_transform;
           RB_Material material;
         } object_data = {
-          .transform = Mat4F32FromTransform(rb_context.plane.transform),
+          .transform = Mat4F32FromTransform(rb_context.plane.physics_component->transform),
           .camera_transform = rb_context.camera.matrix,
           .material = rb_context.default_material,
         };
