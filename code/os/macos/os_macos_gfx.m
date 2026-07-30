@@ -107,6 +107,10 @@ func void
 OS_UnlockCursor(OS_Window* window) {
 }
 
+func void
+OS_ShowCursor(B32 to_show) {
+}
+
 func OS_EventList
 OS_DispatchEvents(Arena* arena, OS_Window* window) {
   _os_state.event_list = OS_EventListCreate(arena);
@@ -307,6 +311,10 @@ OS_MousePosition(OS_Window* window) {
    NSPoint point = [ns_window mouseLocationOutsideOfEventStream];
 
    return MakeVec2F32(point.x, window->size.h - point.y);
+}
+
+func void
+OS_SetMousePosition(OS_Window* window, Vec2F32 position) {
 }
 
 func Vec2F32
