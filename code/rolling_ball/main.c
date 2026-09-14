@@ -61,6 +61,7 @@ struct RB_PhysicsComponent {
   F32       mass;
   Transform transform;
   Vec3F32   velocity;
+  Vec3F32   force;
   B32       is_static;
   
   RB_PhysicsComponentKind kind;
@@ -145,6 +146,9 @@ struct RB_Context {
   struct {
     RB_PhysicsComponent* physics_component;
   } plane;
+
+  RB_PhysicsComponent* spheres[100];
+  I32 spheres_count;
 
   B32 finished;
 
@@ -276,12 +280,13 @@ RB_CheckCollisionPlaneSphere(RB_PhysicsWorld* world, RB_PhysicsComponent* a, RB_
   Vec3F32 plane_normal = RotateVec3F32(MakeVec3F32(0.0f, 1.0f, 0.0f), a->transform.rotation);
   Vec3F32 plane_to_sphere = SubVec3F32(b->transform.translation, a->transform.translation);
   Vec3F32 sphere_projected = SubVec3F32(b->transform.translation, ScaleVec3F32(plane_normal, DotVec3F32(plane_to_sphere, plane_normal)));
-  F32 distance = MagnitudeVec3F32(SubVec3F32(b->transform.translation, sphere_projected));
-  if (distance - b->sphere.radius < 0.0f) {
+  F32 distance = DotVec3F32(SubVec3F32(b->transform.translation, sphere_projected), plane_normal);
+  F32 depth = b->sphere.radius - distance;
+  if (depth > 0.0f) {
     RB_PhysicsCollision* collision = (RB_PhysicsCollision*)PushArena(world->tick_arena, sizeof(RB_PhysicsCollision));
     collision->a = a;
     collision->b = b;
-    collision->penetration = ScaleVec3F32(plane_normal, b->sphere.radius - distance);
+    collision->penetration = ScaleVec3F32(plane_normal, depth);
     DllPushBack(world->collisions_first, world->collisions_last, collision);
   }
 }
@@ -303,8 +308,28 @@ RB_CheckCollisions(RB_PhysicsWorld* world) {
 func void
 RB_SolveCollisions(RB_PhysicsWorld* world) {
   for (RB_PhysicsCollision* collision = world->collisions_first; collision != 0; collision = collision->next) {
-    collision->b->transform.translation = AddVec3F32(collision->b->transform.translation, collision->penetration);
-    collision->b->velocity = ScaleVec3F32(NormalizeVec3F32(collision->penetration), MagnitudeVec3F32(collision->b->velocity));
+    if (!collision->a->is_static && !collision->b->is_static) {
+      collision->a->transform.translation = AddVec3F32(collision->b->transform.translation, ScaleVec3F32(collision->penetration, -0.5f));
+      collision->b->transform.translation = AddVec3F32(collision->b->transform.translation, ScaleVec3F32(collision->penetration, 0.5f));
+    } else if (!collision->a->is_static) {
+      collision->a->transform.translation = AddVec3F32(collision->a->transform.translation, ScaleVec3F32(collision->penetration, -1.0f));
+    } else if (!collision->b->is_static) {
+      collision->b->transform.translation = AddVec3F32(collision->b->transform.translation, collision->penetration);
+    }
+
+    RB_PhysicsComponent* plane = collision->a;
+    RB_PhysicsComponent* sphere = collision->b;
+    if (plane->kind == RB_PhysicsComponentKind_Sphere) {
+      sphere = collision->b;
+      plane = collision->a;
+    }
+    Vec3F32 penetration_normal = NormalizeVec3F32(collision->penetration);
+    F32 speed_along_normal = DotVec3F32(sphere->velocity, penetration_normal);
+    if (speed_along_normal < 0.0f) {
+      F32 restitution = 0.2f;
+      Vec3F32 impulse = ScaleVec3F32(penetration_normal, -(1.0f + restitution)*speed_along_normal);
+      sphere->velocity = AddVec3F32(sphere->velocity, impulse);
+    }
   }
   world->collisions_first = 0;
   world->collisions_last = 0;
@@ -321,13 +346,13 @@ RB_UpdatePhysics(RB_PhysicsWorld* world, F32 dt) {
       if (!component->is_static) {
         // Basic Euler's method
         Vec3F32 gravity_force = ScaleVec3F32(world->gravity, component->mass);
-        Vec3F32 total_force = MakeVec3F32(0.0f, 0.0f, 0.0f);
-        total_force = AddVec3F32(total_force, gravity_force);
-        Vec3F32 acceleration = ScaleVec3F32(total_force, 1/component->mass);
+        component->force = AddVec3F32(component->force, gravity_force);
+        Vec3F32 acceleration = ScaleVec3F32(component->force, 1/component->mass);
         Vec3F32 new_velocity = AddVec3F32(component->velocity, ScaleVec3F32(acceleration, dt));
         Vec3F32 new_position = AddVec3F32(component->transform.translation, ScaleVec3F32(new_velocity, dt));
         component->velocity = new_velocity;
         component->transform.translation = new_position;
+        component->force = MakeVec3F32(0.0f, 0.0f, 0.0f);
       }
     }
   }
@@ -448,6 +473,13 @@ RB_Init(RB_Options* options) {
   rb_context.player.physics_component = RB_PhysicsAddSphere(rb_context.global_arena, &rb_context.physics_world, 1.0f, MakeVec3F32(0.0f, 10.0f, 0.0f), 1.0f);
   rb_context.plane.physics_component = RB_PhysicsAddPlane(rb_context.global_arena, &rb_context.physics_world, 1.0f, (Transform){MakeVec3F32(0.0f, 0.0f, 0.0f), IdentityQuaternion(), MakeVec3F32(10.0f, 0.0f, 10.0f)});
   rb_context.plane.physics_component->is_static = 1;
+
+  rb_context.spheres_count = 5;
+  F32 delta_position = 10.0f/rb_context.spheres_count;
+  for (I32 i = 0; i < rb_context.spheres_count; i += 1) {
+    F32 offset = -5.0f + delta_position*i;
+    rb_context.spheres[i] = RB_PhysicsAddSphere(rb_context.global_arena, &rb_context.physics_world, 1.0f, MakeVec3F32(offset, 10.0f, 0.0f), 1.0f);
+  }
 }
 
 func void
@@ -504,6 +536,7 @@ RB_HandleGlobalInput() {
   if (OS_KeyDown(OS_KEY_A)) {
     roll_weight += 1.0f;
   }
+
   Quaternion pitch = SlerpQuaternion(IdentityQuaternion(), max_pitch, pitch_weight);
   Quaternion roll = SlerpQuaternion(IdentityQuaternion(), max_roll, roll_weight);
   rb_context.plane.physics_component->transform.rotation = MulQuaternion(pitch, roll);
@@ -589,6 +622,44 @@ RB_Render(F32 dt) {
         RHI_BindVertexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.sphere_mesh.vertex_offset[geometry_index]);
         RHI_DrawIndexedPrimitives(rb_context.rhi_command_buffer, geometry->index_count, 1, 0, 0, 0);
         geometry_index += 1;
+      }
+
+      for (I32 i = 0; i < rb_context.spheres_count; i += 1) {
+        RB_PhysicsComponent* sphere = rb_context.spheres[i];
+        geometry_index = 0;
+        for (AST_GeometryListNode* geometry_node = rb_context.sphere_mesh.mesh.geometry_list.first; geometry_node; geometry_node = geometry_node->next) {
+          AST_Geometry* geometry = &geometry_node->data;
+          Transform player_transform = {
+            .translation = sphere->transform.translation,
+            .rotation = IdentityQuaternion(),
+            .scale = MakeVec3F32(1.0f, 1.0f, 1.0f),
+          };
+          struct {
+            Mat4F32     transform;
+            Mat4F32     camera_transform;
+            RB_Material material;
+          } object_data = {
+            .transform = Mat4F32FromTransform(player_transform),
+            .camera_transform = rb_context.camera.matrix,
+            .material = rb_context.default_material,
+          };
+          U64 object_data_offset = RHI_PushBuffer(rb_context.rhi_draw_data_buffer, (U8*)&object_data, sizeof(object_data));
+          RHI_ShaderArgument arguments[] = {
+            {
+              .kind = RHI_ShaderArgumentKind_BufferAddress,
+              .address = RHI_BufferDeviceAddress(rb_context.rhi_draw_data_buffer) + scene_data_offset,
+            },
+            {
+              .kind = RHI_ShaderArgumentKind_BufferAddress,
+              .address = RHI_BufferDeviceAddress(rb_context.rhi_draw_data_buffer) + object_data_offset,
+            }
+          };
+          RHI_BindShaderArguments(rb_context.rhi_command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+          RHI_BindIndexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.sphere_mesh.indecies_offset[geometry_index], RHI_IndexSize_U16);
+          RHI_BindVertexBuffer(rb_context.rhi_command_buffer, rb_context.rhi_geometry_buffer, rb_context.sphere_mesh.vertex_offset[geometry_index]);
+          RHI_DrawIndexedPrimitives(rb_context.rhi_command_buffer, geometry->index_count, 1, 0, 0, 0);
+          geometry_index += 1;
+        }
       }
       
       geometry_index = 0;

@@ -13,7 +13,6 @@ D_Init(U64 arena_size) {
 
 func void
 D_PreparePipelines() {
-  // 2D
   // Rectangle
   {
     RHI_ShaderArgumentKind vertex_shader_arguments[] = {
@@ -37,6 +36,32 @@ D_PreparePipelines() {
     });
 
     _d_state.rectangle_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
+      .vertex_shader = &vertex_shader,
+      .fragment_shader = &fragment_shader,
+      .color_targets_count = 1,
+      .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
+        .format = RHI_GetSwapchainTextureFormat(),
+        .blend_enable = 1,
+      }
+    });
+  }
+  {
+    RHI_ShaderArgumentKind shader_arguments[] = {
+      RHI_ShaderArgumentKind_BufferAddress,
+    };
+    RHI_Shader vertex_shader = RHI_CreateShader(_d_state.arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/sprite.vs"),
+      .kind = RHI_ShaderKind_Vertex,
+      .arguments = shader_arguments,
+      .arguments_count = ArrayLength(shader_arguments),
+    });
+    RHI_Shader fragment_shader = RHI_CreateShader(_d_state.arena, &(RHI_ShaderCreateInfo) {
+      .file_name = Str8C("./data/shaders/draw/sprite.fs"),
+      .kind = RHI_ShaderKind_Fragment,
+      .arguments = shader_arguments,
+      .arguments_count = ArrayLength(shader_arguments),
+    });
+    _d_state.sprite_pipeline = RHI_CreateGraphicsPipeline(&(RHI_GraphicsPipelineCreateInfo) {
       .vertex_shader = &vertex_shader,
       .fragment_shader = &fragment_shader,
       .color_targets_count = 1,
@@ -86,6 +111,36 @@ D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 
   };
   RHI_BindGraphicsPipeline(command_buffer, _d_state.rectangle_pipeline);
   // RHI_BindResourceTable(command_buffer, _d_state.resource_table);
+  RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
+  RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
+}
+
+func void
+D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color) {
+  RectI32 viewport = RHI_GetViewport(command_buffer);
+
+  struct {
+    Mat4F32 projection;
+    Vec4F32 position_size;
+    Vec4F32 part_position_size;
+    Vec4F32 tint_color;
+    U32     texture_id;
+  } data = {
+    .projection = MakeOrthographicMat4F32(0.0f, viewport.w, viewport.h, 0.0f, -1.0f, 1.0f),
+    .position_size = MakeVec4F32(rect.x, rect.y, rect.w, rect.h),
+    .part_position_size = MakeVec4F32(part_rect.x, part_rect.y, part_rect.w, part_rect.h),
+    .tint_color = tint_color,
+    .texture_id = texture_id,
+  };
+  U64 data_offset = RHI_PushBuffer(buffer, (U8*)&data, sizeof(data));
+
+  RHI_BindGraphicsPipeline(command_buffer, _d_state.sprite_pipeline);
+  RHI_ShaderArgument arguments[] = {
+    {
+      .kind = RHI_ShaderArgumentKind_BufferAddress,
+      .address = RHI_BufferDeviceAddress(buffer) + data_offset,
+    },
+  };
   RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
   RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
 }

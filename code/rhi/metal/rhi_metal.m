@@ -194,6 +194,9 @@ RHI_Metal_CreateTexture(RHI_TextureCreateInfo* info) {
     } else if (info->usage_flags & RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) {
       descriptor.usage = MTLTextureUsageRenderTarget;
     }
+    else if (info->usage_flags & RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) {
+      descriptor.usage = MTLTextureUsageRenderTarget;
+    }
     descriptor.storageMode = MTLStorageModeShared;
     result.mtl = [_rhi_metal_context.device newTextureWithDescriptor:descriptor];
     result.size = MakeVec3I32(info->width, info->height, info->depth);
@@ -384,10 +387,8 @@ func RHI_RenderPass*
 RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count) {
   @autoreleasepool {
     RHI_Metal_CommandBuffer* mtl_command_buffer = RHI_Metal_CommandBufferFromHandle(command_buffer);
-    
+     
     Assert(mtl_command_buffer->render_encoder == nil);
-
-    Assert(_rhi_metal_context.current_drawable != nil);
 
     MTL4RenderPassDescriptor* pass_descriptor = [MTL4RenderPassDescriptor new];
     for (I32 i = 0; i < color_targets_count; i += 1) {

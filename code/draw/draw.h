@@ -9,6 +9,7 @@ struct D_State {
 
   // -- 2D Pipelines
   RHI_GraphicsPipeline rectangle_pipeline;
+  RHI_GraphicsPipeline sprite_pipeline;
   RHI_GraphicsPipeline text_pipeline;
   // -- 3D Pipelines
   RHI_GraphicsPipeline line_3d_pipeline;
@@ -21,3 +22,7 @@ func void D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer
 #define D_DrawRect(command_buffer, buffer, rect, radius, color) D_DrawRectInternal(command_buffer, buffer, rect, radius, color, color, color, color, 0.0f, color)
 #define D_DrawRectWithBorder(command_buffer, buffer, rect, radius, color, border_width, border_color) D_DrawRectInternal(command_buffer, buffer, rect, radius, color, color, color, color, border_width, border_color)
 #define D_DrawRectGradient(command_buffer, buffer, rect, radius, top_left_color, top_right_color, bottom_right_color, bottom_left_color) D_DrawRectInternal(command_buffer, buffer, rect, radius, top_left_color, top_right_color, bottom_right_color, bottom_left_color, 0.0f, (Vec4F32){0.0f, 0.0f, 0.0f, 0.0f})
+
+func void D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color);
+#define D_DrawSprite(command_buffer, buffer, rect, texture) D_DrawSpriteInternal(command_buffer, buffer, rect, texture, MakeRectF32(0.0f, 0.0f, 0.0f, 0.0f), MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f));
+#define D_DrawSpritePart(command_buffer, buffer, rect, texture, part_rect) D_DrawSpriteInternal(command_buffer, buffer, rect, texture, part_rect, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f));
