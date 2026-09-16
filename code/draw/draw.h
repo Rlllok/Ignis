@@ -23,6 +23,6 @@ func void D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer
 #define D_DrawRectWithBorder(command_buffer, buffer, rect, radius, color, border_width, border_color) D_DrawRectInternal(command_buffer, buffer, rect, radius, color, color, color, color, border_width, border_color)
 #define D_DrawRectGradient(command_buffer, buffer, rect, radius, top_left_color, top_right_color, bottom_right_color, bottom_left_color) D_DrawRectInternal(command_buffer, buffer, rect, radius, top_left_color, top_right_color, bottom_right_color, bottom_left_color, 0.0f, (Vec4F32){0.0f, 0.0f, 0.0f, 0.0f})
 
-func void D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color);
-#define D_DrawSprite(command_buffer, buffer, rect, texture) D_DrawSpriteInternal(command_buffer, buffer, rect, texture, MakeRectF32(0.0f, 0.0f, 0.0f, 0.0f), MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f));
-#define D_DrawSpritePart(command_buffer, buffer, rect, texture, part_rect) D_DrawSpriteInternal(command_buffer, buffer, rect, texture, part_rect, MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f));
+func void D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, F32 rotation, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color);
+#define D_DrawSprite(command_buffer, buffer, rect, rotation, texture, tint_color) D_DrawSpriteInternal(command_buffer, buffer, rect, rotation, texture, MakeRectF32(0.0f, 0.0f, 0.0f, 0.0f), tint_color);
+#define D_DrawSpritePart(command_buffer, buffer, rect, rotation, texture, part_rect, tint_color) D_DrawSpriteInternal(command_buffer, buffer, rect, rotation, texture, part_rect, tint_color);

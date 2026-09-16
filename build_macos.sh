@@ -45,6 +45,12 @@ if [ "$1" == "mask"  ]; then
   );
 fi
 
+if [ "$1" == "asteroids"  ]; then
+  time (
+    clang -x objective-c -fobjc-arc -g ./code/app/asteroids.c -o build/asteroids $warnings $defines $default_links $include_flags;
+  );
+fi
+
 if [ "$1" == "rolling_ball"  ]; then
   time (
     clang -x objective-c -fobjc-arc -g ./code/rolling_ball/main.c -o build/rolling_ball $warnings $defines $default_links $include_flags;

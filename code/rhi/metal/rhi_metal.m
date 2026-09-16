@@ -556,14 +556,14 @@ RHI_Metal_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* info) {
     pipeline_descriptor.vertexDescriptor = vertex_descriptor;
 
     for (I32 i = 0; i < info->color_targets_count; i += 1) {
-      pipeline_descriptor.colorAttachments[0].pixelFormat = RHI_Metal_PixelFormatFromRHI(info->color_target_infos[i].format);
-      pipeline_descriptor.colorAttachments[0].blendingEnabled = info->color_target_infos[i].blend_enable;
-      pipeline_descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
-      pipeline_descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-      pipeline_descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
-      pipeline_descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
-      pipeline_descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorZero;
-      pipeline_descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+      pipeline_descriptor.colorAttachments[i].pixelFormat = RHI_Metal_PixelFormatFromRHI(info->color_target_infos[i].format);
+      pipeline_descriptor.colorAttachments[i].blendingEnabled = info->color_target_infos[i].blend_enable;
+      pipeline_descriptor.colorAttachments[i].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+      pipeline_descriptor.colorAttachments[i].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+      pipeline_descriptor.colorAttachments[i].rgbBlendOperation = MTLBlendOperationAdd;
+      pipeline_descriptor.colorAttachments[i].sourceAlphaBlendFactor = MTLBlendFactorOne;
+      pipeline_descriptor.colorAttachments[i].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+      pipeline_descriptor.colorAttachments[i].alphaBlendOperation = MTLBlendOperationAdd;
     }
 
     if (info->depth_stencil_state.depth_test_enable) {

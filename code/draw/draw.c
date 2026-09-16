@@ -116,18 +116,24 @@ D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 
 }
 
 func void
-D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color) {
+D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, F32 rotation, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color) {
   RectI32 viewport = RHI_GetViewport(command_buffer);
+  Transform transform = {
+    .translation = MakeVec3F32(rect.x + rect.w*0.5f, rect.y + rect.h*0.5f, 0.0f),
+    .rotation = MakeQuaternion(0.0f, 0.0f, sin(rotation/2.0f), cos(rotation/2.0f)),
+    .scale = MakeVec3F32(rect.w, rect.h, 1.0f),
+  };
+  Mat4F32 transform_matrix = MulMat4F32(Mat4F32FromTransform(transform), MakeTransposeMat4F32(MakeVec3F32(-0.5f, -0.5f, 0.0f)));
 
   struct {
     Mat4F32 projection;
-    Vec4F32 position_size;
+    Mat4F32 transform;
     Vec4F32 part_position_size;
     Vec4F32 tint_color;
     U32     texture_id;
   } data = {
     .projection = MakeOrthographicMat4F32(0.0f, viewport.w, viewport.h, 0.0f, -1.0f, 1.0f),
-    .position_size = MakeVec4F32(rect.x, rect.y, rect.w, rect.h),
+    .transform = transform_matrix,
     .part_position_size = MakeVec4F32(part_rect.x, part_rect.y, part_rect.w, part_rect.h),
     .tint_color = tint_color,
     .texture_id = texture_id,

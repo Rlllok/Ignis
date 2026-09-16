@@ -21,7 +21,7 @@ constant uint indecies[] = {
 
 struct SpriteData {
   float4x4         projection;
-  float4           position_size;
+  float4x4         transform;
   float4           part_position_size;
   float4           tint_color;
   texture2d<float> texture;
@@ -38,8 +38,7 @@ vertex VertexOutput VertexMain(
 ) {
   VertexOutput output = {0};
 
-  float4 vertex_position = vertecies[indecies[vertex_index]]*float4(sprite_data->position_size.z, sprite_data->position_size.w, 0.0f, 1.0f) + float4(sprite_data->position_size.x, sprite_data->position_size.y, 0.0f, 0.0f);
-  output.position = sprite_data->projection*vertex_position;
+  output.position = sprite_data->projection*sprite_data->transform*vertecies[indecies[vertex_index]];
   float2 sprite_size = float2(sprite_data->texture.get_width(), sprite_data->texture.get_height());
   float2 base_uv = uv[indecies[vertex_index]];
   output.uv = (sprite_data->part_position_size.xy + (base_uv*sprite_data->part_position_size.zw))/sprite_size;
