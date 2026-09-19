@@ -79,6 +79,44 @@ func void RHI_VK_CreateDevice();
 func void RHI_VK_DestroyDevice();
 
 // -------------------------------------------------------------------
+// -- Texture --------------------------------------------------------
+typedef struct RHI_VK_Texture RHI_VK_Texture;
+struct RHI_VK_Texture {
+  RHI_Texture           header;
+  VkImage               image;
+  VkImageView           view;
+  VkDeviceMemory        memory;
+  VkImageLayout         layout;
+  VkImageAspectFlagBits aspect_mask;
+  B32                   from_swapchain; // --AlNov: If image created by swapchain, it has to be destroyed by swapchain
+};
+RHI_VK_Texture RHI_VK_TextureNil = {0};
+DefineArray(RHI_VK_Texture, RHI_VK_TextureArray, RHI_VK_TextureNil)
+U32 RHI_VK_TextureFreeListNil = RHI_nil;
+DefineArray(U32, RHI_VK_TextureFreeList, RHI_VK_TextureFreeListNil)
+
+func RHI_VK_Texture*   RHI_VK_TextureFromHandle(RHI_Texture handle);
+func RHI_Texture       RHI_VK_CreateTexture(RHI_TextureCreateInfo* info);
+func B32               RHI_VK_DestroyTexture(RHI_Texture texture);
+func void              RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture);
+func void              RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
+func U64               RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
+func void              RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
+
+func void RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImageLayout new_layout);
+
+typedef struct RHI_VK_TextureSampler RHI_VK_TextureSampler;
+struct RHI_VK_TextureSampler {
+  VkSampler vk;
+};
+RHI_VK_TextureSampler RHI_VK_TextureSamplerNil = {0};
+DefineArray(RHI_VK_TextureSampler, RHI_VK_TextureSamplerArray, RHI_VK_TextureSamplerNil)
+
+func RHI_VK_TextureSampler* RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler sampler);
+func RHI_TextureSampler     RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info);
+
+
+// -------------------------------------------------------------------
 // -- Surface/Swapchain ----------------------------------------------
 #define RHI_VK_SWAPCHAIN_MAX_IMAGES 8
 
@@ -90,7 +128,7 @@ struct RHI_VK_Swapchain {
   VkSurfaceFormatKHR surface_format;
   Vec2U32            size;
   U32                image_count;
-  RHI_Texture        textures[RHI_VK_SWAPCHAIN_MAX_IMAGES];
+  RHI_VK_Texture*    textures[RHI_VK_SWAPCHAIN_MAX_IMAGES];
   VkSemaphore        render_finished_semaphores[RHI_VK_SWAPCHAIN_MAX_IMAGES];
 };
 
@@ -104,38 +142,8 @@ func RHI_Texture       RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
-typedef struct RHI_VK_RenderPass RHI_VK_RenderPass;
-struct RHI_VK_RenderPass {
-  RHI_RenderPass header;
-  VkRenderPass   vk;
-
-  struct RHI_VK_Framebuffer* framebuffer;
-};
-RHI_VK_RenderPass RHI_VK_RenderPassNil = ZeroStruct();
-DefineArray(RHI_VK_RenderPass, RHI_VK_RenderPassArray, RHI_VK_RenderPassNil)
-
-func B32 RHI_VK_RenderPassEqual(RHI_VK_RenderPass a, RHI_VK_RenderPass b);
-
-func RHI_VK_RenderPass* RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target);
-func VkRenderPass       RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info);
-func RHI_RenderPass*    RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
-func void               RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
-
-// -------------------------------------------------------------------
-// -- Framebuffer ----------------------------------------------------
-typedef struct RHI_VK_Framebuffer RHI_VK_Framebuffer;
-struct RHI_VK_Framebuffer {
-  VkFramebuffer vk;
-  VkImageView   color_attachments[RHI_MAX_COLOR_ATTACHMENTS];
-  I32           color_attachments_count;
-  VkImageView   depth_stencil_attachment;
-  Vec2I32       size;
-};
-RHI_VK_Framebuffer RHI_VK_FramebufferNil = ZeroStruct();
-DefineArray(RHI_VK_Framebuffer, RHI_VK_FramebufferArray, RHI_VK_FramebufferNil)
-
-func B32                 RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b);
-func RHI_VK_Framebuffer* RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_targets, I32 color_targets_count, RHI_DepthStencilTarget* depth_stencil_target);
+func void RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info);
+func void RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer);
 
 // -------------------------------------------------------------------
 // -- Descriptor Sets ------------------------------------------------
@@ -189,46 +197,6 @@ func void RHI_VK_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 ind
 func void RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture);
 
 // -------------------------------------------------------------------
-// -- Texture --------------------------------------------------------
-typedef struct RHI_VK_Texture RHI_VK_Texture;
-struct RHI_VK_Texture {
-  RHI_TextureFormat     format;
-	VkImage               image;
-	VkImageView           view;
-	VkDeviceMemory        memory;
-  VkImageLayout         layout;
-  VkImageAspectFlagBits aspect_mask;
-  Vec2I32               size;
-  B32                   from_swapchain; // --AlNov: If image created by swapchain, it has to be destroyed by swapchain
-};
-RHI_VK_Texture RHI_VK_TextureNil = {0};
-DefineArray(RHI_VK_Texture, RHI_VK_TextureArray, RHI_VK_TextureNil)
-U32 RHI_VK_TextureFreeListNil = RHI_nil;
-DefineArray(U32, RHI_VK_TextureFreeList, RHI_VK_TextureFreeListNil)
-
-func RHI_VK_Texture*   RHI_VK_TextureFromHandle(RHI_Texture handle);
-func RHI_Texture       RHI_VK_CreateTexture(RHI_TextureCreateInfo* info);
-func B32               RHI_VK_DestroyTexture(RHI_Texture texture);
-func void              RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture);
-func void              RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
-func U64               RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
-func void              RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
-func RHI_TextureFormat RHI_VK_GetTextureFormat(RHI_Texture texture);
-func Vec2I32           RHI_VK_GetTextureDimension(RHI_Texture texture);
-
-func void RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImageLayout new_layout);
-
-typedef struct RHI_VK_TextureSampler RHI_VK_TextureSampler;
-struct RHI_VK_TextureSampler {
-  VkSampler vk;
-};
-RHI_VK_TextureSampler RHI_VK_TextureSamplerNil = {0};
-DefineArray(RHI_VK_TextureSampler, RHI_VK_TextureSamplerArray, RHI_VK_TextureSamplerNil)
-
-func RHI_VK_TextureSampler* RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler sampler);
-func RHI_TextureSampler     RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info);
-
-// -------------------------------------------------------------------
 // -- Resource Table -------------------------------------------------
 typedef struct RHI_VK_ResourceTable RHI_VK_ResourceTable;
 struct RHI_VK_ResourceTable {
@@ -248,11 +216,11 @@ struct RHI_VK_CommandBuffer {
   VkFence                  submit_fence[RHI_FRAMES_IN_FLIGHT];
   VkSemaphore              acquire_semaphore[RHI_FRAMES_IN_FLIGHT];
   RHI_VK_DescriptorPool    descriptor_pool[RHI_FRAMES_IN_FLIGHT];
-  RHI_VK_RenderPass*       active_render_pass;
   RHI_VK_GraphicsPipeline* binded_graphics_pipeline;
   RHI_VK_Texture*          current_swapchain_texture;
   B32                      to_present;
   VkViewport               current_viewport;
+  B32                      is_render_pass_active;
 };  
 RHI_VK_CommandBuffer RHI_VK_CommandBufferNil = {0};
 DefineArray(RHI_VK_CommandBuffer, RHI_VK_CommandBufferArray, RHI_VK_CommandBufferNil)
@@ -275,8 +243,6 @@ struct RHI_VK_State {
 	VkCommandPool                command_pool;
   RHI_VK_SemaphoreArray        semaphores;
   RHI_VK_BufferArray           buffers;
-  RHI_VK_RenderPassArray       render_passes;
-  RHI_VK_FramebufferArray      framebuffers;
   RHI_VK_GraphicsPipelineArray graphics_pipelines;
   RHI_VK_CommandBufferArray    command_buffers;
   RHI_VK_TextureSamplerArray   samplers;

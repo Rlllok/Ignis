@@ -7,7 +7,6 @@
 
 // -------------------------------------------------------------------
 // -- Function Loading -----------------------------------------------
-
 func void
 RHI_VK_LoadDeviceFunctions(VkDevice device) {
   Ignis_vkWaitSemaphores = (PFN_vkWaitSemaphores)vkGetDeviceProcAddr(device, "vkWaitSemaphores");
@@ -310,7 +309,6 @@ func void
 RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   
-  vk_command_buffer->active_render_pass = 0;
   vk_command_buffer->binded_graphics_pipeline = 0;
   vk_command_buffer->current_swapchain_texture = 0;
   vk_command_buffer->to_present = 0;
@@ -505,6 +503,364 @@ RHI_VK_DestroyDevice() {
 }
 
 // -------------------------------------------------------------------
+// -- Texture --------------------------------------------------------
+func RHI_VK_Texture*
+RHI_VK_TextureFromHandle(RHI_Texture vk) {
+  return RHI_VK_TextureArrayGetPointer(&_rhi_vk_state.textures, vk.handle);
+}
+
+func RHI_Texture
+RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
+  RHI_Texture header = {
+  .format = info->format,
+  .size = { info->width, info->height },
+  };
+
+  RHI_VK_Texture texture = ZeroStruct();
+  texture.header = header;
+
+  VkImageCreateInfo image_info = {0};
+  image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_info.imageType = RHI_VK_GetVkImageType(info->kind);
+  image_info.extent.width = info->width;
+  image_info.extent.height= info->height;
+  image_info.extent.depth = info->depth;
+  image_info.mipLevels = 1;
+  image_info.arrayLayers = 1;
+  image_info.format = RHI_VK_GetVkFormat(info->format);
+  image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_info.usage = RHI_VK_GetVkImageUsageFlags(info->usage_flags);
+  image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  if (vkCreateImage(_rhi_vk_state.device.logical, &image_info, 0, &texture.image) != VK_SUCCESS) {
+    LogError("Cannot create Image for Texture.\n");
+    return (RHI_Texture)ZeroStruct();
+  }
+
+  VkMemoryRequirements mem_requirements = {0};
+  vkGetImageMemoryRequirements(_rhi_vk_state.device.logical, texture.image, &mem_requirements);
+
+  VkMemoryAllocateInfo mem_info = {0};
+  mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  mem_info.allocationSize  = mem_requirements.size;
+  mem_info.memoryTypeIndex = RHI_VK_FindMemoryTypeIndex(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  VK_CHECK(vkAllocateMemory(_rhi_vk_state.device.logical, &mem_info, 0, &texture.memory));
+
+  VK_CHECK(vkBindImageMemory(_rhi_vk_state.device.logical, texture.image, texture.memory, 0));
+
+  VkImageAspectFlags texture_aspect = 0;
+  if((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) {
+    texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    texture.aspect_mask = texture_aspect;
+  }
+  else if ((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) {
+    texture_aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    texture.aspect_mask = texture_aspect;
+  }
+  else {
+    texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    texture.aspect_mask = texture_aspect;
+  }
+  
+  VkImageViewCreateInfo view_info = {0};
+  view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  view_info.image = texture.image;
+  view_info.viewType = VK_IMAGE_VIEW_TYPE_2D; // @TODO
+  view_info.format = RHI_VK_GetVkFormat(info->format);
+  view_info.subresourceRange.aspectMask = texture_aspect;
+  view_info.subresourceRange.baseMipLevel = 0;
+  view_info.subresourceRange.levelCount = 1;
+  view_info.subresourceRange.baseArrayLayer = 0;
+  view_info.subresourceRange.layerCount = 1;
+
+  VK_CHECK(vkCreateImageView(_rhi_vk_state.device.logical, &view_info, 0, &texture.view));
+
+  if (_rhi_vk_state.textures_free_list.length > 0) {
+    I32 index = RHI_VK_TextureFreeListRemoveSwapback(&_rhi_vk_state.textures_free_list, 0);
+    RHI_VK_TextureArraySet(&_rhi_vk_state.textures, index, texture);
+    RHI_VK_Texture* new_vk_texture = _rhi_vk_state.textures.elements + index;
+    new_vk_texture->header.handle = index;
+  }
+  else {
+    I32 index = RHI_VK_TextureArrayAdd(&_rhi_vk_state.textures, texture);  
+    RHI_VK_Texture* new_vk_texture = _rhi_vk_state.textures.elements + index;
+    new_vk_texture->header.handle = index;
+  }
+
+  return header;
+}
+
+func B32
+RHI_VK_DestroyTexture(RHI_Texture texture) {
+  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
+
+  vkDestroyImageView(_rhi_vk_state.device.logical, vk_texture->view, 0);
+  if (!vk_texture->from_swapchain) {
+    vkFreeMemory(_rhi_vk_state.device.logical, vk_texture->memory, 0);
+    vkDestroyImage(_rhi_vk_state.device.logical, vk_texture->image, 0);
+  }
+
+  RHI_VK_TextureArraySet(&_rhi_vk_state.textures, texture.handle, RHI_VK_TextureNil);
+  RHI_VK_TextureFreeListAdd(&_rhi_vk_state.textures_free_list, texture.handle);
+
+  return 1;
+}
+
+func RHI_TextureDeviceId
+RHI_VK_GetTextureDeviceId(RHI_Texture texture) {
+  // --AlNov: @TODO
+  return 0;
+}
+
+func void
+RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture) {
+  // --AlNov: @TODO Empty
+}
+
+func void
+RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination) {
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_Texture* vk_source = RHI_VK_TextureFromHandle(source);
+  RHI_VK_Texture* vk_destination = RHI_VK_TextureFromHandle(destination);
+
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+  VkImageBlit blit_info = {
+    .srcSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+      .mipLevel = 0,
+    },
+    .srcOffsets[1] = {
+      .x = vk_source->header.size.x,
+      .y = vk_source->header.size.y,
+      .z = 1,
+    },
+    .dstSubresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+      .mipLevel = 0,
+    },
+    .dstOffsets[1] = {
+      .x = vk_destination->header.size.x,
+      .y = vk_destination->header.size.y,
+      .z = 1,
+    },
+  };
+  vkCmdBlitImage(
+    vk_command_buffer->vk[_rhi_vk_state.current_frame],
+    vk_source->image,
+    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vk_destination->image,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    1, &blit_info, VK_FILTER_LINEAR
+  );
+}
+
+func U64
+RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer) {
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
+  RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
+
+  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+  VkBufferImageCopy copy_info = {
+    .bufferOffset = vk_buffer->size,
+    .imageSubresource = {
+      .aspectMask = vk_texture->aspect_mask,
+      .mipLevel = 0,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    },
+    .imageOffset = {
+      .x = 0,
+      .y = 0,
+      .z = 0,
+    },
+    .imageExtent = {
+      .width = vk_texture->header.size.x,
+      .height = vk_texture->header.size.y,
+      .depth = 1,
+    },
+  };
+
+  vkCmdCopyImageToBuffer(
+    vk_command_buffer->vk[_rhi_vk_state.current_frame],
+    vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vk_buffer->vk, 1, &copy_info
+  );
+
+  return vk_buffer->size;
+}
+
+func void
+RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture) {
+  RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
+  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
+
+  VkCommandBuffer single_cmd = RHI_VK_BeginSingleCmd();
+  {
+    RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    VkBufferImageCopy copy_info = {
+      .bufferOffset = offset,
+      .imageSubresource = {
+        .aspectMask = vk_texture->aspect_mask,
+        .mipLevel = 0,
+        .baseArrayLayer = 0,
+        .layerCount = 1,
+      },
+      .imageOffset = {
+        .x = 0,
+        .y = 0,
+        .z = 0,
+      },
+      .imageExtent = {
+        .width = vk_texture->header.size.x,
+        .height = vk_texture->header.size.y,
+        .depth = 1,
+      },
+    };
+    vkCmdCopyBufferToImage(single_cmd, vk_buffer->vk, vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
+    RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+  }
+  RHI_VK_EndSingleCmd(single_cmd);
+}
+
+func void
+RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImageLayout new_layout) {
+  if (texture->layout == new_layout) return;
+
+  VkPipelineStageFlags source_stages = 0;
+  VkPipelineStageFlags destination_stages = 0;
+  VkImageMemoryBarrier image_barrier = {0};
+  image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  image_barrier.image = texture->image;
+  image_barrier.subresourceRange.aspectMask = texture->aspect_mask;
+  image_barrier.subresourceRange.baseMipLevel = 0;
+  image_barrier.subresourceRange.levelCount = 1;
+  image_barrier.subresourceRange.baseArrayLayer = 0;
+  image_barrier.subresourceRange.layerCount = 1;
+
+  if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED) {
+    source_stages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    image_barrier.srcAccessMask = 0;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+    source_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    source_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+    source_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    image_barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+    source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else if(texture->layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+    source_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    image_barrier.srcAccessMask = 0;
+    image_barrier.oldLayout = texture->layout;
+  }
+  else {
+    AssertMessage(0, "Image Layout is not supproted");
+  }
+
+  if (new_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+    destination_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    destination_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+    destination_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+    destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    image_barrier.newLayout = new_layout;
+  }
+  else if (new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+    destination_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    image_barrier.dstAccessMask = 0;
+    image_barrier.newLayout = new_layout;
+  }
+  else {
+    AssertMessage(0, "Image Layout is not supproted");
+  }
+
+  vkCmdPipelineBarrier(cmd, source_stages, destination_stages, 0, 0, 0, 0, 0, 1, &image_barrier);
+
+  texture->layout = new_layout;
+}
+
+func RHI_VK_TextureSampler*
+RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler sampler) {
+  return RHI_VK_TextureSamplerArrayGetPointer(&_rhi_vk_state.samplers, sampler);
+}
+
+func RHI_TextureSampler
+RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
+  RHI_VK_TextureSampler sampler = {0};
+
+  VkSamplerCreateInfo sampler_info = {
+    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter = RHI_VK_GetVkFilter(info->mag_filter),
+    .minFilter = RHI_VK_GetVkFilter(info->min_filter),
+    .mipmapMode = RHI_VK_GetVkSamplerMipmapMode(info->mipmap_mode),
+    .addressModeU = RHI_VK_GetVkSamplerAddressMode(info->address_mode_u),
+    .addressModeV = RHI_VK_GetVkSamplerAddressMode(info->address_mode_v),
+    .addressModeW = RHI_VK_GetVkSamplerAddressMode(info->address_mode_w),
+    .mipLodBias = info->mip_lod_bias,
+    .anisotropyEnable = info->anisotropy_enable,
+    .maxAnisotropy = info->max_anisotropy,
+    .compareEnable = info->compare_enable,
+    .compareOp = RHI_VK_GetVkFromCompareOperation(info->compare_operation),
+    .minLod = info->min_lod,
+    .maxLod = info->max_lod,
+  };
+  VK_CHECK(vkCreateSampler(_rhi_vk_state.device.logical, &sampler_info, 0, &sampler.vk));
+
+  return RHI_VK_TextureSamplerArrayAdd(&_rhi_vk_state.samplers, sampler);
+}
+
+
+// -------------------------------------------------------------------
 // -- Surface/Swapchain ----------------------------------------------
 func void
 RHI_VK_CreateSwapchain(OS_Window* window) {
@@ -621,18 +977,20 @@ RHI_VK_CreateSwapchain(OS_Window* window) {
     VK_CHECK(vkCreateImageView(_rhi_vk_state.device.logical, &view_info, 0, &image_view));
 
     RHI_VK_Texture vk_texture = {
-      .format = RHI_VK_FormatFromVk(_rhi_vk_state.swapchain.surface_format.format),
+      .header = {
+        .format = RHI_VK_FormatFromVk(_rhi_vk_state.swapchain.surface_format.format),
+        .size = { .x = _rhi_vk_state.swapchain.size.w, .y = _rhi_vk_state.swapchain.size.h, },
+      },
       .image = images[i],
       .view = image_view,
       .aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .size = {
-        .x = _rhi_vk_state.swapchain.size.w,
-        .y = _rhi_vk_state.swapchain.size.h,
-      },
       .from_swapchain = 1,
     };
 
-    _rhi_vk_state.swapchain.textures[i] = RHI_VK_TextureArrayAdd(&_rhi_vk_state.textures, vk_texture);
+    I32 new_texture_index = RHI_VK_TextureArrayAdd(&_rhi_vk_state.textures, vk_texture);
+    RHI_VK_Texture* new_vk_texture = _rhi_vk_state.textures.elements + new_texture_index;
+    new_vk_texture->header.handle = new_texture_index;
+    _rhi_vk_state.swapchain.textures[i] = new_vk_texture;
 
     VkSemaphoreCreateInfo semaphore_info = {
       .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -646,7 +1004,7 @@ RHI_VK_DestroySwapchain() {
   vkDeviceWaitIdle(_rhi_vk_state.device.logical);
 
   for (I32 i = 0; i < _rhi_vk_state.swapchain.image_count; i += 1) {
-    RHI_VK_DestroyTexture(_rhi_vk_state.swapchain.textures[i]);
+    RHI_VK_DestroyTexture(_rhi_vk_state.swapchain.textures[i]->header);
     vkDestroySemaphore(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.render_finished_semaphores[i], 0);
   }
   vkDestroySwapchainKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, 0);
@@ -691,8 +1049,8 @@ RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
 		}
 	}
 
-  vk_command_buffer->current_swapchain_texture = RHI_VK_TextureFromHandle(_rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target]);
-  return _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target];
+  vk_command_buffer->current_swapchain_texture = _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target];
+  return _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target]->header;
 }
 
 func void
@@ -1135,12 +1493,13 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   }
   VkPipelineRenderingCreateInfo rendering_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+    .pNext = 0,
+    .viewMask = 0,
     .colorAttachmentCount = pipeline_info->color_targets_count,
     .pColorAttachmentFormats = color_attachment_formats,
     .depthAttachmentFormat = RHI_VK_GetVkFormat(pipeline_info->depth_stencil_state.depth_target_format),
+    .stencilAttachmentFormat = VK_FORMAT_UNDEFINED,
   };
-
-  VkRenderPass tmp_render_pass = RHI_VK_CreateTmpVkRenderPass(pipeline_info);
 
   VkGraphicsPipelineCreateInfo vk_pipeline_info = {
     .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -1149,6 +1508,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
     .pStages = shaders,
     .pVertexInputState = &vertex_input,
     .pInputAssemblyState = &input_assembly,
+    .pTessellationState = 0,
     .pViewportState = &viewport_state,
     .pRasterizationState = &rasterization,
     .pMultisampleState = &multisample,
@@ -1156,12 +1516,13 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
     .pColorBlendState = &blend,
     .pDynamicState = &dynamic,
     .layout = pipeline.layout,
-    .renderPass = tmp_render_pass,
+    .renderPass = 0,
     .subpass = 0,
+    .basePipelineHandle = 0,
+    .basePipelineIndex = 0,
   };
   VK_CHECK(vkCreateGraphicsPipelines(_rhi_vk_state.device.logical, 0, 1, &vk_pipeline_info, 0, &pipeline.vk));
 
-  vkDestroyRenderPass(_rhi_vk_state.device.logical, tmp_render_pass, 0);
   vkDestroyShaderModule(_rhi_vk_state.device.logical, vertex_module, 0);
   vkDestroyShaderModule(_rhi_vk_state.device.logical, fragment_module, 0);
 
@@ -1190,365 +1551,80 @@ RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeli
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
-func B32
-RHI_RenderPassEqual(RHI_RenderPass a, RHI_RenderPass b) {
-  B32 result = 1;
+func void
+RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info) {
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  if (a.color_targets_count != b.color_targets_count) result = 0;
+  const I32 max_color_attachments_count = 16;
+  Assert(info.color_targets_count < max_color_attachments_count);
 
-  for (I32 i = 0; i < a.color_targets_count; i += 1) {
-    RHI_VK_Texture* vk_texture_a = RHI_VK_TextureFromHandle(a.color_targets[i].texture);
-    RHI_VK_Texture* vk_texture_b = RHI_VK_TextureFromHandle(b.color_targets[i].texture);
-
-    if (vk_texture_a->format != vk_texture_b->format) {
-      result = 0;
-      break;
-    }
-    else if (a.color_targets[i].load_operation != b.color_targets[i].load_operation) {
-      result = 0;
-      break;
-    }
-    else if (a.color_targets[i].store_operation != b.color_targets[i].store_operation) {
-      result = 0;
-      break;
-    }
-    else if (!EqualVec4F32(a.color_targets[i].clear_color, b.color_targets[i].clear_color)) {
-      result = 0;
-      break;
-    }
-  }
-  
-  RHI_VK_Texture* vk_texture_depth_stencil_a = RHI_VK_TextureFromHandle(a.depth_stencil_target.texture);
-  RHI_VK_Texture* vk_texture_depth_stencil_b = RHI_VK_TextureFromHandle(b.depth_stencil_target.texture);
-  if (vk_texture_depth_stencil_a->format != vk_texture_depth_stencil_b->format) {
-    result = 0;
-  }
-  else if (a.depth_stencil_target.load_operation != b.depth_stencil_target.load_operation) {
-    result = 0;
-  }
-  else if (a.depth_stencil_target.store_operation != b.depth_stencil_target.store_operation) {
-    result = 0;
-  }
-  else if (a.depth_stencil_target.clear_depth != b.depth_stencil_target.clear_depth) {
-    result = 0;
-  }
-
-  return result;
-}
-
-func RHI_VK_RenderPass*
-RHI_VK_CreateRenderPass(U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target) {
-  RHI_VK_RenderPass* result = 0;
-
-  RHI_VK_RenderPass render_pass = ZeroStruct();
-  VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
-  VkAttachmentReference references[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
-
-  render_pass.header.color_targets_count = color_targets_count;
-  for (I32 i = 0; i < color_targets_count; i += 1) {
-    RHI_ColorTarget* target = color_targets + i;
+  VkRenderingAttachmentInfo color_attachments[max_color_attachments_count];
+  I32 color_attachments_count = 0;
+  for (I32 i = 0; i < info.color_targets_count; i += 1) {
+    RHI_ColorTarget* target = info.color_targets + i;
     RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target->texture);
-    attachments[i].flags = 0;
-    attachments[i].format = RHI_VK_GetVkFormat(vk_texture->format);
-    attachments[i].samples = VK_SAMPLE_COUNT_1_BIT,
-    attachments[i].loadOp = RHI_VK_GetVkAttachmentLoadOperation(target->load_operation);
-    attachments[i].storeOp = RHI_VK_GetVkAttachmentStoreOperation(target->store_operation);
-    attachments[i].stencilLoadOp = 0;
-    attachments[i].stencilStoreOp = 0;
-    attachments[i].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    attachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    references[i].attachment = i;
-    references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    render_pass.header.color_targets[i] = *target;
-  }
-
-  if (depth_stencil_target != 0) {
-    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
-    attachments[color_targets_count] = (VkAttachmentDescription){
-      .flags = 0,
-      .format = RHI_VK_GetVkFormat(vk_texture->format),
-      .samples = VK_SAMPLE_COUNT_1_BIT,
-      .loadOp = RHI_VK_GetVkAttachmentLoadOperation(depth_stencil_target->load_operation),
-      .storeOp = RHI_VK_GetVkAttachmentStoreOperation(depth_stencil_target->store_operation),
-      .stencilLoadOp = 0,
-      .stencilStoreOp = 0,
-      .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    };
-
-    references[color_targets_count] = (VkAttachmentReference){
-      .attachment = color_targets_count,
-      .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    };
-
-    render_pass.header.depth_stencil_target = *depth_stencil_target;
-  }
-
-  B32 found = 0;
-  for (I32 i = 0; i < _rhi_vk_state.render_passes.length; i += 1) {
-    RHI_VK_RenderPass* vk_render_pass = RHI_VK_RenderPassArrayGetPointer(&_rhi_vk_state.render_passes, i);
-    if (RHI_RenderPassEqual(render_pass.header, vk_render_pass->header)) {
-      found = 1;
-      result = vk_render_pass;
-      break;
-    }
-  }
-
-  if (!found) {
-    VkSubpassDescription subpass = {
-      .flags = 0,
-      .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-      .inputAttachmentCount = 0,
-      .pInputAttachments = 0,
-      .colorAttachmentCount = color_targets_count,
-      .pColorAttachments = references,
-      .pResolveAttachments = 0,
-      .pDepthStencilAttachment = (depth_stencil_target != 0) ? references + color_targets_count : 0,
-      .preserveAttachmentCount = 0,
-      .pPreserveAttachments = 0,
-    };
-
-    VkRenderPassCreateInfo render_pass_info = {
-      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-      .attachmentCount = color_targets_count + (U32)(depth_stencil_target != 0),
-      .pAttachments = attachments,
-      .subpassCount = 1,
-      .pSubpasses = &subpass,
-      .dependencyCount = 0,
-      .pDependencies = 0,
-    };
-
-    vkCreateRenderPass(_rhi_vk_state.device.logical, &render_pass_info, 0, &render_pass.vk);
-    I32 array_slot = RHI_VK_RenderPassArrayAdd(&_rhi_vk_state.render_passes, render_pass);
-    result = RHI_VK_RenderPassArrayGetPointer(&_rhi_vk_state.render_passes, array_slot);
-  }
-
-  result->framebuffer = RHI_VK_CreateFramebuffer(result, color_targets, color_targets_count, depth_stencil_target);
-
-  return result;
-}
-
-func VkRenderPass RHI_VK_CreateTmpVkRenderPass(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
-  VkRenderPass result = 0;
-
-  VkAttachmentDescription attachments[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
-  VkAttachmentReference references[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
-
-  for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1) {
-    RHI_GraphicsPipelineColorTargetInfo* target_info = pipeline_info->color_target_infos + i;
-    attachments[i].flags = 0;
-    attachments[i].format = RHI_VK_GetVkFormat(target_info->format);
-    attachments[i].samples = VK_SAMPLE_COUNT_1_BIT,
-    attachments[i].loadOp = 0,
-    attachments[i].storeOp = 0,
-    attachments[i].stencilLoadOp = 0;
-    attachments[i].stencilStoreOp = 0;
-    attachments[i].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    attachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    references[i].attachment = i;
-    references[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-  }
-
-  RHI_PipelineDepthStencilState* depth_stencil_info = &pipeline_info->depth_stencil_state;
-  B32 has_depth_stencil = depth_stencil_info->depth_test_enable || depth_stencil_info->depth_write_enable;
-  if (has_depth_stencil) {
-    attachments[pipeline_info->color_targets_count] = (VkAttachmentDescription){
-      .flags = 0,
-      .format = RHI_VK_GetVkFormat(depth_stencil_info->depth_target_format),
-      .samples = VK_SAMPLE_COUNT_1_BIT,
-      .loadOp = 0,
-      .storeOp = 0,
-      .stencilLoadOp = 0,
-      .stencilStoreOp = 0,
-      .initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    };
-
-    references[pipeline_info->color_targets_count] = (VkAttachmentReference){
-      .attachment = pipeline_info->color_targets_count,
-      .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-    };
-  }
-
-  VkSubpassDescription subpass = {
-    .flags = 0,
-    .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-    .inputAttachmentCount = 0,
-    .pInputAttachments = 0,
-    .colorAttachmentCount = pipeline_info->color_targets_count,
-    .pColorAttachments = references,
-    .pResolveAttachments = 0,
-    .pDepthStencilAttachment = (has_depth_stencil) ? references + pipeline_info->color_targets_count : 0,
-    .preserveAttachmentCount = 0,
-    .pPreserveAttachments = 0,
-  };
-
-  VkRenderPassCreateInfo render_pass_info = {
-    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-    .attachmentCount = pipeline_info->color_targets_count + has_depth_stencil,
-    .pAttachments = attachments,
-    .subpassCount = 1,
-    .pSubpasses = &subpass,
-    .dependencyCount = 0,
-    .pDependencies = 0,
-  };
-
-  vkCreateRenderPass(_rhi_vk_state.device.logical, &render_pass_info, 0, &result);
-
-  return result;
-}
-
-func RHI_RenderPass*
-RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-
-  RHI_VK_RenderPass* render_pass = RHI_VK_CreateRenderPass(color_targets_count, color_targets, depth_stencil_target);
-
-  if (render_pass->framebuffer != 0) {
-    VkClearValue clear_values[RHI_MAX_COLOR_ATTACHMENTS + 1] = ZeroStruct();
-    for (I32 i = 0; i < color_targets_count; i += 1) {
-      clear_values[i].color.float32[0] = color_targets[i].clear_color.r;
-      clear_values[i].color.float32[1] = color_targets[i].clear_color.g;
-      clear_values[i].color.float32[2] = color_targets[i].clear_color.b;
-      clear_values[i].color.float32[3] = color_targets[i].clear_color.a;
-
-      RHI_VK_Texture* vk_attachment_texture = RHI_VK_TextureFromHandle(color_targets[i].texture);
-      RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_attachment_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    }
-
-    if (depth_stencil_target != 0) {
-      clear_values[color_targets_count].depthStencil.depth = depth_stencil_target->clear_depth;
-
-      RHI_VK_Texture* vk_depth_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
-      RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_depth_texture, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-    }
-
-    VkRenderPassBeginInfo begin_info = {
-      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-      .renderPass = render_pass->vk,
-      .framebuffer = render_pass->framebuffer->vk,
-      .renderArea = (VkRect2D){
-        .offset.x = 0,
-        .offset.y = 0,
-        .extent.width = render_pass->framebuffer->size.x,
-        .extent.height = render_pass->framebuffer->size.y,
+    color_attachments[i] = (VkRenderingAttachmentInfo) {
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .pNext = 0,
+      .imageView = vk_texture->view,
+      .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      .resolveMode = 0,
+      .resolveImageView = 0,
+      .resolveImageLayout = 0,
+      .loadOp = RHI_VK_GetVkAttachmentLoadOperation(target->load_operation),
+      .storeOp = RHI_VK_GetVkAttachmentStoreOperation(target->store_operation),
+      .clearValue = (VkClearValue){
+        .color.float32 = { target->clear_color.x, target->clear_color.y, target->clear_color.z, target->clear_color.w },
       },
-      .clearValueCount = color_targets_count + (U32)(depth_stencil_target != 0),
-      .pClearValues = clear_values,
     };
-
-    vkCmdBeginRenderPass(vk_command_buffer->vk[_rhi_vk_state.current_frame], &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-    vk_command_buffer->active_render_pass = render_pass;
+    color_attachments_count += 1;
   }
 
-	return 0; // @TODO
+  B32 has_depth_target = info.depth_target != 0;
+  VkRenderingAttachmentInfo depth_attachment = ZeroStruct();
+  if (has_depth_target) {
+    RHI_VK_Texture* vk_depth_texture = RHI_VK_TextureFromHandle(info.depth_target->texture);
+    depth_attachment = (VkRenderingAttachmentInfo){
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .pNext = 0,
+      .imageView = vk_depth_texture->view,
+      .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+      .resolveMode = 0,
+      .resolveImageView = 0,
+      .resolveImageLayout = 0,
+      .loadOp = RHI_VK_GetVkAttachmentLoadOperation(info.depth_target->load_operation),
+      .storeOp = RHI_VK_GetVkAttachmentStoreOperation(info.depth_target->load_operation),
+      .clearValue = (VkClearValue){
+        .depthStencil.depth = info.depth_target->clear_depth,
+      },
+    };
+  }
+
+  VkRenderingInfo rendering_info = {
+    .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+    .pNext = 0,
+    .flags = 0,
+    .renderArea = (VkRect2D) {
+      .offset = { .x = info.render_area.x, .y = info.render_area.y },
+      .extent = { .width = info.render_area.w, .height = info.render_area.h }
+    },
+    .layerCount = 1,
+    .viewMask = 0,
+    .colorAttachmentCount = color_attachments_count,
+    .pColorAttachments = color_attachments,
+    .pDepthAttachment = has_depth_target ? &depth_attachment : 0,
+    .pStencilAttachment = 0,
+  };
+  vkCmdBeginRendering(vk_command_buffer->vk[_rhi_vk_state.current_frame], &rendering_info);
+  vk_command_buffer->is_render_pass_active = 1;
 }
 
 func void
-RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-
-  if (vk_command_buffer->active_render_pass != 0) {
-    vkCmdEndRenderPass(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
-    vk_command_buffer->active_render_pass = 0;
-  }
-}
-
-func void
-RHI_VK_EndRenderPassOld(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-
+RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer) {
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   vkCmdEndRendering(vk_command_buffer->vk[_rhi_vk_state.current_frame]);
-}
-
-// -------------------------------------------------------------------
-// -- Framebuffer ----------------------------------------------------
-func B32
-RHI_VK_EqualFramebuffer(RHI_VK_Framebuffer a, RHI_VK_Framebuffer b) {
-  B32 result = 1;
-
-  if (a.color_attachments_count != b.color_attachments_count) {
-    result = 0;
-  }
-  else if (a.depth_stencil_attachment != b.depth_stencil_attachment) {
-    result = 0;
-  }
-  else if (a.size.x != b.size.x) {
-    result = 0;
-  }
-  else if (a.size.y != b.size.y) {
-    result = 0;
-  }
-
-  for (I32 i = 0; i < a.color_attachments_count; i += 1) {
-    if (a.color_attachments[i] != b.color_attachments[i]) {
-      result = 0;
-      break;
-    }
-  }
-
-  return result;
-}
-
-func RHI_VK_Framebuffer*
-RHI_VK_CreateFramebuffer(RHI_VK_RenderPass* render_pass, RHI_ColorTarget* color_targets, I32 color_targets_count, RHI_DepthStencilTarget* depth_stencil_target) {
-  RHI_VK_Framebuffer* result = 0;
-  RHI_VK_Framebuffer framebuffer = ZeroStruct();
-
-  VkImageView attachments[RHI_MAX_COLOR_ATTACHMENTS] = ZeroStruct();
-
-  framebuffer.color_attachments_count = color_targets_count;
-  framebuffer.size = MakeVec2I32(I32_MAX, I32_MAX);
-
-  for (I32 i = 0; i < color_targets_count; i += 1) {
-    RHI_ColorTarget* target = color_targets + i;
-    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(target->texture);
-    attachments[i] = vk_texture->view;
-    framebuffer.color_attachments[i] = vk_texture->view;
-    framebuffer.size.x = Min(framebuffer.size.x, vk_texture->size.x);
-    framebuffer.size.y = Min(framebuffer.size.y, vk_texture->size.y);
-  }
-
-  if (depth_stencil_target != 0) {
-    RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(depth_stencil_target->texture);
-    attachments[color_targets_count] = vk_texture->view;
-    framebuffer.depth_stencil_attachment = vk_texture->view;
-    framebuffer.size.x = Min(framebuffer.size.x, vk_texture->size.x);
-    framebuffer.size.y = Min(framebuffer.size.y, vk_texture->size.y);
-  }
-
-  if (framebuffer.size.x != 0 && framebuffer.size.y != 0) {
-    B32 found = 0;
-    for (I32 i = 0; i < _rhi_vk_state.framebuffers.length; i += 1) {
-      RHI_VK_Framebuffer* compare = RHI_VK_FramebufferArrayGetPointer(&_rhi_vk_state.framebuffers, i);
-      if (RHI_VK_EqualFramebuffer(framebuffer, *compare)) {
-        found = 1;
-        result = compare;
-      }
-    }
-
-    if (!found) {
-      VkFramebufferCreateInfo framebuffer_info = {
-        .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-        .flags = 0,
-        .renderPass = render_pass->vk,
-        .attachmentCount = color_targets_count + (U32)(depth_stencil_target != 0),
-        .pAttachments = attachments,
-        .width = framebuffer.size.x,
-        .height = framebuffer.size.y,
-        .layers = 1,
-      };
-
-      vkCreateFramebuffer(_rhi_vk_state.device.logical, &framebuffer_info, 0, &framebuffer.vk);
-      I32 array_slot = RHI_VK_FramebufferArrayAdd(&_rhi_vk_state.framebuffers, framebuffer);
-      result = RHI_VK_FramebufferArrayGetPointer(&_rhi_vk_state.framebuffers, array_slot);
-    }
-  }
-
-  return result;
+  vk_command_buffer->is_render_pass_active = 0;
 }
 
 // -------------------------------------------------------------------
@@ -1601,20 +1677,20 @@ RHI_VK_SetScissor(RHI_CommandBuffer command_buffer, RectI32 scissor) {
 
 func void
 RHI_VK_DrawPrimitives(RHI_CommandBuffer command_buffer, U32 vertex_count, U32 instance_count, U32 first_vertex, U32 first_instance) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  if (vk_command_buffer->active_render_pass != 0) {
-    vkCmdDraw(vk_command_buffer->vk[_rhi_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
-  }
+  Assert(vk_command_buffer->is_render_pass_active);
+
+  vkCmdDraw(vk_command_buffer->vk[_rhi_vk_state.current_frame], vertex_count, instance_count, first_vertex, first_instance);
 }
 
 func void
 RHI_VK_DrawIndexedPrimitives(RHI_CommandBuffer command_buffer, U32 index_count, U32 instance_count, U32 first_index, I32 vertex_offset, U32 first_instance) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-  if (vk_command_buffer->active_render_pass != 0) {
-    vkCmdDrawIndexed(vk_command_buffer->vk[_rhi_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
-  }
+  Assert(vk_command_buffer->is_render_pass_active);
+
+  vkCmdDrawIndexed(vk_command_buffer->vk[_rhi_vk_state.current_frame], index_count, instance_count, first_index, vertex_offset, first_instance);
 }
 
 func void
@@ -1640,365 +1716,6 @@ RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
     return;
   }
 #endif
-}
-
-// -------------------------------------------------------------------
-// -- Texture --------------------------------------------------------
-func RHI_VK_Texture*
-RHI_VK_TextureFromHandle(RHI_Texture vk) {
-  return RHI_VK_TextureArrayGetPointer(&_rhi_vk_state.textures, vk);
-}
-
-func RHI_Texture
-RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
-  RHI_VK_Texture texture = {0};
-  texture.format = info->format;
-  texture.size.x = info->width;
-  texture.size.y = info->height;
-
-  VkImageCreateInfo image_info = {0};
-  image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  image_info.imageType = RHI_VK_GetVkImageType(info->kind);
-  image_info.extent.width = info->width;
-  image_info.extent.height= info->height;
-  image_info.extent.depth = info->depth;
-  image_info.mipLevels = 1;
-  image_info.arrayLayers = 1;
-  image_info.format = RHI_VK_GetVkFormat(info->format);
-  image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-  image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  image_info.usage = RHI_VK_GetVkImageUsageFlags(info->usage_flags);
-  image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  if (vkCreateImage(_rhi_vk_state.device.logical, &image_info, 0, &texture.image) != VK_SUCCESS) {
-    LogError("Cannot create Image for Texture.\n");
-    return RHI_nil;
-  }
-
-  VkMemoryRequirements mem_requirements = {0};
-  vkGetImageMemoryRequirements(_rhi_vk_state.device.logical, texture.image, &mem_requirements);
-
-  VkMemoryAllocateInfo mem_info = {0};
-  mem_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  mem_info.allocationSize  = mem_requirements.size;
-  mem_info.memoryTypeIndex = RHI_VK_FindMemoryTypeIndex(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-  VK_CHECK(vkAllocateMemory(_rhi_vk_state.device.logical, &mem_info, 0, &texture.memory));
-
-  VK_CHECK(vkBindImageMemory(_rhi_vk_state.device.logical, texture.image, texture.memory, 0));
-
-  VkImageAspectFlags texture_aspect = 0;
-  if((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT) {
-    texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    texture.aspect_mask = texture_aspect;
-  }
-  else if ((info->usage_flags & RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) == RHI_TEXTURE_USAGE_FLAG_DEPTH_STENCIL_ATTACHMENT) {
-    texture_aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-    texture.aspect_mask = texture_aspect;
-  }
-  else {
-    texture_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    texture.aspect_mask = texture_aspect;
-  }
-  
-  VkImageViewCreateInfo view_info = {0};
-  view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  view_info.image = texture.image;
-  view_info.viewType = VK_IMAGE_VIEW_TYPE_2D; // @TODO
-  view_info.format = RHI_VK_GetVkFormat(info->format);
-  view_info.subresourceRange.aspectMask = texture_aspect;
-  view_info.subresourceRange.baseMipLevel = 0;
-  view_info.subresourceRange.levelCount = 1;
-  view_info.subresourceRange.baseArrayLayer = 0;
-  view_info.subresourceRange.layerCount = 1;
-
-  VK_CHECK(vkCreateImageView(_rhi_vk_state.device.logical, &view_info, 0, &texture.view));
-
-  if (_rhi_vk_state.textures_free_list.length > 0) {
-    I32 index = RHI_VK_TextureFreeListRemoveSwapback(&_rhi_vk_state.textures_free_list, 0);
-    RHI_VK_TextureArraySet(&_rhi_vk_state.textures, index, texture);
-    return index;
-  }
-  else {
-    return RHI_VK_TextureArrayAdd(&_rhi_vk_state.textures, texture);  
-  }
-}
-
-func B32
-RHI_VK_DestroyTexture(RHI_Texture texture) {
-  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
-
-  vkDestroyImageView(_rhi_vk_state.device.logical, vk_texture->view, 0);
-  if (!vk_texture->from_swapchain) {
-    vkFreeMemory(_rhi_vk_state.device.logical, vk_texture->memory, 0);
-    vkDestroyImage(_rhi_vk_state.device.logical, vk_texture->image, 0);
-  }
-
-  RHI_VK_TextureArraySet(&_rhi_vk_state.textures, texture, RHI_VK_TextureNil);
-  RHI_VK_TextureFreeListAdd(&_rhi_vk_state.textures_free_list, texture);
-
-  return 1;
-}
-
-func RHI_TextureDeviceId
-RHI_VK_GetTextureDeviceId(RHI_Texture texture) {
-  // --AlNov: @TODO
-  return 0;
-}
-
-func void
-RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture) {
-  // --AlNov: @TODO Empty
-}
-
-func void
-RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination) {
-  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-  RHI_VK_Texture* vk_source = RHI_VK_TextureFromHandle(source);
-  RHI_VK_Texture* vk_destination = RHI_VK_TextureFromHandle(destination);
-
-  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-  VkImageBlit blit_info = {
-    .srcSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseArrayLayer = 0,
-      .layerCount = 1,
-      .mipLevel = 0,
-    },
-    .srcOffsets[1] = {
-      .x = vk_source->size.x,
-      .y = vk_source->size.y,
-      .z = 1,
-    },
-    .dstSubresource = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-      .baseArrayLayer = 0,
-      .layerCount = 1,
-      .mipLevel = 0,
-    },
-    .dstOffsets[1] = {
-      .x = vk_destination->size.x,
-      .y = vk_destination->size.y,
-      .z = 1,
-    },
-  };
-  vkCmdBlitImage(
-    vk_command_buffer->vk[_rhi_vk_state.current_frame],
-    vk_source->image,
-    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    vk_destination->image,
-    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    1, &blit_info, VK_FILTER_LINEAR
-  );
-}
-
-func U64
-RHI_VK_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer) {
-  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
-  RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
-
-  RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-  VkBufferImageCopy copy_info = {
-    .bufferOffset = vk_buffer->size,
-    .imageSubresource = {
-      .aspectMask = vk_texture->aspect_mask,
-      .mipLevel = 0,
-      .baseArrayLayer = 0,
-      .layerCount = 1,
-    },
-    .imageOffset = {
-      .x = 0,
-      .y = 0,
-      .z = 0,
-    },
-    .imageExtent = {
-      .width = vk_texture->size.x,
-      .height = vk_texture->size.y,
-      .depth = 1,
-    },
-  };
-
-  vkCmdCopyImageToBuffer(
-    vk_command_buffer->vk[_rhi_vk_state.current_frame],
-    vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-    vk_buffer->vk, 1, &copy_info
-  );
-
-  return vk_buffer->size;
-}
-
-func void
-RHI_VK_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture) {
-  RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
-  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
-
-  VkCommandBuffer single_cmd = RHI_VK_BeginSingleCmd();
-  {
-    RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    VkBufferImageCopy copy_info = {
-      .bufferOffset = offset,
-      .imageSubresource = {
-        .aspectMask = vk_texture->aspect_mask,
-        .mipLevel = 0,
-        .baseArrayLayer = 0,
-        .layerCount = 1,
-      },
-      .imageOffset = {
-        .x = 0,
-        .y = 0,
-        .z = 0,
-      },
-      .imageExtent = {
-        .width = vk_texture->size.x,
-        .height = vk_texture->size.y,
-        .depth = 1,
-      },
-    };
-    vkCmdCopyBufferToImage(single_cmd, vk_buffer->vk, vk_texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_info);
-    RHI_VK_ChangeTextureLayout(single_cmd, vk_texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-  }
-  RHI_VK_EndSingleCmd(single_cmd);
-}
-
-func RHI_TextureFormat
-RHI_VK_GetTextureFormat(RHI_Texture texture) {
-  return RHI_VK_TextureFromHandle(texture)->format;
-}
-
-func Vec2I32
-RHI_VK_GetTextureDimension(RHI_Texture texture) {
-  return RHI_VK_TextureFromHandle(texture)->size;
-}
-
-func void
-RHI_VK_ChangeTextureLayout(VkCommandBuffer cmd, RHI_VK_Texture* texture, VkImageLayout new_layout) {
-  if (texture->layout == new_layout) return;
-
-  VkPipelineStageFlags source_stages = 0;
-  VkPipelineStageFlags destination_stages = 0;
-  VkImageMemoryBarrier image_barrier = {0};
-  image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  image_barrier.image = texture->image;
-  image_barrier.subresourceRange.aspectMask = texture->aspect_mask;
-  image_barrier.subresourceRange.baseMipLevel = 0;
-  image_barrier.subresourceRange.levelCount = 1;
-  image_barrier.subresourceRange.baseArrayLayer = 0;
-  image_barrier.subresourceRange.layerCount = 1;
-
-  if (texture->layout == VK_IMAGE_LAYOUT_UNDEFINED) {
-    source_stages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    image_barrier.srcAccessMask = 0;
-    image_barrier.oldLayout = texture->layout;
-  }
-  else if (texture->layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-    source_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    image_barrier.oldLayout = texture->layout;
-  }
-  else if (texture->layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-    source_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    image_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    image_barrier.oldLayout = texture->layout;
-  }
-  else if (texture->layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-    source_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    image_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-    image_barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-  }
-  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-    source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    image_barrier.oldLayout = texture->layout;
-  }
-  else if (texture->layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    source_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    image_barrier.oldLayout = texture->layout;
-  }
-  else if(texture->layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-    source_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    image_barrier.srcAccessMask = 0;
-    image_barrier.oldLayout = texture->layout;
-  }
-  else {
-    AssertMessage(0, "Image Layout is not supproted");
-  }
-
-  if (new_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-    destination_stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    image_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    image_barrier.newLayout = new_layout;
-  }
-  else if (new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-    destination_stages = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    image_barrier.newLayout = new_layout;
-  }
-  else if (new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-    destination_stages = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    image_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-    image_barrier.newLayout = new_layout;
-  }
-  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-    destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    image_barrier.newLayout = new_layout;
-  }
-  else if (new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-    destination_stages = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    image_barrier.newLayout = new_layout;
-  }
-  else if (new_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-    destination_stages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    image_barrier.dstAccessMask = 0;
-    image_barrier.newLayout = new_layout;
-  }
-  else {
-    AssertMessage(0, "Image Layout is not supproted");
-  }
-
-  vkCmdPipelineBarrier(cmd, source_stages, destination_stages, 0, 0, 0, 0, 0, 1, &image_barrier);
-
-  texture->layout = new_layout;
-}
-
-func RHI_VK_TextureSampler*
-RHI_VK_TextureSamplerFromHandle(RHI_TextureSampler sampler) {
-  return RHI_VK_TextureSamplerArrayGetPointer(&_rhi_vk_state.samplers, sampler);
-}
-
-func RHI_TextureSampler
-RHI_VK_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
-  RHI_VK_TextureSampler sampler = {0};
-
-  VkSamplerCreateInfo sampler_info = {
-    .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-    .magFilter = RHI_VK_GetVkFilter(info->mag_filter),
-    .minFilter = RHI_VK_GetVkFilter(info->min_filter),
-    .mipmapMode = RHI_VK_GetVkSamplerMipmapMode(info->mipmap_mode),
-    .addressModeU = RHI_VK_GetVkSamplerAddressMode(info->address_mode_u),
-    .addressModeV = RHI_VK_GetVkSamplerAddressMode(info->address_mode_v),
-    .addressModeW = RHI_VK_GetVkSamplerAddressMode(info->address_mode_w),
-    .mipLodBias = info->mip_lod_bias,
-    .anisotropyEnable = info->anisotropy_enable,
-    .maxAnisotropy = info->max_anisotropy,
-    .compareEnable = info->compare_enable,
-    .compareOp = RHI_VK_GetVkFromCompareOperation(info->compare_operation),
-    .minLod = info->min_lod,
-    .maxLod = info->max_lod,
-  };
-  VK_CHECK(vkCreateSampler(_rhi_vk_state.device.logical, &sampler_info, 0, &sampler.vk));
-
-  return RHI_VK_TextureSamplerArrayAdd(&_rhi_vk_state.samplers, sampler);
 }
 
 // -------------------------------------------------------------------
@@ -2164,9 +1881,7 @@ RHI_VK_Init(OS_Window* window) {
   RHI_VK_SemaphoreArrayAdd(&_rhi_vk_state.semaphores, (RHI_VK_Semaphore)ZeroStruct()); // 0 is reserved as nil
   _rhi_vk_state.buffers = RHI_VK_BufferArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.buffers.elements[0] = (RHI_VK_Buffer){0};
-  _rhi_vk_state.render_passes = RHI_VK_RenderPassArrayAllocate(_rhi_vk_state.arena, 32);
   // --AlNov 11 January 2026: @TODO Doesn't delete framebuffers when texture is deleted (Swapchain Recreation)
-  _rhi_vk_state.framebuffers = RHI_VK_FramebufferArrayAllocate(_rhi_vk_state.arena, 256);
   _rhi_vk_state.graphics_pipelines = RHI_VK_GraphicsPipelineArrayAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.graphics_pipelines.elements[0] = (RHI_VK_GraphicsPipeline){0};
   _rhi_vk_state.command_buffers = RHI_VK_CommandBufferArrayAllocate(_rhi_vk_state.arena, 16);
@@ -2280,7 +1995,7 @@ RHI_VK_Shutdown(void) {
   vkDeviceWaitIdle(_rhi_vk_state.device.logical);
 
   for (I32 i = 0; i < _rhi_vk_state.textures.length; i += 1) {
-    RHI_VK_DestroyTexture(i);
+    RHI_VK_DestroyTexture(_rhi_vk_state.textures.elements[i].header);
   }
 
   for (I32 i = 0; i < _rhi_vk_state.command_buffers.length; i += 1) {

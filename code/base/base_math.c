@@ -510,9 +510,15 @@ QuaternionLookAt(Vec3F32 source, Vec3F32 target) {
 
 // -------------------------------------------------------------------
 // -- Rectangle ------------------------------------------------------
+func RectI32
+MakeRectI32(I32 x, I32 y, I32 w, I32 h) {
+  RectI32 result = {x, y, w, h};
+  return result;
+}
+
 func RectF32
 MakeRectF32(F32 x, F32 y, F32 w, F32 h) {
-  RectF32 result = {.x = x, .y = y, .w = w, .h = h};
+  RectF32 result = {x, y, w, h};
   return result;
 }
 

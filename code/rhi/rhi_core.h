@@ -137,7 +137,13 @@ struct RHI_TextureCreateInfo {
   U32                   num_levels;
   // sample_count
 };
-typedef RHI_Handle RHI_Texture;
+
+typedef struct RHI_Texture RHI_Texture;
+struct RHI_Texture {
+  RHI_Handle        handle;
+  RHI_TextureFormat format;
+  Vec2I32           size;
+};
 
 func RHI_Texture         RHI_CreateTexture(RHI_TextureCreateInfo* info);
 func B32                 RHI_DestroyTexture(RHI_Texture texture);
@@ -146,8 +152,6 @@ func void                RHI_LoadImageToTexture(Str8 image_path, RHI_Texture tex
 func void                RHI_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
 func U64                 RHI_CopyTextureToBuffer(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
 func void                RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
-func RHI_TextureFormat   RHI_GetTextureFormat(RHI_Texture texture);
-func Vec2I32             RHI_GetTextureDimension(RHI_Texture texture);
 
 typedef U8 RHI_FilterKind;
 enum RHI_FilterKindEnum {
@@ -271,15 +275,15 @@ struct RHI_Resource {
   // --AlNvo: @TODO RHI_RenderStage stage;
 };
 
-typedef struct RHI_RenderPass RHI_RenderPass;
-struct RHI_RenderPass {
-  RHI_ColorTarget        color_targets[RHI_MAX_COLOR_ATTACHMENTS];
-  I32                    color_targets_count;
-  RHI_DepthStencilTarget depth_stencil_target;
+typedef struct RHI_RenderPassInfo RHI_RenderPassInfo;
+struct RHI_RenderPassInfo {
+  RectI32                 render_area;
+  RHI_ColorTarget*        color_targets;
+  I32                     color_targets_count;
+  RHI_DepthStencilTarget* depth_target;
 };
-
-func RHI_RenderPass* RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
-func void            RHI_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
+func void RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info);
+func void RHI_EndRenderPass(RHI_CommandBuffer command_buffer);
 
 // -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
@@ -474,8 +478,6 @@ struct RHI_Device {
   void (*CopyTexture)(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
   U64 (*CopyTextureToBuffer)(RHI_CommandBuffer command_buffer, RHI_Texture texture, RHI_Buffer buffer);
   void (*CopyBufferToTexture)(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_Texture texture);
-  RHI_TextureFormat (*GetTextureFormat)(RHI_Texture texture);
-  Vec2I32         (*GetTextureDimension)(RHI_Texture texture);
 
   RHI_TextureSampler (*CreateTextureSampler)(RHI_TextureSamplerCreateInfo* info);
 
@@ -498,8 +500,8 @@ struct RHI_Device {
   void (*Present)(RHI_CommandBuffer command_buffer);
 
 	// Render Pass
-	RHI_RenderPass* (*BeginRenderPass)(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count);
-	void (*EndRenderPass)(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass);
+	void (*BeginRenderPass)(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info);
+	void (*EndRenderPass)(RHI_CommandBuffer command_buffer);
 
   // Shader
   RHI_Shader (*CreateShader)(Arena* arena, RHI_ShaderCreateInfo* info);
@@ -539,8 +541,6 @@ struct RHI_Device {
   AssignDeviceFunction(api_name, CopyTexture) \
   AssignDeviceFunction(api_name, CopyTextureToBuffer) \
   AssignDeviceFunction(api_name, CopyBufferToTexture) \
-  AssignDeviceFunction(api_name, GetTextureFormat) \
-  AssignDeviceFunction(api_name, GetTextureDimension) \
   AssignDeviceFunction(api_name, CreateTextureSampler) \
   AssignDeviceFunction(api_name, CreateResourceTable) \
   AssignDeviceFunction(api_name, DestroyResourceTable) \

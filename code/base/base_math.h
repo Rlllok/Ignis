@@ -277,6 +277,8 @@ union RectI32 {
   Vec2I32 value[2];
 };
 
+func RectI32 MakeRectI32(I32 x, I32 y, I32 w, I32 h);
+
 typedef union RectF32 RectF32;
 union RectF32 {
   struct {

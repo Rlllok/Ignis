@@ -123,16 +123,6 @@ RHI_CopyBufferToTexture(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64
   _r_state.device.CopyBufferToTexture(command_buffer, buffer, offset, texture);
 }
 
-func RHI_TextureFormat
-RHI_GetTextureFormat(RHI_Texture texture) {
-  return _r_state.device.GetTextureFormat(texture);
-}
-
-func Vec2I32
-RHI_GetTextureDimension(RHI_Texture texture) {
-  return _r_state.device.GetTextureDimension(texture);
-}
-
 func RHI_TextureSampler
 RHI_CreateTextureSampler(RHI_TextureSamplerCreateInfo* info) {
   return _r_state.device.CreateTextureSampler(info);
@@ -190,15 +180,14 @@ RHI_Present(RHI_CommandBuffer command_buffer) {
 
 // -------------------------------------------------------------------
 // -- Render Pass ----------------------------------------------------
-
-func RHI_RenderPass*
-RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, U32 color_targets_count, RHI_ColorTarget* color_targets, RHI_DepthStencilTarget* depth_stencil_target, RHI_Resource* resources, I32 resources_count) {
-	return _r_state.device.BeginRenderPass(command_buffer, color_targets_count, color_targets, depth_stencil_target, resources, resources_count);
+func void
+RHI_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info) {
+  _r_state.device.BeginRenderPass(command_buffer, info);
 }
 
 func void
-RHI_EndRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPass* render_pass) {
-	_r_state.device.EndRenderPass(command_buffer, render_pass);
+RHI_EndRenderPass(RHI_CommandBuffer command_buffer) {
+  _r_state.device.EndRenderPass(command_buffer);
 }
 
 // -------------------------------------------------------------------
