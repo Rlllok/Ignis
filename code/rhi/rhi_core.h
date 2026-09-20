@@ -422,20 +422,20 @@ func void RHI_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKi
 
 // -------------------------------------------------------------------
 // -- Resource Table -------------------------------------------------
-typedef U64 RHI_ResourceTable;
-typedef struct RHI_ResourceTableHeader RHI_ResourceTableHeader;
-struct RHI_ResourceTableHeader {
-  RHI_Texture*        textures;
-  U32                 textures_count;
-  U32                 textures_capacity;
-  RHI_TextureSampler* samplers;
-  U32                 samplers_count;
-  U32                 samplers_capacity;
+typedef RHI_Handle RHI_ResourceTable;
+
+typedef RHI_Handle RHI_TextureView;
+
+typedef struct RHI_TextureViewInfo RHI_TextureViewInfo;
+struct RHI_TextureViewInfo {
+  RHI_Texture       texture;
+  RHI_TextureKind   kind;
+  RHI_TextureFormat format;
 };
 
 func RHI_ResourceTable   RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
 func void                RHI_DestroyResourceTable(RHI_ResourceTable* table);
-func RHI_TextureDeviceId RHI_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture);
+func RHI_TextureView     RHI_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info);
 func RHI_SamplerDeviceId RHI_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler);
 func void                RHI_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable table);
 
@@ -483,11 +483,11 @@ struct RHI_Device {
   RHI_TextureSampler (*CreateTextureSampler)(RHI_TextureSamplerCreateInfo* info);
 
   // Resource Table
-  RHI_ResourceTable     (*CreateResourceTable)(Arena* arena, U32 max_texture_count, U32 max_samplers_count);
-  void                  (*DestroyResourceTable)(RHI_ResourceTable* table);
-  RHI_TextureDeviceId   (*ResourceTableAddTexture)(RHI_ResourceTable table, RHI_Texture texture);
-  RHI_SamplerDeviceId   (*ResourceTableAddSampler)(RHI_ResourceTable table, RHI_TextureSampler sampler);
-  void                  (*BindResourceTable)(RHI_CommandBuffer command_buffer, RHI_ResourceTable table);
+  RHI_ResourceTable   (*CreateResourceTable)(Arena* arena, U32 max_texture_count, U32 max_samplers_count);
+  void                (*DestroyResourceTable)(RHI_ResourceTable* table);
+  RHI_TextureView     (*ResourceTableAddTexture)(RHI_ResourceTable table, RHI_TextureViewInfo info);
+  RHI_SamplerDeviceId (*ResourceTableAddSampler)(RHI_ResourceTable table, RHI_TextureSampler sampler);
+  void                (*BindResourceTable)(RHI_CommandBuffer command_buffer, RHI_ResourceTable table);
 
 	// Command Buffer
 	RHI_CommandBuffer (*GetCommandBuffer)(void);

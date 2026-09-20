@@ -232,9 +232,9 @@ func void RHI_DestroyResourceTable(RHI_ResourceTable* table) {
   _r_state.device.DestroyResourceTable(table);
 }
 
-func RHI_TextureDeviceId
-RHI_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture) {
-  return _r_state.device.ResourceTableAddTexture(table, texture);
+func RHI_TextureView
+RHI_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info) {
+  return _r_state.device.ResourceTableAddTexture(table, info);
 }
 
 func RHI_SamplerDeviceId
@@ -286,7 +286,7 @@ RHI_Init(OS_Window* window) {
 #ifdef IGNIS_PLATFORM_MACOS
   AssignDeviceFunctions(Metal);
 #else
-		AssignDeviceFunctions(VK);
+  AssignDeviceFunctions(VK);
 #endif // IGNIS_PLATFORM_MACOS
 
 	_r_state.device.Init(window);

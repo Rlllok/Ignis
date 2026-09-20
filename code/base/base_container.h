@@ -56,6 +56,10 @@ func void ArrayName##ResetDefault(ArrayName* array) {\
   array->length = 0;\
 }\
 \
+func I32 ArrayName##GetFreeSlot(ArrayName* array) {\
+  return array->length < array->capacity ? array->length : 0;\
+}\
+\
 func I32 ArrayName##Add(ArrayName* array, TypeName element) {\
   if (array->length < array->capacity) {\
     array->elements[array->length] = element;\

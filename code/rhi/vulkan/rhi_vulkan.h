@@ -197,14 +197,24 @@ func void RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture te
 
 // -------------------------------------------------------------------
 // -- Resource Table -------------------------------------------------
+RHI_VK_Texture* vk_texture_ptr_nil = 0;
+DefineArray(RHI_VK_Texture*, RHI_VK_TexturePtrArray, vk_texture_ptr_nil)
+VkImageView image_view_nil = VK_NULL_HANDLE;
+DefineArray(VkImageView, VkImageViewArray, image_view_nil)
+VkSampler sampler_nil = VK_NULL_HANDLE;
+DefineArray(VkSampler, VkSamplerArray, sampler_nil)
 typedef struct RHI_VK_ResourceTable RHI_VK_ResourceTable;
 struct RHI_VK_ResourceTable {
-  RHI_ResourceTableHeader header;
-  VkDescriptorSet         descriptor_set;
+  VkDescriptorSet        descriptor_set;
+  RHI_VK_TexturePtrArray vk_texture_ptrs; // --AlNov: @NOTE @TODO To have ability to change image layout when binding table
+  VkImageViewArray       image_views;
+  VkSamplerArray         samplers;
 };
 
-func RHI_ResourceTable RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
-func void              RHI_DestroyResourceTable(RHI_ResourceTable* table);
+func RHI_ResourceTable   RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
+func void                RHI_DestroyResourceTable(RHI_ResourceTable* table);
+func RHI_TextureView     RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info);
+func RHI_SamplerDeviceId RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler);
 
 // -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------

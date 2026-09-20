@@ -24,6 +24,5 @@ layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 color_attachment;
 
 void main() {
-  float alpha = texture(sampler2D(Textures[nonuniformEXT(sprite_data.texture_index)], Samplers[nonuniformEXT(0)]), uv).r;
-  color_attachment = vec4(sprite_data.tint_color.rgb, alpha);
+  color_attachment = texture(sampler2D(Textures[nonuniformEXT(sprite_data.texture_index)], Samplers[nonuniformEXT(0)]), uv);
 }

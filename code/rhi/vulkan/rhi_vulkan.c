@@ -1437,6 +1437,9 @@ RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info
         .color.float32 = { target->clear_color.x, target->clear_color.y, target->clear_color.z, target->clear_color.w },
       },
     };
+
+    RHI_VK_ChangeTextureLayout(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_texture, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
     color_attachments_count += 1;
   }
 
@@ -1607,12 +1610,10 @@ RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
 func RHI_ResourceTable
 RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count) {
   RHI_VK_ResourceTable result = ZeroStruct();
-  result.header.textures = (RHI_Texture*)PushArena(arena, sizeof(RHI_Texture)*max_textures_count);
-  result.header.textures_capacity = max_textures_count;
-  result.header.samplers = (RHI_TextureSampler*)PushArena(arena, sizeof(RHI_TextureSampler)*max_samplers_count);
-  result.header.samplers_capacity = max_samplers_count;
+  result.vk_texture_ptrs = RHI_VK_TexturePtrArrayAllocate(arena, max_textures_count);
+  result.image_views = VkImageViewArrayAllocate(arena, max_textures_count);
+  result.samplers = VkSamplerArrayAllocate(arena, max_samplers_count);
 
-  // Create descriptor set
   VkDescriptorSetAllocateInfo descriptors_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
     .descriptorPool = _rhi_vk_state.descriptor_pool,
@@ -1621,21 +1622,39 @@ RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_sampler
   };
   VK_CHECK(vkAllocateDescriptorSets(_rhi_vk_state.device.logical, &descriptors_info, &result.descriptor_set));
 
-  _rhi_vk_state.resource_table = result;
+  _rhi_vk_state.resource_table = result; // --AlNov: @TODO Make ResourceTablePool
   return 0;
 }
 
 func void
 RHI_VK_DestroyResourceTable(RHI_ResourceTable* table) {
+  // --AlNov: @TODO
 }
 
-func RHI_TextureDeviceId
-RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture) {
+func RHI_TextureView
+RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info) {
   RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
-  U32 free_slot = vk_table->header.textures_count;
-  vk_table->header.textures[free_slot] = texture;
+  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(info.texture);
+  VkImageView image_view = 0;
+  VkImageViewCreateInfo image_view_info = {
+    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .pNext = 0,
+    .flags = 0,
+    .image = vk_texture->image,
+    .viewType = VK_IMAGE_VIEW_TYPE_2D, // --AlNov: @TODO
+    .format = RHI_VK_GetVkFormat(info.format),
+    .subresourceRange = {
+      .aspectMask = RHI_VK_AspectFromFormat(info.format),
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+    },
+  };
+  VK_CHECK(vkCreateImageView(_rhi_vk_state.device.logical, &image_view_info, 0, &image_view));
+  U32 free_slot = VkImageViewArrayAdd(&vk_table->image_views, image_view);
+  RHI_VK_TexturePtrArrayAdd(&vk_table->vk_texture_ptrs, vk_texture);
 
-  RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(texture);
   VkDescriptorImageInfo image_info = {
     .imageView = vk_texture->view,
     .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
@@ -1651,17 +1670,16 @@ RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_Texture texture) {
   };
   vkUpdateDescriptorSets(_rhi_vk_state.device.logical, 1, &write_info, 0, 0);
 
-  vk_table->header.textures_count += 1;
   return free_slot;
 }
 
 func RHI_SamplerDeviceId
 RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler) {
   RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
-  U32 free_slot = vk_table->header.samplers_count;
-  vk_table->header.samplers[free_slot] = sampler;
-
   RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler);
+
+  U32 free_slot = VkSamplerArrayAdd(&vk_table->samplers, vk_sampler->vk);
+
   VkDescriptorImageInfo image_info = {
     .sampler = vk_sampler->vk,
   };
@@ -1676,7 +1694,6 @@ RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampl
   };
   vkUpdateDescriptorSets(_rhi_vk_state.device.logical, 1, &write_info, 0, 0);
 
-  vk_table->header.samplers_count += 1;
   return free_slot;
 }
 
@@ -1687,6 +1704,11 @@ RHI_VK_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable tab
 
   Assert(vk_table != 0);
   Assert(vk_table->descriptor_set != VK_NULL_HANDLE);
+
+  for (I32 i = 0; i < vk_table->vk_texture_ptrs.length; i += 1) {
+    RHI_VK_Texture* vk_texture = RHI_VK_TexturePtrArrayGet(&vk_table->vk_texture_ptrs, i);
+    // --AlNov: @TODO I should figure out what to do with image layout
+  }
 
   vkCmdBindDescriptorSets(
     vk_command_buffer->vk[_rhi_vk_state.current_frame],

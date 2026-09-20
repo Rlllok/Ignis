@@ -13,6 +13,7 @@ func U32                  RHI_VK_FindMemoryTypeIndex(U32 type_filter, VkMemoryPr
 func void                 RHI_VK_TransitImageLayout(VkCommandBuffer cmd, VkImage image, VkImageLayout layout, VkImageLayout new_layout, VkAccessFlags srs_access, VkAccessFlags dst_access, VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, VkImageAspectFlags apect_mask);
 func VkImageType          RHI_VK_GetVkImageType(VkImageType image_type);
 func VkFormat             RHI_VK_GetVkFormat(RHI_TextureFormat format);
+func VkImageAspectFlags   RHI_VK_AspectFromFormat(RHI_TextureFormat format);
 func RHI_TextureFormat    RHI_VK_FormatFromVk(VkFormat format);
 func RHI_TextureFormat    RHI_VK_TextureFormatFromVkFormat(VkFormat format);
 func VkImageUsageFlags    RHI_VK_GetVkImageUsageFlags(RHI_TextureUsageFlags flags);

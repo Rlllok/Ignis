@@ -159,6 +159,22 @@ RHI_VK_GetVkFormat(RHI_TextureFormat format) {
   return vk_format;
 }
 
+func VkImageAspectFlags
+RHI_VK_AspectFromFormat(RHI_TextureFormat format) {
+  VkImageAspectFlags result = 0;
+  switch (format) {
+    case RHI_TextureFormat_None:                result = 0; break;
+    case RHI_TextureFormat_R8G8B8A8_SRGB:       result = VK_IMAGE_ASPECT_COLOR_BIT; break;
+    case RHI_TextureFormat_R8G8B8A8_UNORM:      result = VK_IMAGE_ASPECT_COLOR_BIT; break;
+    case RHI_TextureFormat_B8G8R8A8_UNORM:      result = VK_IMAGE_ASPECT_COLOR_BIT; break;
+    case RHI_TextureFormat_R16G16B16A16_SFLOAT: result = VK_IMAGE_ASPECT_COLOR_BIT; break;
+    case RHI_TextureFormat_R8_UNORM:            result = VK_IMAGE_ASPECT_COLOR_BIT; break;
+    case RHI_TextureFormat_D16_UNORM:           result = VK_IMAGE_ASPECT_DEPTH_BIT; break;
+    case RHI_TextureFormat_R16_UINT:            result = VK_IMAGE_ASPECT_COLOR_BIT; break;
+  }
+  return result;
+}
+
 func RHI_TextureFormat
 RHI_VK_FormatFromVk(VkFormat format)
 {
