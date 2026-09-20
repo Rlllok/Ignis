@@ -31,6 +31,7 @@ if "%ember%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %lin
 if "%string%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags% .\code\app\string.c  -o build\string.exe
 if "%topdown%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\topdown\topdown.c  -o build\topdown.exe
 if "%triangle%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\triangle.c  -o build\triangle.exe
+if "%asteroids%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\asteroids.c  -o build\asteroids.exe
 if "%gpu_demo%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\gpu_demo.c  -o build\gpu_demo.exe
 if "%macos%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\macos.c  -o build\macos.exe
 if "%ui_demo%"  == "1" %compiler% %build_flags% %clang_flags% %include_flags% %link_flags%  .\code\app\ui_demo.c  -o build\ui_demo.exe

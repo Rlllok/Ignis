@@ -176,7 +176,6 @@ func RHI_Shader RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info);
 typedef struct RHI_VK_GraphicsPipeline RHI_VK_GraphicsPipeline;
 struct RHI_VK_GraphicsPipeline {
   VkPipeline            vk;
-  VkPipelineLayout      layout;
   RHI_Shader*           vertex_shader; // --AlNov: @TODO Not really like the idea of pointer to RHI_Shader
   RHI_Shader*           fragment_shader;
 };
@@ -201,7 +200,6 @@ func void RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture te
 typedef struct RHI_VK_ResourceTable RHI_VK_ResourceTable;
 struct RHI_VK_ResourceTable {
   RHI_ResourceTableHeader header;
-  VkDescriptorPool        descriptor_pool;
   VkDescriptorSet         descriptor_set;
 };
 
@@ -249,6 +247,8 @@ struct RHI_VK_State {
   RHI_VK_TextureArray          textures;
   RHI_VK_TextureFreeList       textures_free_list;
   VkDescriptorSetLayout        resource_table_descriptor_set_layout;
+  VkPipelineLayout             default_graphics_pipeline_layout;
+  VkDescriptorPool             descriptor_pool;
   RHI_VK_ResourceTable         resource_table; // --AlNov: @TODO Only one table for now
   U32                          current_frame;
   U32                          current_target;

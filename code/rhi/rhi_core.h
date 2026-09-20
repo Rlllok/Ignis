@@ -15,8 +15,9 @@ typedef U64 RHI_TextureDeviceId;
 typedef U64 RHI_SamplerDeviceId;
 
 // --AlNov: @TODO Maybe make it parameters of RHI_Init()
-#define RHI_MAX_TEXTURES_COUNT 1024
-#define RHI_MAX_SAMPLERS_COUNT 64
+#define RHI_MaxTextureTablesCount    256
+#define RHI_MaxTexturesCountPerTable 32
+#define RHI_MaxSamplersCountPerTable 8
 
 typedef U8 RHI_CompareOperation;
 typedef enum RHI_CompareOperationEnum {

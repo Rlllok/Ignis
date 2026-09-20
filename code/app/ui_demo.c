@@ -3,7 +3,6 @@
 #include "rhi/rhi_include.h"
 #include "assets/font.h"
 #include "ui/ui_include.h"
-#include "ui/ui_widgets.h"
 #include "draw/draw.h"
 
 #include "base/base_include.c"
@@ -11,7 +10,6 @@
 #include "rhi/rhi_include.c"
 #include "assets/font.c"
 #include "ui/ui_include.c"
-#include "ui/ui_widgets.c"
 #include "draw/draw.c"
 
 typedef struct UI_DemoCategory UI_DemoCategory;
@@ -415,10 +413,13 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
       .store_operation = RHI_AttachmentStoreOperation_Store,
       .clear_color = MakeVec4F32(0.1f, 0.2f, 0.1f, 1.0f),
     };
-    RHI_RenderPass* render_pass = RHI_BeginRenderPass(command_buffer, 1, &color_target, 0, 0, 0); {
-      RHI_SetViewport(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
-      RHI_SetScissor(command_buffer, (RectI32){.x = 0, .y = 0, .w = ui_demo.window->size.x, .h = ui_demo.window->size.h});
-
+    RHI_RenderPassInfo render_pass_info = {
+      .render_area = MakeRectI32(0, 0, ui_demo.window->size.x, ui_demo.window->size.y),
+      .color_targets_count = 1,
+      .color_targets = &color_target,
+    };
+    RHI_BeginRenderPass(command_buffer, render_pass_info); {
+      RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
       for (UI_DrawCommand* draw_command = ui_demo.ui_draw_commands; draw_command != 0; draw_command = draw_command->next) {
         switch (draw_command->kind) {
           default: {
@@ -438,7 +439,6 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
           case UI_DrawCommandKind_Text: {
             F32 spacing = 0;
             RHI_BindGraphicsPipeline(command_buffer, ui_demo.text_pipeline);
-            RHI_BindResourceTable(command_buffer, ui_demo.resource_table);
             for (I32 character_index = 0; character_index < draw_command->text.str.length; character_index += 1) {
               U8 character = draw_command->text.str.data[character_index];
               const AST_Font* font = draw_command->text.font;
@@ -487,28 +487,6 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
             switch (custom_info->kind) {
               default: break;
               case UI_CustomWidgetKind_Hue: {
-              #if 0
-                struct {
-                  Mat4F32 projection;
-                  Vec4F32 position_size;
-                  F32     hue;
-                } data = {
-                  .projection = MakeOrthographicMat4F32(0.0f, ui_demo.window->size.w, ui_demo.window->size.h, 0.0f, -1.0f, 1.0f),
-                  .position_size = MakeVec4F32(bound.x, bound.y, bound.w, bound.h),
-                  .hue = custom_info->hue.value,
-                };
-                U64 data_offset = RHI_PushBuffer(ui_demo.gpu_buffer, (U8*)&data, sizeof(data));
-                RHI_ShaderArgument arguments[] = {
-                  {
-                    .kind = RHI_ShaderArgumentKind_BufferAddress,
-                    .address = RHI_BufferDeviceAddress(ui_demo.gpu_buffer) + data_offset,
-                  }
-                };
-                RHI_BindGraphicsPipeline(command_buffer, ui_demo.hue_pipeline);
-                RHI_BindResourceTable(command_buffer, ui_demo.hue_pipeline);
-                RHI_BindShaderArguments(command_buffer, RHI_ShaderKind_Vertex|RHI_ShaderKind_Fragment, arguments, ArrayLength(arguments));
-                RHI_DrawPrimitives(command_buffer, 6, 1, 0, 0);
-              #endif
                 F32 x_offset = bound.w/6;
                 RectF32 segment_bound = {
                   .x = bound.x,
@@ -568,7 +546,7 @@ Demo_Render(RHI_CommandBuffer command_buffer) {
         }
       }
     }
-    RHI_EndRenderPass(command_buffer, render_pass);
+    RHI_EndRenderPass(command_buffer);
     RHI_Present(command_buffer);
   }
   RHI_EndCommandBuffer(command_buffer);

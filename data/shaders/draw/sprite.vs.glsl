@@ -1,38 +1,35 @@
 #version 460
 
-#extension GL_EXT_nonuniform_qualifier           : require
+#extension GL_EXT_nonuniform_qualifier          : require
 #extension GL_EXT_buffer_reference              : require
 #extension GL_EXT_buffer_reference2             : require
 #extension GL_EXT_samplerless_texture_functions : require
 
-// Standard 6-vertex quad (no index array needed with vkCmdDraw 6 vertices)
-const vec4 positions[6] = vec4[](
-  vec4(0.0, 1.0, 0.0, 1.0),
-  vec4(1.0, 1.0, 0.0, 1.0),
-  vec4(0.0, 0.0, 0.0, 1.0),
-  vec4(1.0, 1.0, 0.0, 1.0),
-  vec4(1.0, 0.0, 0.0, 1.0),
-  vec4(0.0, 0.0, 0.0, 1.0)
-);
+const vec4 vertecies[] = {
+  vec4(0.0f, 1.0f, 0.0f, 1.0f),
+  vec4(1.0f, 1.0f, 0.0f, 1.0f),
+  vec4(1.0f, 0.0f, 0.0f, 1.0f),
+  vec4(0.0f, 0.0f, 0.0f, 1.0f),
+};
 
-const vec2 uvs[6] = vec2[](
-  vec2(0.0, 1.0),
-  vec2(1.0, 1.0),
-  vec2(0.0, 0.0),
-  vec2(1.0, 1.0),
-  vec2(1.0, 0.0),
-  vec2(0.0, 0.0)
-);
+const vec2 uv[] = {
+  vec2(0.0f, 1.0f),
+  vec2(1.0f, 1.0f),
+  vec2(1.0f, 0.0f),
+  vec2(0.0f, 0.0f),
+};
 
-layout(set = 0, binding = 1) uniform texture2D Textures[];
+const uint indecies[] = {
+  0, 1, 3,
+  1, 2, 3
+};
 
-layout(buffer_reference, std430) readonly buffer SpriteDataBuffer {
+layout(buffer_reference) readonly buffer SpriteDataBuffer {
   mat4x4 projection;
   mat4x4 transform;
   vec4   part_position_size;
   vec4   tint_color;
-  uint   texture_index;
-  uint   sampler_index;
+  uint   texture_index;// --AlNov: @TODO Texture
 };
 
 layout(push_constant, std430) uniform args {
@@ -42,17 +39,7 @@ layout(push_constant, std430) uniform args {
 layout(location = 0) out vec2 out_uv;
 
 void main() {
-  ivec2 texture_size = textureSize(Textures[nonuniformEXT(sprite_data.texture_index)], 0);
-  
-  gl_Position = sprite_data.projection * sprite_data.transform * positions[gl_VertexIndex];
-  
-  vec2 base_uv = uvs[gl_VertexIndex];
-  vec2 sprite_size = vec2(texture_size);
-  
-  // Guard against divide-by-zero if texture isn't loaded yet
-  if (sprite_size.x > 0.0 && sprite_size.y > 0.0) {
-    out_uv = (sprite_data.part_position_size.xy + (base_uv * sprite_data.part_position_size.zw)) / sprite_size;
-  } else {
-    out_uv = base_uv;
-  }
+  vec4 vertex = sprite_data.transform*vertecies[indecies[gl_VertexIndex]];
+  out_uv = uv[indecies[gl_VertexIndex]];
+  gl_Position = sprite_data.projection*vertex;
 }
