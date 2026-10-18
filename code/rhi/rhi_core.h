@@ -146,7 +146,7 @@ struct RHI_Texture {
   Vec2I32           size;
 };
 
-func RHI_Texture         RHI_CreateTexture(RHI_TextureCreateInfo* info);
+func RHI_Texture         RHI_CreateTexture(Str8 name, RHI_TextureCreateInfo* info);
 func B32                 RHI_DestroyTexture(RHI_Texture texture);
 func RHI_TextureDeviceId RHI_GetTextureDeviceId(RHI_Texture texture);
 func void                RHI_LoadImageToTexture(Str8 image_path, RHI_Texture texture);
@@ -424,7 +424,11 @@ func void RHI_BindShaderArguments(RHI_CommandBuffer command_buffer, RHI_ShaderKi
 // -- Resource Table -------------------------------------------------
 typedef RHI_Handle RHI_ResourceTable;
 
-typedef RHI_Handle RHI_TextureView;
+typedef struct RHI_TextureView RHI_TextureView;
+struct RHI_TextureView {
+  RHI_Handle  handle;
+  RHI_Texture texture;
+};
 
 typedef struct RHI_TextureViewInfo RHI_TextureViewInfo;
 struct RHI_TextureViewInfo {
@@ -472,7 +476,7 @@ struct RHI_Device {
   void (*BindShaderArguments)(RHI_CommandBuffer command_buffer, RHI_ShaderKind stage, RHI_ShaderArgument* arguments, I32 arguments_count);
 
   // Texture
-  RHI_Texture (*CreateTexture)(RHI_TextureCreateInfo* info);
+  RHI_Texture (*CreateTexture)(Str8 name, RHI_TextureCreateInfo* info);
   B32 (*DestroyTexture)(RHI_Texture texture);
   RHI_TextureDeviceId (*GetTextureDeviceId)(RHI_Texture texture);
   void (*LoadDataToTexture)(U8* data, U64 data_size, RHI_Texture texture);

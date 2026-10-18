@@ -67,7 +67,7 @@ struct ASTR_Bullet {
   RectF32 sprite_scissor;
 
   ASTR_Bullet* next_active;
-  ASTR_Bullet* prev_active;;
+  ASTR_Bullet* prev_active;
   ASTR_Bullet* next_free;
 };
 
@@ -116,12 +116,14 @@ struct {
   RHI_Buffer          rhi_frame_buffer;
   RHI_Buffer          rhi_transfer_buffer;
   RHI_ResourceTable   rhi_resource_table;
+  RHI_TextureSampler  rhi_default_sampler;
+  RHI_SamplerDeviceId rhi_default_sampler_id;
   RHI_Texture         rhi_offscreen_texture;
-  RHI_TextureDeviceId rhi_offscreen_texture_id;
+  RHI_TextureView     rhi_offscreen_texture_view;
 
   // Assets
-  RHI_Texture         sprite_atlass;
-  RHI_TextureDeviceId sprite_atlass_id;
+  RHI_Texture     sprite_atlass;
+  RHI_TextureView sprite_atlass_view;
 
   // Game Objects
   ASTR_SpaceArena   space_arena;
@@ -144,7 +146,19 @@ I32 main() {
   astr_context.rhi_transfer_buffer = RHI_CreateBuffer(Str8C("ASTR_TransferBuffer"), Megabytes(128), RHI_BufferUsageFlag_Transfer, RHI_BufferPropertyFlag_HostCoherent|RHI_BufferPropertyFlag_HostVisible);
   astr_context.rhi_resource_table = RHI_CreateResourceTable(astr_context.global_arena, 256, 1);
 
-  astr_context.rhi_offscreen_texture = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
+  astr_context.rhi_default_sampler = RHI_CreateTextureSampler(
+    &(RHI_TextureSamplerCreateInfo){
+      .mag_filter = RHI_FilterKind_Linear,
+      .min_filter = RHI_FilterKind_Linear,
+      .address_mode_u = RHI_SamplerAddressMode_Repeat,
+      .address_mode_v = RHI_SamplerAddressMode_Repeat,
+      .address_mode_w = RHI_SamplerAddressMode_Repeat,
+      .mipmap_mode = RHI_SamplerMipmapMode_Linear,
+    }
+  );
+  astr_context.rhi_default_sampler_id = RHI_ResourceTableAddSampler(astr_context.rhi_resource_table, astr_context.rhi_default_sampler_id);
+
+  astr_context.rhi_offscreen_texture = RHI_CreateTexture(Str8C("Offscreen_Texture"), &(RHI_TextureCreateInfo) {
     .kind = RHI_TextureKind_2D,
     .format = RHI_TextureFormat_B8G8R8A8_UNORM,
     .usage_flags = RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT,
@@ -153,14 +167,18 @@ I32 main() {
     .depth = 1,
     .num_levels = 1,
   });
-  astr_context.rhi_offscreen_texture_id = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, astr_context.rhi_offscreen_texture);
+  astr_context.rhi_offscreen_texture_view = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, (RHI_TextureViewInfo){
+    .texture = astr_context.rhi_offscreen_texture,
+    .kind = RHI_TextureKind_2D,
+    .format = RHI_TextureFormat_B8G8R8A8_UNORM,
+  });
 
   I32 tex_width = 0;
   I32 tex_height = 0;
   I32 tex_channels = 0;
   U8* tex_pixels = stbi_load("data/asteroids/Asteroids.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 
-  astr_context.sprite_atlass = RHI_CreateTexture(&(RHI_TextureCreateInfo) {
+  astr_context.sprite_atlass = RHI_CreateTexture(Str8C("Sprite_Atlass"), &(RHI_TextureCreateInfo) {
     .kind = RHI_TextureKind_2D,
     .format = RHI_TextureFormat_R8G8B8A8_UNORM,
     .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
@@ -184,7 +202,11 @@ I32 main() {
   RHI_SubmitCommandBuffer(transfer_command_buffer, 0, 0, &signal_semaphore, 1);
   RHI_WaitSemaphore(copy_semaphore, 1);
   RHI_DestroySemaphore(copy_semaphore);
-  astr_context.sprite_atlass_id = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, astr_context.sprite_atlass);
+  astr_context.sprite_atlass_view = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, (RHI_TextureViewInfo){
+    .texture = astr_context.sprite_atlass,
+    .kind = RHI_TextureKind_2D,
+    .format = RHI_TextureFormat_R8G8B8A8_UNORM,
+  });
 
   // Add Game Objects
   astr_context.space_arena = (ASTR_SpaceArena){
@@ -236,10 +258,15 @@ I32 main() {
             .clear_color = RGBAFromHex(0x00000000),
           }
         };
-        RHI_RenderPass* render_pass = RHI_BeginRenderPass(astr_context.rhi_command_buffer, ArrayLength(color_targets), color_targets, 0, 0, 0); {
-          RHI_SetViewport(astr_context.rhi_command_buffer, (RectI32){.x = 0, .y = 0, .w = ASTR_WIDTH, .h = ASTR_HEIGHT});
-          RHI_SetScissor(astr_context.rhi_command_buffer, (RectI32){.x = 0, .y = 0, .w = ASTR_WIDTH, .h = ASTR_HEIGHT});
+        RHI_RenderPassInfo render_pass_info = {
+          .render_area = MakeRectI32(0, 0, ASTR_WIDTH, ASTR_HEIGHT),
+          .color_targets = color_targets,
+          .color_targets_count = ArrayLength(color_targets),
+          .depth_target = 0,
+        };
+        RHI_BeginRenderPass(astr_context.rhi_command_buffer, render_pass_info); {
           RHI_BindResourceTable(astr_context.rhi_command_buffer, astr_context.rhi_resource_table);
+          RectF32 draw_area = MakeRectF32(0.0f, 0.0f, 50.0f, 50.0f);
           ASTR_DrawSpaceArena(astr_context.rhi_command_buffer, &astr_context.space_arena);
           if (!astr_context.space_ship.destroyed) {
             ASTR_DrawSpaceShip(astr_context.rhi_command_buffer, &astr_context.space_ship);
@@ -247,7 +274,7 @@ I32 main() {
           ASTR_DrawAsteroids(astr_context.rhi_command_buffer, &astr_context.asteroid_pool);
           ASTR_DrawBullets(astr_context.rhi_command_buffer, &astr_context.bullet_pool);
         }
-        RHI_EndRenderPass(astr_context.rhi_command_buffer, render_pass);
+        RHI_EndRenderPass(astr_context.rhi_command_buffer);
       }
 
       // Render offscreen texture to swapchain
@@ -261,10 +288,13 @@ I32 main() {
             .clear_color = RGBAFromHex(0xfbf0d9ff),
           }
         };
-        RHI_RenderPass* render_pass = RHI_BeginRenderPass(astr_context.rhi_command_buffer, ArrayLength(color_targets), color_targets, 0, 0, 0); {
-          RectI32 viewport = { .x = 0, .y = 0, .w = astr_context.window->size.x, .h = astr_context.window->size.y };
-          RHI_SetViewport(astr_context.rhi_command_buffer, viewport);
-          RHI_SetScissor(astr_context.rhi_command_buffer, viewport);
+        RHI_RenderPassInfo render_pass_info = {
+          .render_area = MakeRectI32(0, 0, swapchain_texture.size.x, swapchain_texture.size.y),
+          .color_targets = color_targets,
+          .color_targets_count = ArrayLength(color_targets),
+          .depth_target = 0,
+        };
+        RHI_BeginRenderPass(astr_context.rhi_command_buffer, render_pass_info); {
           RHI_BindResourceTable(astr_context.rhi_command_buffer, astr_context.rhi_resource_table);
           RectF32 viewport_f32 = { .x = 0, .y = 0, .w = astr_context.window->size.x, .h = astr_context.window->size.y };
           RectF32 rect = {
@@ -273,9 +303,9 @@ I32 main() {
             .w = ASTR_WIDTH,
             .h = ASTR_HEIGHT,
           };
-          D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, viewport_f32, 0.0f, astr_context.rhi_offscreen_texture_id, rect, MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f));
+          D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, viewport_f32, 0.0f, astr_context.rhi_offscreen_texture_view, rect, MakeVec4F32(1.0f, 1.0f, 1.0f, 1.0f));
         }
-        RHI_EndRenderPass(astr_context.rhi_command_buffer, render_pass);
+        RHI_EndRenderPass(astr_context.rhi_command_buffer);
       }
 
       RHI_Present(astr_context.rhi_command_buffer);
@@ -303,7 +333,7 @@ I32 main() {
 func void
 ASTR_DrawSpaceArena(RHI_CommandBuffer rhi_command_buffer, ASTR_SpaceArena* space_arena) {
   RectF32 draw_area = MakeRectF32(space_arena->position.x - space_arena->sprite_scissor.w/2.0f, space_arena->position.y - space_arena->sprite_scissor.h/2.0f, space_arena->sprite_scissor.w, space_arena->sprite_scissor.h);
-  D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, 0.0f, astr_context.sprite_atlass_id, space_arena->sprite_scissor, RGBAFromHex(0x5f4b32ff));
+  D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, 0.0f, astr_context.sprite_atlass_view, space_arena->sprite_scissor, RGBAFromHex(0x5f4b32ff));
   if (astr_context.debug_mode) {
     F32 r = space_arena->radius;
     RectF32 collision_rect = MakeRectF32(space_arena->position.x - r, space_arena->position.y - r, r*2.0f, r*2.0f);
@@ -382,7 +412,7 @@ func void
 ASTR_DrawAsteroids(RHI_CommandBuffer rhi_command_buffer, ASTR_AsteroidPool* pool) {
   for (ASTR_Asteroid* asteroid = pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
     RectF32 draw_area = MakeRectF32(asteroid->position.x - asteroid->sprite_scissor.w/2.0f, asteroid->position.y - asteroid->sprite_scissor.h/2.0f, asteroid->sprite_scissor.w, asteroid->sprite_scissor.h);
-    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, asteroid->rotation, astr_context.sprite_atlass_id, asteroid->sprite_scissor, RGBAFromHex(0x5f4b32ff));
+    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, asteroid->rotation, astr_context.sprite_atlass_view, asteroid->sprite_scissor, RGBAFromHex(0x5f4b32ff));
     if (astr_context.debug_mode) {
       F32 r = asteroid->collision_radius;
       RectF32 collision_rect = MakeRectF32(asteroid->position.x - r, asteroid->position.y - r, r*2.0f, r*2.0f);
@@ -461,7 +491,7 @@ func void
 ASTR_DrawBullets(RHI_CommandBuffer rhi_command_buffer, ASTR_BulletPool* pool) {
   for (ASTR_Bullet* bullet = pool->first_active; bullet != 0; bullet = bullet->next_active) {
     RectF32 draw_area = MakeRectF32(bullet->position.x - bullet->sprite_scissor.w/2.0f, bullet->position.y - bullet->sprite_scissor.h/2.0f, bullet->sprite_scissor.w, bullet->sprite_scissor.h);
-    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, bullet->rotation, astr_context.sprite_atlass_id, bullet->sprite_scissor, RGBAFromHex(0x5f4b32ff));
+    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, bullet->rotation, astr_context.sprite_atlass_view, bullet->sprite_scissor, RGBAFromHex(0x5f4b32ff));
     if (astr_context.debug_mode) {
       F32 r = bullet->collision_radius;
       RectF32 collision_rect = MakeRectF32(bullet->position.x - r, bullet->position.y - r, r*2.0f, r*2.0f);
@@ -504,7 +534,7 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
 func void
 ASTR_DrawSpaceShip(RHI_CommandBuffer rhi_command_buffer, ASTR_SpaceShip* space_ship) {
   RectF32 draw_area = MakeRectF32(space_ship->position.x - space_ship->sprite_scissor.w*0.5f, space_ship->position.y - space_ship->sprite_scissor.w*0.5f, space_ship->sprite_scissor.w, space_ship->sprite_scissor.h);
-  D_DrawSpritePart(rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, space_ship->rotation, astr_context.sprite_atlass_id, space_ship->sprite_scissor, RGBAFromHex(0xf06449ff));
+  D_DrawSpritePart(rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, space_ship->rotation, astr_context.sprite_atlass_view, space_ship->sprite_scissor, RGBAFromHex(0xf06449ff));
   if (astr_context.debug_mode) {
     F32 r = space_ship->collision_radius;
     RectF32 collision_rect = MakeRectF32(space_ship->position.x - r, space_ship->position.y - r, r*2.0f, r*2.0f);

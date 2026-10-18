@@ -115,7 +115,7 @@ D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 
 }
 
 func void
-D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, F32 rotation, RHI_TextureDeviceId texture_id, RectF32 part_rect, Vec4F32 tint_color) {
+D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, F32 rotation, RHI_TextureView texture_view, RectF32 part_rect, Vec4F32 tint_color) {
   RectI32 viewport = RHI_GetViewport(command_buffer);
   Transform transform = {
     .translation = MakeVec3F32(rect.x + rect.w*0.5f, rect.y + rect.h*0.5f, 0.0f),
@@ -128,14 +128,16 @@ D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF3
     Mat4F32 projection;
     Mat4F32 transform;
     Vec4F32 part_position_size;
+    Vec2F32 texture_size; Vec2F32 texture_size_padding;
     Vec4F32 tint_color;
     U32     texture_id;
   } data = {
     .projection = MakeOrthographicMat4F32(0.0f, viewport.w, viewport.h, 0.0f, -1.0f, 1.0f),
     .transform = transform_matrix,
     .part_position_size = MakeVec4F32(part_rect.x, part_rect.y, part_rect.w, part_rect.h),
+    .texture_size = MakeVec2F32(texture_view.texture.size.x, texture_view.texture.size.y),
     .tint_color = tint_color,
-    .texture_id = texture_id,
+    .texture_id = texture_view.handle,
   };
   U64 data_offset = RHI_PushBuffer(buffer, (U8*)&data, sizeof(data));
 

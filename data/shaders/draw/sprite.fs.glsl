@@ -8,6 +8,7 @@ layout(buffer_reference) readonly buffer SpriteDataBuffer {
   mat4x4 projection;
   mat4x4 transform;
   vec4   part_position_size;
+  vec2   texture_size;
   vec4   tint_color;
   uint   texture_index;// --AlNov: @TODO Texture
 };

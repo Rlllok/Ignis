@@ -6,6 +6,84 @@
 #include "base/base_core.h"
 
 // -------------------------------------------------------------------
+// Debug Tools
+#if IGNIS_VULKAN_DEBUG
+VKAPI_ATTR VkBool32 VKAPI_CALL
+RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+  LogWarning("VK_VALIDATION: %s\n", pCallbackData->pMessage);
+  return VK_FALSE;
+}
+
+func VkDebugUtilsMessengerCreateInfoEXT
+RHI_VK_PopulateDebugMessengerCreateInfo(void) {
+	VkDebugUtilsMessengerCreateInfoEXT messenger_info = {0};
+  messenger_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+  messenger_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  messenger_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
+    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+    | VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT;
+  messenger_info.pfnUserCallback = RHI_VK_DebugCallback;
+  messenger_info.pUserData = 0;
+
+	return messenger_info;
+}
+
+func VkResult
+RHI_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger) {
+  PFN_vkCreateDebugUtilsMessengerEXT f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+
+  if (f != 0) {
+    return f(instance, pCreateInfo, pAllocator, pDebugMesseneger);
+  }
+  else {
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+  }
+}
+
+func void
+RHI_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator) {
+  PFN_vkDestroyDebugUtilsMessengerEXT f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+
+  if (f != 0) {
+    f(instance, debugMessenger, pAllocator);
+  }
+}
+
+func VkResult
+RHI_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger) {
+  VkDebugUtilsMessengerCreateInfoEXT messengerInfo = RHI_VK_PopulateDebugMessengerCreateInfo();
+  return RHI_VK_CreateDebugUtilsMessenger(instance, &messengerInfo, 0, debugMessenger);
+}
+
+func VkResult
+RHI_VK_NameObjectInternal(VkDevice device, VkObjectType type, U64 handle, Str8 name) {
+  VkResult result = VK_ERROR_UNKNOWN;
+
+  PFN_vkSetDebugUtilsObjectNameEXT f = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(_rhi_vk_state.instance, "vkSetDebugUtilsObjectNameEXT");
+  if (f != 0) {
+    VkDebugUtilsObjectNameInfoEXT name_info = {
+      .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+      .pNext = 0,
+      .objectType = type,
+      .objectHandle = handle,
+      .pObjectName = CFromStr8(name),
+    };
+    result = f(device, &name_info);
+  }
+  return result;
+}
+#define RHI_VK_NameObject(device, type, handle, name) RHI_VK_NameObjectInternal(device, type, handle, name)
+#else
+#define RHI_VK_NameObject(device, type, handle, name)
+#endif // IGNIS_VULKAN_DEBUG
+
+// -- Object name (Works when IGNIS_VULKAN_DEBUG defined)
+#define RHI_VK_NameImage(device, handle, name) RHI_VK_NameObject(device, VK_OBJECT_TYPE_IMAGE, handle, name)
+#define RHI_VK_NameBuffer(device, handle, name) RHI_VK_NameObject(device, VK_OBJECT_TYPE_BUFFER, handle, name)
+
+// -------------------------------------------------------------------
 // -- Function Loading -----------------------------------------------
 func void
 RHI_VK_LoadDeviceFunctions(VkDevice device) {
@@ -148,6 +226,7 @@ RHI_VK_CreateBuffer(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, 
   };
 
   VK_CHECK(vkCreateBuffer(_rhi_vk_state.device.logical, &buffer_info, 0, &buffer.vk));
+  VK_CHECK(RHI_VK_NameBuffer(_rhi_vk_state.device.logical, (U64)buffer.vk, label));
 
   VkMemoryRequirements memory_requirements;
   vkGetBufferMemoryRequirements(_rhi_vk_state.device.logical, buffer.vk, &memory_requirements);
@@ -510,7 +589,7 @@ RHI_VK_TextureFromHandle(RHI_Texture vk) {
 }
 
 func RHI_Texture
-RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
+RHI_VK_CreateTexture(Str8 name, RHI_TextureCreateInfo* info) {
   RHI_Texture header = {
   .format = info->format,
   .size = { info->width, info->height },
@@ -538,6 +617,7 @@ RHI_VK_CreateTexture(RHI_TextureCreateInfo* info) {
     LogError("Cannot create Image for Texture.\n");
     return (RHI_Texture)ZeroStruct();
   }
+  VK_CHECK(RHI_VK_NameImage(_rhi_vk_state.device.logical, (U64)texture.image, name));
 
   VkMemoryRequirements mem_requirements = {0};
   vkGetImageMemoryRequirements(_rhi_vk_state.device.logical, texture.image, &mem_requirements);
@@ -1670,7 +1750,7 @@ RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info
   };
   vkUpdateDescriptorSets(_rhi_vk_state.device.logical, 1, &write_info, 0, 0);
 
-  return free_slot;
+  return (RHI_TextureView){.handle = free_slot, .texture = info.texture};
 }
 
 func RHI_SamplerDeviceId
@@ -1947,55 +2027,3 @@ RHI_VK_HandleResize(OS_Window* window) {
   RHI_VK_RecreateSwapchain(window);
 }
 
-// -------------------------------------------------------------------
-// Debug Tools
-#if IGNIS_VULKAN_DEBUG
-VKAPI_ATTR VkBool32 VKAPI_CALL
-RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-  LogWarning("VK_VALIDATION: %s\n", pCallbackData->pMessage);
-  return VK_FALSE;
-}
-
-func VkDebugUtilsMessengerCreateInfoEXT
-RHI_VK_PopulateDebugMessengerCreateInfo(void) {
-	VkDebugUtilsMessengerCreateInfoEXT messenger_info = {0};
-  messenger_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-  messenger_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-  messenger_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
-    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-    | VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT;
-  messenger_info.pfnUserCallback = RHI_VK_DebugCallback;
-  messenger_info.pUserData = 0;
-
-	return messenger_info;
-}
-
-func VkResult
-RHI_VK_CreateDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMesseneger) {
-  PFN_vkCreateDebugUtilsMessengerEXT f = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-
-  if (f != 0) {
-    return f(instance, pCreateInfo, pAllocator, pDebugMesseneger);
-  }
-  else {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-}
-
-func void
-RHI_VK_DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, VkAllocationCallbacks* pAllocator) {
-  PFN_vkDestroyDebugUtilsMessengerEXT f = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-
-  if (f != 0) {
-    f(instance, debugMessenger, pAllocator);
-  }
-}
-
-func VkResult
-RHI_VK_CreateDebugMessenger(VkInstance instance, VkDebugUtilsMessengerEXT* debugMessenger) {
-  VkDebugUtilsMessengerCreateInfoEXT messengerInfo = RHI_VK_PopulateDebugMessengerCreateInfo();
-  return RHI_VK_CreateDebugUtilsMessenger(instance, &messengerInfo, 0, debugMessenger);
-}
-#endif // IGNIS_VULKAN_DEBUG

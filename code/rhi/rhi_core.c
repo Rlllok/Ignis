@@ -90,8 +90,8 @@ RHI_BytesPerPixelFromFormat(RHI_TextureFormat format) {
 }
 
 func RHI_Texture
-RHI_CreateTexture(RHI_TextureCreateInfo* info) {
-  return _r_state.device.CreateTexture(info);
+RHI_CreateTexture(Str8 name, RHI_TextureCreateInfo* info) {
+  return _r_state.device.CreateTexture(name, info);
 }
 
 func B32

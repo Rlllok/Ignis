@@ -96,7 +96,7 @@ U32 RHI_VK_TextureFreeListNil = RHI_nil;
 DefineArray(U32, RHI_VK_TextureFreeList, RHI_VK_TextureFreeListNil)
 
 func RHI_VK_Texture*   RHI_VK_TextureFromHandle(RHI_Texture handle);
-func RHI_Texture       RHI_VK_CreateTexture(RHI_TextureCreateInfo* info);
+func RHI_Texture       RHI_VK_CreateTexture(Str8 name, RHI_TextureCreateInfo* info);
 func B32               RHI_VK_DestroyTexture(RHI_Texture texture);
 func void              RHI_VK_LoadDataToTexture(U8* data, U64 data_size, RHI_Texture texture);
 func void              RHI_VK_CopyTexture(RHI_CommandBuffer command_buffer, RHI_Texture source, RHI_Texture destination);
