@@ -1005,9 +1005,7 @@ RHI_VK_CreateSwapchain(OS_Window* window) {
     _rhi_vk_state.swapchain.size.h = capabilities.currentExtent.height;
   }
 
-  // VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
-  // VkPresentModeKHR present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-  VkPresentModeKHR present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+  VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
 
   U32 image_count = capabilities.minImageCount + 1;
   if ((capabilities.maxImageCount > 0) && (image_count > capabilities.maxImageCount)) {

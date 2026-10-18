@@ -95,6 +95,7 @@ struct ASTR_SpaceShip {
   F32     speed;
   F32     collision_radius;
   B32     destroyed;
+  F32     reload_time;
   RectF32 sprite_scissor;
 };
 
@@ -124,13 +125,18 @@ struct {
   // Assets
   RHI_Texture     sprite_atlass;
   RHI_TextureView sprite_atlass_view;
+  RHI_Texture     numbers_atlass;
+  RHI_TextureView numbers_atlass_view;
 
-  // Game Objects
+  // Game State and Objects
+  I32               score;
   ASTR_SpaceArena   space_arena;
   ASTR_SpaceShip    space_ship;
   ASTR_AsteroidPool asteroid_pool;
   ASTR_BulletPool   bullet_pool;
 } astr_context;
+
+func void ASTR_DrawScore(RHI_CommandBuffer rhi_command_buffer, RHI_Buffer rhi_buffer);
 
 I32 main() {
   astr_context.global_arena = AllocateArena(Gigabytes(1), Kilobytes(16));
@@ -173,40 +179,81 @@ I32 main() {
     .format = RHI_TextureFormat_B8G8R8A8_UNORM,
   });
 
-  I32 tex_width = 0;
-  I32 tex_height = 0;
-  I32 tex_channels = 0;
-  U8* tex_pixels = stbi_load("data/asteroids/Asteroids.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+  // Load Asteroids sprite
+  {
+    I32 tex_width = 0;
+    I32 tex_height = 0;
+    I32 tex_channels = 0;
+    U8* tex_pixels = stbi_load("data/asteroids/Asteroids.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 
-  astr_context.sprite_atlass = RHI_CreateTexture(Str8C("Sprite_Atlass"), &(RHI_TextureCreateInfo) {
-    .kind = RHI_TextureKind_2D,
-    .format = RHI_TextureFormat_R8G8B8A8_UNORM,
-    .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
-    .width = tex_width,
-    .height = tex_height,
-    .depth = 1,
-    .num_levels = 1,
-  });
-  U64 texture_offset = RHI_PushBuffer(astr_context.rhi_transfer_buffer, tex_pixels, tex_width*tex_height*4);
-  RHI_CommandBuffer transfer_command_buffer = ZeroStruct();
-  RHI_BeginCommandBuffer(transfer_command_buffer); {
-    RHI_CopyBufferToTexture(transfer_command_buffer, astr_context.rhi_transfer_buffer, 0, astr_context.sprite_atlass);
+    astr_context.sprite_atlass = RHI_CreateTexture(Str8C("Sprite_Atlass"), &(RHI_TextureCreateInfo) {
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R8G8B8A8_UNORM,
+      .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+      .width = tex_width,
+      .height = tex_height,
+      .depth = 1,
+      .num_levels = 1,
+    });
+    U64 texture_offset = RHI_PushBuffer(astr_context.rhi_transfer_buffer, tex_pixels, tex_width*tex_height*4);
+    RHI_CommandBuffer transfer_command_buffer = ZeroStruct();
+    RHI_BeginCommandBuffer(transfer_command_buffer); {
+      RHI_CopyBufferToTexture(transfer_command_buffer, astr_context.rhi_transfer_buffer, texture_offset, astr_context.sprite_atlass);
+    }
+    RHI_EndCommandBuffer(transfer_command_buffer);
+
+    RHI_Semaphore copy_semaphore = RHI_CreateSemaphore();
+    RHI_SemaphoreSignalInfo signal_semaphore = {
+      .semaphore = copy_semaphore,
+      .value = 1,
+    };
+    RHI_SubmitCommandBuffer(transfer_command_buffer, 0, 0, &signal_semaphore, 1);
+    RHI_WaitSemaphore(copy_semaphore, 1);
+    RHI_DestroySemaphore(copy_semaphore);
+    astr_context.sprite_atlass_view = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, (RHI_TextureViewInfo){
+      .texture = astr_context.sprite_atlass,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R8G8B8A8_UNORM,
+    });
   }
-  RHI_EndCommandBuffer(transfer_command_buffer);
 
-  RHI_Semaphore copy_semaphore = RHI_CreateSemaphore();
-  RHI_SemaphoreSignalInfo signal_semaphore = {
-    .semaphore = copy_semaphore,
-    .value = 1,
-  };
-  RHI_SubmitCommandBuffer(transfer_command_buffer, 0, 0, &signal_semaphore, 1);
-  RHI_WaitSemaphore(copy_semaphore, 1);
-  RHI_DestroySemaphore(copy_semaphore);
-  astr_context.sprite_atlass_view = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, (RHI_TextureViewInfo){
-    .texture = astr_context.sprite_atlass,
-    .kind = RHI_TextureKind_2D,
-    .format = RHI_TextureFormat_R8G8B8A8_UNORM,
-  });
+  // Load Numbers sprite
+  {
+    I32 tex_width = 0;
+    I32 tex_height = 0;
+    I32 tex_channels = 0;
+    U8* tex_pixels = stbi_load("data/asteroids/Asteroids_numbers.png", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+
+    astr_context.numbers_atlass = RHI_CreateTexture(Str8C("ASTR_Numbers"), &(RHI_TextureCreateInfo) {
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R8G8B8A8_UNORM,
+      .usage_flags = RHI_TEXTURE_USAGE_FLAG_SAMPLED | RHI_TEXTURE_USAGE_FLAG_TRANSFER_DST,
+      .width = tex_width,
+      .height = tex_height,
+      .depth = 1,
+      .num_levels = 1,
+    });
+    U64 texture_offset = RHI_PushBuffer(astr_context.rhi_transfer_buffer, tex_pixels, tex_width*tex_height*4);
+    RHI_CommandBuffer transfer_command_buffer = ZeroStruct();
+    RHI_BeginCommandBuffer(transfer_command_buffer); {
+      RHI_CopyBufferToTexture(transfer_command_buffer, astr_context.rhi_transfer_buffer, texture_offset, astr_context.numbers_atlass);
+    }
+    RHI_EndCommandBuffer(transfer_command_buffer);
+
+    RHI_Semaphore copy_semaphore = RHI_CreateSemaphore();
+    RHI_SemaphoreSignalInfo signal_semaphore = {
+      .semaphore = copy_semaphore,
+      .value = 1,
+    };
+    RHI_SubmitCommandBuffer(transfer_command_buffer, 0, 0, &signal_semaphore, 1);
+    RHI_WaitSemaphore(copy_semaphore, 1);
+    RHI_DestroySemaphore(copy_semaphore);
+    astr_context.numbers_atlass_view = RHI_ResourceTableAddTexture(astr_context.rhi_resource_table, (RHI_TextureViewInfo){
+      .texture = astr_context.numbers_atlass,
+      .kind = RHI_TextureKind_2D,
+      .format = RHI_TextureFormat_R8G8B8A8_UNORM,
+    });
+  }
 
   // Add Game Objects
   astr_context.space_arena = (ASTR_SpaceArena){
@@ -266,13 +313,13 @@ I32 main() {
         RHI_BeginRenderPass(astr_context.rhi_command_buffer, render_pass_info); {
           RHI_BindResourceTable(astr_context.rhi_command_buffer, astr_context.rhi_resource_table);
           D_SetSamplerId(astr_context.rhi_default_sampler_id);
-          RectF32 draw_area = MakeRectF32(0.0f, 0.0f, 50.0f, 50.0f);
           ASTR_DrawSpaceArena(astr_context.rhi_command_buffer, &astr_context.space_arena);
           if (!astr_context.space_ship.destroyed) {
             ASTR_DrawSpaceShip(astr_context.rhi_command_buffer, &astr_context.space_ship);
           }
           ASTR_DrawAsteroids(astr_context.rhi_command_buffer, &astr_context.asteroid_pool);
           ASTR_DrawBullets(astr_context.rhi_command_buffer, &astr_context.bullet_pool);
+          ASTR_DrawScore(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer);
         }
         RHI_EndRenderPass(astr_context.rhi_command_buffer);
       }
@@ -322,7 +369,7 @@ I32 main() {
 
     F32 time_to_sleep_ms = target_frame_ms - dt_ms;
     if (time_to_sleep_ms > 0.0f) {
-      OS_Sleep(time_to_sleep_ms);
+      // OS_Sleep(time_to_sleep_ms);
     }
   }
 
@@ -482,6 +529,7 @@ ASTR_UpdateBullets(ASTR_BulletPool* pool, ASTR_SpaceArena* space_arena, ASTR_Ast
       if (distance < (bullet->collision_radius + asteroid->collision_radius)) {
         ASTR_DespawnBullet(pool, bullet);
         ASTR_DespawnAsteroid(asteroid_pool, asteroid);
+        astr_context.score += 100;
       }
     }
   }
@@ -511,12 +559,19 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
   Vec2F32 velocity = ScaleVec2F32(NormalizeVec2F32(direction), space_ship->speed*dt);
   space_ship->position = AddVec2F32(space_ship->position, velocity);
 
-  if (OS_KeyPressed(OS_KEY_SPACE)) { ASTR_SpawnBullet(bullet_pool, space_ship->position, space_ship->rotation); }
-
   Vec2F32 ship_to_arena_position = SubVec2F32(space_ship->position, space_arena->position);
-
   F32 look_at_angle = atan2f(ship_to_arena_position.x, ship_to_arena_position.y);
   space_ship->rotation = look_at_angle;
+  Vec2F32 space_ship_direction = RotateVec2F32(MakeVec2F32(0.0f, -1.0f), -look_at_angle);
+
+  space_ship->reload_time -= dt;
+  if (OS_KeyPressed(OS_KEY_SPACE)) {
+    if (space_ship->reload_time < 0.0f) {
+      Vec2F32 bullet_position = AddVec2F32(space_ship->position, ScaleVec2F32(space_ship_direction, space_ship->collision_radius + 8.0f));
+      ASTR_SpawnBullet(bullet_pool, bullet_position, space_ship->rotation);
+      space_ship->reload_time = 0.25f;
+    }
+  }
 
   F32 ship_distance_to_edge = space_arena->radius - MagnitudeVec2F32(ship_to_arena_position) - space_ship->collision_radius;
   if (ship_distance_to_edge < 0.0f) {
@@ -526,6 +581,13 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
   for (ASTR_Asteroid* asteroid = asteroid_pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
     F32 distance = MagnitudeVec2F32(SubVec2F32(asteroid->position, space_ship->position));
     if (distance < (asteroid->collision_radius + space_ship->collision_radius)) {
+      space_ship->destroyed = 1;
+    }
+  }
+
+  for (ASTR_Bullet* bullet = bullet_pool->first_active; bullet != 0; bullet = bullet->next_active) {
+    F32 distance = MagnitudeVec2F32(SubVec2F32(bullet->position, space_ship->position));
+    if (distance < (bullet->collision_radius + space_ship->collision_radius)) {
       space_ship->destroyed = 1;
     }
   }
@@ -539,5 +601,20 @@ ASTR_DrawSpaceShip(RHI_CommandBuffer rhi_command_buffer, ASTR_SpaceShip* space_s
     F32 r = space_ship->collision_radius;
     RectF32 collision_rect = MakeRectF32(space_ship->position.x - r, space_ship->position.y - r, r*2.0f, r*2.0f);
     D_DrawRectWithBorder(rhi_command_buffer, astr_context.rhi_frame_buffer, collision_rect, MakeVec4F32(r, r, r, r), MakeVec4F32(0.0f, 0.0f, 0.0f, 0.0f), 1.0f, MakeVec4F32(1.0f, 0.0f, 0.0f, 0.8f));
+  }
+}
+
+// -- Global Context -------------------------------------------------
+func void 
+ASTR_DrawScore(RHI_CommandBuffer rhi_command_buffer, RHI_Buffer rhi_buffer) {
+  Vec2F32 position = MakeVec2F32(3.0f, 5.0f);
+  I32 digits_count = 9;
+  I32 score_digit = astr_context.score;
+  for (I32 i = 0; i < digits_count; i+= 1) {
+    I32 digit = score_digit%10;
+    RectF32 draw_area = MakeRectF32(position.x + 16.0f*(digits_count - i - 1), position.y, 16.0f, 16.0f);
+    RectF32 sprite_scissor = MakeRectF32(16.0f*digit, 0.0f, 16.0f, 16.0f);
+    D_DrawSpritePart(rhi_command_buffer, rhi_buffer, draw_area, 0.0f, astr_context.numbers_atlass_view, sprite_scissor, RGBAFromHex(0xf06449ff));
+    score_digit /= 10;
   }
 }

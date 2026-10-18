@@ -26,5 +26,5 @@ layout(location = 0) in vec2 uv;
 layout(location = 0) out vec4 color_attachment;
 
 void main() {
-  color_attachment = texture(sampler2D(Textures[nonuniformEXT(sprite_data.texture_index)], Samplers[nonuniformEXT(sprite_data.sampler_index)]), uv);
+  color_attachment = texture(sampler2D(Textures[nonuniformEXT(sprite_data.texture_index)], Samplers[nonuniformEXT(sprite_data.sampler_index)]), uv)*sprite_data.tint_color;
 }

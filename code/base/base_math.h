@@ -127,6 +127,7 @@ func F32 MagnitudeSquareVec2F32(Vec2F32 v);
 func F32 MagnitudeVec2F32(Vec2F32 v);
 func Vec2F32 NormalizeVec2F32(Vec2F32 v);
 func Vec2F32 GetNormalToVec2F32(Vec2F32 v);
+func Vec2F32 RotateVec2F32(Vec2F32 v, F32 angle);
 
 typedef struct Mat3F32 Mat3F32;
 struct Mat3F32 {

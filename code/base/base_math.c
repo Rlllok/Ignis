@@ -25,6 +25,7 @@ func F32 MagnitudeSquareVec2F32(Vec2F32 v) {return v.x*v.x + v.y*v.y;}
 func F32 MagnitudeVec2F32(Vec2F32 v) {return sqrt(MagnitudeSquareVec2F32(v));}
 func Vec2F32 NormalizeVec2F32(Vec2F32 v) {F32 magnitude = MagnitudeVec2F32(v); return ScaleVec2F32(v, (1.0f/(magnitude + !magnitude)));}
 func Vec2F32 GetNormalToVec2F32(Vec2F32 v) {return NormalizeVec2F32(MakeVec2F32(v.y, -v.x));}
+func Vec2F32 RotateVec2F32(Vec2F32 v, F32 angle) {return MakeVec2F32(v.x*cosf(angle) - v.y*sinf(angle), v.x*sinf(angle) + v.y*cosf(angle));}
 
 func Vec3F32 MakeVec3F32(F32 x, F32 y, F32 z) {Vec3F32 result = {x,y,z}; return result;}
 func Vec3F32 AddVec3F32(Vec3F32 a, Vec3F32 b) {return MakeVec3F32(a.x+b.x, a.y+b.y, a.z+b.z);}
