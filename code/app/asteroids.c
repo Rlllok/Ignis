@@ -148,20 +148,20 @@ I32 main() {
 
   astr_context.rhi_default_sampler = RHI_CreateTextureSampler(
     &(RHI_TextureSamplerCreateInfo){
-      .mag_filter = RHI_FilterKind_Linear,
-      .min_filter = RHI_FilterKind_Linear,
+      .mag_filter = RHI_FilterKind_Nearest,
+      .min_filter = RHI_FilterKind_Nearest,
       .address_mode_u = RHI_SamplerAddressMode_Repeat,
       .address_mode_v = RHI_SamplerAddressMode_Repeat,
       .address_mode_w = RHI_SamplerAddressMode_Repeat,
       .mipmap_mode = RHI_SamplerMipmapMode_Linear,
     }
   );
-  astr_context.rhi_default_sampler_id = RHI_ResourceTableAddSampler(astr_context.rhi_resource_table, astr_context.rhi_default_sampler_id);
+  astr_context.rhi_default_sampler_id = RHI_ResourceTableAddSampler(astr_context.rhi_resource_table, astr_context.rhi_default_sampler);
 
   astr_context.rhi_offscreen_texture = RHI_CreateTexture(Str8C("Offscreen_Texture"), &(RHI_TextureCreateInfo) {
     .kind = RHI_TextureKind_2D,
     .format = RHI_TextureFormat_B8G8R8A8_UNORM,
-    .usage_flags = RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT,
+    .usage_flags = RHI_TEXTURE_USAGE_FLAG_COLOR_ATTACHMENT | RHI_TEXTURE_USAGE_FLAG_SAMPLED,
     .width = ASTR_WIDTH,
     .height = ASTR_HEIGHT,
     .depth = 1,
@@ -230,7 +230,6 @@ I32 main() {
   astr_context.bullet_pool = ASTR_AllocateBulletPool(astr_context.global_arena, 64);
 
   D_Init(Megabytes(16));
-
   
   F32 target_frame_ms = 1000.0f/60.0f;
   U64 start_ts = OS_GetTimeTicks();
@@ -266,6 +265,7 @@ I32 main() {
         };
         RHI_BeginRenderPass(astr_context.rhi_command_buffer, render_pass_info); {
           RHI_BindResourceTable(astr_context.rhi_command_buffer, astr_context.rhi_resource_table);
+          D_SetSamplerId(astr_context.rhi_default_sampler_id);
           RectF32 draw_area = MakeRectF32(0.0f, 0.0f, 50.0f, 50.0f);
           ASTR_DrawSpaceArena(astr_context.rhi_command_buffer, &astr_context.space_arena);
           if (!astr_context.space_ship.destroyed) {

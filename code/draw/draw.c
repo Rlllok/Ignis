@@ -76,6 +76,11 @@ D_PreparePipelines() {
 }
 
 func void
+D_SetSamplerId(RHI_SamplerDeviceId sampler_id) {
+  _d_state.sampler_id = sampler_id;
+}
+
+func void
 D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, Vec4F32 radius, Vec4F32 top_left_color, Vec4F32 top_right_color, Vec4F32 bottom_right_color, Vec4F32 bottom_left_color, F32 border_width, Vec4F32 border_color) {
   RectI32 viewport = RHI_GetViewport(command_buffer);
 
@@ -131,6 +136,7 @@ D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF3
     Vec2F32 texture_size; Vec2F32 texture_size_padding;
     Vec4F32 tint_color;
     U32     texture_id;
+    U32     sampler_id;
   } data = {
     .projection = MakeOrthographicMat4F32(0.0f, viewport.w, viewport.h, 0.0f, -1.0f, 1.0f),
     .transform = transform_matrix,
@@ -138,6 +144,7 @@ D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF3
     .texture_size = MakeVec2F32(texture_view.texture.size.x, texture_view.texture.size.y),
     .tint_color = tint_color,
     .texture_id = texture_view.handle,
+    .sampler_id = _d_state.sampler_id,
   };
   U64 data_offset = RHI_PushBuffer(buffer, (U8*)&data, sizeof(data));
 

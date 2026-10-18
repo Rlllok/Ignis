@@ -31,6 +31,7 @@ layout(buffer_reference) readonly buffer SpriteDataBuffer {
   vec2   texture_size;
   vec4   tint_color;
   uint   texture_index;// --AlNov: @TODO Texture
+  uint   sampler_index;
 };
 
 layout(push_constant, std430) uniform args {
