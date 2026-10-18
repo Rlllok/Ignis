@@ -210,11 +210,14 @@ struct RHI_VK_ResourceTable {
   VkImageViewArray       image_views;
   VkSamplerArray         samplers;
 };
+RHI_VK_ResourceTable resource_table_nil = ZeroStruct();
+DefineArray(RHI_VK_ResourceTable, RHI_VK_ResourceTableArray, resource_table_nil);
 
-func RHI_ResourceTable   RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
-func void                RHI_DestroyResourceTable(RHI_ResourceTable* table);
-func RHI_TextureView     RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info);
-func RHI_SamplerDeviceId RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler);
+func RHI_VK_ResourceTable* RHI_VK_ResourceTableFromHandle(RHI_ResourceTable handle);
+func RHI_ResourceTable     RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
+func void                  RHI_VK_DestroyResourceTable(RHI_ResourceTable table);
+func RHI_TextureView       RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info);
+func RHI_SamplerDeviceId   RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler);
 
 // -------------------------------------------------------------------
 // -- Command Buffer -------------------------------------------------
@@ -259,7 +262,7 @@ struct RHI_VK_State {
   VkDescriptorSetLayout        resource_table_descriptor_set_layout;
   VkPipelineLayout             default_graphics_pipeline_layout;
   VkDescriptorPool             descriptor_pool;
-  RHI_VK_ResourceTable         resource_table; // --AlNov: @TODO Only one table for now
+  RHI_VK_ResourceTableArray    resource_tables;
   U32                          current_frame;
   U32                          current_target;
 

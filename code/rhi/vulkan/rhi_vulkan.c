@@ -1354,7 +1354,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   VkPipelineColorBlendAttachmentState blend_attachments[8] = {0};
   for (I32 i = 0; i < pipeline_info->color_targets_count; i += 1) {
     blend_attachments[i].blendEnable = pipeline_info->color_target_infos[i].blend_enable;
-    blend_attachments[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blend_attachments[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     blend_attachments[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     blend_attachments[i].colorBlendOp = VK_BLEND_OP_ADD;
     blend_attachments[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
@@ -1687,6 +1687,12 @@ RHI_VK_PresentTexture(RHI_CommandBuffer command_buffer, RHI_Texture texture) {
 
 // -------------------------------------------------------------------
 // -- Resource Table -------------------------------------------------
+
+func RHI_VK_ResourceTable*
+RHI_VK_ResourceTableFromHandle(RHI_ResourceTable handle) {
+  return RHI_VK_ResourceTableArrayGetPointer(&_rhi_vk_state.resource_tables, handle);
+}
+
 func RHI_ResourceTable
 RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count) {
   RHI_VK_ResourceTable result = ZeroStruct();
@@ -1702,18 +1708,17 @@ RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_sampler
   };
   VK_CHECK(vkAllocateDescriptorSets(_rhi_vk_state.device.logical, &descriptors_info, &result.descriptor_set));
 
-  _rhi_vk_state.resource_table = result; // --AlNov: @TODO Make ResourceTablePool
-  return 0;
+  return RHI_VK_ResourceTableArrayAdd(&_rhi_vk_state.resource_tables, result);
 }
 
 func void
-RHI_VK_DestroyResourceTable(RHI_ResourceTable* table) {
+RHI_VK_DestroyResourceTable(RHI_ResourceTable table) {
   // --AlNov: @TODO
 }
 
 func RHI_TextureView
 RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info) {
-  RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
+  RHI_VK_ResourceTable* vk_table = RHI_VK_ResourceTableFromHandle(table);
   RHI_VK_Texture* vk_texture = RHI_VK_TextureFromHandle(info.texture);
   VkImageView image_view = 0;
   VkImageViewCreateInfo image_view_info = {
@@ -1755,7 +1760,7 @@ RHI_VK_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info
 
 func RHI_SamplerDeviceId
 RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler) {
-  RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
+  RHI_VK_ResourceTable* vk_table = RHI_VK_ResourceTableFromHandle(table);
   RHI_VK_TextureSampler* vk_sampler = RHI_VK_TextureSamplerFromHandle(sampler);
 
   U32 free_slot = VkSamplerArrayAdd(&vk_table->samplers, vk_sampler->vk);
@@ -1780,13 +1785,12 @@ RHI_VK_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampl
 func void
 RHI_VK_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable table) {
   RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
-  RHI_VK_ResourceTable* vk_table = &_rhi_vk_state.resource_table;
+  RHI_VK_ResourceTable* vk_table = RHI_VK_ResourceTableFromHandle(table);
 
   Assert(vk_table != 0);
   Assert(vk_table->descriptor_set != VK_NULL_HANDLE);
 
   for (I32 i = 0; i < vk_table->vk_texture_ptrs.length; i += 1) {
-    RHI_VK_Texture* vk_texture = RHI_VK_TexturePtrArrayGet(&vk_table->vk_texture_ptrs, i);
     // --AlNov: @TODO I should figure out what to do with image layout
   }
 
@@ -1860,6 +1864,7 @@ RHI_VK_Init(OS_Window* window) {
   _rhi_vk_state.textures.elements[0] = (RHI_VK_Texture){0};
   _rhi_vk_state.textures_free_list = RHI_VK_TextureFreeListAllocate(_rhi_vk_state.arena, 32);
   _rhi_vk_state.textures_free_list.elements[0] = 1;
+  _rhi_vk_state.resource_tables = RHI_VK_ResourceTableArrayAllocate(_rhi_vk_state.arena, 16);
 
   VkApplicationInfo app_info = ZeroStruct();
   app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;

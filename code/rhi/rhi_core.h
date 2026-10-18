@@ -438,7 +438,7 @@ struct RHI_TextureViewInfo {
 };
 
 func RHI_ResourceTable   RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);
-func void                RHI_DestroyResourceTable(RHI_ResourceTable* table);
+func void                RHI_DestroyResourceTable(RHI_ResourceTable table);
 func RHI_TextureView     RHI_ResourceTableAddTexture(RHI_ResourceTable table, RHI_TextureViewInfo info);
 func RHI_SamplerDeviceId RHI_ResourceTableAddSampler(RHI_ResourceTable table, RHI_TextureSampler sampler);
 func void                RHI_BindResourceTable(RHI_CommandBuffer command_buffer, RHI_ResourceTable table);
@@ -488,7 +488,7 @@ struct RHI_Device {
 
   // Resource Table
   RHI_ResourceTable   (*CreateResourceTable)(Arena* arena, U32 max_texture_count, U32 max_samplers_count);
-  void                (*DestroyResourceTable)(RHI_ResourceTable* table);
+  void                (*DestroyResourceTable)(RHI_ResourceTable table);
   RHI_TextureView     (*ResourceTableAddTexture)(RHI_ResourceTable table, RHI_TextureViewInfo info);
   RHI_SamplerDeviceId (*ResourceTableAddSampler)(RHI_ResourceTable table, RHI_TextureSampler sampler);
   void                (*BindResourceTable)(RHI_CommandBuffer command_buffer, RHI_ResourceTable table);

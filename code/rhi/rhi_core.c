@@ -228,7 +228,7 @@ RHI_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_c
   return _r_state.device.CreateResourceTable(arena, max_textures_count, max_samplers_count);
 }
 
-func void RHI_DestroyResourceTable(RHI_ResourceTable* table) {
+func void RHI_DestroyResourceTable(RHI_ResourceTable table) {
   _r_state.device.DestroyResourceTable(table);
 }
 
