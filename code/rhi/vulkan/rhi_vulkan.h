@@ -211,7 +211,7 @@ struct RHI_VK_ResourceTable {
   VkSamplerArray         samplers;
 };
 RHI_VK_ResourceTable resource_table_nil = ZeroStruct();
-DefineArray(RHI_VK_ResourceTable, RHI_VK_ResourceTableArray, resource_table_nil);
+DefineArray(RHI_VK_ResourceTable, RHI_VK_ResourceTableArray, resource_table_nil)
 
 func RHI_VK_ResourceTable* RHI_VK_ResourceTableFromHandle(RHI_ResourceTable handle);
 func RHI_ResourceTable     RHI_VK_CreateResourceTable(Arena* arena, U32 max_textures_count, U32 max_samplers_count);

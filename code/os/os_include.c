@@ -1,5 +1,7 @@
 #pragma once
 
+#include "os_gfx.c"
+
 #ifdef IGNIS_PLATFORM_LINUX
 #include "linux/os_linux_memory.c"
 #endif // IGNIS_PLATFORM_LINUX

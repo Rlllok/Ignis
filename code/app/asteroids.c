@@ -282,7 +282,7 @@ I32 main() {
   U64 start_ts = OS_GetTimeTicks();
   F32 dt = 0.0f;
   while (!astr_context.finished) {
-    OS_DispatchEvents(astr_context.frame_arena, astr_context.window);
+    OS_DispatchEvents(astr_context.window);
 
     if (OS_KeyPressed(OS_KEY_ESC)) { astr_context.finished = 1; }
     if (OS_KeyPressed(OS_KEY_F2))  { astr_context.debug_mode = !astr_context.debug_mode; }
@@ -565,7 +565,7 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
   Vec2F32 space_ship_direction = RotateVec2F32(MakeVec2F32(0.0f, -1.0f), -look_at_angle);
 
   space_ship->reload_time -= dt;
-  if (OS_KeyPressed(OS_KEY_SPACE)) {
+  if (OS_KeyDown(OS_KEY_SPACE)) {
     if (space_ship->reload_time < 0.0f) {
       Vec2F32 bullet_position = AddVec2F32(space_ship->position, ScaleVec2F32(space_ship_direction, space_ship->collision_radius + 8.0f));
       ASTR_SpawnBullet(bullet_pool, bullet_position, space_ship->rotation);

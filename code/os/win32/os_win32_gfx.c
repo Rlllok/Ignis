@@ -7,17 +7,16 @@ static WINDOWPLACEMENT previous_window_params = { sizeof(previous_window_params)
 static LARGE_INTEGER win32_frequency;
 
 func void
-OS_Init(U64 arena_size)
-{
+OS_Init(U64 arena_size) {
   // --AlNov 7 January 2026: @TODO Do we need arena_size?
   _os_state.arena = AllocateArena(Gigabytes(8), Kilobytes(64));
+  _os_state.event_arena = AllocateArena(Megabytes(256), Kilobytes(4));
   timeBeginPeriod(1);
   QueryPerformanceFrequency(&win32_frequency);
 }
 
 func OS_Window*
-OS_CreateWindow(Str8 title, Vec2U32 size)
-{
+OS_CreateWindow(Str8 title, Vec2U32 size) {
   OS_Win32_Window* result = (OS_Win32_Window*)PushArena(_os_state.arena, sizeof(OS_Win32_Window*));
   
   result->instance = GetModuleHandle(0);
@@ -44,19 +43,15 @@ OS_CreateWindow(Str8 title, Vec2U32 size)
 
   result->handle = handle;
   result->header.size = size;
-  result->header.status = OS_WINDOW_STATUS_CREATED;
 
   return (OS_Window*)result;
 }
 
 func void
-OS_ShowWindow(OS_Window* window)
-{
+OS_ShowWindow(OS_Window* window) {
   OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
   ShowWindow(win32_window->handle, SW_SHOW);
   UpdateWindow(win32_window->handle);
-
-  window->status = OS_WINDOW_STATUS_OPEN;
 }
 
 func void
@@ -78,8 +73,7 @@ OS_ShowCursor(B32 to_show) {
 }
 
 func void
-OS_WIN32_ToggleFullscreen(HWND window_handle)
-{
+OS_WIN32_ToggleFullscreen(HWND window_handle) {
   DWORD style = GetWindowLong(window_handle, GWL_STYLE);
   if (style & WS_OVERLAPPEDWINDOW)
   {
@@ -106,71 +100,24 @@ OS_WIN32_ToggleFullscreen(HWND window_handle)
 }
 
 func OS_EventList
-OS_DispatchEvents(Arena* arena, OS_Window* window)
-{
-  _os_state.event_list = OS_EventListCreate(arena);
-	_os_state.keyboard_event_list = OS_EventListCreate(arena);
-  _os_state.mouse_event_list = OS_EventListCreate(arena);
-  _os_state.mouse.scroll = MakeVec2F32(0.0f, 0.0f);
+OS_DispatchEvents(OS_Window* window) {
+  ResetArena(_os_state.event_arena);
+
+  _os_state.event_list.first = 0;
+  _os_state.event_list.last = 0;
+
+  memcpy(_os_state.keyboard.previous, _os_state.keyboard.current, sizeof(_os_state.keyboard.previous));
 
   MSG message;
-  while (PeekMessage(&message, 0, 0, 0, PM_REMOVE))
-  {
+  while (PeekMessageW(&message, 0, 0, 0, PM_REMOVE)) {
     TranslateMessage(&message);
     DispatchMessageW(&message);
-  }
-
-	for (I32 i = 0; i < OS_KEY_COUNT; i += 1)
-	{
-		OS_KeyState* key = _os_state.keyboard.keys + i;
-		key->pressed = 0;
-		key->released = 0;
-		key->time_down += key->is_down * (0.0f); // AlNov: @TODO Add delta time
-	}
-
-  for (OS_EventListNode *event_node = _os_state.keyboard_event_list.first; event_node; event_node = event_node->next)
-	{
-
-		OS_Event* event = &event_node->data;
-		_os_state.keyboard.keys[event->key].pressed = event->pressed;
-		_os_state.keyboard.keys[event->key].released = !event->pressed;
-		if (event->pressed)
-		{
-			_os_state.keyboard.keys[event->key].is_down = 1;
-		}
-		if (event->released)
-		{
-			_os_state.keyboard.keys[event->key].is_down = 0;
-		}
-	}
-
-  for (I32 i = 0; i < OS_MouseButton_Count; i += 1)
-  {
-    OS_MouseButtonState* button = _os_state.mouse.buttons + i;
-    button->pressed = 0;
-    button->released = 0;
-  }
-
-  for (OS_EventListNode* event_node = _os_state.mouse_event_list.first; event_node; event_node = event_node->next)
-  {
-    OS_Event* event = &event_node->data;
-    _os_state.mouse.buttons[event->mouse_button].pressed = event->pressed;
-    _os_state.mouse.buttons[event->mouse_button].released = event->released;
-    if (event->pressed)
-    {
-      _os_state.mouse.buttons[event->mouse_button].is_down = 1;
-    }
-    if (event->released)
-    {
-      _os_state.mouse.buttons[event->mouse_button].is_down = 0;
-    }
   }
 
   return _os_state.event_list;
 }
 
-func U64 OS_GetTimeTicks(void)
-{
+func U64 OS_GetTimeTicks(void) {
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
   F64 seconds = (F64)(counter.QuadPart)/(F64)(win32_frequency.QuadPart);
@@ -179,14 +126,12 @@ func U64 OS_GetTimeTicks(void)
 }
 
 func void
-OS_Sleep(U64 ms)
-{
+OS_Sleep(U64 ms) {
   Sleep(ms);
 }
 
 func void
-OS_Wait(F32 miliseconds)
-{
+OS_Wait(F32 miliseconds) {
   if (miliseconds <= 0) return;
 
   F32 begin_time_ms = OS_GetTimeTicks();
@@ -198,8 +143,7 @@ OS_Wait(F32 miliseconds)
 }
 
 func Vec2F32
-OS_MousePosition(OS_Window* window)
-{
+OS_MousePosition(OS_Window* window) {
   OS_Win32_Window* win32_window = (OS_Win32_Window*)window;
 
   POINT mouse_point;
@@ -219,50 +163,126 @@ OS_SetMousePosition(OS_Window* window, Vec2F32 position) {
 }
 
 func Vec2F32
-OS_MouseScroll()
-{
+OS_MouseScroll() {
   return _os_state.mouse.scroll;
 }
 
 func B32
-OS_IsWindowClosed(void)
-{
+OS_IsWindowClosed(void) {
   return 0;
 }
 
 func F32
-OS_GetMonitorHZ(void)
-{
+OS_GetMonitorHZ(void) {
   DEVMODEW dev_mode = {0};
   EnumDisplaySettingsW(0, ENUM_CURRENT_SETTINGS, &dev_mode);
 
   return (F32)dev_mode.dmDisplayFrequency;
 }
 
+func OS_KeyCode
+OS_KeyCodeFromWin32(U32 win32_key) {
+  OS_KeyCode result = OS_KEY_NONE;
+  switch (win32_key) {
+    default: {}; break;
+
+    case VK_ESCAPE    : {result = OS_KEY_ESC;};break;
+    case VK_F1        : {result = OS_KEY_F1;};break;
+    case VK_F2        : {result = OS_KEY_F2;};break;
+    case VK_F3        : {result = OS_KEY_F3;};break;
+    case VK_F4        : {result = OS_KEY_F4;};break;
+    case VK_F5        : {result = OS_KEY_F5;};break;
+    case VK_F6        : {result = OS_KEY_F6;};break;
+    case VK_F7        : {result = OS_KEY_F7;};break;
+    case VK_F8        : {result = OS_KEY_F8;};break;
+    case VK_F9        : {result = OS_KEY_F9;};break;
+    case VK_F10       : {result = OS_KEY_F10;};break;
+    case VK_F11       : {result = OS_KEY_F11;};break;
+    case VK_F12       : {result = OS_KEY_F12;};break;
+    case VK_OEM_3     : {result = OS_KEY_BACKTICK;};break;
+    case '0'          : {result = OS_KEY_0;};break;
+    case '1'          : {result = OS_KEY_1;};break;
+    case '2'          : {result = OS_KEY_2;};break;
+    case '3'          : {result = OS_KEY_3;};break;
+    case '4'          : {result = OS_KEY_4;};break;
+    case '5'          : {result = OS_KEY_5;};break;
+    case '6'          : {result = OS_KEY_6;};break;
+    case '7'          : {result = OS_KEY_7;};break;
+    case '8'          : {result = OS_KEY_8;};break;
+    case '9'          : {result = OS_KEY_9;};break;
+    case VK_OEM_MINUS : {result = OS_KEY_MINUS;};break;
+    case VK_OEM_PLUS  : {result = OS_KEY_EQUAL;};break;
+    case VK_BACK      : {result = OS_KEY_BACKSPACE;};break;
+    case VK_TAB       : {result = OS_KEY_TAB;};break;
+    case 'Q'          : {result = OS_KEY_Q;};break;
+    case 'W'          : {result = OS_KEY_W;};break;
+    case 'E'          : {result = OS_KEY_E;};break;
+    case 'R'          : {result = OS_KEY_R;};break;
+    case 'T'          : {result = OS_KEY_T;};break;
+    case 'Y'          : {result = OS_KEY_Y;};break;
+    case 'U'          : {result = OS_KEY_U;};break;
+    case 'I'          : {result = OS_KEY_I;};break;
+    case 'O'          : {result = OS_KEY_O;};break;
+    case 'P'          : {result = OS_KEY_P;};break;
+    case VK_OEM_4     : {result = OS_KEY_LEFT_BRACKET;};break;
+    case VK_OEM_6     : {result = OS_KEY_RIGHT_BRACKET;};break;
+    case VK_OEM_5     : {result = OS_KEY_BACK_SLASH;};break;
+    case VK_CAPITAL   : {result = OS_KEY_CAPS_LOCK;};break;
+    case 'A'          : {result = OS_KEY_A;};break;
+    case 'S'          : {result = OS_KEY_S;};break;
+    case 'D'          : {result = OS_KEY_D;};break;
+    case 'F'          : {result = OS_KEY_F;};break;
+    case 'G'          : {result = OS_KEY_G;};break;
+    case 'H'          : {result = OS_KEY_H;};break;
+    case 'J'          : {result = OS_KEY_J;};break;
+    case 'K'          : {result = OS_KEY_K;};break;
+    case 'L'          : {result = OS_KEY_L;};break;
+    case VK_OEM_1     : {result = OS_KEY_SEMICOLON;};break;
+    case VK_OEM_7     : {result = OS_KEY_QUOTE;};break;
+    case VK_RETURN    : {result = OS_KEY_RETURN;};break;
+    case VK_LSHIFT    : {result = OS_KEY_SHIFT;};break;
+    case VK_RSHIFT    : {result = OS_KEY_SHIFT;};break;
+    case 'Z'          : {result = OS_KEY_Z;};break;
+    case 'X'          : {result = OS_KEY_X;};break;
+    case 'C'          : {result = OS_KEY_C;};break;
+    case 'V'          : {result = OS_KEY_V;};break;
+    case 'B'          : {result = OS_KEY_B;};break;
+    case 'N'          : {result = OS_KEY_N;};break;
+    case 'M'          : {result = OS_KEY_M;};break;
+    case VK_OEM_COMMA : {result = OS_KEY_COMMA;};break;
+    case VK_OEM_PERIOD: {result = OS_KEY_PERIOD;};break;
+    case VK_OEM_2     : {result = OS_KEY_SLASH;};break;
+    case VK_LCONTROL  : {result = OS_KEY_CTRL;};break;
+    case VK_RCONTROL  : {result = OS_KEY_CTRL;};break;
+    case VK_LMENU     : {result = OS_KEY_ALT;};break;
+    case VK_RMENU     : {result = OS_KEY_ALT;};break;
+    case VK_SPACE     : {result = OS_KEY_SPACE;};break;
+    case VK_UP        : {result = OS_KEY_ARROW_UP;};break;
+    case VK_DOWN      : {result = OS_KEY_ARROW_DOWN;};break;
+    case VK_LEFT      : {result = OS_KEY_ARROW_LEFT;};break;
+    case VK_RIGHT     : {result = OS_KEY_ARROW_RIGHT;};break;
+  };
+  return result;
+}
+
 func LRESULT
-OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param)
-{
+OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param) {
   OS_Event event = {0};
   LRESULT result  = 0;
 
-  switch (message)
-  {
-    case WM_SIZE:
-    {
-      if (_os_state.event_list.arena == 0) break;
-      
-      event.type = OS_EVENT_TYPE_RESIZE;
+  switch (message) {
+    case WM_SIZE: {
+      event.kind = OS_EventKind_Resize;
       event.window_size.w = LOWORD(l_param);
       event.window_size.h = HIWORD(l_param);
     } break;
     
     case WM_SETFOCUS: {
-      if (_os_state.event_list.arena == 0) break;
-      event.type = OS_EVENT_TYPE_FOCUS;
+      event.kind = OS_EventKind_Focus;
     } break;
     
     case WM_KILLFOCUS: {
-      event.type = OS_EVENT_TYPE_UNFOCUS;
+      event.kind = OS_EventKind_Unfocus;
     } break;
 
     case WM_CLOSE:
@@ -272,104 +292,17 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
 
     case WM_DESTROY:
       {
-        event.type = OS_EVENT_TYPE_EXIT;
-        
+        event.kind = OS_EventKind_Exit;
         PostQuitMessage(0);
       } break;
 
     case WM_SYSKEYDOWN:
     case WM_KEYDOWN:
-      {
-        DefWindowProcW(hwnd, message, w_param, l_param);
-      } // go through;
     case WM_SYSKEYUP:
-    case WM_KEYUP:
-      {
-        event.type = OS_EVENT_TYPE_KEYBOARD;
-        event.pressed = !(l_param & (1 << 31));
-        event.released = !event.pressed;
-
-        switch (w_param)
-        {
-          default: {}; break;
-          
-          case VK_ESCAPE    : {event.key = OS_KEY_ESC;};break;
-          case VK_F1        : {event.key = OS_KEY_F1;};break;
-          case VK_F2        : {event.key = OS_KEY_F2;};break;
-          case VK_F3        : {event.key = OS_KEY_F3;};break;
-          case VK_F4        : {event.key = OS_KEY_F4;};break;
-          case VK_F5        : {event.key = OS_KEY_F5;};break;
-          case VK_F6        : {event.key = OS_KEY_F6;};break;
-          case VK_F7        : {event.key = OS_KEY_F7;};break;
-          case VK_F8        : {event.key = OS_KEY_F8;};break;
-          case VK_F9        : {event.key = OS_KEY_F9;};break;
-          case VK_F10       : {event.key = OS_KEY_F10;};break;
-          case VK_F11       : {event.key = OS_KEY_F11;};break;
-          case VK_F12       : {event.key = OS_KEY_F12;};break;
-          case VK_OEM_3     : {event.key = OS_KEY_BACKTICK;};break;
-          case '0'          : {event.key = OS_KEY_0;};break;
-          case '1'          : {event.key = OS_KEY_1;};break;
-          case '2'          : {event.key = OS_KEY_2;};break;
-          case '3'          : {event.key = OS_KEY_3;};break;
-          case '4'          : {event.key = OS_KEY_4;};break;
-          case '5'          : {event.key = OS_KEY_5;};break;
-          case '6'          : {event.key = OS_KEY_6;};break;
-          case '7'          : {event.key = OS_KEY_7;};break;
-          case '8'          : {event.key = OS_KEY_8;};break;
-          case '9'          : {event.key = OS_KEY_9;};break;
-          case VK_OEM_MINUS : {event.key = OS_KEY_MINUS;};break;
-          case VK_OEM_PLUS  : {event.key = OS_KEY_EQUAL;};break;
-          case VK_BACK      : {event.key = OS_KEY_BACKSPACE;};break;
-          case VK_TAB       : {event.key = OS_KEY_TAB;};break;
-          case 'Q'          : {event.key = OS_KEY_Q;};break;
-          case 'W'          : {event.key = OS_KEY_W;};break;
-          case 'E'          : {event.key = OS_KEY_E;};break;
-          case 'R'          : {event.key = OS_KEY_R;};break;
-          case 'T'          : {event.key = OS_KEY_T;};break;
-          case 'Y'          : {event.key = OS_KEY_Y;};break;
-          case 'U'          : {event.key = OS_KEY_U;};break;
-          case 'I'          : {event.key = OS_KEY_I;};break;
-          case 'O'          : {event.key = OS_KEY_O;};break;
-          case 'P'          : {event.key = OS_KEY_P;};break;
-          case VK_OEM_4     : {event.key = OS_KEY_LEFT_BRACKET;};break;
-          case VK_OEM_6     : {event.key = OS_KEY_RIGHT_BRACKET;};break;
-          case VK_OEM_5     : {event.key = OS_KEY_BACK_SLASH;};break;
-          case VK_CAPITAL   : {event.key = OS_KEY_CAPS_LOCK;};break;
-          case 'A'          : {event.key = OS_KEY_A;};break;
-          case 'S'          : {event.key = OS_KEY_S;};break;
-          case 'D'          : {event.key = OS_KEY_D;};break;
-          case 'F'          : {event.key = OS_KEY_F;};break;
-          case 'G'          : {event.key = OS_KEY_G;};break;
-          case 'H'          : {event.key = OS_KEY_H;};break;
-          case 'J'          : {event.key = OS_KEY_J;};break;
-          case 'K'          : {event.key = OS_KEY_K;};break;
-          case 'L'          : {event.key = OS_KEY_L;};break;
-          case VK_OEM_1     : {event.key = OS_KEY_SEMICOLON;};break;
-          case VK_OEM_7     : {event.key = OS_KEY_QUOTE;};break;
-          case VK_RETURN    : {event.key = OS_KEY_RETURN;};break;
-          case VK_LSHIFT    : {event.key = OS_KEY_SHIFT;};break;
-          case VK_RSHIFT    : {event.key = OS_KEY_SHIFT;};break;
-          case 'Z'          : {event.key = OS_KEY_Z;};break;
-          case 'X'          : {event.key = OS_KEY_X;};break;
-          case 'C'          : {event.key = OS_KEY_C;};break;
-          case 'V'          : {event.key = OS_KEY_V;};break;
-          case 'B'          : {event.key = OS_KEY_B;};break;
-          case 'N'          : {event.key = OS_KEY_N;};break;
-          case 'M'          : {event.key = OS_KEY_M;};break;
-          case VK_OEM_COMMA : {event.key = OS_KEY_COMMA;};break;
-          case VK_OEM_PERIOD: {event.key = OS_KEY_PERIOD;};break;
-          case VK_OEM_2     : {event.key = OS_KEY_SLASH;};break;
-          case VK_LCONTROL  : {event.key = OS_KEY_CTRL;};break;
-          case VK_RCONTROL  : {event.key = OS_KEY_CTRL;};break;
-          case VK_LMENU     : {event.key = OS_KEY_ALT;};break;
-          case VK_RMENU     : {event.key = OS_KEY_ALT;};break;
-          case VK_SPACE     : {event.key = OS_KEY_SPACE;};break;
-          case VK_UP        : {event.key = OS_KEY_ARROW_UP;};break;
-          case VK_DOWN      : {event.key = OS_KEY_ARROW_DOWN;};break;
-          case VK_LEFT      : {event.key = OS_KEY_ARROW_LEFT;};break;
-          case VK_RIGHT     : {event.key = OS_KEY_ARROW_RIGHT;};break;
-        };
-      }
+    case WM_KEYUP: {
+      OS_KeyCode key = OS_KeyCodeFromWin32(w_param);
+      _os_state.keyboard.current[key].pressed = (message == WM_KEYDOWN || message == WM_SYSKEYDOWN);
+    } break;
 
     // --AlNov: Mouse Input ------------------------------
     case WM_MOUSEMOVE:
@@ -382,50 +315,23 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
     case WM_MOUSEHWHEEL: {
       _os_state.mouse.scroll.x = GET_WHEEL_DELTA_WPARAM(w_param)/WHEEL_DELTA;
     } break;
-    case WM_LBUTTONUP:
-    {
-      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
-      event.released = 1;
-      event.mouse_button = OS_MouseButton_Left;
+    case WM_LBUTTONUP: {
     } break;
-    case WM_RBUTTONUP:
-    {
-      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
-      event.released = 1;
-      event.mouse_button = OS_MouseButton_Right;
+    case WM_RBUTTONUP: {
     } break;
-    case WM_LBUTTONDOWN:
-    {
-      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
-      event.pressed = 1;
-      event.mouse_button = OS_MouseButton_Left;
+    case WM_LBUTTONDOWN: {
     } break;
-    case WM_RBUTTONDOWN:
-    {
-      event.type = OS_EVENT_TYPE_MOUSE_PRESS;
-      event.pressed = 1;
-      event.mouse_button = OS_MouseButton_Right;
+    case WM_RBUTTONDOWN: {
     } break;
-    default:
-    {
+    default: {
       result = DefWindowProcW(hwnd, message, w_param, l_param);
     } break;
   }
 
-  if (event.type != 0)
-  {
-    if (event.type == OS_EVENT_TYPE_KEYBOARD)
-    {
-      OS_EventListPush(&_os_state.keyboard_event_list, event);
-    }
-    else if (event.type == OS_EVENT_TYPE_MOUSE_PRESS)
-    {
-      OS_EventListPush(&_os_state.mouse_event_list, event);
-    }
-    else
-    {
-      OS_EventListPush(&_os_state.event_list, event);
-    }
+  if (event.kind != 0) {
+    OS_Event* new_event = (OS_Event*)PushArena(_os_state.event_arena, sizeof(new_event));
+    *new_event = event;
+    SllPushBack(_os_state.event_list.first, _os_state.event_list.last, new_event);
   }
 
   return result;
