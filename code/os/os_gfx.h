@@ -118,9 +118,6 @@ enum OS_MouseButtonEnum {
 typedef struct OS_MouseButtonState OS_MouseButtonState;
 struct OS_MouseButtonState {
   B32 pressed;
-  B32 released;
-  B32 is_down;
-  F32 time_down;
 };
 
 typedef struct OS_Mouse OS_Mouse;
@@ -128,8 +125,17 @@ struct OS_Mouse
 {
   Vec2F32 position;
   Vec2F32 scroll;
-  OS_MouseButtonState buttons[OS_MouseButton_Count];
+  OS_MouseButtonState previous[OS_MouseButton_Count];
+  OS_MouseButtonState current[OS_MouseButton_Count];
 };
+
+func Vec2F32 OS_MousePosition(OS_Window* window);
+func void    OS_SetMousePosition(OS_Window* window, Vec2F32 position);
+func Vec2F32 OS_MouseScroll();
+func B32 OS_MousePressed(OS_MouseButtonCode button);
+func B32 OS_MouseReleased(OS_MouseButtonCode button);
+func B32 OS_MouseDown(OS_MouseButtonCode button);
+func B32 OS_MouseUp(OS_MouseButtonCode button);
 
 // -------------------------------------------------------------------
 // Events
@@ -189,22 +195,3 @@ func F32 OS_GetMonitorHZ(void);
 func U64 OS_GetTimeTicks(void);
 
 func void OS_Sleep(U64 ms);
-
-func Vec2F32 OS_MousePosition(OS_Window* window);
-func void    OS_SetMousePosition(OS_Window* window, Vec2F32 position);
-func Vec2F32 OS_MouseScroll();
-
-func B32 OS_MousePressed(OS_MouseButtonCode code)
-{
-  return _os_state.mouse.buttons[code].pressed;
-}
-
-func B32 OS_MouseReleased(OS_MouseButtonCode code)
-{
-  return _os_state.mouse.buttons[code].released;
-}
-
-func B32 OS_MouseDown(OS_MouseButtonCode code)
-{
-  return _os_state.mouse.buttons[code].is_down;
-}

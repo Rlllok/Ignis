@@ -565,7 +565,7 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
   Vec2F32 space_ship_direction = RotateVec2F32(MakeVec2F32(0.0f, -1.0f), -look_at_angle);
 
   space_ship->reload_time -= dt;
-  if (OS_KeyDown(OS_KEY_SPACE)) {
+  if (OS_KeyDown(OS_KEY_SPACE) || OS_MouseDown(OS_MouseButton_Left)) {
     if (space_ship->reload_time < 0.0f) {
       Vec2F32 bullet_position = AddVec2F32(space_ship->position, ScaleVec2F32(space_ship_direction, space_ship->collision_radius + 8.0f));
       ASTR_SpawnBullet(bullet_pool, bullet_position, space_ship->rotation);

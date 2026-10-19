@@ -107,6 +107,7 @@ OS_DispatchEvents(OS_Window* window) {
   _os_state.event_list.last = 0;
 
   memcpy(_os_state.keyboard.previous, _os_state.keyboard.current, sizeof(_os_state.keyboard.previous));
+  memcpy(_os_state.mouse.previous, _os_state.mouse.current, sizeof(_os_state.mouse.previous));
 
   MSG message;
   while (PeekMessageW(&message, 0, 0, 0, PM_REMOVE)) {
@@ -316,12 +317,16 @@ OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param
       _os_state.mouse.scroll.x = GET_WHEEL_DELTA_WPARAM(w_param)/WHEEL_DELTA;
     } break;
     case WM_LBUTTONUP: {
+      _os_state.mouse.current[OS_MouseButton_Left].pressed = 0;
     } break;
     case WM_RBUTTONUP: {
+      _os_state.mouse.current[OS_MouseButton_Right].pressed = 0;
     } break;
     case WM_LBUTTONDOWN: {
+      _os_state.mouse.current[OS_MouseButton_Left].pressed = 1;
     } break;
     case WM_RBUTTONDOWN: {
+      _os_state.mouse.current[OS_MouseButton_Right].pressed = 1;
     } break;
     default: {
       result = DefWindowProcW(hwnd, message, w_param, l_param);
