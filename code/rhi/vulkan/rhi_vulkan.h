@@ -251,7 +251,7 @@ struct RHI_VK_State {
   VkInstance                   instance;
   RHI_VK_Device                device;
   RHI_VK_Swapchain             swapchain;
-	VkCommandPool                command_pool;
+  VkCommandPool                command_pool;
   RHI_VK_SemaphoreArray        semaphores;
   RHI_VK_BufferArray           buffers;
   RHI_VK_GraphicsPipelineArray graphics_pipelines;

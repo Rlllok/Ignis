@@ -16,7 +16,7 @@ RHI_VK_DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkD
 
 func VkDebugUtilsMessengerCreateInfoEXT
 RHI_VK_PopulateDebugMessengerCreateInfo(void) {
-	VkDebugUtilsMessengerCreateInfoEXT messenger_info = {0};
+  VkDebugUtilsMessengerCreateInfoEXT messenger_info = {0};
   messenger_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   messenger_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
@@ -27,7 +27,7 @@ RHI_VK_PopulateDebugMessengerCreateInfo(void) {
   messenger_info.pfnUserCallback = RHI_VK_DebugCallback;
   messenger_info.pUserData = 0;
 
-	return messenger_info;
+  return messenger_info;
 }
 
 func VkResult
@@ -216,7 +216,7 @@ func RHI_Buffer
 RHI_VK_CreateBuffer(Str8 label, U32 capacity, RHI_BufferUsageFlags usage_flags, RHI_BufferPropertyFlags property_flags) {
   // @NOTE This is to create Vulkan Buffer and Memory
   RHI_VK_Buffer buffer = {0};
-	buffer.capacity = capacity;
+  buffer.capacity = capacity;
   
   VkBufferCreateInfo buffer_info = {
     .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -278,20 +278,20 @@ func U64
 RHI_VK_PushBuffer(RHI_Buffer buffer, U8* data, U64 size) {
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
-	// Assert((vk_buffer->size + size) < vk_buffer->capacity);
+  // Assert((vk_buffer->size + size) < vk_buffer->capacity);
   if (vk_buffer->size + size > vk_buffer->capacity) {
     LogDebug("RHI_VK. Ring buffer reseted to zero\n");
     vk_buffer->size = 0;
   }
-	U32 offset = vk_buffer->size;
+  U32 offset = vk_buffer->size;
 
-	memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
-	vk_buffer->size += size;
+  memcpy((U8*)vk_buffer->mapped + vk_buffer->size, data, size);
+  vk_buffer->size += size;
   U64 allignment = 0;
   U64 padding = (allignment == 0) ? 0 : allignment - (vk_buffer->size + allignment)%allignment;
-	vk_buffer->size += padding;
+  vk_buffer->size += padding;
 
-	return offset;
+  return offset;
 }
 
 func void
@@ -313,19 +313,19 @@ RHI_VK_BufferDeviceAddress(RHI_Buffer buffer) {
 
 func void
 RHI_VK_BindIndexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset, RHI_IndexSize index_size) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
 
-	vkCmdBindIndexBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_buffer->vk, offset, RHI_VK_GetVkIndexTypeFrom(index_size));
+  vkCmdBindIndexBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], vk_buffer->vk, offset, RHI_VK_GetVkIndexTypeFrom(index_size));
 }
 
 func void
 RHI_VK_BindVertexBuffer(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, U64 offset) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_Buffer* vk_buffer = RHI_VK_BufferFromHandle(buffer);
-	VkDeviceSize vk_offset = offset;
+  VkDeviceSize vk_offset = offset;
 
-	vkCmdBindVertexBuffers(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_buffer->vk, &vk_offset);
+  vkCmdBindVertexBuffers(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_buffer->vk, &vk_offset);
 }
 
 func void
@@ -342,30 +342,30 @@ RHI_VK_CommandBufferFromHandle(RHI_CommandBuffer command_buffer) {
 }
 
 func RHI_CommandBuffer RHI_VK_GetCommandBuffer(void) {
-	RHI_VK_CommandBuffer command_buffer = {0};
+  RHI_VK_CommandBuffer command_buffer = {0};
 
-	VkCommandBufferAllocateInfo allocate_info = {
-		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-		.commandPool = _rhi_vk_state.command_pool,
-		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-		.commandBufferCount = RHI_FRAMES_IN_FLIGHT
-	};
-	VK_CHECK(vkAllocateCommandBuffers(_rhi_vk_state.device.logical, &allocate_info, command_buffer.vk));
+  VkCommandBufferAllocateInfo allocate_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+    .commandPool = _rhi_vk_state.command_pool,
+    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+    .commandBufferCount = RHI_FRAMES_IN_FLIGHT
+  };
+  VK_CHECK(vkAllocateCommandBuffers(_rhi_vk_state.device.logical, &allocate_info, command_buffer.vk));
 
-	for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
-		VkFenceCreateInfo fence_info = {
-			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-			.flags = VK_FENCE_CREATE_SIGNALED_BIT
-		};
-		VK_CHECK(vkCreateFence(_rhi_vk_state.device.logical, &fence_info, 0, (command_buffer.submit_fence + i)));
-	}
+  for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
+    VkFenceCreateInfo fence_info = {
+      .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+      .flags = VK_FENCE_CREATE_SIGNALED_BIT
+    };
+    VK_CHECK(vkCreateFence(_rhi_vk_state.device.logical, &fence_info, 0, (command_buffer.submit_fence + i)));
+  }
 
-	for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
-		VkSemaphoreCreateInfo semaphore_info = {
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-		};
-		VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, (command_buffer.acquire_semaphore + i)));
-	}
+  for (I32 i = 0; i < RHI_FRAMES_IN_FLIGHT; i += 1) {
+    VkSemaphoreCreateInfo semaphore_info = {
+      .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+    VK_CHECK(vkCreateSemaphore(_rhi_vk_state.device.logical, &semaphore_info, 0, (command_buffer.acquire_semaphore + i)));
+  }
 
   return RHI_VK_CommandBufferArrayAdd(&_rhi_vk_state.command_buffers, command_buffer);
 }
@@ -394,14 +394,14 @@ RHI_VK_BeginCommandBuffer(RHI_CommandBuffer command_buffer) {
   vk_command_buffer->current_viewport = (VkViewport)ZeroStruct();
 
   vkWaitForFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame, VK_TRUE, U64_MAX);
-	vkResetFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame);
+  vkResetFences(_rhi_vk_state.device.logical, 1, vk_command_buffer->submit_fence + _rhi_vk_state.current_frame);
 
-	vkResetCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0);
-	for (I32 i = 0; i < vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count; i += 1) {
-		vkResetDescriptorPool(_rhi_vk_state.device.logical, vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools[i], 0);
-	}
+  vkResetCommandBuffer(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0);
+  for (I32 i = 0; i < vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].pool_count; i += 1) {
+    vkResetDescriptorPool(_rhi_vk_state.device.logical, vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].vk_pools[i], 0);
+  }
 
-	vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count = 0;
+  vk_command_buffer->descriptor_pool[_rhi_vk_state.current_frame].sets_count = 0;
 
   VkCommandBufferBeginInfo begin_info = {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -488,8 +488,7 @@ RHI_VK_CreateDevice() {
   U32 device_count = 0;
   VK_CHECK(vkEnumeratePhysicalDevices(_rhi_vk_state.instance, &device_count, 0));
   
-  ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena);
-  {
+  ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena); {
     VkPhysicalDevice* devices = (VkPhysicalDevice*)PushArena(scratch.arena, device_count * sizeof(VkPhysicalDevice));
     VK_CHECK(vkEnumeratePhysicalDevices(_rhi_vk_state.instance, &device_count, devices));
 
@@ -563,12 +562,12 @@ RHI_VK_CreateDevice() {
       LogInfo("%s\n", properties.deviceName);
       _rhi_vk_state.device.physical = *device;
       VK_CHECK(vkCreateDevice(*device, &device_info, 0, &_rhi_vk_state.device.logical))
-			if(_rhi_vk_state.device.logical) {
-				vkGetDeviceQueue(_rhi_vk_state.device.logical, _rhi_vk_state.device.graphics_queue_index, 0, &_rhi_vk_state.device.graphics_queue);
+      if(_rhi_vk_state.device.logical) {
+        vkGetDeviceQueue(_rhi_vk_state.device.logical, _rhi_vk_state.device.graphics_queue_index, 0, &_rhi_vk_state.device.graphics_queue);
         RHI_VK_LoadDeviceFunctions(_rhi_vk_state.device.logical);
-				break;
-				// @TODO Choose GPU by parameters
-			}
+        break;
+        // @TODO Choose GPU by parameters
+      }
     }
   }
   EndScratchArena(scratch);
@@ -577,7 +576,6 @@ RHI_VK_CreateDevice() {
 func void
 RHI_VK_DestroyDevice() {
   vkDestroyDevice(_rhi_vk_state.device.logical, 0);
-
   _rhi_vk_state.device = (RHI_VK_Device)ZeroStruct();
 }
 
@@ -970,12 +968,12 @@ RHI_VK_CreateSwapchain(OS_Window* window) {
 #endif // IGNIS_PLATFORM_LINUX
 
 #if IGNIS_PLATFORM_LINUX_X11
-	VkXlibSurfaceCreateInfoKHR surface_info = {
+  VkXlibSurfaceCreateInfoKHR surface_info = {
     .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-		.dpy = window->vk->display,
-		.window = window->vk->window,
-	};
-	VK_CHECK(vkCreateXlibSurfaceKHR(_rhi_vk_state.instance, &surface_info, 0, &_rhi_vk_state.swapchain.surface));
+    .dpy = window->vk->display,
+    .window = window->vk->window,
+  };
+  VK_CHECK(vkCreateXlibSurfaceKHR(_rhi_vk_state.instance, &surface_info, 0, &_rhi_vk_state.swapchain.surface));
 #endif // IGNIS_PLATFORM_LINUX_X11
   
   ScratchArena scratch = BeginScratchArena(_rhi_vk_state.arena);
@@ -1031,7 +1029,7 @@ RHI_VK_CreateSwapchain(OS_Window* window) {
   };
 
   VK_CHECK(vkCreateSwapchainKHR(_rhi_vk_state.device.logical, &swapchain_info, 0, &_rhi_vk_state.swapchain.vk));
-	_rhi_vk_state.swapchain.window = window;
+  _rhi_vk_state.swapchain.window = window;
 
   VK_CHECK(vkGetSwapchainImagesKHR(_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, &_rhi_vk_state.swapchain.image_count, 0));
   VkImage images[RHI_VK_SWAPCHAIN_MAX_IMAGES] = ZeroStruct();
@@ -1105,29 +1103,29 @@ RHI_VK_GetSwapchainTextureFormat() {
 
 func RHI_Texture
 RHI_VK_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-	while(1) {
-		VkResult acquire_result = vkAcquireNextImageKHR(
-			_rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, U64_MAX,
-			vk_command_buffer->acquire_semaphore[_rhi_vk_state.current_frame], 0,
-			&_rhi_vk_state.current_target
-		);
+  while(1) {
+    VkResult acquire_result = vkAcquireNextImageKHR(
+      _rhi_vk_state.device.logical, _rhi_vk_state.swapchain.vk, U64_MAX,
+      vk_command_buffer->acquire_semaphore[_rhi_vk_state.current_frame], 0,
+      &_rhi_vk_state.current_target
+    );
 
-		if (acquire_result == VK_SUCCESS) {
-			break;
-		}
-		else if (acquire_result == VK_SUBOPTIMAL_KHR || acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (acquire_result == VK_SUCCESS) {
+      break;
+    }
+    else if (acquire_result == VK_SUBOPTIMAL_KHR || acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
       LogInfo("Swapchain should be recreated\n");
-			RHI_VK_RecreateSwapchain(_rhi_vk_state.swapchain.window);
-		}
-		else if (acquire_result == VK_NOT_READY || acquire_result == VK_TIMEOUT) {
-			continue;
-		}
-		else {
-			Assert(acquire_result == VK_SUCCESS);
-		}
-	}
+      RHI_VK_RecreateSwapchain(_rhi_vk_state.swapchain.window);
+    }
+    else if (acquire_result == VK_NOT_READY || acquire_result == VK_TIMEOUT) {
+      continue;
+    }
+    else {
+      Assert(acquire_result == VK_SUCCESS);
+    }
+  }
 
   vk_command_buffer->current_swapchain_texture = _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target];
   return _rhi_vk_state.swapchain.textures[_rhi_vk_state.current_target]->header;
@@ -1280,7 +1278,7 @@ RHI_VK_CreateShader(Arena* arena, RHI_ShaderCreateInfo* info) {
   glslang_shader_delete(shader);
   glslang_finalize_process();
 
-	return result;
+  return result;
 }
 
 func RHI_VK_GraphicsPipeline*
@@ -1294,17 +1292,17 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   pipeline.vertex_shader = pipeline_info->vertex_shader;
   pipeline.fragment_shader = pipeline_info->fragment_shader;
 
-	U32 stride = 0;
+  U32 stride = 0;
   VkVertexInputAttributeDescription attribute_descriptions[RHI_MAX_VERTEX_ATTRIBUTES];
   for (U32 i = 0; i < pipeline_info->vertex_attributes_count; i += 1) {
-		RHI_VertexAttribute* vertex_attribute = pipeline_info->vertex_attributes + i;
+    RHI_VertexAttribute* vertex_attribute = pipeline_info->vertex_attributes + i;
 
-		attribute_descriptions[i].location = vertex_attribute->location,
-		attribute_descriptions[i].binding = 0,
-		attribute_descriptions[i].format = RHI_VK_GetVkFormatAttribute(vertex_attribute->format),
-		attribute_descriptions[i].offset = vertex_attribute->offset,
+    attribute_descriptions[i].location = vertex_attribute->location,
+    attribute_descriptions[i].binding = 0,
+    attribute_descriptions[i].format = RHI_VK_GetVkFormatAttribute(vertex_attribute->format),
+    attribute_descriptions[i].offset = vertex_attribute->offset,
 
-		stride += RHI_GetSizeOfVertexAttributeFormat(vertex_attribute->format);
+    stride += RHI_GetSizeOfVertexAttributeFormat(vertex_attribute->format);
   }
 
   VkVertexInputBindingDescription binding_description = {
@@ -1370,9 +1368,9 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   VkPipelineViewportStateCreateInfo viewport_state = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
     .viewportCount = 1,
-		.pViewports = 0,
-		.scissorCount = 1,
-		.pScissors = 0,
+    .pViewports = 0,
+    .scissorCount = 1,
+    .pScissors = 0,
   };
 
   VkPipelineMultisampleStateCreateInfo multisample = {
@@ -1463,7 +1461,7 @@ RHI_VK_CreateGraphicsPipeline(RHI_GraphicsPipelineCreateInfo* pipeline_info) {
   vkDestroyShaderModule(_rhi_vk_state.device.logical, vertex_module, 0);
   vkDestroyShaderModule(_rhi_vk_state.device.logical, fragment_module, 0);
 
-	return RHI_VK_GraphicsPipelineArrayAdd(&_rhi_vk_state.graphics_pipelines, pipeline);
+  return RHI_VK_GraphicsPipelineArrayAdd(&_rhi_vk_state.graphics_pipelines, pipeline);
 }
 
 func void
@@ -1479,11 +1477,11 @@ RHI_VK_DestroyGraphicsPipeline(RHI_GraphicsPipeline pipeline) {
 
 func void
 RHI_VK_BindGraphicsPipeline(RHI_CommandBuffer command_buffer, RHI_GraphicsPipeline pipeline) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
   RHI_VK_GraphicsPipeline* vk_pipeline = RHI_VK_GraphicsPipelineFromHandle(pipeline);
 
-	vkCmdBindPipeline(vk_command_buffer->vk[_rhi_vk_state.current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->vk);
-	vk_command_buffer->binded_graphics_pipeline = vk_pipeline;
+  vkCmdBindPipeline(vk_command_buffer->vk[_rhi_vk_state.current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->vk);
+  vk_command_buffer->binded_graphics_pipeline = vk_pipeline;
 }
 
 // -------------------------------------------------------------------
@@ -1596,17 +1594,17 @@ RHI_VK_EndRenderPass(RHI_CommandBuffer command_buffer) {
 // -- Draw -----------------------------------------------------------
 func void
 RHI_VK_SetViewport(RHI_CommandBuffer command_buffer, RectI32 viewport) {
-	RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
+  RHI_VK_CommandBuffer* vk_command_buffer = RHI_VK_CommandBufferFromHandle(command_buffer);
 
-	VkViewport vk_viewport = {
-		.x = viewport.x,
-		.y = viewport.y + viewport.h,
-		.width = viewport.w,
-		.height = -viewport.h,
+  VkViewport vk_viewport = {
+    .x = viewport.x,
+    .y = viewport.y + viewport.h,
+    .width = viewport.w,
+    .height = -viewport.h,
     .minDepth = 0.0f,
     .maxDepth = 1.0f,
-	};
-	vkCmdSetViewport(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_viewport);
+  };
+  vkCmdSetViewport(vk_command_buffer->vk[_rhi_vk_state.current_frame], 0, 1, &vk_viewport);
   vk_command_buffer->current_viewport = vk_viewport;
 }
 
@@ -2022,7 +2020,7 @@ RHI_VK_Shutdown(void) {
 
   FreeArena(_rhi_vk_state.arena);
 
-	return 1;
+  return 1;
 }
 
 func void
