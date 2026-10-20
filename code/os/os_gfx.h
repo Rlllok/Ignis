@@ -2,6 +2,8 @@
 
 #include "base/base_include.h"
 
+// -------------------------------------------------------------------
+// -- Window ---------------------------------------------------------
 typedef struct OS_Window OS_Window;
 struct OS_Window {
   Vec2U32 size;
@@ -9,84 +11,89 @@ struct OS_Window {
   Vec2F32 virtual_cursor_position;
 };
 
+func OS_Window* OS_CreateWindow(Str8 title, Vec2U32 size);
+func void OS_DestroyWindow(OS_Window* window);
+func void OS_ShowWindow(OS_Window* window);
+
 // -------------------------------------------------------------------
 // -- Keyboard -------------------------------------------------------
 typedef U16 OS_KeyCode;
 typedef enum OS_KeyCodeEnum {
-  OS_KEY_NONE,
-  OS_KEY_ESC,
-  OS_KEY_F1,
-  OS_KEY_F2,
-  OS_KEY_F3,
-  OS_KEY_F4,
-  OS_KEY_F5,
-  OS_KEY_F6,
-  OS_KEY_F7,
-  OS_KEY_F8,
-  OS_KEY_F9,
-  OS_KEY_F10,
-  OS_KEY_F11,
-  OS_KEY_F12,
-  OS_KEY_BACKTICK,
-  OS_KEY_0,
-  OS_KEY_1,
-  OS_KEY_2,
-  OS_KEY_3,
-  OS_KEY_4,
-  OS_KEY_5,
-  OS_KEY_6,
-  OS_KEY_7,
-  OS_KEY_8,
-  OS_KEY_9,
-  OS_KEY_MINUS,
-  OS_KEY_EQUAL,
-  OS_KEY_BACKSPACE,
-  OS_KEY_TAB,
-  OS_KEY_Q,
-  OS_KEY_W,
-  OS_KEY_E,
-  OS_KEY_R,
-  OS_KEY_T,
-  OS_KEY_Y,
-  OS_KEY_U,
-  OS_KEY_I,
-  OS_KEY_O,
-  OS_KEY_P,
-  OS_KEY_LEFT_BRACKET,
-  OS_KEY_RIGHT_BRACKET,
-  OS_KEY_BACK_SLASH,
-  OS_KEY_CAPS_LOCK,
-  OS_KEY_A,
-  OS_KEY_S,
-  OS_KEY_D,
-  OS_KEY_F,
-  OS_KEY_G,
-  OS_KEY_H,
-  OS_KEY_J,
-  OS_KEY_K,
-  OS_KEY_L,
-  OS_KEY_SEMICOLON,
-  OS_KEY_QUOTE,
-  OS_KEY_RETURN,
-  OS_KEY_SHIFT,
-  OS_KEY_Z,
-  OS_KEY_X,
-  OS_KEY_C,
-  OS_KEY_V,
-  OS_KEY_B,
-  OS_KEY_N,
-  OS_KEY_M,
-  OS_KEY_COMMA,
-  OS_KEY_PERIOD,
-  OS_KEY_SLASH,
-  OS_KEY_CTRL,
-  OS_KEY_ALT,
-  OS_KEY_SPACE,
-  OS_KEY_ARROW_UP,
-  OS_KEY_ARROW_DOWN,
-  OS_KEY_ARROW_LEFT,
+  OS_Key_None,
+  OS_Key_Esc,
+  OS_Key_F1,
+  OS_Key_F2,
+  OS_Key_F3,
+  OS_Key_F4,
+  OS_Key_F5,
+  OS_Key_F6,
+  OS_Key_F7,
+  OS_Key_F8,
+  OS_Key_F9,
+  OS_Key_F10,
+  OS_Key_F11,
+  OS_Key_F12,
+  OS_Key_Backtick,
+  OS_Key_0,
+  OS_Key_1,
+  OS_Key_2,
+  OS_Key_3,
+  OS_Key_4,
+  OS_Key_5,
+  OS_Key_6,
+  OS_Key_7,
+  OS_Key_8,
+  OS_Key_9,
+  OS_Key_Minus,
+  OS_Key_Equal,
+  OS_Key_Backspace,
+  OS_Key_Tab,
+  OS_Key_Q,
+  OS_Key_W,
+  OS_Key_E,
+  OS_Key_R,
+  OS_Key_T,
+  OS_Key_Y,
+  OS_Key_U,
+  OS_Key_I,
+  OS_Key_O,
+  OS_Key_P,
+  OS_Key_LeftBracket,
+  OS_Key_RightBracket,
+  OS_Key_BackSlash,
+  OS_Key_CapsLock,
+  OS_Key_A,
+  OS_Key_S,
+  OS_Key_D,
+  OS_Key_F,
+  OS_Key_G,
+  OS_Key_H,
+  OS_Key_J,
+  OS_Key_K,
+  OS_Key_L,
+  OS_Key_Semicolon,
+  OS_Key_Quote,
+  OS_Key_Return,
+  OS_Key_Shift,
+  OS_Key_Z,
+  OS_Key_X,
+  OS_Key_C,
+  OS_Key_V,
+  OS_Key_B,
+  OS_Key_N,
+  OS_Key_M,
+  OS_Key_Comma,
+  OS_Key_Period,
+  OS_Key_Slash,
+  OS_Key_Ctrl,
+  OS_Key_Alt,
+  OS_Key_Space,
+  OS_Key_ArrowUp,
+  OS_Key_ArrowDown,
+  OS_Key_ArrowLeft,
   OS_KEY_ARROW_RIGHT,
-  OS_KEY_COUNT
+  OS_Key_ArrowRight,
+  OS_Key_Count,
 } OS_KeyCodeEnum;
 
 typedef struct OS_KeyState OS_KeyState;
@@ -96,8 +103,8 @@ struct OS_KeyState {
 
 typedef struct OS_Keyboard OS_Keyboard;
 struct OS_Keyboard {
-  OS_KeyState previous[OS_KEY_COUNT];
-  OS_KeyState current[OS_KEY_COUNT];
+  OS_KeyState previous[OS_Key_Count];
+  OS_KeyState current[OS_Key_Count];
 };
 
 func B32 OS_KeyPressed(OS_KeyCode key);
@@ -180,10 +187,6 @@ struct OS_State {
 } _os_state;
 
 func void OS_Init(U64 arena_size);
-
-func OS_Window* OS_CreateWindow(Str8 title, Vec2U32 size);
-func void OS_DestroyWindow(OS_Window* window);
-func void OS_ShowWindow(OS_Window* window);
 
 func void OS_LockCursor(OS_Window* window);
 func void OS_UnlockCursor(OS_Window* window);

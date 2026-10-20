@@ -284,8 +284,8 @@ I32 main() {
   while (!astr_context.finished) {
     OS_DispatchEvents(astr_context.window);
 
-    if (OS_KeyPressed(OS_KEY_ESC)) { astr_context.finished = 1; }
-    if (OS_KeyPressed(OS_KEY_F2))  { astr_context.debug_mode = !astr_context.debug_mode; }
+    if (OS_KeyPressed(OS_Key_Esc)) { astr_context.finished = 1; }
+    if (OS_KeyPressed(OS_Key_F2))  { astr_context.debug_mode = !astr_context.debug_mode; }
 
     ASTR_UpdateAsteroids(&astr_context.asteroid_pool, &astr_context.space_arena, dt);
     ASTR_UpdateBullets(&astr_context.bullet_pool, &astr_context.space_arena, &astr_context.asteroid_pool, dt);
@@ -552,10 +552,10 @@ ASTR_DrawBullets(RHI_CommandBuffer rhi_command_buffer, ASTR_BulletPool* pool) {
 func void
 ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, ASTR_AsteroidPool* asteroid_pool, ASTR_BulletPool* bullet_pool, F32 dt) {
   Vec2F32 direction = MakeVec2F32(0.0f, 0.0f);
-  if (OS_KeyDown(OS_KEY_W)) { direction.y -= 1.0f; }
-  if (OS_KeyDown(OS_KEY_S)) { direction.y += 1.0f; }
-  if (OS_KeyDown(OS_KEY_D)) { direction.x += 1.0f; }
-  if (OS_KeyDown(OS_KEY_A)) { direction.x -= 1.0f; }
+  if (OS_KeyDown(OS_Key_W)) { direction.y -= 1.0f; }
+  if (OS_KeyDown(OS_Key_S)) { direction.y += 1.0f; }
+  if (OS_KeyDown(OS_Key_D)) { direction.x += 1.0f; }
+  if (OS_KeyDown(OS_Key_A)) { direction.x -= 1.0f; }
   Vec2F32 velocity = ScaleVec2F32(NormalizeVec2F32(direction), space_ship->speed*dt);
   space_ship->position = AddVec2F32(space_ship->position, velocity);
 
@@ -565,7 +565,7 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
   Vec2F32 space_ship_direction = RotateVec2F32(MakeVec2F32(0.0f, -1.0f), -look_at_angle);
 
   space_ship->reload_time -= dt;
-  if (OS_KeyDown(OS_KEY_SPACE) || OS_MouseDown(OS_MouseButton_Left)) {
+  if (OS_KeyDown(OS_Key_Space) || OS_MouseDown(OS_MouseButton_Left)) {
     if (space_ship->reload_time < 0.0f) {
       Vec2F32 bullet_position = AddVec2F32(space_ship->position, ScaleVec2F32(space_ship_direction, space_ship->collision_radius + 8.0f));
       ASTR_SpawnBullet(bullet_pool, bullet_position, space_ship->rotation);
