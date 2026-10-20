@@ -9,14 +9,12 @@
 #include "os/os_gfx.h"
 
 typedef struct OS_Win32_Window OS_Win32_Window;
-struct OS_Win32_Window
-{
+struct OS_Win32_Window {
   OS_Window header;
 
   HWND      handle;
   HINSTANCE instance;
 };
-
 
 func OS_KeyCode OS_KeyCodeFromWin32(U32 win32_key);
 func LRESULT OS_WIN32_WindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
