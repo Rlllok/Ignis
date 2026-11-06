@@ -9,8 +9,10 @@ struct SpriteData {
   float4x4         projection;
   float4x4         transform;
   float4           part_position_size;
+  float2           texture_size;
   float4           tint_color;
   texture2d<float> texture;
+  sampler          sampler;
 };
 
 fragment float4 FragmentMain(

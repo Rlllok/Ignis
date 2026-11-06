@@ -285,7 +285,10 @@ I32 main() {
     OS_DispatchEvents(astr_context.window);
 
     if (OS_KeyPressed(OS_Key_Esc)) { astr_context.finished = 1; }
-    if (OS_KeyPressed(OS_Key_F2))  { astr_context.debug_mode = !astr_context.debug_mode; }
+    if (OS_KeyPressed(OS_Key_F2))  {
+      LogDebug("Debug Mode: %i\n", astr_context.debug_mode);
+      astr_context.debug_mode = !astr_context.debug_mode;
+    }
 
     ASTR_UpdateAsteroids(&astr_context.asteroid_pool, &astr_context.space_arena, dt);
     ASTR_UpdateBullets(&astr_context.bullet_pool, &astr_context.space_arena, &astr_context.asteroid_pool, dt);
@@ -301,7 +304,7 @@ I32 main() {
             .texture = astr_context.rhi_offscreen_texture,
             .load_operation = RHI_AttachmentLoadOperation_Clear,
             .store_operation = RHI_AttachmentStoreOperation_Store,
-            .clear_color = RGBAFromHex(0x00000000),
+            .clear_color = RGBAFromHex(0xfbf0d9ff),
           }
         };
         RHI_RenderPassInfo render_pass_info = {
@@ -332,7 +335,8 @@ I32 main() {
             .texture = swapchain_texture,
             .load_operation = RHI_AttachmentLoadOperation_Clear,
             .store_operation = RHI_AttachmentStoreOperation_Store,
-            .clear_color = RGBAFromHex(0xfbf0d9ff),
+            // .clear_color = RGBAFromHex(0xfbf0d9ff),
+            .clear_color = RGBAFromHex(0x00000000),
           }
         };
         RHI_RenderPassInfo render_pass_info = {

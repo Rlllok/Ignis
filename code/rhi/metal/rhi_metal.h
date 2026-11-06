@@ -28,6 +28,32 @@ DefineArray(RHI_Metal_Buffer, RHI_Metal_BufferArray, RHI_Metal_BufferNil)
 func RHI_Metal_Buffer* RHI_Metal_BufferFromHandle(RHI_Buffer handle);
 
 // -------------------------------------------------------------------
+// -- Swapchain ------------------------------------------------------
+typedef struct RHI_Metal_Swapchain RHI_Metal_Swapchain;
+struct RHI_Metal_Swapchain {
+  OS_MacOS_Window* window;
+  OS_MacOS_View*   view;
+  
+  I32                 textures_count;
+  I32                 first_texture_index;
+  I32                 current_texture_index;
+  MTLPixelFormat      texture_format;
+  id<CAMetalDrawable> current_drawable;
+};
+
+func void RHI_Metal_CreateSwapchain(OS_Window* window);
+func void RHI_Metal_DestroySwapchain();
+
+func RHI_TextureFormat RHI_Metal_GetSwapchainTextureFormat();
+func RHI_Texture RHI_Metal_AcquireSwapchainTexture(RHI_CommandBuffer command_buffer);
+func void RHI_Metal_Present(RHI_CommandBuffer command_buffer);
+
+// -------------------------------------------------------------------
+// -- Render Pass ----------------------------------------------------
+func void RHI_Metal_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo render_pass);
+func void RHI_EndRenderPass(RHI_CommandBuffer command_buffer);
+
+// -------------------------------------------------------------------
 // -- Pipeline -------------------------------------------------------
 typedef struct RHI_Metal_GraphicsPipeline RHI_Metal_GraphicsPipeline;
 struct RHI_Metal_GraphicsPipeline {
@@ -47,6 +73,7 @@ func RHI_Metal_GraphicsPipeline* RHI_Metal_GraphicsPipelineFromHandle(RHI_Graphi
 // -- Texture --------------------------------------------------------
 typedef struct RHI_Metal_Texture RHI_Metal_Texture;
 struct RHI_Metal_Texture {
+  RHI_Texture       header;
   id<MTLTexture>    mtl;
   Vec3I32           size;
   RHI_TextureFormat format;
@@ -74,6 +101,7 @@ struct RHI_Metal_CommandBuffer {
   RHI_Metal_Buffer* current_index_buffer;
   U64               index_buffer_offset;
   RHI_IndexSize     index_size;
+  B32               to_present;
 };
 RHI_Metal_CommandBuffer RHI_Metal_CommandBufferNil = ZeroStruct();
 DefineArray(RHI_Metal_CommandBuffer, RHI_Metal_CommandBufferArray, RHI_Metal_CommandBufferNil)
@@ -104,16 +132,12 @@ struct RHI_Metal_Context {
   id<MTL4CommandQueue> command_queue;
   id<MTLResidencySet>  residency_set;
 
-  MTLPixelFormat drawable_texture_format;
-  id<CAMetalDrawable> current_drawable;
-  I32 drawable_count;
-  I32 current_swapchain_texture_index;
-
   Arena*                          arena;
   RHI_Metal_CommandBufferArray    command_buffers;
   RHI_Metal_SemaphoreArray        semaphores;
   RHI_Metal_BufferArray           data_buffers;
   RHI_Metal_GraphicsPipelineArray graphics_pipelines;
   RHI_Metal_TextureArray          textures;
+  RHI_Metal_Swapchain             swapchain;
 } _rhi_metal_context;
 

@@ -40,7 +40,7 @@ layout(push_constant, std430) uniform args {
 
 layout(location = 0) out vec2 out_uv;
 
-  void main() {
+void main() {
   vec4 vertex = sprite_data.transform*vertecies[indecies[gl_VertexIndex]];
   vec2 local_uv = uv[indecies[gl_VertexIndex]];
   out_uv = (sprite_data.part_position_size.xy + local_uv*sprite_data.part_position_size.zw)/sprite_data.texture_size;

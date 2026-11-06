@@ -40,7 +40,7 @@ D_PreparePipelines() {
       .color_targets_count = 1,
       .color_target_infos = &(RHI_GraphicsPipelineColorTargetInfo) {
         .format = RHI_GetSwapchainTextureFormat(),
-        .blend_enable = 1,
+        .blend_enable = 0,
       }
     });
   }
@@ -149,7 +149,6 @@ D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF3
   U64 data_offset = RHI_PushBuffer(buffer, (U8*)&data, sizeof(data));
 
   RHI_BindGraphicsPipeline(command_buffer, _d_state.sprite_pipeline);
-  RHI_BindResourceTable(command_buffer, (RHI_ResourceTable)ZeroStruct());
   RHI_ShaderArgument arguments[] = {
     {
       .kind = RHI_ShaderArgumentKind_BufferAddress,

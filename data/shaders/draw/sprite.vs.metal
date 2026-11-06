@@ -23,8 +23,10 @@ struct SpriteData {
   float4x4         projection;
   float4x4         transform;
   float4           part_position_size;
+  float2           texture_size;
   float4           tint_color;
   texture2d<float> texture;
+  sampler          sampler;
 };
 
 struct VertexOutput {
@@ -38,9 +40,9 @@ vertex VertexOutput VertexMain(
 ) {
   VertexOutput output = {0};
 
-  output.position = sprite_data->projection*sprite_data->transform*vertecies[indecies[vertex_index]];
-  float2 sprite_size = float2(sprite_data->texture.get_width(), sprite_data->texture.get_height());
-  float2 base_uv = uv[indecies[vertex_index]];
-  output.uv = (sprite_data->part_position_size.xy + (base_uv*sprite_data->part_position_size.zw))/sprite_size;
+  float4 v = sprite_data->transform*vertecies[indecies[vertex_index]];
+  float2 local_uv = uv[indecies[vertex_index]];
+  output.position = sprite_data->projection*v;
+  output.uv = (sprite_data->part_position_size.xy + local_uv*sprite_data->part_position_size.zw)/sprite_data->texture_size;
   return output;
 }
