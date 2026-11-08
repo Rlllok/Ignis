@@ -1557,7 +1557,7 @@ RHI_VK_BeginRenderPass(RHI_CommandBuffer command_buffer, RHI_RenderPassInfo info
   };
   vkCmdBeginRendering(vk_command_buffer->vk[_rhi_vk_state.current_frame], &rendering_info);
   vk_command_buffer->is_render_pass_active = 1;
-vu
+
   VkViewport vk_viewport = {
     .x = info.render_area.x,
     .y = info.render_area.y + info.render_area.h,
