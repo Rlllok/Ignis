@@ -122,8 +122,10 @@ D_DrawRectInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 
 func void
 D_DrawSpriteInternal(RHI_CommandBuffer command_buffer, RHI_Buffer buffer, RectF32 rect, F32 rotation, RHI_TextureView texture_view, RectF32 part_rect, Vec4F32 tint_color) {
   RectI32 viewport = RHI_GetViewport(command_buffer);
+  F32 center_x = rect.x + rect.w*0.5f;
+  F32 center_y = rect.y + rect.h*0.5f;
   Transform transform = {
-    .translation = MakeVec3F32(rect.x + rect.w*0.5f, rect.y + rect.h*0.5f, 0.0f),
+    .translation = MakeVec3F32(center_x, center_y, 0.0f),
     .rotation = MakeQuaternion(0.0f, 0.0f, sin(rotation/2.0f), cos(rotation/2.0f)),
     .scale = MakeVec3F32(rect.w, rect.h, 1.0f),
   };

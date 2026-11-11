@@ -8,8 +8,8 @@
 #include "rhi/rhi_include.c"
 #include "draw/draw.c"
 
-#define ASTR_WIDTH 480
-#define ASTR_HEIGHT 270
+#define ASTR_WIDTH  640 
+#define ASTR_HEIGHT 360
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb/stb_image.h"
@@ -61,7 +61,6 @@ func void ASTR_DrawAsteroids(RHI_CommandBuffer rhi_command_buffer, ASTR_Asteroid
 typedef struct ASTR_Bullet ASTR_Bullet;
 struct ASTR_Bullet {
   Vec2F32 position;
-  F32     rotation;
   Vec2F32 velocity;
   F32     collision_radius;
   RectF32 sprite_scissor;
@@ -440,7 +439,7 @@ func void
 ASTR_UpdateAsteroids(ASTR_AsteroidPool* pool, ASTR_SpaceArena* space_arena, F32 dt) {
   for (ASTR_Asteroid* asteroid = pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
     asteroid->position = AddVec2F32(asteroid->position, ScaleVec2F32(asteroid->velocity, dt));
-    asteroid->rotation += (1.0f - asteroid->cw_rotation*2.0f)*(asteroid->rotation_speed*dt);
+    // asteroid->rotation += (1.0f - asteroid->cw_rotation*2.0f)*(asteroid->rotation_speed*dt);
 
     Vec2F32 asteroid_to_arena_position = SubVec2F32(asteroid->position, space_arena->position);
     F32 asteroid_distance_to_edge = space_arena->radius - MagnitudeVec2F32(asteroid_to_arena_position) - asteroid->collision_radius;
@@ -497,9 +496,8 @@ ASTR_SpawnBullet(ASTR_BulletPool* pool, Vec2F32 position, F32 rotation) {
 
   if (bullet != 0) {
     bullet->position = position;
-    bullet->rotation = rotation;
-    F32 rotation_cos = cosf(bullet->rotation);
-    F32 rotation_sin = sinf(bullet->rotation);
+    F32 rotation_cos = cosf(rotation);
+    F32 rotation_sin = sinf(rotation);
     bullet->velocity = ScaleVec2F32(MakeVec2F32(-rotation_sin, -rotation_cos), 30.0f);
     bullet->collision_radius = 4;
     bullet->sprite_scissor = MakeRectF32(256.0f, 16.0f, 8.0f, 8.0f);
@@ -543,7 +541,7 @@ func void
 ASTR_DrawBullets(RHI_CommandBuffer rhi_command_buffer, ASTR_BulletPool* pool) {
   for (ASTR_Bullet* bullet = pool->first_active; bullet != 0; bullet = bullet->next_active) {
     RectF32 draw_area = MakeRectF32(bullet->position.x - bullet->sprite_scissor.w/2.0f, bullet->position.y - bullet->sprite_scissor.h/2.0f, bullet->sprite_scissor.w, bullet->sprite_scissor.h);
-    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, bullet->rotation, astr_context.sprite_atlass_view, bullet->sprite_scissor, RGBAFromHex(0x5f4b32ff));
+    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, 0.0f, astr_context.sprite_atlass_view, bullet->sprite_scissor, RGBAFromHex(0x5f4b32ff));
     if (astr_context.debug_mode) {
       F32 r = bullet->collision_radius;
       RectF32 collision_rect = MakeRectF32(bullet->position.x - r, bullet->position.y - r, r*2.0f, r*2.0f);
