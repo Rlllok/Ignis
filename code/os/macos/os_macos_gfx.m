@@ -214,7 +214,9 @@ OS_DispatchEvents(OS_Window* window) {
     OS_Event event = ZeroStruct();
 
     switch ([ns_event type]) {
-      default: {} break;
+      default: {
+        [NSApp sendEvent: ns_event];
+      } break;
 
       case NSEventTypeKeyDown:
       case NSEventTypeKeyUp: {
@@ -245,8 +247,6 @@ OS_DispatchEvents(OS_Window* window) {
       *new_event = event;
       SllPushBack(_os_state.event_list.first, _os_state.event_list.last, new_event);
     }
-
-    [NSApp sendEvent: ns_event];
   } while (ns_event != nil);
 
   return _os_state.event_list;

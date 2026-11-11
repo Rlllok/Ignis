@@ -1037,10 +1037,11 @@ RHI_Metal_Init(OS_Window* window) {
   _rhi_metal_context.device = MTLCreateSystemDefaultDevice();
   Assert(_rhi_metal_context.device != nil);
   LogInfo("Metal. Device name: %s\n", [[_rhi_metal_context.device name]UTF8String]);
+  Assert([_rhi_metal_context.device supportsFamily:MTLGPUFamilyMetal4]);
 
   _rhi_metal_context.command_queue = [_rhi_metal_context.device newMTL4CommandQueue];
   MTLResidencySetDescriptor* residency_set_descriptor = [[MTLResidencySetDescriptor new] init];
-  residency_set_descriptor.initialCapacity = 42;
+  residency_set_descriptor.initialCapacity = 32;
   _rhi_metal_context.residency_set = [_rhi_metal_context.device newResidencySetWithDescriptor:residency_set_descriptor error:0];
 
   RHI_Metal_CreateSwapchain(window);
