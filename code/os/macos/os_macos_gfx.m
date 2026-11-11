@@ -4,13 +4,15 @@
 
 func void
 OS_Init(U64 arena_size) {
-  _os_state.arena = AllocateArena(Gigabytes(8), arena_size);
-  _os_state.event_arena = AllocateArena(Gigabytes(1), Kilobytes(16));
-  NSApplication* ns_app = [NSApplication sharedApplication];
-  _os_macos_state.ns_app = (__bridge void*)ns_app;
+  @autoreleasepool {
+    _os_state.arena = AllocateArena(Gigabytes(8), arena_size);
+    _os_state.event_arena = AllocateArena(Gigabytes(1), Kilobytes(16));
+    NSApplication* ns_app = [NSApplication sharedApplication];
+    _os_macos_state.ns_app = (__bridge void*)ns_app;
 
-  [ns_app setActivationPolicy:NSApplicationActivationPolicyRegular];
-  [ns_app finishLaunching];
+    [ns_app setActivationPolicy:NSApplicationActivationPolicyRegular];
+    [ns_app finishLaunching];
+  }
 }
 
 @implementation OS_MacOS_WindowDelegate
@@ -56,6 +58,7 @@ OS_Init(U64 arena_size) {
 
 func OS_Window*
 OS_CreateWindow(Str8 title, Vec2U32 size) {
+  @autoreleasepool {
   // --AlNov: @TODO should use allocator
   OS_MacOS_Window* window = (OS_MacOS_Window*)PushArena(_os_state.arena, sizeof(OS_MacOS_Window));
   window->header.size = size;
@@ -71,7 +74,7 @@ OS_CreateWindow(Str8 title, Vec2U32 size) {
   ];
 
   Assert(ns_window != nil);
-  window->ns_window = (__bridge void*)ns_window;
+  window->ns_window = (__bridge_retained void*)ns_window;
 
   [ns_window setTitle:@(CFromStr8(title))];
 
@@ -83,18 +86,27 @@ OS_CreateWindow(Str8 title, Vec2U32 size) {
   [ns_window setContentView: view];
 
   return (OS_Window*)window;
+  }
 }
 
 func void
 OS_DestroyWindow(OS_Window* window) {
-  // --AlNov: @TODO
+  @autoreleasepool {
+    OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window;
+    NSWindow* ns_window = (__bridge_transfer NSWindow*)macos_window->ns_window;
+    [ns_window close];
+
+    *macos_window = (OS_MacOS_Window)ZeroStruct();
+  }
 }
 
 func void
 OS_ShowWindow(OS_Window* window) {
-  OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window;
-  NSWindow* ns_window = (__bridge NSWindow*)macos_window->ns_window;
-  [ns_window makeKeyAndOrderFront:nil];
+  @autoreleasepool {
+    OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window;
+    NSWindow* ns_window = (__bridge NSWindow*)macos_window->ns_window;
+    [ns_window makeKeyAndOrderFront:nil];
+  }
 }
 
 func void
@@ -194,62 +206,64 @@ OS_KeyCodeFromMacOS(U32 mac_key) {
 
 func OS_EventList
 OS_DispatchEvents(OS_Window* window) {
-  ResetArena(_os_state.event_arena);
+  @autoreleasepool {
+    ResetArena(_os_state.event_arena);
 
-  _os_state.event_list.first = 0;
-  _os_state.event_list.last = 0;
+    _os_state.event_list.first = 0;
+    _os_state.event_list.last = 0;
 
-  memcpy(_os_state.keyboard.previous, _os_state.keyboard.current, sizeof(_os_state.keyboard.previous));
-  memcpy(_os_state.mouse.previous, _os_state.mouse.current, sizeof(_os_state.mouse.previous));
+    memcpy(_os_state.keyboard.previous, _os_state.keyboard.current, sizeof(_os_state.keyboard.previous));
+    memcpy(_os_state.mouse.previous, _os_state.mouse.current, sizeof(_os_state.mouse.previous));
 
-  NSEvent* ns_event = nil;
-  do {
-    ns_event = [
-      NSApp nextEventMatchingMask: NSEventMaskAny
-      untilDate:nil
-      inMode:NSDefaultRunLoopMode
-      dequeue: YES
-    ];
+    NSEvent* ns_event = nil;
+    do {
+      ns_event = [
+        NSApp nextEventMatchingMask: NSEventMaskAny
+        untilDate:nil
+        inMode:NSDefaultRunLoopMode
+        dequeue: YES
+      ];
 
-    OS_Event event = ZeroStruct();
+      OS_Event event = ZeroStruct();
 
-    switch ([ns_event type]) {
-      default: {
-        [NSApp sendEvent: ns_event];
-      } break;
+      switch ([ns_event type]) {
+        default: {
+          [NSApp sendEvent: ns_event];
+        } break;
 
-      case NSEventTypeKeyDown:
-      case NSEventTypeKeyUp: {
-        OS_KeyCode key = OS_KeyCodeFromMacOS([ns_event keyCode]);
-        _os_state.keyboard.current[key].pressed = [ns_event type] == NSEventTypeKeyDown;
-      } break;
+        case NSEventTypeKeyDown:
+        case NSEventTypeKeyUp: {
+          OS_KeyCode key = OS_KeyCodeFromMacOS([ns_event keyCode]);
+          _os_state.keyboard.current[key].pressed = [ns_event type] == NSEventTypeKeyDown;
+        } break;
 
-      case NSEventTypeLeftMouseDown: {
-        _os_state.mouse.current[OS_MouseButton_Left].pressed = 1;
-      } break;
+        case NSEventTypeLeftMouseDown: {
+          _os_state.mouse.current[OS_MouseButton_Left].pressed = 1;
+        } break;
 
-      case NSEventTypeLeftMouseUp: {
-        _os_state.mouse.current[OS_MouseButton_Left].pressed = 0;
-      } break;
+        case NSEventTypeLeftMouseUp: {
+          _os_state.mouse.current[OS_MouseButton_Left].pressed = 0;
+        } break;
 
-      case NSEventTypeScrollWheel: {
-        if ([ns_event hasPreciseScrollingDeltas]) {
-          _os_state.mouse.scroll = MakeVec2F32([ns_event scrollingDeltaX], [ns_event scrollingDeltaY]);
-        }
-        else {
-          _os_state.mouse.scroll = MakeVec2F32([ns_event deltaX], [ns_event deltaY]);
-        }
-      } break;
-    }
+        case NSEventTypeScrollWheel: {
+          if ([ns_event hasPreciseScrollingDeltas]) {
+            _os_state.mouse.scroll = MakeVec2F32([ns_event scrollingDeltaX], [ns_event scrollingDeltaY]);
+          }
+          else {
+            _os_state.mouse.scroll = MakeVec2F32([ns_event deltaX], [ns_event deltaY]);
+          }
+        } break;
+      }
 
-    if (event.kind != 0) {
-      OS_Event* new_event = (OS_Event*)PushArena(_os_state.event_arena, sizeof(new_event));
-      *new_event = event;
-      SllPushBack(_os_state.event_list.first, _os_state.event_list.last, new_event);
-    }
-  } while (ns_event != nil);
+      if (event.kind != 0) {
+        OS_Event* new_event = (OS_Event*)PushArena(_os_state.event_arena, sizeof(new_event));
+        *new_event = event;
+        SllPushBack(_os_state.event_list.first, _os_state.event_list.last, new_event);
+      }
+    } while (ns_event != nil);
 
-  return _os_state.event_list;
+    return _os_state.event_list;
+  }
 }
 
 func F32 OS_GetMonitorHZ(void);
@@ -267,11 +281,13 @@ OS_Sleep(U64 ms) {
 
 func Vec2F32
 OS_MousePosition(OS_Window* window) {
-   OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window; 
-   NSWindow* ns_window = (__bridge NSWindow*)macos_window->ns_window;
-   NSPoint point = [ns_window mouseLocationOutsideOfEventStream];
+  @autoreleasepool {
+     OS_MacOS_Window* macos_window = (OS_MacOS_Window*)window; 
+     NSWindow* ns_window = (__bridge NSWindow*)macos_window->ns_window;
+     NSPoint point = [ns_window mouseLocationOutsideOfEventStream];
 
-   return MakeVec2F32(point.x, window->size.h - point.y);
+     return MakeVec2F32(point.x, window->size.h - point.y);
+   }
 }
 
 func void
