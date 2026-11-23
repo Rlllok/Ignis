@@ -28,15 +28,19 @@ typedef I32 B32;
 
 // -------------------------------------------------------------------
 // -- Limits ---------------------------------------------------------
-#define U16_MIN 0x0000
-#define U16_MAX 0xFFFF
-#define U32_MIN 0x00000000
-#define U32_MAX 0xFFFFFFFF
-#define U64_MIN 0x0000000000000000
-#define U64_MAX 0xFFFFFFFFFFFFFFFF
+#define U16_MIN UINT16_MIN
+#define U16_MAX UINT16_MAX
+#define U32_MIN UINT32_MIN
+#define U32_MAX UINT32_MAX
+#define U64_MIN UINT64_MIN
+#define U64_MAX UINT64_MAX
 
-#define I32_MIN 0x00000000
-#define I32_MAX 0x7FFFFFFF
+#define I16_MIN INT16_MIN
+#define I16_MAX INT16_MAX
+#define I32_MIN INT32_MIN
+#define I32_MAX INT32_MAX
+#define I64_MIN INT64_MIN
+#define I64_MAX INT64_MAX
 
 #define F32_MIN -3.40282347E+38f
 #define F32_MAX 3.40282347E+38f

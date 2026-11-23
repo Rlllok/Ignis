@@ -2,6 +2,7 @@
 
 #include "os_memory.h"
 #include "os_gfx.h"
+#include "os_audio.h"
 #include "os_filesystem.h"
 
 #if IGNIS_PLATFORM_LINUX

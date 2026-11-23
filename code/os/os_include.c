@@ -21,4 +21,5 @@
 #ifdef IGNIS_PLATFORM_MACOS
 #include "macos/os_macos_memory.c"
 #include "macos/os_macos_gfx.m"
+#include "macos/os_macos_audio.m"
 #endif // IGNIS_PLATFORM_MACOS

@@ -321,3 +321,11 @@ func Mat4F32 Mat4F32FromTransform(Transform t);
 
 func Vec3F32 RGBFromHSV(Vec3F32 hsv);
 func Vec3F32 HSVFromRGB(Vec3F32 rgb);
+
+// -------------------------------------------------------------------
+// -- Random  --------------------------------------------------------
+U64 _rand_seed = 42;
+
+func void SetRandSeed(U64 seed);
+func U32 RandU32();
+func F32 RandF32(F32 min, F32 max);

@@ -2,11 +2,13 @@
 #include "os/os_include.h"
 #include "rhi/rhi_include.h"
 #include "draw/draw.h"
+#include "audio/audio_loader.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
 #include "draw/draw.c"
+#include "audio/audio_loader.c"
 
 #define ASTR_WIDTH  640 
 #define ASTR_HEIGHT 360
@@ -52,6 +54,7 @@ struct ASTR_AsteroidPool {
 };
 
 func ASTR_AsteroidPool ASTR_AllocateAsteroidPool(Arena* arena, U32 capacity);
+func void ASTR_ResetAsteroidPool(ASTR_AsteroidPool* pool);
 func void ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, F32 rotation, F32 rotation_speed, Vec2F32 velocity);
 func void ASTR_DespawnAsteroid(ASTR_AsteroidPool* pool, ASTR_Asteroid* asteroid);
 func void ASTR_UpdateAsteroids(ASTR_AsteroidPool* pool, ASTR_SpaceArena* space_arena, F32 dt);
@@ -81,6 +84,7 @@ struct ASTR_BulletPool {
 };
 
 func ASTR_BulletPool ASTR_AllocateBulletPool(Arena* arena, U32 capacity);
+func void ASTR_ResetBulletPool(ASTR_BulletPool* pool);
 func void ASTR_SpawnBullet(ASTR_BulletPool* pool, Vec2F32 position, F32 rotation);
 func void ASTR_DespawnBullet(ASTR_BulletPool* pool, ASTR_Bullet* bullet);
 func void ASTR_UpdateBullets(ASTR_BulletPool* pool, ASTR_SpaceArena* space_arena, ASTR_AsteroidPool* asteroid_pool, F32 dt);
@@ -135,13 +139,30 @@ struct {
   ASTR_BulletPool   bullet_pool;
 } astr_context;
 
+func void ASTR_ResetGameState();
+
 func void ASTR_DrawScore(RHI_CommandBuffer rhi_command_buffer, RHI_Buffer rhi_buffer);
 
 I32 main() {
+  for (I32 i = 0; i < 20; i += 1) {
+    LogDebug("RandU32 %i: %u\n", i, RandU32());
+    LogDebug("RandF32 %i: %f\n", i, RandF32(-1.0f, 1.0f));
+  }
+
   astr_context.global_arena = AllocateArena(Gigabytes(1), Kilobytes(16));
   astr_context.frame_arena = AllocateArena(Gigabytes(1), Kilobytes(16));
 
   OS_Init(Megabytes(16));
+
+  ScratchArena scratch = BeginScratchArena(astr_context.global_arena); {
+    OS_PrintAvailableAudioDevices(scratch.arena);
+  }
+  EndScratchArena(scratch);
+  OS_AudioDevice audio_device = OS_CreateAudioDevice(astr_context.global_arena);
+  OS_AudioDevicePlay(&audio_device);
+
+  AU_WaveFile test_wav = AU_LoadWaveFile(astr_context.global_arena, Str8C("data/asteroids/test.wav"));
+
   astr_context.window = OS_CreateWindow(Str8C("Asteroids"), MakeVec2U32(1280, 720));
   OS_ShowWindow(astr_context.window);
 
@@ -281,6 +302,48 @@ I32 main() {
   U64 start_ts = OS_GetTimeTicks();
   F32 dt = 0.0f;
   while (!astr_context.finished) {
+    #if 0
+    // sin-wave
+    {
+      U32 target_samples = 2046;
+      U32 available_samples = audio_device.header.write_cursor - audio_device.header.read_cursor;
+      if (available_samples < target_samples) {
+        U32 samples_to_generate = target_samples - available_samples;
+        F32 frequency = 440.0f;
+        F32 volume = 0.1f;
+        for (I32 sample_index = 0; sample_index < samples_to_generate; sample_index += 1) {
+          F32 sample = sinf(audio_device.phase)*0.1f;
+          audio_device.phase += 2.0f*PI*220.0f / audio_device.header.sample_rate;
+          if (audio_device.phase > 2.0f*PI) {
+            audio_device.phase -= 2.0f*PI;
+          }
+          U32 index = audio_device.header.write_cursor % audio_device.header.samples_count;
+          audio_device.header.buffers[0][index] = sample;
+          audio_device.header.buffers[1][index] = sample;
+          audio_device.header.write_cursor += 1;
+        }
+      }
+    }
+    #endif
+    // wav file
+    {
+      U32 target_samples = 2046;
+      U32 available_samples = audio_device.header.write_cursor - audio_device.header.read_cursor;
+      if (available_samples < target_samples) {
+        U32 samples_to_generate = target_samples - available_samples;
+        F32 volume = 1.0f;
+        for (I32 sample_index = 0; sample_index < samples_to_generate; sample_index += 1) {
+          U32 wav_index = test_wav.cursor % test_wav.samples_count;
+          test_wav.cursor += 1;
+
+          U32 index = audio_device.header.write_cursor % audio_device.header.samples_count;
+          audio_device.header.buffers[0][index] = test_wav.samples[0][wav_index]*volume;
+          audio_device.header.buffers[1][index] = test_wav.samples[1][wav_index]*volume;
+          audio_device.header.write_cursor += 1;
+        }
+      }
+    }
+
     OS_DispatchEvents(astr_context.window);
 
     if (OS_KeyPressed(OS_Key_Esc)) { astr_context.finished = 1; }
@@ -293,6 +356,15 @@ I32 main() {
     ASTR_UpdateBullets(&astr_context.bullet_pool, &astr_context.space_arena, &astr_context.asteroid_pool, dt);
     if (!astr_context.space_ship.destroyed) {
       ASTR_UpdateSpaceShip(&astr_context.space_arena, &astr_context.space_ship, &astr_context.asteroid_pool, &astr_context.bullet_pool, dt);
+    }
+    else {
+      if (OS_KeyPressed(OS_Key_R)) {
+        ASTR_ResetGameState();
+      }
+    }
+
+    if (OS_KeyPressed(OS_Key_X)) {
+      ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 60.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, 10.0f));
     }
 
     RHI_BeginCommandBuffer(astr_context.rhi_command_buffer); {
@@ -401,6 +473,14 @@ ASTR_AllocateAsteroidPool(Arena* arena, U32 capacity) {
 }
 
 func void
+ASTR_ResetAsteroidPool(ASTR_AsteroidPool* pool) {
+  pool->count = 0;
+  pool->first_active = 0;
+  pool->last_active = 0;
+  pool->free_list = 0;
+}
+
+func void
 ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, F32 rotation, F32 rotation_speed, Vec2F32 velocity) {
   ASTR_Asteroid* asteroid = 0;
 
@@ -478,6 +558,14 @@ ASTR_AllocateBulletPool(Arena* arena, U32 capacity) {
   result.bullets = (ASTR_Bullet*)PushArena(arena, sizeof(ASTR_Bullet)*capacity);
   result.capacity = capacity;
   return result;
+}
+
+func void
+ASTR_ResetBulletPool(ASTR_BulletPool* pool) {
+  pool->count = 0;
+  pool->first_active = 0;
+  pool->last_active = 0;
+  pool->free_list = 0;
 }
 
 func void
@@ -607,6 +695,25 @@ ASTR_DrawSpaceShip(RHI_CommandBuffer rhi_command_buffer, ASTR_SpaceShip* space_s
 }
 
 // -- Global Context -------------------------------------------------
+func void
+ASTR_ResetGameState() {
+  astr_context.score = 0;
+
+  astr_context.space_ship = (ASTR_SpaceShip){
+    .position = MakeVec2F32(ASTR_WIDTH/2.0f, ASTR_HEIGHT/2.0f),
+    .speed = 70.0f,
+    .collision_radius = 8.0f,
+    .sprite_scissor = MakeRectF32(256.0f, 0.0f, 16.0f, 16.0f),
+  };
+
+  ASTR_ResetBulletPool(&astr_context.bullet_pool);
+
+  ASTR_ResetAsteroidPool(&astr_context.asteroid_pool);
+  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 60.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, 10.0f));
+  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f + 40.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, -10.0f));
+  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 20.0f, ASTR_HEIGHT*0.5f + 10.0f), 0.0f, 2.0f, MakeVec2F32(20.0f, 10.0f));
+}
+
 func void 
 ASTR_DrawScore(RHI_CommandBuffer rhi_command_buffer, RHI_Buffer rhi_buffer) {
   Vec2F32 position = MakeVec2F32(3.0f, 5.0f);

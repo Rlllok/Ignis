@@ -20,7 +20,7 @@ fi
 
 #warnings="-Wconversion"
 include_flags="-Icode/"
-default_links="-framework Cocoa -framework Quartz -framework Metal"
+default_links="-framework Cocoa -framework Quartz -framework Metal -framework CoreAudio"
 defines="-DIGNIS_DEBUG -DIGNIS_PLATFORM_MACOS"
 
 echo "**************************************************"

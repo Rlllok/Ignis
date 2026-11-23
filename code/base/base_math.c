@@ -586,3 +586,25 @@ HSVFromRGB(Vec3F32 rgb) {
   }
   return result;
 }
+
+// -------------------------------------------------------------------
+// -- Random  --------------------------------------------------------
+func void
+SetRandSeed(U64 seed) {
+  _rand_seed = seed;
+}
+
+func U32
+RandU32() {
+  U64 a = 134775813;
+  U64 c = 1;
+  U64 m = (U64)2 << 32;
+  _rand_seed = (a*_rand_seed + c)%m;
+  return (U32)(_rand_seed);
+}
+
+func F32
+RandF32(F32 min, F32 max) {
+  F32 n = (F32)RandU32()/(F32)U32_MAX;
+  return n*(max - min) + min;
+}
