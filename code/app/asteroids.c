@@ -2,13 +2,13 @@
 #include "os/os_include.h"
 #include "rhi/rhi_include.h"
 #include "draw/draw.h"
-#include "audio/audio_loader.h"
+#include "audio/audio.h"
 
 #include "base/base_include.c"
 #include "os/os_include.c"
 #include "rhi/rhi_include.c"
 #include "draw/draw.c"
-#include "audio/audio_loader.c"
+#include "audio/audio.c"
 
 #define ASTR_WIDTH  640 
 #define ASTR_HEIGHT 360
@@ -137,6 +137,10 @@ struct {
   ASTR_SpaceShip    space_ship;
   ASTR_AsteroidPool asteroid_pool;
   ASTR_BulletPool   bullet_pool;
+
+  // Audio
+  AU_Player audio_player;
+  AU_Sound  test_sound;
 } astr_context;
 
 func void ASTR_ResetGameState();
@@ -162,6 +166,9 @@ I32 main() {
   OS_AudioDevicePlay(&audio_device);
 
   AU_WaveFile test_wav = AU_LoadWaveFile(astr_context.global_arena, Str8C("data/asteroids/test.wav"));
+  AU_Init();
+  astr_context.audio_player = AU_CreatePlayer();
+  astr_context.test_sound = AU_LoadSoundFromWAV(astr_context.global_arena, Str8C("data/asteroids/test.wav"));
 
   astr_context.window = OS_CreateWindow(Str8C("Asteroids"), MakeVec2U32(1280, 720));
   OS_ShowWindow(astr_context.window);
@@ -327,7 +334,7 @@ I32 main() {
     #endif
     // wav file
     {
-      U32 target_samples = 2046;
+      U32 target_samples = 512;
       U32 available_samples = audio_device.header.write_cursor - audio_device.header.read_cursor;
       if (available_samples < target_samples) {
         U32 samples_to_generate = target_samples - available_samples;
@@ -346,10 +353,16 @@ I32 main() {
 
     OS_DispatchEvents(astr_context.window);
 
+    AU_PlayerUpdate(&astr_context.audio_player);
+
     if (OS_KeyPressed(OS_Key_Esc)) { astr_context.finished = 1; }
     if (OS_KeyPressed(OS_Key_F2))  {
       LogDebug("Debug Mode: %i\n", astr_context.debug_mode);
       astr_context.debug_mode = !astr_context.debug_mode;
+    }
+
+    if (OS_KeyPressed(OS_Key_P)) {
+      AU_PlayerPlaySound(&astr_context.audio_player, &astr_context.test_sound);
     }
 
     ASTR_UpdateAsteroids(&astr_context.asteroid_pool, &astr_context.space_arena, dt);

@@ -11,3 +11,7 @@
 #if IGNIS_PLATFORM_WIN32
 #include <windows.h>
 #endif
+
+#ifdef IGNIS_PLATFORM_MACOS
+#include "macos/os_macos_audio.h"
+#endif // IGNIS_PLATFORM_MACOS

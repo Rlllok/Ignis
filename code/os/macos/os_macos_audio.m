@@ -1,17 +1,6 @@
 #include "../os_audio.h"
 
-#include <CoreAudio/CoreAudio.h>
-#include <CoreAudio/AudioHardware.h>
-
-struct OS_AudioDevice {
-  OS_AudioDeviceHeader header;
-
-  U32 id;
-  AudioDeviceIOProcID proc_id;
-
-  // -- AlNov: @TODO Remove. For testing purpose
-  F32 phase;
-};
+#include "os_macos_audio.h"
 
 func void
 OS_PrintAvailableAudioDevices(Arena* arena) {
