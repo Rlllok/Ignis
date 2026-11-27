@@ -30,9 +30,6 @@ func void ASTR_DrawSpaceArena(RHI_CommandBuffer rhi_command_buffer, ASTR_SpaceAr
 typedef struct ASTR_Asteroid ASTR_Asteroid;
 struct ASTR_Asteroid {
   Vec2F32 position;
-  F32     rotation;
-  F32     rotation_speed;
-  B32     cw_rotation;
   Vec2F32 velocity;
   F32     collision_radius;
   RectF32 sprite_scissor;
@@ -48,6 +45,8 @@ struct ASTR_AsteroidPool {
   U32            capacity;
   U32            count;
 
+  F32 spawn_timer;
+
   ASTR_Asteroid* first_active;
   ASTR_Asteroid* last_active;
   ASTR_Asteroid* free_list;
@@ -55,7 +54,7 @@ struct ASTR_AsteroidPool {
 
 func ASTR_AsteroidPool ASTR_AllocateAsteroidPool(Arena* arena, U32 capacity);
 func void ASTR_ResetAsteroidPool(ASTR_AsteroidPool* pool);
-func void ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, F32 rotation, F32 rotation_speed, Vec2F32 velocity);
+func void ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, Vec2F32 velocity);
 func void ASTR_DespawnAsteroid(ASTR_AsteroidPool* pool, ASTR_Asteroid* asteroid);
 func void ASTR_UpdateAsteroids(ASTR_AsteroidPool* pool, ASTR_SpaceArena* space_arena, F32 dt);
 func void ASTR_DrawAsteroids(RHI_CommandBuffer rhi_command_buffer, ASTR_AsteroidPool* pool);
@@ -66,6 +65,7 @@ struct ASTR_Bullet {
   Vec2F32 position;
   Vec2F32 velocity;
   F32     collision_radius;
+  F32     lifetime;
   RectF32 sprite_scissor;
 
   ASTR_Bullet* next_active;
@@ -297,15 +297,12 @@ I32 main() {
   };
 
   astr_context.asteroid_pool = ASTR_AllocateAsteroidPool(astr_context.global_arena, 32);
-  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 60.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, 10.0f));
-  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f + 40.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, -10.0f));
-  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 20.0f, ASTR_HEIGHT*0.5f + 10.0f), 0.0f, 2.0f, MakeVec2F32(20.0f, 10.0f));
 
   astr_context.bullet_pool = ASTR_AllocateBulletPool(astr_context.global_arena, 64);
 
   D_Init(Megabytes(16));
   
-  F32 target_frame_ms = 1000.0f/60.0f;
+  F32 target_frame_ms = 1000.0f/120.0f;
   U64 start_ts = OS_GetTimeTicks();
   F32 dt = 0.0f;
   while (!astr_context.finished) {
@@ -374,10 +371,6 @@ I32 main() {
       if (OS_KeyPressed(OS_Key_R)) {
         ASTR_ResetGameState();
       }
-    }
-
-    if (OS_KeyPressed(OS_Key_X)) {
-      ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 60.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, 10.0f));
     }
 
     RHI_BeginCommandBuffer(astr_context.rhi_command_buffer); {
@@ -457,7 +450,7 @@ I32 main() {
 
     F32 time_to_sleep_ms = target_frame_ms - dt_ms;
     if (time_to_sleep_ms > 0.0f) {
-      // OS_Sleep(time_to_sleep_ms);
+      OS_Sleep(time_to_sleep_ms);
     }
   }
 
@@ -494,7 +487,7 @@ ASTR_ResetAsteroidPool(ASTR_AsteroidPool* pool) {
 }
 
 func void
-ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, F32 rotation, F32 rotation_speed, Vec2F32 velocity) {
+ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, Vec2F32 velocity) {
   ASTR_Asteroid* asteroid = 0;
 
   if (pool->free_list == 0) {
@@ -511,8 +504,6 @@ ASTR_SpawnAsteroid(ASTR_AsteroidPool* pool, Vec2F32 position, F32 rotation, F32 
   if (asteroid != 0) {
     *asteroid = (ASTR_Asteroid)ZeroStruct();
     asteroid->position = position;
-    asteroid->rotation = rotation;
-    asteroid->rotation_speed = rotation_speed;
     asteroid->velocity = velocity;
     asteroid->collision_radius = 8;
     asteroid->sprite_scissor = MakeRectF32(256.0f, 48.0f, 16.0f, 16.0f);
@@ -530,6 +521,17 @@ ASTR_DespawnAsteroid(ASTR_AsteroidPool* pool, ASTR_Asteroid* asteroid) {
 
 func void
 ASTR_UpdateAsteroids(ASTR_AsteroidPool* pool, ASTR_SpaceArena* space_arena, F32 dt) {
+  if (pool->spawn_timer > 5.0f) {
+    F32 x = RandF32(-50.0f, 50.0f);
+    F32 y = RandF32(-50.0f, 50.0f);
+    Vec2F32 position = MakeVec2F32(ASTR_WIDTH*0.5f - x, ASTR_HEIGHT*0.5f - y);
+    F32 speed = RandF32(3.0f, 10.0f);
+    Vec2F32 velocity = ScaleVec2F32(NormalizeVec2F32(MakeVec2F32(RandF32(-1.0f, 1.0f), RandF32(-1.0f, 1.0f))), speed);
+    ASTR_SpawnAsteroid(&astr_context.asteroid_pool, position, velocity);
+    pool->spawn_timer = 0.0f;
+  }
+  pool->spawn_timer += dt;
+
   for (ASTR_Asteroid* asteroid = pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
     asteroid->position = AddVec2F32(asteroid->position, ScaleVec2F32(asteroid->velocity, dt));
     // asteroid->rotation += (1.0f - asteroid->cw_rotation*2.0f)*(asteroid->rotation_speed*dt);
@@ -538,7 +540,6 @@ ASTR_UpdateAsteroids(ASTR_AsteroidPool* pool, ASTR_SpaceArena* space_arena, F32 
     F32 asteroid_distance_to_edge = space_arena->radius - MagnitudeVec2F32(asteroid_to_arena_position) - asteroid->collision_radius;
     if (asteroid_distance_to_edge < 0.0f) {
       asteroid->velocity = ScaleVec2F32(asteroid->velocity, -1.0f);
-      asteroid->cw_rotation = !asteroid->cw_rotation;
     }
 
     for (ASTR_Asteroid* other_asteroid = asteroid->next_active; other_asteroid != 0; other_asteroid = other_asteroid->next_active) {
@@ -555,7 +556,7 @@ func void
 ASTR_DrawAsteroids(RHI_CommandBuffer rhi_command_buffer, ASTR_AsteroidPool* pool) {
   for (ASTR_Asteroid* asteroid = pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
     RectF32 draw_area = MakeRectF32(asteroid->position.x - asteroid->sprite_scissor.w/2.0f, asteroid->position.y - asteroid->sprite_scissor.h/2.0f, asteroid->sprite_scissor.w, asteroid->sprite_scissor.h);
-    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, asteroid->rotation, astr_context.sprite_atlass_view, asteroid->sprite_scissor, RGBAFromHex(0x5f4b32ff));
+    D_DrawSpritePart(astr_context.rhi_command_buffer, astr_context.rhi_frame_buffer, draw_area, 0.0f, astr_context.sprite_atlass_view, asteroid->sprite_scissor, RGBAFromHex(0x5f4b32ff));
     if (astr_context.debug_mode) {
       F32 r = asteroid->collision_radius;
       RectF32 collision_rect = MakeRectF32(asteroid->position.x - r, asteroid->position.y - r, r*2.0f, r*2.0f);
@@ -619,14 +620,22 @@ ASTR_DespawnBullet(ASTR_BulletPool* pool, ASTR_Bullet* bullet) {
 func void
 ASTR_UpdateBullets(ASTR_BulletPool* pool, ASTR_SpaceArena* space_arena, ASTR_AsteroidPool* asteroid_pool, F32 dt) {
   for (ASTR_Bullet* bullet = pool->first_active; bullet != 0; bullet = bullet->next_active) {
-    bullet->position = AddVec2F32(bullet->position, ScaleVec2F32(bullet->velocity, dt));
-    
+    bullet->lifetime += dt;
+
     Vec2F32 bullet_to_arena_position = SubVec2F32(bullet->position, space_arena->position);
     F32 bullet_distance_to_edge = space_arena->radius - MagnitudeVec2F32(bullet_to_arena_position) - bullet->collision_radius;
     if (bullet_distance_to_edge < 0.0f) {
       bullet->velocity = ScaleVec2F32(bullet->velocity, -1.0f);
+      if (bullet->lifetime > 15.0f) {
+        ASTR_DespawnBullet(pool, bullet);
+      }
     }
 
+  }
+
+  for (ASTR_Bullet* bullet = pool->first_active; bullet != 0; bullet = bullet->next_active) {
+    bullet->position = AddVec2F32(bullet->position, ScaleVec2F32(bullet->velocity, dt));
+    
     for (ASTR_Asteroid* asteroid = asteroid_pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
       F32 distance = MagnitudeVec2F32(SubVec2F32(bullet->position, asteroid->position));
       if (distance < (bullet->collision_radius + asteroid->collision_radius)) {
@@ -720,11 +729,7 @@ ASTR_ResetGameState() {
   };
 
   ASTR_ResetBulletPool(&astr_context.bullet_pool);
-
   ASTR_ResetAsteroidPool(&astr_context.asteroid_pool);
-  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 60.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, 10.0f));
-  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f + 40.0f, ASTR_HEIGHT*0.5f - 60.0f), 0.0f, 2.0f, MakeVec2F32(10.0f, -10.0f));
-  ASTR_SpawnAsteroid(&astr_context.asteroid_pool, MakeVec2F32(ASTR_WIDTH*0.5f - 20.0f, ASTR_HEIGHT*0.5f + 10.0f), 0.0f, 2.0f, MakeVec2F32(20.0f, 10.0f));
 }
 
 func void 
