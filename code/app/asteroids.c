@@ -162,8 +162,6 @@ I32 main() {
     OS_PrintAvailableAudioDevices(scratch.arena);
   }
   EndScratchArena(scratch);
-  OS_AudioDevice audio_device = OS_CreateAudioDevice(astr_context.global_arena);
-  OS_AudioDevicePlay(&audio_device);
 
   AU_WaveFile test_wav = AU_LoadWaveFile(astr_context.global_arena, Str8C("data/asteroids/test.wav"));
   AU_Init();
@@ -306,48 +304,6 @@ I32 main() {
   U64 start_ts = OS_GetTimeTicks();
   F32 dt = 0.0f;
   while (!astr_context.finished) {
-    #if 0
-    // sin-wave
-    {
-      U32 target_samples = 2046;
-      U32 available_samples = audio_device.header.write_cursor - audio_device.header.read_cursor;
-      if (available_samples < target_samples) {
-        U32 samples_to_generate = target_samples - available_samples;
-        F32 frequency = 440.0f;
-        F32 volume = 0.1f;
-        for (I32 sample_index = 0; sample_index < samples_to_generate; sample_index += 1) {
-          F32 sample = sinf(audio_device.phase)*0.1f;
-          audio_device.phase += 2.0f*PI*220.0f / audio_device.header.sample_rate;
-          if (audio_device.phase > 2.0f*PI) {
-            audio_device.phase -= 2.0f*PI;
-          }
-          U32 index = audio_device.header.write_cursor % audio_device.header.samples_count;
-          audio_device.header.buffers[0][index] = sample;
-          audio_device.header.buffers[1][index] = sample;
-          audio_device.header.write_cursor += 1;
-        }
-      }
-    }
-    #endif
-    // wav file
-    {
-      U32 target_samples = 512;
-      U32 available_samples = audio_device.header.write_cursor - audio_device.header.read_cursor;
-      if (available_samples < target_samples) {
-        U32 samples_to_generate = target_samples - available_samples;
-        F32 volume = 1.0f;
-        for (I32 sample_index = 0; sample_index < samples_to_generate; sample_index += 1) {
-          U32 wav_index = test_wav.cursor % test_wav.samples_count;
-          test_wav.cursor += 1;
-
-          U32 index = audio_device.header.write_cursor % audio_device.header.samples_count;
-          audio_device.header.buffers[0][index] = test_wav.samples[0][wav_index]*volume;
-          audio_device.header.buffers[1][index] = test_wav.samples[1][wav_index]*volume;
-          audio_device.header.write_cursor += 1;
-        }
-      }
-    }
-
     OS_DispatchEvents(astr_context.window);
 
     AU_PlayerUpdate(&astr_context.audio_player);
@@ -359,6 +315,7 @@ I32 main() {
     }
 
     if (OS_KeyPressed(OS_Key_P)) {
+      LogDebug("PlaySound\n");
       AU_PlayerPlaySound(&astr_context.audio_player, &astr_context.test_sound);
     }
 

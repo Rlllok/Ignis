@@ -25,15 +25,12 @@ struct AU_PlayerEntry {
   AU_Sound* sound;
   U64       cursor;
   B32       looped;
-
-  AU_PlayerEntry* next;
-  AU_PlayerEntry* prev;
 };
 
 typedef struct AU_Player AU_Player;
 struct AU_Player {
-  AU_PlayerEntry* first;
-  AU_PlayerEntry* last;
+  AU_PlayerEntry entries[1024]; // --AlNov: @NOTE @TODO Add memory managment for PlayerEntries
+  I32            entries_count;
 
   F32 volume;
 };
