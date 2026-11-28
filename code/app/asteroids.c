@@ -141,6 +141,8 @@ struct {
   // Audio
   AU_Player audio_player;
   AU_Sound  test_sound;
+  AU_Sound  phew_sound;
+  AU_Sound  impact_sound;
 } astr_context;
 
 func void ASTR_ResetGameState();
@@ -163,10 +165,11 @@ I32 main() {
   }
   EndScratchArena(scratch);
 
-  AU_WaveFile test_wav = AU_LoadWaveFile(astr_context.global_arena, Str8C("data/asteroids/test.wav"));
   AU_Init();
   astr_context.audio_player = AU_CreatePlayer();
   astr_context.test_sound = AU_LoadSoundFromWAV(astr_context.global_arena, Str8C("data/asteroids/test.wav"));
+  astr_context.phew_sound = AU_LoadSoundFromWAV(astr_context.global_arena, Str8C("data/asteroids/Phew.wav"));
+  astr_context.impact_sound = AU_LoadSoundFromWAV(astr_context.global_arena, Str8C("data/asteroids/Impact.wav"));
 
   astr_context.window = OS_CreateWindow(Str8C("Asteroids"), MakeVec2U32(1280, 720));
   OS_ShowWindow(astr_context.window);
@@ -315,7 +318,6 @@ I32 main() {
     }
 
     if (OS_KeyPressed(OS_Key_P)) {
-      LogDebug("PlaySound\n");
       AU_PlayerPlaySound(&astr_context.audio_player, &astr_context.test_sound);
     }
 
@@ -478,7 +480,7 @@ ASTR_DespawnAsteroid(ASTR_AsteroidPool* pool, ASTR_Asteroid* asteroid) {
 
 func void
 ASTR_UpdateAsteroids(ASTR_AsteroidPool* pool, ASTR_SpaceArena* space_arena, F32 dt) {
-  if (pool->spawn_timer > 5.0f) {
+  if (pool->spawn_timer > 2.0f) {
     F32 x = RandF32(-50.0f, 50.0f);
     F32 y = RandF32(-50.0f, 50.0f);
     Vec2F32 position = MakeVec2F32(ASTR_WIDTH*0.5f - x, ASTR_HEIGHT*0.5f - y);
@@ -554,6 +556,7 @@ ASTR_SpawnBullet(ASTR_BulletPool* pool, Vec2F32 position, F32 rotation) {
   }
 
   if (bullet != 0) {
+    *bullet = (ASTR_Bullet)ZeroStruct();
     bullet->position = position;
     F32 rotation_cos = cosf(rotation);
     F32 rotation_sin = sinf(rotation);
@@ -596,6 +599,7 @@ ASTR_UpdateBullets(ASTR_BulletPool* pool, ASTR_SpaceArena* space_arena, ASTR_Ast
     for (ASTR_Asteroid* asteroid = asteroid_pool->first_active; asteroid != 0; asteroid = asteroid->next_active) {
       F32 distance = MagnitudeVec2F32(SubVec2F32(bullet->position, asteroid->position));
       if (distance < (bullet->collision_radius + asteroid->collision_radius)) {
+        AU_PlayerPlaySound(&astr_context.audio_player, &astr_context.impact_sound);
         ASTR_DespawnBullet(pool, bullet);
         ASTR_DespawnAsteroid(asteroid_pool, asteroid);
         astr_context.score += 100;
@@ -638,6 +642,7 @@ ASTR_UpdateSpaceShip(ASTR_SpaceArena* space_arena, ASTR_SpaceShip* space_ship, A
     if (space_ship->reload_time < 0.0f) {
       Vec2F32 bullet_position = AddVec2F32(space_ship->position, ScaleVec2F32(space_ship_direction, space_ship->collision_radius + 8.0f));
       ASTR_SpawnBullet(bullet_pool, bullet_position, space_ship->rotation);
+      AU_PlayerPlaySound(&astr_context.audio_player, &astr_context.phew_sound);
       space_ship->reload_time = 0.25f;
     }
   }

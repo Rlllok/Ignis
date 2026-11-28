@@ -31,42 +31,100 @@ AU_LoadSoundFromWAV(Arena* arena, Str8 file_path) {
   return result;
 }
 
+func AU_PlayerEntriesChunk*
+AU_AllocatePlayerEntriesChunk(Arena* arena, AU_Player* player, U32 capacity) {
+  AU_PlayerEntriesChunk* result = (AU_PlayerEntriesChunk*)PushArena(au_context.arena, sizeof(AU_PlayerEntriesChunk));
+  result->entries = (AU_PlayerEntry*)PushArena(au_context.arena, capacity*sizeof(AU_PlayerEntry));
+  result->length = 0;
+  result->capacity = capacity;
+  return result;
+}
+
 func AU_Player
 AU_CreatePlayer() {
   AU_Player result = ZeroStruct();
   result.volume = 0.3f;
-  // @TODO
+
+  AU_PlayerEntriesChunk* chunk = AU_AllocatePlayerEntriesChunk(au_context.arena, &result, 256);
+  DllPushBack(result.first_chunk, result.last_chunk, chunk);
+
   return result;
 }
 
 func void
 AU_PlayerUpdate(AU_Player* player) {
-  if (player->entries_count > 0) {
-    AU_PlayerEntry* player_entry = player->entries;
-    if (player_entry->cursor < player_entry->sound->samples_count) {
-      U32 target_samples = 512;
-      U32 available_samples = au_context.device.header.write_cursor - au_context.device.header.read_cursor;
-      if (available_samples < target_samples) {
-        U32 samples_to_generate = target_samples - available_samples;
-        F32 volume = player->volume;
-        for (I32 sample_index = 0; sample_index < samples_to_generate; sample_index += 1) {
-          U32 sample_index = player_entry->cursor % player_entry->sound->samples_count;
-          player_entry->cursor += 1;
+  U32 target_samples = 512;
+  U32 available_samples = au_context.device.header.write_cursor - au_context.device.header.read_cursor;
+  U32 samples_to_generate = target_samples - available_samples;
 
-          U32 index = au_context.device.header.write_cursor % au_context.device.header.samples_count;
-          au_context.device.header.buffers[0][index] = player_entry->sound->samples[0][sample_index]*volume;
-          au_context.device.header.buffers[1][index] = player_entry->sound->samples[1][sample_index]*volume;
-          au_context.device.header.write_cursor += 1;
+  if (samples_to_generate > 0) {
+    for (I32 sample_index = 0; sample_index < samples_to_generate; sample_index += 1) {
+      F32 sample_left = 0.0f;
+      F32 sample_right = 0.0f;
+
+      for (AU_PlayerEntriesChunk* chunk = player->first_chunk; chunk != 0; chunk = chunk->next) {
+        I32 entry_index = 0;
+        while (entry_index < chunk->length) {
+          AU_PlayerEntry* entry = chunk->entries + entry_index;
+
+          if (entry->cursor < entry->sound->samples_count) {
+            sample_left += entry->sound->samples[0][entry->cursor];
+            sample_right += entry->sound->samples[1][entry->cursor];
+            entry->cursor += 1;
+          }
+          else {
+            if (entry->looped) {
+              entry->cursor = 0;
+            }
+            else {
+              if (chunk->length != 0) {
+                *entry = chunk->entries[chunk->length - 1];
+                chunk->length -= 1;
+                entry_index -= 1;
+              }
+            }
+          }
+
+          entry_index += 1;
         }
       }
+
+      sample_left = Clamp(sample_left*player->volume, -1.0f, 1.0f);
+      sample_right = Clamp(sample_right*player->volume, -1.0f, 1.0f);
+
+      U32 device_sample_index = au_context.device.header.write_cursor % au_context.device.header.samples_count;
+
+      au_context.device.header.buffers[0][device_sample_index] = sample_left;
+      au_context.device.header.buffers[1][device_sample_index] = sample_right;
+      au_context.device.header.write_cursor += 1;
     }
   }
 }
 
 func void
 AU_PlayerPlaySound(AU_Player* player, AU_Sound* sound) {
-  AU_PlayerEntry* entry = player->entries + player->entries_count;
-  *entry = (AU_PlayerEntry)ZeroStruct();
-  entry->sound = sound;
-  player->entries_count += 1;
+  AU_PlayerEntry* entry = 0;
+
+  for (AU_PlayerEntriesChunk* chunk = player->first_chunk; chunk != 0; chunk = chunk->next) {
+    if (chunk->length < chunk->capacity) {
+      entry = chunk->entries + chunk->length;
+      chunk->length += 1;
+      break;
+    }
+  }
+
+  if (entry != 0) {
+    *entry = (AU_PlayerEntry)ZeroStruct();
+    entry->sound = sound;
+  }
+  else {
+    AU_PlayerEntriesChunk* chunk = AU_AllocatePlayerEntriesChunk(au_context.arena, player, 256);
+    entry = chunk->entries + chunk->length;
+    chunk->length += 1;
+
+    *entry = (AU_PlayerEntry)ZeroStruct();
+    entry->sound = sound;
+
+    DllPushBack(player->first_chunk, player->last_chunk, chunk);
+  }
 }

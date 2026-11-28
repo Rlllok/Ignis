@@ -27,10 +27,20 @@ struct AU_PlayerEntry {
   B32       looped;
 };
 
+typedef struct AU_PlayerEntriesChunk AU_PlayerEntriesChunk;
+struct AU_PlayerEntriesChunk {
+  AU_PlayerEntry* entries;
+  U32             length;
+  U32             capacity;
+
+  AU_PlayerEntriesChunk* next;
+  AU_PlayerEntriesChunk* prev;
+};
+
 typedef struct AU_Player AU_Player;
 struct AU_Player {
-  AU_PlayerEntry entries[1024]; // --AlNov: @NOTE @TODO Add memory managment for PlayerEntries
-  I32            entries_count;
+  AU_PlayerEntriesChunk* first_chunk;
+  AU_PlayerEntriesChunk* last_chunk;
 
   F32 volume;
 };
